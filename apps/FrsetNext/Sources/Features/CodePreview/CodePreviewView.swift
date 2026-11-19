@@ -106,8 +106,10 @@ public struct CodePreviewView: View {
         .background(bg)
         // 切主题时让宿主窗口的 appearance / 底色跟着变（否则标题栏停在旧主题的明暗上）
         .background {
-            WindowThemeSync(isDark: theme.isDark, background: theme.background)
-                .allowsHitTesting(false)
+            if !isSettingsPreview {
+                WindowThemeSync(isDark: theme.isDark, background: theme.background)
+                    .allowsHitTesting(false)
+            }
         }
         .task(id: renderKey) { await rebuild() }
         .onChange(of: renderKey) { _ in persist() }

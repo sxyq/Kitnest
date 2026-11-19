@@ -361,6 +361,7 @@ public struct ClipboardRow: View {
     @ObservedObject private var personalization: Personalization
     @ObservedObject private var appearanceState = AppearanceState.shared
     @Environment(\.settingsPreviewIsMidnight) private var previewIsMidnight
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
 
     public let item: ClipboardItem
     /// 是否处于 hover 高亮态（由表格宿主设置）
@@ -429,10 +430,16 @@ public struct ClipboardRow: View {
                     let related = ClipboardContentActions.quickActions(for: item)
                     if related.isEmpty {
                         iconButton("arrow.down", help: "复制") { onCopy() }
-                        iconButton("return.left", help: "复制并粘贴") { ClipboardManager.shared.copy(item, autoPaste: true) }
+                        iconButton("return.left", help: "复制并粘贴") {
+                            if isSettingsPreview { onCopy() }
+                            else { ClipboardManager.shared.copy(item, autoPaste: true) }
+                        }
                     } else {
                         ForEach(related) { action in
-                            iconButton(action.systemImage, help: action.title, action: action.action)
+                            iconButton(action.systemImage, help: action.title) {
+                                if isSettingsPreview { onCopy() }
+                                else { action.action() }
+                            }
                         }
                         if related.count == 1 { iconButton("arrow.down", help: "复制") { onCopy() } }
                     }

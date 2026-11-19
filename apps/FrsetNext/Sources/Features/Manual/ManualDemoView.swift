@@ -136,10 +136,18 @@ struct ManualDemoView: View {
                         .environment(\.settingsPreviewClipboardItems, Array(SettingsPreviewSamples.clipboardItems.prefix(4)))
                         .environment(\.settingsPreviewImage, SettingsPreviewSamples.image)
                         .environment(\.settingsPreviewClipboardSelection, $selected)
-                    if step > 0 {
-                        Text("周五交付\n整理截图、核对文案，再发给同事。")
-                            .font(.system(size: 12)).padding(12).frame(maxWidth: .infinity)
-                            .transition(.opacity)
+                    if step > 0, let item = SettingsPreviewSamples.clipboardItems.first(where: { $0.id == selected }) {
+                        Group {
+                            if item.type == .image {
+                                Image(nsImage: SettingsPreviewSamples.image)
+                                    .resizable().scaledToFit()
+                            } else {
+                                Text(item.content ?? item.displayTitle)
+                                    .font(.system(size: 12))
+                            }
+                        }
+                        .padding(12).frame(maxWidth: .infinity)
+                        .transition(.opacity)
                     }
                 }.padding(8)
             }
@@ -211,33 +219,34 @@ struct ManualDemoView: View {
     }
 
     private var dockPreview: some View {
-        VStack(spacing: 12) {
-            if step < 2 {
+        let closed = step == 2 || step == 4
+        return VStack(spacing: 12) {
+            if !closed {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack { Circle().fill(.red).frame(width: 8, height: 8); Text("设置").font(.caption); Spacer() }
                     Divider()
                     Label("常规　　刘海工作台　　搜索", systemImage: "gearshape")
                         .font(.system(size: 12)).foregroundStyle(.secondary)
-                    Label("窗口正在独立显示", systemImage: "macwindow")
+                    Label(step == 3 ? "最小化后点击 Dock 图标恢复" : "窗口正在独立显示", systemImage: "macwindow")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 .padding(12).frame(maxWidth: 360, alignment: .leading)
                 .background(Color.primary.opacity(0.045), in: RoundedRectangle(cornerRadius: 9))
                 .transition(.opacity)
             } else {
-                Text("设置窗口已关闭").font(.caption).foregroundStyle(.secondary)
+                Text(step == 4 ? "最后一个独立窗口已关闭" : "设置窗口已关闭").font(.caption).foregroundStyle(.secondary)
                     .frame(height: 78).transition(.opacity)
             }
             HStack(spacing: 12) {
                 Image(systemName: "face.smiling").foregroundStyle(.secondary)
-                if step < 2 { Image(systemName: "app.fill").foregroundStyle(Theme.accent).font(.system(size: 22)) }
+                if !closed { Image(systemName: "app.fill").foregroundStyle(Theme.accent).font(.system(size: 22)) }
                 Divider().frame(height: 22)
                 Image(systemName: "trash").foregroundStyle(.secondary)
             }
             .font(.system(size: 19)).padding(.horizontal, 18).padding(.vertical, 8)
             .background(.regularMaterial, in: Capsule())
             .overlay(alignment: .top) {
-                if step < 2 { Text("Kitnest").font(.system(size: 9)).offset(y: -15) }
+                if !closed { Text("Kitnest").font(.system(size: 9)).offset(y: -15) }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -249,17 +258,17 @@ struct ManualDemoView: View {
             HStack(spacing: 6) {
                 Label("显示范围", systemImage: "display.2")
                 Spacer()
-                Text("自动 · 刘海优先").foregroundStyle(Theme.accent)
+                Text("全部屏幕").foregroundStyle(Theme.accent)
             }
             .font(.system(size: 11, weight: .medium))
             HStack(spacing: 8) {
                 displayPreview(name: "F27G32Q Pro", hasNotch: false,
-                               searchVisible: step == 2, expanded: step == 4)
+                               searchVisible: step == 1, expanded: step == 3)
                 displayPreview(name: "内置 Retina Display", hasNotch: true,
-                               searchVisible: false, expanded: step == 3)
+                               searchVisible: false, expanded: step == 2)
             }
-            Text(["选择自动显示范围", "保存后按屏幕情况显示入口", "停留后只出现短搜索条",
-                  "打开后只有一份完整工作台", "点击另一屏入口，当前内容随之迁移"][min(step, 4)])
+            Text(["选择显示范围并保存", "悬停刘海或点击普通屏幕的搜索短条",
+                  "展开工作台并选择功能", "点击另一屏入口，当前内容随之迁移"][step])
                 .font(.system(size: 10)).foregroundStyle(.secondary)
                 .contentTransition(.opacity)
         }
@@ -415,18 +424,19 @@ struct ManualDemoView: View {
 
     private var archive: some View {
         let extracting = title.contains("解压")
+        let splitting = title.contains("拆分")
         return VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Label(title.contains("分卷") ? example.input : extracting ? "旅行照片.zip" : "设计说明.pdf\n会议记录.txt", systemImage: extracting ? "doc.zipper" : "doc.on.doc")
+                Label(splitting ? example.input : extracting ? "旅行照片.zip" : "设计说明.pdf\n会议记录.txt", systemImage: extracting ? "doc.zipper" : "doc.on.doc")
                     .font(.system(size: 12)).frame(maxWidth: .infinity, alignment: .leading)
                 Image(systemName: "arrow.right").foregroundStyle(Theme.accent)
                 if step > 0 {
-                    Label(title.contains("分卷") ? example.result : extracting ? "旅行照片/\n日落.jpg · 行程.txt" : "项目资料.zip\n包含 2 个文件",
+                    Label(splitting ? example.result : extracting ? "旅行照片/\n日落.jpg · 行程.txt" : "项目资料.zip\n包含 2 个文件",
                           systemImage: extracting ? "folder" : "doc.zipper")
                         .font(.system(size: 12)).frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            Text(title.contains("分卷") ? "7z · 密码保护 · 加密文件名 · 分卷 100 MB" : extracting ? "选择目标文件夹 → 解压" : "选择 ZIP 格式 → 创建归档")
+            Text(splitting ? "7z · 密码保护 · 加密文件名 · 分卷 100 MB" : extracting ? "选择目标文件夹 → 解压" : "选择 ZIP 格式 → 创建归档")
                 .font(.caption).foregroundStyle(.secondary)
             ProgressView(value: Double(step + 1), total: Double(steps.count))
         }.padding(20)
@@ -461,7 +471,7 @@ struct ManualDemoView: View {
                 Spacer()
                 Text("设置页固定预设值").font(.system(size: 9)).foregroundStyle(.secondary)
             }
-            if title.contains("内存维护") {
+            if title == "释放内存" {
                 Text(step == 0 ? "保存文稿 → 打开内存维护" : finished ? "维护报告：缓存已释放\n全部唤醒：恢复暂停应用" : "深度释放 → 管理员授权\n等待维护结束")
                     .font(.system(size: 13))
                 Label(finished ? "查看报告与暂停应用" : "只在主动确认后执行", systemImage: finished ? "checkmark.circle" : "wind")
@@ -470,14 +480,14 @@ struct ManualDemoView: View {
                 Text("扫描范围：下载文件夹\n设计资料 1.2 GB\n旧安装包 800 MB").font(.system(size: 13))
                 Label(finished ? "确认所选项目后移到废纸篓" : "扫描用量 → 在 Finder 显示 → 勾选项目", systemImage: "externaldrive")
                     .font(.caption).foregroundStyle(.secondary)
-            } else if title.contains("诊断") || title.contains("端口") {
+            } else if title == "查看网络连接" {
                 Text("Wi-Fi · 已连接\n局域网地址 192.168.1.8\n8080 · 示例应用 · 127.0.0.1\n8081 · 示例服务 · 0.0.0.0").font(.system(size: 12, design: .monospaced))
                 Text(step > 1 ? "对外筛选 → 显示 8081 · 局域网可访问" : "查看监听地址与所属应用").font(.caption).foregroundStyle(.secondary)
             } else if title.contains("温度") || title.contains("传感器") || title.contains("风扇") {
                 ForEach([("CPU 包温", "48°C"), ("GPU", "43°C"), ("电池", "31°C"), ("风扇", "1800 RPM")], id: \.0) { name, value in
                     HStack { Text(name); Spacer(); Text(value).monospacedDigit() }.font(.system(size: 12))
                 }
-            } else if title.localizedCaseInsensitiveContains("CPU") || title.contains("处理器") {
+            } else if title == "处理器使用情况" {
                 Text("总占用 38% · 用户 26% · 系统 12%").font(.caption)
                 MonitorCoreGrid(values: values.sample.perCore, columns: 4)
                 MonitorAreaSparkline(values: values.history.cpu, color: .blue, upperBound: 1)
@@ -502,10 +512,10 @@ struct ManualDemoView: View {
                 Text("示例 SSD · APFS\n已用 332 GB / 512 GB").font(.system(size: 14))
                 ProgressView(value: 332, total: 512)
                 Text("读取 18 MB/s · 写入 7 MB/s").font(.caption)
-            } else if title.contains("功耗") || title.contains("电源") {
+            } else if title == "查看电脑用电情况" {
                 Text("整机功耗 24.6 W\nCPU 8.4 W · GPU 4.2 W").font(.system(size: 14))
                 MonitorAreaSparkline(values: values.history.power, color: .orange).frame(height: 65)
-            } else if title.localizedCaseInsensitiveContains("GPU") || title.contains("显卡") {
+            } else if title == "图形处理器使用情况" {
                 HStack {
                     MonitorRing(value: 0.24).frame(width: 70, height: 70)
                     VStack(alignment: .leading, spacing: 5) {
