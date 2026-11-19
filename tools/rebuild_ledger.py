@@ -44,6 +44,8 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Features/Archive/UI/ArchiveHTMLPreview.swift", "openExternalLink"):
+        "2026-11-20：归档网页两种导航回调共用，仅主文档由用户点击的HTTP、HTTPS或mailto链接交系统打开；自动重定向不唤起外部应用",
     ("Features/CodePreview/CodePreviewView.swift", "updateText"):
         "2026-11-20：两个NSTextView宿主装入或更换正文时调用，记录UTF-16行首、更新宽度及请求一次重绘；滚动只读取偏移表",
     ("Features/TransferDock/Cast/TransferCastEngines.swift", "prepareLaunch"):
