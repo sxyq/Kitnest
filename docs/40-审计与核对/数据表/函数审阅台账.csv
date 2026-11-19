@@ -3961,7 +3961,7 @@ TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferS
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,receive,func,298,KEEP,2026-11-19安全复审：接收HTTP并受300秒连接超时限制；EOF、网络错误和超时均关闭body文件并删除临时文件
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,consume,func,323,KEEP,2026-11-19安全复审：请求头完整后先验主/选中分享token再创建body文件；无效token先回403；请求头限64KiB
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,parseHead,func,360,KEEP,2026-11-19安全复审：解析请求行与小写header；Content-Length非法转0、负数不写入；声明body无大小上限
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,hasValidToken,func,379,KEEP,2026-11-19安全复审：consume落盘前校验/s/<token>/；支持主令牌及选中文件分享令牌，query不参与认证
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,hasValidToken,func,379,KEEP,2026-11-19：consume创建请求体文件前校验路径令牌及方法；主令牌沿原路由权限，选中文件分享令牌仅接受GET；query不参与认证
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,writeBody,func,387,KEEP,2026-11-19安全复审：只写Content-Length声明范围至唯一临时文件；授权请求可声明任意长度，连接最长300秒
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,finish,func,396,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:315,318"
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,route,func,407,KEEP,2026-11-19安全复审：主令牌可列举、上传、删除和下载；选择令牌仅GET且限选中ID；defer覆盖各路由body清理

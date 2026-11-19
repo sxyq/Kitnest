@@ -143,7 +143,7 @@ public final class LanTransferServer: ObservableObject {
         do {
             listener = try NWListener(using: params, on: nwPort)
         } catch {
-            if remaining > 0 { attemptBind(startingAt: candidate + 1, remaining: remaining - 1) }
+            if remaining > 0, candidate < UInt16.max { attemptBind(startingAt: candidate + 1, remaining: remaining - 1) }
             return
         }
 
@@ -170,7 +170,7 @@ public final class LanTransferServer: ObservableObject {
                 Log.warn("TransferDock", "局域网直传端口 \(candidate) 绑定失败：\(error)")
                 self.listener?.cancel()
                 self.listener = nil
-                if remaining > 0 {
+                if remaining > 0, candidate < UInt16.max {
                     self.queue.asyncAfter(deadline: .now() + 0.15) {
                         self.attemptBind(startingAt: candidate + 1, remaining: remaining - 1)
                     }
@@ -335,7 +335,7 @@ public final class LanTransferServer: ObservableObject {
             context.headerBuffer = Data()
             context.headersParsed = true
 
-            guard hasValidToken(context.path) else {
+            guard hasValidToken(context.path, method: context.method) else {
                 respond(context, status: 403, html: Self.errorPage("链接已失效",
                                                                    detail: "请重新扫描 Kitnest 上的二维码。"))
                 return
@@ -376,12 +376,12 @@ public final class LanTransferServer: ObservableObject {
         context.contentLength = Int(context.headers["content-length"] ?? "0") ?? 0
     }
 
-    private func hasValidToken(_ requestPath: String) -> Bool {
+    private func hasValidToken(_ requestPath: String, method: String) -> Bool {
         let path = requestPath.split(separator: "?", maxSplits: 1).first.map(String.init) ?? requestPath
         let parts = path.split(separator: "/")
         guard parts.count >= 2, parts[0] == "s" else { return false }
         let token = String(parts[1])
-        return token == Self.tokenCache || selection?.token == token
+        return token == Self.tokenCache || (method == "GET" && selection?.token == token)
     }
 
     private func writeBody(_ context: ConnectionContext, _ data: Data) {
