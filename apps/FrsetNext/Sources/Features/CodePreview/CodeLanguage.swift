@@ -58,17 +58,17 @@ public enum CodeLanguageCatalog {
     ]
 
     public static let byID: [String: CodeLanguage] = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0) })
+    private static let markers = all.flatMap { language in
+        ([language.id] + language.aliases).map { (prefix: $0, id: language.id) }
+    }.sorted { $0.prefix.count > $1.prefix.count }
 
     /// 语言标记归一（"ts" → "typescript"，"sh" → "shell" …）；未知返回 nil
     public static func normalize(_ raw: String) -> String? {
         let key = raw.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         guard !key.isEmpty else { return nil }
         if byID[key] != nil { return key }
-        if let hit = all.first(where: { $0.aliases.contains(key) }) { return hit.id }
-        // "c++11" / "python3.11" 这类带后缀的标记：取前缀再试一次
-        for candidate in all where key.hasPrefix(candidate.id) { return candidate.id }
-        for candidate in all where candidate.aliases.contains(where: { key.hasPrefix($0) }) { return candidate.id }
-        return nil
+        // 带版本后缀时取最长匹配，避免 c++11 命中 c、javascript1.8 命中 java。
+        return markers.first { key.hasPrefix($0.prefix) }?.id
     }
 
     public static func displayName(_ id: String) -> String {
