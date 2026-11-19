@@ -3789,18 +3789,18 @@ Toolbox,Features/Toolbox/Tools/ToolSettingsPane.swift,AITextSettingsDraft,discar
 Toolbox,Features/Toolbox/Tools/ToolSettingsPane.swift,AITextSettingsDraft,restoreDefaults,func,159,KEEP,工具集合与AI文本默认先进入所属草稿，模块默认不再重置快捷键；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Tools/ToolSettingsPane.swift,AITextSettingsDraft,addCustomTool,func,165,KEEP,把已填写名称与模板添加到AI文本工具草稿，保存后才进入正式工具存储；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Tools/ToolSettingsPane.swift,AITextSettingsDraft,clearNewTool,func,174,KEEP,提示词加入草稿或取消时清空页内输入，不影响正式工具列表；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,setActiveSerial,func,50,KEEP,"ADBExtrasEngine.swift:75,78 内部写缓存"
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,setActiveSerial,func,50,KEEP,2026-11-20：resolveSerialSync成功或无设备时写同一5秒缓存；serial及时间戳共用serialLock，activeSerial读也持该锁
 TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,resolveSerialSync,func,58,KEEP,2026-11-19：run和WebDAV后台下载共用5秒设备缓存；先读devices输出再等待退出；优先无线其次首个device并写入同一缓存
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,needsSerialPin,func,83,KEEP,ADBExtrasEngine.swift:100 判断是否补 -s
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,needsSerialPin,func,83,KEEP,2026-11-20：run构造参数前调用；devices/connect/disconnect/pair/mdns及服务器级命令不自动补设备；首参数已为-s仍由args.contains保持显式绑定
 TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,run,func,92,KEEP,2026-11-19：MCP与WebDAV及无线连接和文件桥共用唯一无进度命令入口；后台同时读取stdout与stderr并等待汇合；原超时任务结束后取消；完成回主线程且返回退出状态
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,openWirelessDebugging,func,141,KEEP,CastView.swift:431 右键菜单调用
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,notifications,func,167,KEEP,CastView.swift:896 6 秒轮询
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,parseNotifications,func,173,KEEP,ADBExtrasEngine.swift:204 dumpsys 解析
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,extractValue,func,224,KEEP,ADBExtrasEngine.swift:242-246 取值
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,shortAppName,func,234,KEEP,"ADBExtrasEngine.swift:224,347；CastAppLibraryWindow.swift:147"
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,shortTime,func,246,KEEP,ADBExtrasEngine.swift:227 通知时间
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,storage,func,257,KEEP,CastView.swift:903 存储区块
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,byteValue,func,279,KEEP,ADBExtrasEngine.swift:308 容量排序
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,openWirelessDebugging,func,141,KEEP,2026-11-20：设备卡右键菜单调用；沿3个厂商Activity逐个尝试；仅文本含error才换下一项且忽略退出状态，缺adb无输出会误报成功待后续处理
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,notifications,func,167,KEEP,2026-11-20：CastContent.refreshNotifications调用且页面notifBusy防重复；dumpsys超时20秒；run主线程完成后立即解析全文及日期，失败与空通知混同待后续处理
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,parseNotifications,func,173,KEEP,2026-11-20：notifications唯一调用；按NotificationRecord分块取pkg与title/text/bigText及when，flush构造序号ID；过滤系统包与空标题后最多30条；当前先解析全文再截取
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,extractValue,func,224,KEEP,2026-11-20：通知title/text/bigText共用；去字段前缀后取首左括号至末右括号内容并去空白；没有括号则保留剩余文本
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,shortAppName,func,234,KEEP,2026-11-20：通知和第三方包列表及应用启动标题共用；去com和android等无信息段后取最后有效段，均无则取最后包名段
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,shortTime,func,246,KEEP,2026-11-20：parseNotifications每条flush调用；大于1e12按毫秒转秒，以HH:mm显示；每条创建DateFormatter且当前在主线程待性能处理
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,storage,func,257,KEEP,2026-11-20：CastContent.loadStorage调用；先df超时15秒再du超时40秒，按tab拆大小和目录并按byteValue降序取8项；忽略两次退出状态，错误文本可进入总览待处理
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,byteValue,func,279,KEEP,2026-11-20：storage目录排序共用；去空白转大写后按K/M/G/T十进制倍率换算，未知单位沿原Double解析与0默认，未增加新单位
 TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,installAPK,func,296,KEEP,2026-11-19：TransferDockView和MCP安装工具共用；仅退出码为0且含Success返回成功；缺失adb或启动失败沿回调传出
 TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,thirdPartyApps,func,306,KEEP,2026-11-19：MCP的list_apps唯一消费；原pm列表解析保持；退出状态非0返回错误字符串而不伪报空应用成功
 TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,startAppWindow,func,338,KEEP,2026-11-20：CastContent.openApp与应用库open及MCP共用异步入口；后台查组件解析设备并复制改名组件及启动进程；必须传实际serial；主线程Toast和完成回调返回真实原因
