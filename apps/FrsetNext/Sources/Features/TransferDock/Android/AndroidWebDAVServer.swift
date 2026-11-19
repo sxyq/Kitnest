@@ -287,6 +287,17 @@ public final class AndroidWebDAVServer {
 
     private func download(_ conn: NWConnection, path: String, headOnly: Bool) {
         guard let adb = ScreenCastEngine.findADB() else { send(conn, status: "503 Service Unavailable", headers: [:], body: Data()); return }
+        if headOnly {
+            ADBExtrasEngine.run(["shell", "stat", "-c", "%s", "'" + path.replacingOccurrences(of: "'", with: "'\\''") + "'"]) { out, status in
+                guard status == 0, let out,
+                      let size = UInt64(out.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+                    self.send(conn, status: "404 Not Found", headers: [:], body: Data())
+                    return
+                }
+                self.send(conn, status: "200 OK", headers: ["Content-Length": "\(size)"], body: Data())
+            }
+            return
+        }
         DispatchQueue.global(qos: .userInitiated).async {
             let task = Process()
             task.executableURL = URL(fileURLWithPath: adb)
@@ -305,10 +316,6 @@ public final class AndroidWebDAVServer {
             task.waitUntilExit()
             if task.terminationStatus != 0 {
                 self.send(conn, status: "404 Not Found", headers: [:], body: Data())
-                return
-            }
-            if headOnly {
-                self.send(conn, status: "200 OK", headers: ["Content-Length": "\(data.count)"], body: Data())
                 return
             }
             self.send(conn, status: "200 OK", headers: [
