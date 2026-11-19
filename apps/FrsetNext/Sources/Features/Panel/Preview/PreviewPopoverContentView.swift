@@ -415,8 +415,7 @@ struct PreviewFileBackedTextView: View {
                 if let document = JSONDocument(text: text) { return .json(document) }
                 return .text(text)
             case .code:
-                let lang = PreviewMarkdownRenderer.detectLanguage(text)
-                return .code(PreviewMarkdownRenderer.renderCodeBody(lang: lang, code: text))
+                return .code(PreviewMarkdownRenderer.renderCodeBody(text))
             default:
                 return .text(text)
             }
