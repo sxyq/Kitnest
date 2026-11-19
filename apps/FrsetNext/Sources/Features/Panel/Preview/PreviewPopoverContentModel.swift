@@ -42,8 +42,6 @@ public struct PreviewPopoverContentModel: Identifiable {
     public let kind: Kind
     /// 已就绪的全文（短文本直接带上；fileBackedText 这里只放内联前缀，全文由视图异步加载）
     public let inlineText: String
-    /// 是否显示键盘预览一次性提示（F6：clipboard_keyboard_preview_hint_consumed 未消费时）
-    public let showsKeyboardHint: Bool
     public let fileText: FilePreviewLoadState
     private let fileTextKind: Kind?
     public let fileImage: NSImage?
@@ -68,7 +66,6 @@ public struct PreviewPopoverContentModel: Identifiable {
                 entry: Entry = .mainList,
                 sessionID: UUID,
                 inlineText: String,
-                showsKeyboardHint: Bool = false,
                 kindOverride: Kind? = nil,
                 displayPath: String? = nil,
                 loadFileContents: Bool = true) {
@@ -78,7 +75,6 @@ public struct PreviewPopoverContentModel: Identifiable {
         self.entry = entry
         self.sessionID = sessionID
         self.inlineText = inlineText
-        self.showsKeyboardHint = showsKeyboardHint
         self.displayPath = displayPath
         // v53：常驻预览窗编辑保存后，内容已在内存里（可能是刚落盘的新文件），
         // 按条目分类会走 fileBackedText 去读旧路径 → 用 kindOverride 直接指定渲染态。
@@ -325,30 +321,14 @@ public struct PreviewPopoverContentModel: Identifiable {
     }
 }
 
-// MARK: - 行数估算（面板领地内私有口径，避免依赖 Clipboard 模块扩展）
-
-extension String {
-    var lineCountEstimate: Int {
-        guard !isEmpty else { return 1 }
-        var count = 1
-        for ch in self where ch == "\n" { count += 1 }
-        return count
-    }
-}
-
-// MARK: - Markdown 滚动记忆（specs/12 F15：块帧表 + 偏移 + 恢复）
+// MARK: - Markdown 滚动记忆（specs/12 F15：偏移与恢复）
 
 /// Markdown/长文预览的滚动位置快照；键 = item.dedupeKey，存于协调器。
-/// blockFrames 对应原作 __markdownPreviewBlockFrames（块 id → 视口帧），重建版按"首可见块 + 偏移"近似。
 public struct MarkdownScrollState: Equatable {
     public var scrollOffset: CGFloat
-    public var anchorBlockID: String?
-    public var blockFrames: [String: CGRect]
 
-    public init(scrollOffset: CGFloat = 0, anchorBlockID: String? = nil, blockFrames: [String: CGRect] = [:]) {
+    public init(scrollOffset: CGFloat = 0) {
         self.scrollOffset = scrollOffset
-        self.anchorBlockID = anchorBlockID
-        self.blockFrames = blockFrames
     }
 }
 

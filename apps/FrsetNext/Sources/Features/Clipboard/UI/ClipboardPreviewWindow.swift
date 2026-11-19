@@ -509,7 +509,6 @@ struct ClipboardPreviewWindowView: View {
                                           entry: .mainList,
                                           sessionID: UUID(),
                                           inlineText: full,
-                                          showsKeyboardHint: false,
                                           kindOverride: kind)
     }
 

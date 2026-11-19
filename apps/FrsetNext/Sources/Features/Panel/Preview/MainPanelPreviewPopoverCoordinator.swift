@@ -215,7 +215,6 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
                                        entry: entry,
                                        sessionID: requestedSession,
                                        inlineText: text,
-                                       showsKeyboardHint: showsKeyboardHint,
                                        loadFileContents: loadFileContents)
         }
         let display: (PreviewPopoverContentModel) -> Void = { [weak self] model in
