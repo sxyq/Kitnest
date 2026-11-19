@@ -79,6 +79,7 @@ header{height:64px;display:flex;align-items:center;gap:20px;padding:0 28px;borde
 .layout{display:grid;grid-template-columns:258px minmax(0,850px);gap:36px;max-width:1210px;margin:auto;padding:0 22px}aside{position:sticky;top:64px;height:calc(100vh - 64px);overflow:auto;padding:20px 0}summary{cursor:pointer;font-size:13px;font-weight:650;padding:8px 4px}details a{display:block;font-size:13px;color:var(--muted);text-decoration:none;padding:6px 12px;margin:1px 0;border-radius:7px}details a:hover,details a[aria-current]{background:var(--soft);color:var(--accent)}[hidden]{display:none!important}main{padding:32px 0 80px;min-width:0}h1{font-size:29px;margin:4px 0 22px;line-height:1.35}h2{font-size:18px;margin:28px 0 8px}p{margin:8px 0;color:var(--muted)}li{margin:7px 0}ol,ul{padding-left:24px}blockquote{border-left:3px solid var(--accent);margin:18px 0;padding:6px 16px;background:var(--soft)}.crumb{font-size:12px;color:var(--muted)}button{font:inherit;color:inherit;cursor:pointer;border:1px solid var(--line);background:var(--bg);border-radius:7px;padding:5px 12px}button:hover{color:var(--accent);border-color:var(--accent)}button:disabled{opacity:.4;cursor:default}.demo{background:var(--soft);border:1px solid var(--line);border-radius:14px;padding:16px;margin:20px 0}.bar{display:flex;align-items:center;gap:8px}.bar b{margin-right:auto;font-size:13px}.bar button{font-size:12px}.stage{min-height:190px;display:flex;align-items:center;justify-content:center;position:relative;margin:16px 0;background:var(--bg);border-radius:10px;overflow:hidden}.scene{width:88%;max-width:440px;border:1px solid var(--line);border-radius:12px;padding:18px;position:relative;box-shadow:0 12px 28px #0000000b}.scene-title{font-size:13px;font-weight:650;border-bottom:1px solid var(--line);padding-bottom:9px;margin-bottom:12px}.scene-body{font-size:15px;line-height:1.7;min-height:50px}.scene small{display:block;color:var(--muted);font-size:11px;margin-top:10px}.cursor{position:absolute;right:18px;bottom:14px;color:var(--accent);font-size:24px;transform:translate(-30px,-15px);transition:transform .35s ease}.scene.active .cursor{transform:translate(0,0)}.progress{height:3px;background:var(--line);margin-top:14px;border-radius:3px}.progress i{display:block;height:100%;background:var(--accent);transition:width .3s}.steps{display:grid;gap:5px}.steps button{text-align:left;display:flex;gap:10px;border-color:transparent;background:transparent;font-size:12px;padding:7px}.steps button[aria-current]{background:var(--bg);color:var(--accent);border-color:var(--line)}.steps span{flex:none;border:1px solid var(--line);border-radius:50%;width:22px;height:22px;text-align:center;line-height:20px}.foot{display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:18px;margin-top:30px;font-size:12px}.foot a{color:var(--accent);text-decoration:none;max-width:45%}#empty{color:var(--muted);padding:18px 8px;font-size:13px}
 .example{display:grid;gap:6px;font-size:12px}.example div{border:1px solid var(--line);padding:7px 10px;border-radius:7px;white-space:pre-wrap;overflow-wrap:anywhere}.example .chosen{border-color:var(--accent);background:var(--soft)}.landscape{height:85px;border-radius:7px;background:linear-gradient(145deg,transparent 50%,#556996 51% 70%,transparent 71%),linear-gradient(35deg,#2a4560 45%,transparent 46%),linear-gradient(#8998d3,#efd1a8);position:relative}.landscape b{position:absolute;inset:13px 25px;border:2px dashed #fff}.chart{display:flex;height:65px;gap:8px;align-items:flex-end}.chart i{flex:1;background:var(--accent);opacity:.6;border-radius:3px 3px 0 0;transition:height .3s}.demo-action{margin-top:9px;font-size:11px}.sample-pair{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .dock-demo{display:grid;gap:18px;justify-items:center;width:100%}.dock-window{width:min(100%,360px);padding:12px;border:1px solid var(--line);border-radius:9px;background:var(--bg);box-shadow:0 8px 22px #00000012;font-size:12px}.dock-window header{position:static;height:auto;padding:0 0 8px;border:0;border-bottom:1px solid var(--line)}.dock-window p{margin:8px 0 0}.dock-bar{display:flex;align-items:center;gap:12px;min-height:42px;padding:6px 16px;border:1px solid var(--line);border-radius:12px;background:var(--soft)}.dock-app{display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:var(--accent);color:#fff;font-size:17px}.dock-empty{color:var(--muted);font-size:11px}
+.presets{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}.presets button{font-size:12px}.presets button[aria-pressed=true]{color:var(--accent);border-color:var(--accent)}
 @media(max-width:760px){header{padding:0 14px;gap:12px}header span{display:none}.layout{grid-template-columns:1fr;gap:0;padding:0 16px}header label{width:170px}aside{position:static;height:auto;max-height:260px;border-bottom:1px solid var(--line)}main{padding-top:22px}h1{font-size:25px}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 </style></head><body>
@@ -94,6 +95,7 @@ function stop(){clearInterval(timer);timer=null;const button=document.getElement
 function sample(g,index){
  const t=g.title,done=index===g.steps.length-1,started=index>0;
  const rows=items=>'<div class="example">'+items.map((s,i)=>'<div class="'+(i===Math.min(index,items.length-1)?'chosen':'')+'">'+escape(s)+'</div>').join('')+'</div>';
+ const step=()=>rows([g.steps[index]]);
  let pair=null;
  const examples=[['随机编号','点击生成','A1B2C3D4-1234-4ABC-8DEF-0123456789AB'],['时间戳','1700000000','2023-11-14 22:13:20 UTC'],['特殊文字写法','Hello','SGVsbG8='],['网址文字','hello world','hello%20world'],['数据文字','{"name":"小林"}','{\n  "name": "小林"\n}'],['去重','苹果\n香蕉\n苹果','苹果\n香蕉'],['变量','user name','userName'],['网络地址','选择「公网 + 内网」','本机地址 192.168.1.8 · 示例内容'],['文本翻译','Good morning','早上好'],['文本总结','今天整理照片，明天发送给同事。','整理照片，随后发送。'],['文本润色','资料发你了看看','资料已发送，请查收。'],['确认两段文字','依次输入两份文字','比较两次生成的字符是否相同'],['压缩图片','照片.png · 2 MB','照片.jpg · 420 KB'],['代码预览','print("你好")','带颜色的代码预览']];
  for(const [key,input,output] of examples)if(t.includes(key)){pair=[input,output];break}
@@ -112,23 +114,40 @@ function sample(g,index){
  if(g.demo==='clipboard'){
   if(t.includes('备份'))return rows(['选择备份位置',started?'输入密码，生成加密备份':'待创建备份',done?'备份已保存':'保存中']);
   if(t.includes('隐私'))return rows(['记录状态：'+(started?'已暂停':'记录中'),'可排除不想记录的应用']);
-  return '<div class="sample-pair">'+rows(['会议记录','旅行照片','设计说明.pdf'])+rows([started?'完整内容':'选择一条记录',started?'点击或空格主动预览':'等待选择'])+'</div>';
+  if(t==='剪贴板历史'||t==='剪贴板预览')return '<div class="sample-pair">'+rows(['会议记录','旅行照片','设计说明.pdf'])+rows([started?'完整内容':'选择一条记录',started?'点击或空格主动预览':'等待选择'])+'</div>';
+  return step();
  }
  if(g.demo==='recording')return rows(t.includes('剪辑')?['00:00 ━━━ 00:20',started?'拖动两端保留片段':'选择一段视频',done?'已导出新视频':'预览片段']:['选择录制范围',started?'● 00:08 · 录制中':'等待开始',done?'视频已保存':'可暂停或停止']);
  if(g.demo==='transfer'){
+  if(t==='手机直传'){
+   const mac=['勾选文件 → 扫码直传','显示接收二维码','在接收区点击「出码」','等待接收','本地暂存 · 已收到文件'][index];
+   const phone=['准备扫码','扫码 → 保存文件','扫描上传用的二维码','选择文件 → 上传','上传完成'][index];
+   return '<div class="sample-pair">'+rows(['Mac',mac])+rows(['手机',phone])+'</div>';
+  }
+  if(t==='隔空投送')return rows(['加入设计说明.pdf','勾选文件 → 隔空投送','选择附近设备','请对方点击「接受」','设计说明.pdf · 已传送']);
+  if(t==='安卓有线直传')return rows(['用数据线连接手机，开启 USB 调试','在手机上允许连接','Mac → 手机：ADB 直传','手机 → Mac：把文件放进「下载 → Kitnest」后点击「从手机拉取」','手机：下载 → Kitnest · Mac：本地暂存']);
+  if(t==='云端中转')return rows(['在设置中开启云端中转','登录云端中转','选中文件 → 加入云端','在云端列表下载文件','从云端列表删除不再需要的文件']);
   if(t.includes('默认'))return rows(['ZIP 当前默认应用',started?'选择 Kitnest':'归档实用工具','在访达使用压缩与解压服务']);
   if(t.includes('拆分'))return rows(['项目资料 · 180 MB',started?'7z · 密码保护 · 每卷 100 MB':'选择格式和保存位置',done?'项目资料.7z.001\n项目资料.7z.002':'开始压缩']);
   if(t.includes('解压'))return rows(['打开资料.zip','查看其中的照片与文档',done?'文件已解压到所选位置':'选择解压位置']);
   if(t.includes('任务'))return rows(['资料.zip · 解压任务',started?'转到后台，任务继续':'查看当前进度',done?'解压完成 → 在访达中显示':'正在处理']);
   if(t.includes('投屏'))return rows(['连接手机',started?'手机画面出现在电脑上':'等待设备',done?'点击断开结束投屏':'可调整画面']);
-  return rows(['设计说明.pdf',started?'电脑 → 手机 · 发送中':'选择文件和设备',done?'传输完成':'等待发送']);
+  return step();
  }
- if(g.demo==='search')return rows(t.includes('AI')?['输入问题',started?'正在生成回复':'等待发送',done?'回复完成，可复制使用':'继续输入']:t.includes('网盘')?['粘贴分享链接',started?'解析文件列表':'等待解析',done?'文件下载完成':'选择文件下载']:['输入「会议」',started?'会议记录 · 文档':'等待输入',done?'打开所选结果':'用方向键选择']);
- if(t.includes('Dock'))return '<div class="dock-demo"><div class="dock-window"><header><span>●</span> 设置 <span style="margin-left:auto">刘海工作台 · 剪贴板</span></header><p>'+(['打开设置窗口','Dock 中显示 Kitnest 图标','关闭设置窗口','最小化后从 Dock 恢复','最后一个独立窗口已关闭'][index])+'</p></div><div class="dock-bar"><span>Finder</span>'+(index!==2&&index!==4?'<span class="dock-app" aria-label="Kitnest">K</span>':'<span class="dock-empty">关闭窗口后图标隐藏</span>')+'<span>废纸篓</span></div></div>';
- if(g.demo==='settings')return rows(['打开「'+t+'」',started?'调整选项 · 未保存':'沿用当前设置',done?'设置已保存':'点击保存后生效']);
+ if(g.demo==='search'){
+  if(t.includes('AI'))return rows(['输入问题',started?'正在生成回复':'等待发送',done?'回复完成，可复制使用':'继续输入']);
+  if(t.includes('网盘'))return rows(['粘贴分享链接',started?'解析文件列表':'等待解析',done?'文件下载完成':'选择文件下载']);
+  if(t==='全局搜索')return rows(['输入「会议」',started?'会议记录 · 文档':'等待输入',done?'打开所选结果':'用方向键选择']);
+  return step();
+ }
+ if(t.includes('Dock')){
+  const label=['打开设置窗口','Dock 中显示 Kitnest 图标','窗口已最小化，图标仍在 Dock','设置窗口已恢复','最后一个独立窗口已关闭'][index];
+  const window=index===2||done?'<p>'+label+'</p>':'<div class="dock-window"><header><span>●</span> 设置</header><p>'+label+'</p></div>';
+  return '<div class="dock-demo">'+window+'<div class="dock-bar"><span>Finder</span>'+(done?'<span class="dock-empty">Kitnest 图标已隐藏</span>':'<span class="dock-app" aria-label="Kitnest">K</span>')+'<span>废纸篓</span></div></div>';
+ }
  if(t.includes('刘海'))return rows([started?'▾ 工作台已展开':'屏幕顶部入口','悬停停留或点击唤起',done?'点击另一屏入口迁移':'当前内容留在同一工作台']);
  if(t.includes('二维码'))return rows(['输入网址或文字',started?'▦ 二维码已生成':'等待生成',done?'保存或复制二维码':'调整尺寸']);
- return rows([t,started?'选择功能，按下方步骤操作':'打开功能入口',done?'完成操作':'等待操作']);
+ return step();
 }
 function selectStep(index){
  active=index;const guide=guides[current],scene=document.querySelector('.scene');
@@ -136,6 +155,7 @@ function selectStep(index){
  document.querySelector('.scene-body').innerHTML=sample(guide,index);
  document.querySelector('.scene small').textContent=index===guide.steps.length-1?'完成这一步，即可查看结果':'第 '+(index+1)+' 步 / 共 '+guide.steps.length+' 步';
  document.querySelector('.progress i').style.width=((index+1)/guide.steps.length*100)+'%';
+ document.querySelectorAll('[data-preset]').forEach(b=>b.setAttribute('aria-pressed',Number(b.dataset.preset)===(index===0?0:index===guide.steps.length-1?2:1)));
  document.querySelectorAll('.steps button').forEach((b,i)=>{if(i===index)b.setAttribute('aria-current','step');else b.removeAttribute('aria-current')});
  requestAnimationFrame(()=>scene.classList.add('active'));
 }
@@ -144,13 +164,15 @@ function show(){
  const g=guides[current];
  links.forEach(a=>{const on=a.dataset.id===g.id;if(on){a.setAttribute('aria-current','page');a.parentElement.open=true}else a.removeAttribute('aria-current')});
  const demo='<section class="demo" aria-label="交互操作演示"><div class="bar"><b>跟着做一遍 · 内置示例</b><button id="play">播放</button><button id="restart">重来</button></div>'+
+ '<div class="presets" aria-label="演示阶段">'+['看懂用途','跟着操作','查看结果'].map((name,i)=>'<button data-preset="'+i+'">'+name+'</button>').join('')+'</div>'+
  '<div class="stage"><div class="scene"><div class="scene-title">'+escape(g.title)+' · 操作示范</div><div class="scene-body" aria-live="polite"></div><small></small><div class="progress"><i></i></div><div class="cursor" aria-hidden="true">➤</div></div></div>'+
  '<div class="steps">'+g.steps.map((s,i)=>'<button data-step="'+i+'"><span>'+(i+1)+'</span>'+escape(s)+'</button>').join('')+'</div></section>';
  main.innerHTML='<div class="crumb">'+escape(g.category)+'</div><h1>'+escape(g.title)+'</h1>'+g.body.replace('__DEMO__',demo)+
  '<nav class="foot">'+(current?'<a href="#'+guides[current-1].id+'">← '+escape(guides[current-1].title)+'</a>':'<span></span>')+(current+1<guides.length?'<a href="#'+guides[current+1].id+'">'+escape(guides[current+1].title)+' →</a>':'')+'</nav>';
  selectStep(0);
- document.getElementById('play').onclick=()=>{if(timer){stop();return}selectStep(0);document.getElementById('play').textContent='暂停';timer=setInterval(()=>{if(active+1<g.steps.length)selectStep(active+1);else stop()},2400)};
+ document.getElementById('play').onclick=()=>{if(timer){stop();return}if(active===g.steps.length-1)selectStep(0);document.getElementById('play').textContent='暂停';timer=setInterval(()=>{if(active+1<g.steps.length)selectStep(active+1);else stop()},2400)};
  document.getElementById('restart').onclick=()=>{stop();selectStep(0)};
+ document.querySelectorAll('[data-preset]').forEach((b,i)=>b.onclick=()=>{stop();selectStep([0,1,g.steps.length-1][i])});
  document.querySelectorAll('[data-step]').forEach(b=>b.onclick=()=>{stop();selectStep(Number(b.dataset.step))});
  window.scrollTo(0,0);
 }
