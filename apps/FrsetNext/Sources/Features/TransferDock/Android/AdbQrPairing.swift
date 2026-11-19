@@ -115,10 +115,11 @@ public final class AdbQrPairing: ObservableObject {
     private var pairedHost: String?
     private var connectAttempts = 0
     private var pairAttempts = 0
+    private var requestInFlight = false
     private let timeout: TimeInterval = 120
     /// v159：重连阶段不占用 120s 主超时
     private var reconnectDeadline = Date()
-    /// v159：会话代数。每次 start / restart / skipReconnect 递增，
+    /// 会话代数。开始、切换扫码、取消或结束时递增，
     /// 过期回调（比如 6s 降级后才返回的 adb connect）一律作废——
     /// 否则会出现「已经显示二维码，两秒后突然跳到已连接」这种诡异行为。
     private var generation = 0
@@ -195,11 +196,7 @@ public final class AdbQrPairing: ObservableObject {
     }
 
     public func cancel() {
-        timer?.invalidate()
-        timer = nil
-        reconnectFallback?.cancel()
-        reconnectFallback = nil
-        if !phase.isTerminal { phase = .idle }
+        finish(phase.isTerminal ? phase : .idle)
     }
 
     public func restart() {
@@ -212,6 +209,7 @@ public final class AdbQrPairing: ObservableObject {
     public func skipReconnect() {
         guard timer != nil else { return }
         generation += 1          // 作废所有在途的重连回调
+        requestInFlight = false
         reconnectFallback?.cancel()
         reconnectFallback = nil
         phase = .waiting
@@ -220,8 +218,12 @@ public final class AdbQrPairing: ObservableObject {
     }
 
     private func finish(_ newPhase: Phase) {
+        generation += 1
+        requestInFlight = false
         timer?.invalidate()
         timer = nil
+        reconnectFallback?.cancel()
+        reconnectFallback = nil
         phase = newPhase
     }
 
@@ -247,8 +249,10 @@ public final class AdbQrPairing: ObservableObject {
                 phase = .waiting
                 tick()
             }
-        default:
+        case .waiting:
             pollPairingService()
+        default:
+            break
         }
     }
 
@@ -259,8 +263,9 @@ public final class AdbQrPairing: ObservableObject {
     /// 但与 RunLoop 在面板/弹层上的调度有关），一次性任务不依赖它。
     private func scheduleReconnectFallback() {
         reconnectFallback?.cancel()
+        let gen = generation
         let work = DispatchWorkItem { [weak self] in
-            guard let self else { return }
+            guard let self, gen == self.generation else { return }
             guard case .reconnecting = self.phase else {
                 Log.debug("Transfer", "重连降级任务：phase=\(self.phase) 已变，跳过")
                 return
@@ -304,6 +309,7 @@ public final class AdbQrPairing: ObservableObject {
     /// 用 mDNS 发现的 `_adb-tls-connect` 服务直接连（不配对、不出二维码）
     private func tryDiscoveredConnections(gen: Int, attempt: Int = 0,
                                           completion: @escaping (Bool) -> Void) {
+        guard gen == generation else { return }
         ADBWirelessEngine.discoverServices { [weak self] list in
             guard let self, gen == self.generation else { return }
             let targets = (list ?? []).filter { !$0.needsPairing }.map { $0.target }
@@ -402,12 +408,11 @@ public final class AdbQrPairing: ObservableObject {
         // 先停在 .launching（= 对应 AndroMeld ctrl 通道的 ready→live 之间），
         // 0.8s 后再转 .connected；这段时间留给 scrcpy 起窗口，
         // 避免「显示已连接」之后黑屏两秒不知道发生了什么。
-        timer?.invalidate()
-        timer = nil
-        phase = .launching(serial)
+        finish(.launching(serial))
+        let gen = generation
         onConnected?(serial)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) { [weak self] in
-            guard let self, self.phase == .launching(serial) else { return }
+            guard let self, gen == self.generation, self.phase == .launching(serial) else { return }
             self.phase = .connected(serial)
         }
     }
@@ -421,12 +426,17 @@ public final class AdbQrPairing: ObservableObject {
     /// 抢跑 `adb pair` 会得到 "Failed to pair" 或 "cannot connect"，表现为
     /// 「扫了没反应，再扫一次就好」——这是之前最主要的偶发失败来源。
     private func pollPairingService() {
+        guard !requestInFlight else { return }
+        requestInFlight = true
         let gen = generation
         ADBWirelessEngine.discoverServices { [weak self] list in
-            guard let self, gen == self.generation, let list else { return }
+            guard let self, gen == self.generation else { return }
             // 只认我们自己生成的那个实例名——同一网段可能有别人在用 Studio 配对
-            guard let svc = list.first(where: { $0.needsPairing && $0.name == self.serviceName }),
-                  let addr = Self.split(svc.target) else { return }
+            guard let svc = list?.first(where: { $0.needsPairing && $0.name == self.serviceName }),
+                  let addr = Self.split(svc.target) else {
+                self.requestInFlight = false
+                return
+            }
             self.pairedHost = addr.host
             self.phase = .found(addr.host)
             self.doPair(host: addr.host, port: addr.port)
@@ -439,6 +449,7 @@ public final class AdbQrPairing: ObservableObject {
         let gen = generation
         ADBWirelessEngine.pair(host: host, port: port, code: code) { [weak self] out in
             guard let self, gen == self.generation else { return }
+            self.requestInFlight = false
             let lower = out.lowercased()
             if lower.contains("successfully paired") || lower.contains("already paired") {
                 Log.info("Transfer", "扫码直连：配对成功 \(host)")
@@ -459,16 +470,21 @@ public final class AdbQrPairing: ObservableObject {
 
     /// 配对完成后，手机广播 `_adb-tls-connect._tcp`，连它即可
     private func pollConnectService() {
+        guard !requestInFlight else { return }
+        requestInFlight = true
         let gen = generation
         ADBWirelessEngine.discoverServices { [weak self] list in
-            guard let self, gen == self.generation, let list else { return }
-            let candidates = list.filter { !$0.needsPairing }
-            // 优先同 IP 的那条（同一台手机），否则取第一条
-            let hit = candidates.first(where: { $0.target.hasPrefix((self.pairedHost ?? "") + ":") })
-                ?? candidates.first
-            guard let hit, let addr = Self.split(hit.target) else { return }
+            guard let self, gen == self.generation else { return }
+            // 只连接本次配对的手机，等待它的连接服务出现。
+            guard let host = self.pairedHost,
+                  let hit = list?.first(where: { !$0.needsPairing && Self.split($0.target)?.host == host }),
+                  let addr = Self.split(hit.target) else {
+                self.requestInFlight = false
+                return
+            }
             ADBWirelessEngine.connect(host: addr.host, port: addr.port, timeout: 8) { [weak self] out in
                 guard let self, gen == self.generation else { return }
+                self.requestInFlight = false
                 let ok = out.lowercased().contains("connected")
                 if ok {
                     let serial = "\(addr.host):\(addr.port)"

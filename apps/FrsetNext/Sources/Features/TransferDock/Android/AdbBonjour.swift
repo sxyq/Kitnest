@@ -20,7 +20,7 @@ final class AdbBonjour: NSObject {
         let pairing: Bool       // true = _adb-tls-pairing（等我方 adb pair）
     }
 
-    private var browser: NetServiceBrowser?
+    private var browsers: [NetServiceBrowser] = []
     private var pending: [NetService] = []
     private var hits: [Hit] = []
     private var completion: (([Hit]) -> Void)?
@@ -37,11 +37,12 @@ final class AdbBonjour: NSObject {
         pending.removeAll()
         finished = false
 
-        let b = NetServiceBrowser()
-        b.delegate = self
-        browser = b
-        b.searchForServices(ofType: "_adb-tls-connect._tcp.", inDomain: "local.")
-        b.searchForServices(ofType: "_adb-tls-pairing._tcp.", inDomain: "local.")
+        for type in ["_adb-tls-connect._tcp.", "_adb-tls-pairing._tcp."] {
+            let browser = NetServiceBrowser()
+            browser.delegate = self
+            browsers.append(browser)
+            browser.searchForServices(ofType: type, inDomain: "local.")
+        }
 
         let work = DispatchWorkItem { [weak self] in self?.finish() }
         deadline = work
@@ -53,9 +54,9 @@ final class AdbBonjour: NSObject {
         finished = true
         deadline?.cancel()
         deadline = nil
-        browser?.stop()
-        browser = nil
-        pending.forEach { $0.stop() }
+        browsers.forEach { $0.delegate = nil; $0.stop() }
+        browsers.removeAll()
+        pending.forEach { $0.delegate = nil; $0.stop() }
         pending.removeAll()
         let out = hits
         hits.removeAll()
@@ -70,34 +71,48 @@ extension AdbBonjour: NetServiceBrowserDelegate {
     func netServiceBrowser(_ browser: NetServiceBrowser,
                            didFind service: NetService,
                            moreComing: Bool) {
+        guard !finished, browsers.contains(where: { $0 === browser }) else { return }
         service.delegate = self
         pending.append(service)
         service.resolve(withTimeout: 1.2)
     }
 
     func netServiceBrowser(_ browser: NetServiceBrowser,
-                           didNotFind service: NetService,
+                           didRemove service: NetService,
                            moreComing: Bool) {
-        pending.removeAll { $0 === service }
+        guard !finished, browsers.contains(where: { $0 === browser }) else { return }
+        pending.removeAll {
+            guard $0.name == service.name, $0.type == service.type, $0.domain == service.domain else { return false }
+            $0.delegate = nil
+            $0.stop()
+            return true
+        }
+        let pairing = service.type.contains("_adb-tls-pairing")
+        hits.removeAll { $0.name == service.name && $0.pairing == pairing }
     }
 }
 
 extension AdbBonjour: NetServiceDelegate {
 
     func netServiceDidResolveAddress(_ sender: NetService) {
-        defer { pending.removeAll { $0 === sender } }
+        guard pending.contains(where: { $0 === sender }) else { return }
+        defer {
+            sender.delegate = nil
+            pending.removeAll { $0 === sender }
+        }
         guard sender.port > 0 else { return }
         guard let host = Self.ipv4String(from: sender.addresses) else { return }
         let pairing = sender.type.contains("_adb-tls-pairing")
         let hit = Hit(name: sender.name, host: host,
                       port: String(sender.port), pairing: pairing)
-        // 同一实例可能解析出多个地址（IPv4/IPv6），按 name+host+port 去重
-        if !hits.contains(where: { $0.name == hit.name && $0.host == hit.host && $0.port == hit.port }) {
+        // 同类服务按 name+host+port 去重，配对和连接服务分别保留。
+        if !hits.contains(where: { $0.name == hit.name && $0.host == hit.host && $0.port == hit.port && $0.pairing == hit.pairing }) {
             hits.append(hit)
         }
     }
 
     func netService(_ sender: NetService, didNotResolve errorDict: [String: NSNumber]) {
+        sender.delegate = nil
         pending.removeAll { $0 === sender }
     }
 
