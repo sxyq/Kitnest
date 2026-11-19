@@ -71,7 +71,7 @@ struct TransferDockLoginView: View {
             TransferDockWebView(
                 forceTick: forceTick,
                 onCandidate: { cookies in
-                    guard phase != "verifying", phase != "ok" else { return }
+                    guard phase != "verifying", phase != "ok" else { return false }
                     phase = "verifying"
                     detail = "拿到 \(cookies.count) 条 cookie，正在向服务端确认会话…"
                     TransferDockService.shared.saveCookies(cookies) { ok, reason in
@@ -85,6 +85,7 @@ struct TransferDockLoginView: View {
                             detail = (reason ?? "会话无效") + "（第 \(attempts) 次）"
                         }
                     }
+                    return true
                 },
                 onProgress: { text in
                     // 回验中/成功后不覆盖状态文字，避免把结果冲掉
@@ -98,7 +99,7 @@ struct TransferDockLoginView: View {
 /// WKWebView 包装：加载官方中转站页面，登录完成后把 cookie 交回
 private struct TransferDockWebView: NSViewRepresentable {
     var forceTick: Int
-    var onCandidate: ([HTTPCookie]) -> Void
+    var onCandidate: ([HTTPCookie]) -> Bool
     var onProgress: (String) -> Void
 
     func makeNSView(context: Context) -> WKWebView {
@@ -193,7 +194,7 @@ private struct TransferDockWebView: NSViewRepresentable {
             return nil
         }
 
-        private let onCandidate: ([HTTPCookie]) -> Void
+        private let onCandidate: ([HTTPCookie]) -> Bool
         private let onProgress: (String) -> Void
         private var timer: Timer?
         private var finished = false
@@ -201,12 +202,11 @@ private struct TransferDockWebView: NSViewRepresentable {
 
         /// 是否进过授权页（id.heytap.com / login / auth / sso / 带 code=）
         private var sawAuthPage = false
-        /// 上一次尝试抓取的 cookie 名字集合签名（去重）
-        private var lastSignature = ""
-        private var lastAttemptAt = Date.distantPast
+        /// 上次实际提交的Cookie内容，只在内存比较，不写日志。
+        private var lastCandidateCookies: [String: String] = [:]
         private var lastForceTick = 0
 
-        init(onCandidate: @escaping ([HTTPCookie]) -> Void,
+        init(onCandidate: @escaping ([HTTPCookie]) -> Bool,
              onProgress: @escaping (String) -> Void) {
             self.onCandidate = onCandidate
             self.onProgress = onProgress
@@ -277,16 +277,14 @@ private struct TransferDockWebView: NSViewRepresentable {
 
                 guard force || looksLoggedIn || backToBiz else { return }
 
-                let sig = relevant.map { "\($0.domain)|\($0.name)" }.sorted().joined(separator: ",")
-                if !force, sig == self.lastSignature,
-                   Date().timeIntervalSince(self.lastAttemptAt) < 3 {
-                    return
-                }
-                self.lastSignature = sig
-                self.lastAttemptAt = Date()
-
-                Log.info("TransferDock", "候选 cookie \(relevant.count) 条 [\(sig)] 触发=\(force ? "手动" : (looksLoggedIn ? "会话类" : "回业务页"))")
-                self.onCandidate(relevant)
+                let candidate = Dictionary(uniqueKeysWithValues: relevant.map {
+                    ("\($0.domain)|\($0.path)|\($0.name)", $0.value)
+                })
+                guard force || candidate != self.lastCandidateCookies else { return }
+                guard self.onCandidate(relevant) else { return }
+                self.lastCandidateCookies = candidate
+                let namesForLog = relevant.map { "\($0.domain)|\($0.name)" }.sorted().joined(separator: ",")
+                Log.info("TransferDock", "候选 cookie \(relevant.count) 条 [\(namesForLog)] 触发=\(force ? "手动" : (looksLoggedIn ? "会话类" : "回业务页"))")
             }
         }
 
