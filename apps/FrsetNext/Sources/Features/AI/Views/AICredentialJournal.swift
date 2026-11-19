@@ -58,11 +58,6 @@ public final class AICredentialJournalStore {
         record(action: action, providerRaw: provider.rawValue, secret: secret)
     }
 
-    /// 记录一次全局动作（如清空全部凭证）
-    public func recordGlobal(action: AICredentialJournalEntry.Action) {
-        record(action: action, providerRaw: "*", secret: nil)
-    }
-
     // MARK: - 私有
 
     private func record(action: AICredentialJournalEntry.Action,
