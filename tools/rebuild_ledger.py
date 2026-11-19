@@ -43,6 +43,8 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Features/TransferDock/Cast/DeviceAppCatalog.swift", "scores"):
+        "2026-11-20：load每轮排序前调用一次；一次读取使用记录和当前时间，按次数乘14天半衰期计算各应用分数；排序比较只查本轮字典，缺记录仍为0",
     ("Features/TransferDock/Transfer/MCPServer.swift", "close"):
         "2026-11-19：MCP网络失败、取消、接收EOF与响应发送完成共用；在服务串行队列移除登记连接、解绑状态回调并取消会话，stop清空同一连接集合",
     ("Features/TransferDock/Android/AndroidWebDAVServer.swift", "close"):
@@ -1341,7 +1343,7 @@ EVIDENCE.update({
     ("Features/TransferDock/Cast/CastView.swift", "appTile"):
         "设备应用磁贴显示名称及可用图标，点击通过 openApp；固定应用无 iconPath，不触发真实设备启动",
     ("Features/TransferDock/Cast/CastView.swift", "openApp"):
-        "固定预览仅显示已选示例应用名称；正式记录CastAppUsage并调用ADBExtrasEngine.startAppWindow打开对应手机应用窗口",
+        "2026-11-20：固定预览仅显示示例选择；正式调用后台startAppWindow，主线程回调成功才记录CastAppUsage，失败不增加使用次数",
     ("Features/TransferDock/Cast/CastView.swift", "serviceRow"):
         "MCP/WebDAV服务行共用图标、地址、复制及启停控件；预览复制只反馈，真实复制地址并由调用方启停服务",
     ("Features/TransferDock/Cast/CastView.swift", "disclosureRow"):
