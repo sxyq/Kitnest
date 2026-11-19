@@ -457,15 +457,15 @@ AI,Features/AI/Views/AIChatView.swift,AIChatView,lastAnchor,func,339,KEEP,onChan
 AI,Features/AI/Views/AIChatView.swift,AIChatView,errorBanner,func,343,KEEP,body L227 错误横幅
 AI,Features/AI/Views/AIChatView.swift,AISectionView,init,init,407,KEEP,AISectionView.init；AIModule.start L24 注册面板
 AI,Features/AI/Views/AIChatView.swift,AISectionState,init,init,434,KEEP,AISectionState.init；@StateObject 持有页签状态
-AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalEntry,init,init,28,KEEP,Entry init，record L86 构造
-AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,init,init,50,KEEP,Store 单例，fileURL 可注入
-AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,record,func,55,KEEP,协调器 commit L167 / remove L173 记录 save/remove
-AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,recordGlobal,func,62,KEEP,协调器 clearAll L178 记录全局清空
-AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,record,func,68,KEEP,私有实现：只写 SHA-256 指纹，追加单行 O(1)，超 500 条才裁剪重写
-AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,encodeLine,func,108,KEEP,record L87 与裁剪重写 L105 复用 JSON 单行编码
-AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,loadAll,func,113,KEEP,entries L69 / record 裁剪 L102 读取全部条目，坏行跳过
-AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,fingerprint,func,123,KEEP,record L85 计算 SHA-256 前 6 字节指纹
-AI,Features/AI/Views/AICredentialJournal.swift,AICredentialCommitCoordinator,init,init,139,KEEP,Coordinator 单例，store/journal 可注入；AISettingsPane:31 默认注入
+AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalEntry,init,init,28,KEEP,2026-11-20：日志record构造值记录，默认生成UUID和当前时间，保存厂商动作及可选凭据摘要；编码不持有原始密钥
+AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,init,init,50,KEEP,2026-11-20：共享协调器默认使用shared，初始化只保存日志URL且不读文件；可注入URL供既有调用使用
+AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,record,func,55,KEEP,2026-11-20：凭据commit成功保存或删除调用，将枚举厂商转rawValue后交唯一私有record，不另建文件写入链
+AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,recordGlobal,func,62,DEAD_CANDIDATE,2026-11-20：只把星号厂商和空secret交私有record；全源码和工具仅此定义，旧clearAll消费已不存在，无协议或objc动态入口；下一批删除，不在本批构建期间改源码
+AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,record,func,68,KEEP,2026-11-20：公共record调用；锁内保存日志，已有文件每次全文读入数行，少于500行追加，否则重新读取解码后保留最新500条并整份重写；达到上限后每次都走裁剪，旧注释500次一次失实；只存凭据摘要不存明文
+AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,encodeLine,func,108,KEEP,2026-11-20：首次记录及达到500条时重写共用JSONEncoder编码值记录再转UTF8，编码失败返回nil沿原调用跳过
+AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,loadAll,func,113,KEEP,2026-11-20：只在record达到500条时调用；完整UTF8读取后拆非空行，逐行解码日志条目并跳过坏行；与调用前数行的读取重复，旧entries消费者不存在
+AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,fingerprint,func,123,KEEP,2026-11-20：私有record仅对非空secret调用既有CommonCrypto摘要，取前6字节转12位十六进制供日志身份比较；本批不改变格式和持久数据
+AI,Features/AI/Views/AICredentialJournal.swift,AICredentialCommitCoordinator,init,init,139,KEEP,2026-11-20：AIProviderSettingsViewModel默认注入shared；保存既有凭据存储和日志依赖，不在初始化执行文件写入或网络访问
 AI,Features/AI/Views/AICredentialJournal.swift,AICredentialCommitCoordinator,commit,func,147,KEEP,2026-11-20：设置保存和remove共用凭证写入；空值删除非空保存，失败返回store.lastWriteError；成功记录动作后调用现有invalidate清除该厂商内存目录和偏好目录及时间，不记录密钥内容
 AI,Features/AI/Views/AICredentialJournal.swift,AICredentialCommitCoordinator,remove,func,163,KEEP,2026-11-20：设置删除凭据调用commit(nil)复用实际写入、错误返回及模型缓存失效，不另建删除流程
 AI,Features/AI/Views/AISettings.swift,AISettings,baseURLKey,func,19,KEEP,AIConnectionService:101 备份原地址；本文件 baseURL/setBaseURL 读写
@@ -3981,23 +3981,23 @@ TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartPar
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,filename,func,903,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:797
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,sanitize,func,928,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:819,821,828"
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,write,func,938,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:450
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,init,init,109,KEEP,LocalTransferStore.swift:95 shared
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,load,func,118,KEEP,LocalTransferStore.swift:110 init
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,persist,func,127,KEEP,"LocalTransferStore.swift:135,179,251,298"
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,pruneMissing,func,144,KEEP,LocalTransferStore.swift:111 init
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,add,func,159,KEEP,暂存队列逐项对原始URL调用startAccessingSecurityScopedResource，defer仅在scoped成功时调用stop，使授权覆盖该项文件IO；标准化路径后交stage并统计尺寸，主线程仅发布成功项、持久化及通知，回调实际成功数量并保留失败原因
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,autoStage,func,213,KEEP,文件与文件夹URL标准化并按路径去重，pendingAutoStagePaths在add开始前登记、完成后移除以避免首次暂存未完成时重复复制；原路径或暂存路径命中同项刷新addedAt并降序置顶持久化，其他项走add，不限定扩展名
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,addUploads,func,249,KEEP,LanTransferServer.swift:460 手机上传入库
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,stage,func,299,KEEP,LocalTransferStore.swift:161
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,sizeOf,func,324,KEEP,"LocalTransferStore.swift:162,235"
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,startRetentionCleanup,func,332,KEEP,启动及本地设置保存后替换已有retentionTimer；保留期0不设计时，正数时每3600秒调用pruneExpired并立即清理一次，计时加入主runloop common模式
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,pruneExpired,func,344,KEEP,按已保存retentionDays和最近addedAt计算天数×86400秒截止点，过期条目交统一remove并传递实际移除结果；0表示不清理并回调.none
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,remove,func,351,KEEP,单项重载转给数组重载；后台逐项把stagingRoot/item.id目录送废纸篓，主线程仅从索引移除成功id并持久化/通知，失败项保留并列出原因，原文件不操作
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,remove,func,375,KEEP,单项重载转给数组重载；后台逐项把stagingRoot/item.id目录送废纸篓，主线程仅从索引移除成功id并持久化/通知，失败项保留并列出原因，原文件不操作
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,clearAll,func,379,KEEP,清空暂存复用remove(items)异步送废纸篓，不再直接删除目录或提前清空索引，错误和成功数量由同一路径报告
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,reveal,func,383,KEEP,"TransferDockView.swift:1477,1543"
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,open,func,387,KEEP,"TransferDockView.swift:1519,1542"
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,openStagingFolder,func,391,KEEP,TransferDockView.swift:1053；SettingsPane.swift:225
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,init,init,109,KEEP,2026-11-20：shared唯一构造，复用LocalTransferPaths静态根目录避免单例重入；设置indexURL后同步load并后台pruneMissing，保留期清理由AppBootstrap启动
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,load,func,118,KEEP,2026-11-20：init同步读取index.json并解码条目数组，按addedAt降序恢复；读取或解码失败设空items，原文件未覆盖
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,persist,func,127,KEEP,2026-11-20：新增刷新和移除后调用；取消前一pendingPersist并捕获items快照，在同一串行暂存队列编码并原子写索引；错误写日志，当前保存的work仍持有最后快照
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,pruneMissing,func,144,KEEP,2026-11-20：init取条目快照后后台逐项确认暂存路径，收集缺失id；仅主线程移除这些索引并persist，未移除实际文件
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,add,func,159,KEEP,2026-11-20：拖入选文件图片压缩结果及自动暂存共用；串行队列逐项在安全作用域内建UUID目录并stage，失败删本次空目录；主线程发布成功项和错误并回调数量；入口无条件记录发送统计，自动暂存也被统计为发送待处理
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,autoStage,func,213,KEEP,2026-11-20：AppBootstrap收到剪贴板文件通知后按开关调用；标准化去重且pendingAutoStagePaths合并在途，原路径或暂存路径命中只刷新addedAt排序及通知，其余交add并回传实际数量和错误，不限制扩展名
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,addUploads,func,249,KEEP,2026-11-20：LanTransferServer手机上传及TransferDockView安卓拉取调用；串行队列把临时文件移入UUID目录，失败沿现有拷贝再删源路径；主线程发布成功upload条目并显示真实来源和错误，原temp路径仅记录元数据
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,stage,func,299,KEEP,2026-11-20：仅add调用；目录建符号链接，普通文件先硬链接失败再拷贝；实际Mode写入索引并显示，拷贝catch仅重新throw同一错误可在后续精简
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,sizeOf,func,324,KEEP,2026-11-20：add和addUploads入库前读取fileSize与isDirectory元数据；目录或失败返回0，列表以破折号显示，不递归扫描目录内容
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,startRetentionCleanup,func,332,KEEP,2026-11-20：AppBootstrap启动或保留期变更和相应配置导入调用；取消释放旧计时，0结束，正数注册每3600秒弱引用计时并立即pruneExpired一次；加入主runloop common模式
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,pruneExpired,func,344,KEEP,2026-11-20：原计时和设置立即清理按钮调用；按正式retentionDays及addedAt筛选，截止为当前时间减天数乘86400秒，过期项交统一remove；0直接回调none，不执行文件操作
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,remove,func,351,KEEP,2026-11-20：单项删除清空和保留期共用；后台逐项把stagingRoot/item.id目录送废纸篓，主线程仅删成功索引并persist及通知，失败项保留且列原因；回调成功数量及0回收字节，不操作原文件
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,remove,func,375,KEEP,2026-11-20：列表菜单及手机删除调用，单条转数组重载，统一异步送废纸篓及发布真实结果
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,clearAll,func,379,KEEP,2026-11-20：设置清空及列表清空交remove(items)；由同一异步删除链确认每项实际结果，不先清索引也不直接递归删除原目录
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,reveal,func,383,KEEP,2026-11-20：文件卡片和右键在Finder显示调用；交NSWorkspace选择暂存URL，定位到暂存链接或副本，不切原始路径
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,open,func,387,KEEP,2026-11-20：文件卡片及右键打开调用，NSWorkspace按暂存URL启动默认应用；目录符号链接按系统语义进入目标
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,openStagingFolder,func,391,KEEP,2026-11-20：中转列表打开目录及本地设置打开按钮调用NSWorkspace.open(stagingRoot)，复用现有暂存根目录
 TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,init,init,49,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：shared单例创建；进程令牌由既有UUID生成；服务仍须CastView手动开启
 TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,start,func,53,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：CastView开关调用；顺延8端口并复用bind；与WebDAV相同的同步监听等待待后续性能处理
 TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,bind,func,64,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：start调用；只绑定IPv4回环并记录不含令牌的基础地址；回调ok同步和主线程等待待处理
