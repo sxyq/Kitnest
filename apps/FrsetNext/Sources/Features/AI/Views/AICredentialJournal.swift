@@ -142,7 +142,7 @@ public final class AICredentialCommitCoordinator {
         self.journal = journal
     }
 
-    /// 提交凭证：空值等价于删除；成功后记录审计日志
+    /// 提交凭证：空值等价于删除；成功后记录日志并清除旧账号模型目录。
     @discardableResult
     public func commit(_ value: String?, for provider: LLMProviderKind) -> String? {
         let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
@@ -155,6 +155,7 @@ public final class AICredentialCommitCoordinator {
             if let reason = store.lastWriteError { return reason }
             journal.record(action: .save, provider: provider, secret: trimmed)
         }
+        AIProviderModelDiscoveryCache.shared.invalidate(provider)
         return nil
     }
 

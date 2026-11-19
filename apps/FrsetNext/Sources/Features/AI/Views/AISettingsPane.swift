@@ -75,13 +75,16 @@ public final class AIProviderSettingsViewModel: SettingsEditableDraft {
         let changed = isDirty
         for (kind, key) in candidateKeys where key.trimmingCharacters(in: .whitespacesAndNewlines) != credentialCoordinator.store.credential(for: kind) {
             if let reason = credentialCoordinator.commit(key, for: kind) { return "\(kind.displayName)：\(reason)" }
+            if kind == provider { models = [] }
         }
         for kind in removedKeys where credentialCoordinator.store.hasCredential(for: kind) {
             if let reason = credentialCoordinator.remove(for: kind) { return "\(kind.displayName)：\(reason)" }
+            if kind == provider { models = [] }
         }
         for kind in LLMProviderKind.allCases where baseURLs[kind] != savedURLs[kind] {
             AISettings.setBaseURL(baseURLs[kind]!, for: kind)
             AIProviderModelDiscoveryCache.shared.invalidate(kind)
+            if kind == provider { models = [] }
         }
         if provider != savedProvider { AISettings.providerKind = provider }
         if modelText != savedModel { AISettings.selectedModel = modelText }
