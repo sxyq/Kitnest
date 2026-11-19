@@ -288,7 +288,8 @@ public final class AndroidWebDAVServer {
     private func download(_ conn: NWConnection, path: String, headOnly: Bool) {
         guard let adb = ScreenCastEngine.findADB() else { send(conn, status: "503 Service Unavailable", headers: [:], body: Data()); return }
         if headOnly {
-            ADBExtrasEngine.run(["shell", "stat", "-c", "%s", "'" + path.replacingOccurrences(of: "'", with: "'\\''") + "'"]) { out, status in
+            let quoted = "'" + path.replacingOccurrences(of: "'", with: "'\\''") + "'"
+            ADBExtrasEngine.run(["shell", "[ -f \(quoted) ] && stat -L -c %s \(quoted)"]) { out, status in
                 guard status == 0, let out,
                       let size = UInt64(out.trimmingCharacters(in: .whitespacesAndNewlines)) else {
                     self.send(conn, status: "404 Not Found", headers: [:], body: Data())
