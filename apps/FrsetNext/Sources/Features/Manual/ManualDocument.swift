@@ -114,7 +114,7 @@ enum ManualDocument {
             return Doc(roots: [], index: [:], title: "使用手册", parentIndex: [:], flatNodes: [],
                        loadError: "无法读取手册：\(error.localizedDescription)")
         }
-        let order = ["开始使用", "剪贴板", "截图与录屏", "电脑状态", "文件与传输", "搜索与 AI", "工具箱", "日常与设置"]
+        let order = ["开始使用", "剪贴板", "截图与录屏", "文件与传输", "搜索与 AI", "工具箱", "电脑状态", "日常与设置"]
         roots.sort { (order.firstIndex(of: $0.title) ?? order.count) < (order.firstIndex(of: $1.title) ?? order.count) }
         return Doc(roots: roots, index: index, title: "使用手册", parentIndex: parentIndex,
                    flatNodes: roots.flatMap(\.children), loadError: nil)
