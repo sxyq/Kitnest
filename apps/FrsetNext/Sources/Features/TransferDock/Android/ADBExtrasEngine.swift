@@ -346,7 +346,7 @@ public enum ADBExtrasEngine {
             }
         }
         DispatchQueue.global(qos: .userInitiated).async {
-            guard ScreenCastEngine.findScrcpy() != nil else {
+            guard let scrcpy = ScreenCastEngine.findScrcpy() else {
                 finish(false, "未找到投屏组件")
                 return
             }
@@ -355,13 +355,13 @@ public enum ADBExtrasEngine {
                 return
             }
             // 设备缓存过期时在后台重查；组件复制也不占用界面线程。
-            let launcher = ScreenCastEngine.brandedLauncher()
+            let launcher = ScreenCastEngine.prepareLaunch(scrcpy)
             let task = Process()
             task.executableURL = URL(fileURLWithPath: launcher.exe)
             var args = ["--serial", serial, "--new-display=\(width)x\(height)/160",
                         "--start-app=\(package)", "--window-title=\(title ?? shortAppName(package))",
                         "--stay-awake", "--no-power-on"]
-            args += ScreenCastEngine.clipboardArguments()
+            args += launcher.clipboard
             args += ["--video-bit-rate", "\(TransferDockPref.CastQuality.bitrate)M"]
             if TransferDockPref.CastQuality.fps > 0 {
                 args += ["--max-fps", "\(TransferDockPref.CastQuality.fps)"]

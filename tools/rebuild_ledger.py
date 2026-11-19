@@ -44,6 +44,10 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Features/TransferDock/Cast/TransferCastEngines.swift", "prepareLaunch"):
+        "2026-11-20：镜像和独立应用窗口在后台调用；同一串行队列准备改名文件和剪贴板参数，能力缓存只在该队列访问",
+    ("Features/TransferDock/Cast/TransferCastEngines.swift", "runMirror"):
+        "2026-11-20：startMirror准备完毕回主线程调用；沿原启动、控制条挂载和保持设备唤醒顺序，stderr后台保留末6行，退出按当前PID卸载",
     ("Features/TransferDock/Transfer/TransferDockService.swift", "isLoginDomain"):
         "2026-11-20：登录页候选cookie与saveCookies写入共用；域名转小写，仅接受heytap.com/oppo.com本身及点分子域，保留前导点的域Cookie，拒绝同字尾的其他根域",
     ("Features/TransferDock/Android/ADBExtrasEngine.swift", "runSync"):

@@ -1,5 +1,6 @@
 import Foundation
 import CommonCrypto
+import Darwin
 
 // MARK: - 凭证存储
 //
@@ -61,20 +62,12 @@ public final class CredentialStore: LLMCredentialStoring {
     }
 
     public func setCredential(_ value: String?, for provider: LLMProviderKind) {
-        lock.lock()
+        lock.lock(); defer { lock.unlock() }
         var dict = cache ?? [:]
         let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if trimmed.isEmpty { dict.removeValue(forKey: provider.rawValue) }
         else { dict[provider.rawValue] = trimmed }
-        lastWriteError = nil
-        do {
-            try persist(dict)
-            cache = dict
-        } catch {
-            lastWriteError = error.localizedDescription
-            Log.error("Credential", "写入凭证失败：\(error.localizedDescription)")
-        }
-        lock.unlock()
+        persist(dict)
     }
 
     public func removeCredential(for provider: LLMProviderKind) {
@@ -82,10 +75,8 @@ public final class CredentialStore: LLMCredentialStoring {
     }
 
     public func clear() {
-        lock.lock()
-        cache = [:]
-        try? persist([:])
-        lock.unlock()
+        lock.lock(); defer { lock.unlock() }
+        persist([:])
     }
 
     // MARK: - 持久化
@@ -107,14 +98,29 @@ public final class CredentialStore: LLMCredentialStoring {
         }
     }
 
-    private func persist(_ dict: [String: String]) throws {
-        let data = try Self.encryptEnvelope(dict, keyFileURL: keyFileURL)
-        try data.write(to: fileURL, options: .atomic)
-        try ensureFileProtection(fileURL)
+    private func persist(_ dict: [String: String]) {
+        do {
+            let data = try Self.encryptEnvelope(dict, keyFileURL: keyFileURL)
+            try Self.writeProtected(data, to: fileURL)
+            cache = dict
+            lastWriteError = nil
+        } catch {
+            lastWriteError = error.localizedDescription
+            Log.error("Credential", "写入凭证失败：\(error.localizedDescription)")
+        }
     }
 
-    private func ensureFileProtection(_ url: URL) throws {
-        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: url.path)
+    private static func writeProtected(_ data: Data, to url: URL) throws {
+        let fm = FileManager.default
+        let directory = try fm.url(for: .itemReplacementDirectory, in: .userDomainMask,
+                                   appropriateFor: url, create: true)
+        defer { try? fm.removeItem(at: directory) }
+        let staged = directory.appendingPathComponent(url.lastPathComponent)
+        try data.write(to: staged)
+        try fm.setAttributes([.posixPermissions: 0o600], ofItemAtPath: staged.path)
+        guard rename(staged.path, url.path) == 0 else {
+            throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno))
+        }
     }
 
     // MARK: - 加解密（AES-256-CBC + PBKDF2）
@@ -128,16 +134,10 @@ public final class CredentialStore: LLMCredentialStoring {
 
     /// 主密钥：首次使用时随机生成并落盘（0600）
     private static func masterSecret(keyFileURL: URL) throws -> Data {
-        secretLock.lock()
-        if let cached = secretCache[keyFileURL.path] {
-            secretLock.unlock()
-            return cached
-        }
-        secretLock.unlock()
+        secretLock.lock(); defer { secretLock.unlock() }
+        if let cached = secretCache[keyFileURL.path] { return cached }
         let secret = try loadMasterSecret(keyFileURL: keyFileURL)
-        secretLock.lock()
         secretCache[keyFileURL.path] = secret
-        secretLock.unlock()
         return secret
     }
 
@@ -155,8 +155,7 @@ public final class CredentialStore: LLMCredentialStoring {
         randomFill(&bytes, 32)
         var out = Data(keyFileMagic.utf8)
         out.append(contentsOf: bytes)
-        try out.write(to: keyFileURL, options: .atomic)
-        try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: keyFileURL.path)
+        try writeProtected(out, to: keyFileURL)
         return Data(bytes)
     }
 

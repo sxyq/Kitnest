@@ -264,8 +264,7 @@ public enum ScreenCastEngine {
     /// macOS 的菜单栏 / 任务栏 / 活动监视器显示的是**可执行文件名**，直接跑 scrcpy 就一定是
     /// "scrcpy"。所以把它（连同 server jar）复制到 App 数据目录下、改名为 `Kitnest 投屏`，
     /// 再设置 `SCRCPY_SERVER_PATH` 指向同一份 jar，避免它按可执行文件目录找不到 server。
-    static func brandedLauncher() -> (exe: String, server: String?) {
-        guard let real = findScrcpy() else { return ("scrcpy", nil) }
+    private static func brandedLauncher(_ real: String) -> (exe: String, server: String?) {
         let fm = FileManager.default
         let realURL = URL(fileURLWithPath: real).resolvingSymlinksInPath()
         let dir = AppDirectories.sub("bin")
@@ -311,21 +310,32 @@ public enum ScreenCastEngine {
 
     /// 启动投屏镜像（scrcpy 独立进程；等 ADB 连真机后实测调参）
     /// - Parameter serial: 指定设备（多设备时必填）
-    @discardableResult
     public static func startMirror(serial: String? = nil,
                                    maxSize: Int? = nil,
-                                   bitRateMbps: Int? = nil) -> Bool {
-        guard findScrcpy() != nil else {
-            Toast.show("未找到投屏组件", icon: "exclamationmark.triangle", isWarning: true)
-            return false
+                                   bitRateMbps: Int? = nil) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            guard let scrcpy = findScrcpy() else {
+                DispatchQueue.main.async {
+                    Toast.show("未找到投屏组件", icon: "exclamationmark.triangle", isWarning: true)
+                }
+                return
+            }
+            let launcher = prepareLaunch(scrcpy)
+            let adb = findADB()
+            DispatchQueue.main.async {
+                runMirror(launcher, adb: adb, serial: serial, maxSize: maxSize, bitRateMbps: bitRateMbps)
+            }
         }
-        let launcher = brandedLauncher()
+    }
+
+    private static func runMirror(_ launcher: (exe: String, server: String?, clipboard: [String]),
+                                  adb: String?, serial: String?, maxSize: Int?, bitRateMbps: Int?) {
         let task = Process()
         task.executableURL = URL(fileURLWithPath: launcher.exe)
         // v117：画质走「设置 → 文件中转 → 投屏画质」（默认 1920p / 16Mbps / 60fps）
         var args: [String] = ["--stay-awake", "--no-power-on"]
         // v130（AndroMeld/AgentHUD）：显式剪贴板参数（AndroMeld P0-2），不再依赖默认值
-        args += clipboardArguments()
+        args += launcher.clipboard
         let size = maxSize ?? TransferDockPref.CastQuality.maxSize
         if size > 0 { args += ["--max-size", "\(size)"] }
         args += ["--video-bit-rate", "\(bitRateMbps ?? TransferDockPref.CastQuality.bitrate)M"]
@@ -340,7 +350,7 @@ public enum ScreenCastEngine {
         // 结果 `adb reverse` 落到另一个 server 上 → 报 `ERROR: Server connection failed`
         // （真机实测：终端里手动跑正常，App 拉起就必失败）。
         var env = ProcessInfo.processInfo.environment
-        if let adb = ScreenCastEngine.findADB() {
+        if let adb {
             env["ADB"] = adb
             env["PATH"] = (adb as NSString).deletingLastPathComponent + ":" + (env["PATH"] ?? "/usr/bin:/bin")
         }
@@ -397,10 +407,9 @@ public enum ScreenCastEngine {
             ScrcpyControlBarController.shared.attach(serial: serial, processID: task.processIdentifier)
             // v166.3：手机熄屏后 scrcpy 只能拿黑帧——检测休眠就唤醒到锁屏，保证镜像可用
             CastScreenKeeper.shared.start(serial: serial)
-            Toast.show(TransferDockPref.CastQuality.clipboardAutoSync
-                       ? "投屏已启动（镜像窗 · 双向剪贴板：已开启）"
-                       : "投屏已启动（双向剪贴板：已关闭）", icon: "display")
-            return true
+            Toast.show(launcher.clipboard.contains("--no-clipboard-autosync")
+                       ? "投屏已启动（双向剪贴板：已关闭）"
+                       : "投屏已启动（镜像窗 · 双向剪贴板：已开启）", icon: "display")
         } catch {
             task.terminationHandler = nil
             errPipe.fileHandleForReading.closeFile()
@@ -408,7 +417,6 @@ public enum ScreenCastEngine {
             reading.leave()
             Toast.show("投屏启动失败：\(error.localizedDescription)",
                        icon: "exclamationmark.triangle", isWarning: true)
-            return false
         }
     }
 
@@ -422,33 +430,42 @@ public enum ScreenCastEngine {
     //   · 2.x/3.x：有 `--clipboard-autosync` / `--no-clipboard-autosync` 一对。
     // 所以按 scrcpy --help 探测支持集，开时能显式传就显式传（保证「显式」语义），
     // 不支持显式开参数的版本回落「不传 = 默认开启」。
-    public static func clipboardArguments() -> [String] {
-        guard TransferDockPref.CastQuality.clipboardAutoSync else {
-            return ["--no-clipboard-autosync"]     // 两代版本都支持显式关
+    private static let launchPreparation = DispatchQueue(label: "com.sxyq.kitnest.cast.prepare")
+
+    static func prepareLaunch(_ path: String) -> (exe: String, server: String?, clipboard: [String]) {
+        launchPreparation.sync {
+            let launcher = brandedLauncher(path)
+            let clipboard: [String]
+            if TransferDockPref.CastQuality.clipboardAutoSync {
+                clipboard = clipboardExplicitOnSupported(launcher.exe) ? ["--clipboard-autosync"] : []
+            } else {
+                clipboard = ["--no-clipboard-autosync"]
+            }
+            return (launcher.exe, launcher.server, clipboard)
         }
-        return clipboardExplicitOnSupported() ? ["--clipboard-autosync"] : []
     }
 
     /// scrcpy 是否支持显式 `--clipboard-autosync`（探测结果缓存 10 分钟）
     /// 注：`--no-clipboard-autosync` 不含子串 `--clipboard-autosync`（中间隔着 "no"），
     /// 直接 contains 判正参数即可。
-    private static var clipProbeStamp: Date = .distantPast
-    private static var clipProbeSupportsOn = false
-    private static func clipboardExplicitOnSupported() -> Bool {
-        if Date().timeIntervalSince(clipProbeStamp) < 600 { return clipProbeSupportsOn }
-        guard let scrcpy = findScrcpy() else { return false }
+    private static var clipProbe: (path: String, modified: Date?, stamp: Date, supported: Bool)?
+    private static func clipboardExplicitOnSupported(_ scrcpy: String) -> Bool {
+        let modified = (try? FileManager.default.attributesOfItem(atPath: scrcpy)[.modificationDate]) as? Date
+        if let cached = clipProbe, cached.path == scrcpy, cached.modified == modified,
+           Date().timeIntervalSince(cached.stamp) < 600 { return cached.supported }
         let task = Process()
         task.executableURL = URL(fileURLWithPath: scrcpy)
         task.arguments = ["--help"]
         let pipe = Pipe()
         task.standardOutput = pipe
         task.standardError = FileHandle.nullDevice
-        try? task.run()
+        do { try task.run() } catch { return false }
+        let help = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
         task.waitUntilExit()
-        let help = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-        clipProbeSupportsOn = help.contains("--clipboard-autosync")
-        clipProbeStamp = Date()
-        return clipProbeSupportsOn
+        guard task.terminationStatus == 0 else { return false }
+        let supported = help.contains("--clipboard-autosync")
+        clipProbe = (scrcpy, modified, Date(), supported)
+        return supported
     }
 }
 
