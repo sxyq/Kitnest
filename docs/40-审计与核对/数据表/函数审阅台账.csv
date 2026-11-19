@@ -721,12 +721,12 @@ Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateWindowControll
 Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateWindowController,windowShouldClose,func,492,KEEP,2026-11-18：init注册NSWindowDelegate；闲置直接关闭；busy按三按钮转后台或等待或取消；关闭不默认中断压缩
 Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateWindowController,windowWillClose,func,513,KEEP,2026-11-18：AppKit关闭通知；移除open中同组控制器并异步刷新TaskCenter；后台完成闭包仍持有模型与源输出路径
 Archive,Features/Archive/UI/ArchiveHTMLPreview.swift,WebPreviewController,init,init,31,KEEP,HTMLPreview:169 StateObject 构造
-Archive,Features/Archive/UI/ArchiveHTMLPreview.swift,WebPreviewController,load,func,73,KEEP,init:70 加载首页
+Archive,Features/Archive/UI/ArchiveHTMLPreview.swift,WebPreviewController,load,func,73,KEEP,2026-11-20：初始化首页和本地新窗目标共用；解析链接后的路径必须在本次解包目录才交WebKit加载
 Archive,Features/Archive/UI/ArchiveHTMLPreview.swift,WebPreviewController,goBack,func,78,KEEP,bar:203 后退按钮
 Archive,Features/Archive/UI/ArchiveHTMLPreview.swift,WebPreviewController,goForward,func,79,KEEP,bar:204 前进按钮
 Archive,Features/Archive/UI/ArchiveHTMLPreview.swift,WebPreviewController,reload,func,80,KEEP,bar:205 刷新按钮
 Archive,Features/Archive/UI/ArchiveHTMLPreview.swift,WebPreviewController,openInBrowser,func,83,KEEP,bar:206「用默认浏览器打开」
-Archive,Features/Archive/UI/ArchiveHTMLPreview.swift,WebPreviewController,isInsideRoot,func,90,KEEP,decidePolicy:110、createWebView:137 用
+Archive,Features/Archive/UI/ArchiveHTMLPreview.swift,WebPreviewController,isInsideRoot,func,90,KEEP,2026-11-20：加载、导航和浏览器按钮共用；先排除非文件URL，再用真实绝对路径与目录分隔符比较
 Archive,Features/Archive/UI/ArchiveHTMLPreview.swift,WebPreviewController,openExternalLink,func,98,KEEP,2026-11-20：归档网页两种导航回调共用，仅主文档由用户点击的HTTP、HTTPS或mailto链接交系统打开；自动重定向不唤起外部应用
 Archive,Features/Archive/UI/ArchiveHTMLPreview.swift,WebPreviewController,webView,func,108,KEEP,WKNavigationDelegate 协议回调
 Archive,Features/Archive/UI/ArchiveHTMLPreview.swift,WebPreviewController,webView,func,125,KEEP,WKNavigationDelegate 协议回调
@@ -2175,7 +2175,7 @@ CodePreview,Features/CodePreview/CodeLanguage.swift,CodeLanguageCatalog,displayN
 CodePreview,Features/CodePreview/CodeLanguage.swift,CodeLanguageCatalog,id,func,78,KEEP,2026-11-20：detect从文件名拆扩展后调用，按当前目录次序返回首个语言ID
 CodePreview,Features/CodePreview/CodeLanguage.swift,CodeLanguageCatalog,detect,func,90,KEEP,2026-11-20：代码预览自动菜单和工具箱共用，已知扩展优先；h及m转内容判定
 CodePreview,Features/CodePreview/CodeLanguage.swift,CodeLanguageCatalog,detectFromContent,func,102,KEEP,2026-11-20：扩展缺失或有歧义才读前8000字符，按实际强特征顺序返回语言；已删同结果分支及不可达条件
-CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,tokens,func,48,KEEP,2026-11-20：CodeHighlighter唯一调用；归一语言并生成词法规则，将最多300000 UTF-16单元交注释词法和行级规则，压成区间
+CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,tokens,func,48,KEEP,2026-11-20：CodeHighlighter唯一调用；先按300000 UTF-16单元限制，再复用目录语言的词表与注释标记；词法和行级标记合并为着色区间
 CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,markCommentsAndStrings,func,68,KEEP,2026-11-20：tokens首遍调用，依语言处理块和行注释、前置指令及单行或三引号字符串，以相同下标写标记
 CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,markWordsAndNumbers,func,142,KEEP,2026-11-20：tokens第二遍只处理未标记区间，按词表、标签、前后字符识别类型与数字
 CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,markDiff,func,240,KEEP,2026-11-20：diffMode替代首遍；按行首加减号、@或diff分别标出新增删除区间和元信息
@@ -2216,7 +2216,7 @@ CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,copyRichText,fu
 CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,copyAttributed,func,24,KEEP,2026-11-20：正文⌘C使用现成选区配色，将字符底纹转RTF并同时提供HTML和纯文本
 CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,copyPlainText,func,45,KEEP,2026-11-20：纯文本菜单使用唯一系统剪贴板写入，返回AppKit真实结果
 CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,write,func,51,KEEP,2026-11-20：复制整段和选区共用，HTML及原文字必带，有RTF时一并写入同一条目
-CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,makePayload,func,69,KEEP,2026-11-20：整段富文本和复制HTML源码共用，生成主题与行号正文及三个剪贴板表示
+CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,makePayload,func,69,KEEP,2026-11-20：整段富文本和HTML源码复用导出着色；HTML源码只取HTML字符串，不编码RTF；富文本入口仍提供三个剪贴板表示
 CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,makeRTF,func,88,KEEP,2026-11-20：整段复制给着色范围附加主题底色并由AppKit编码为RTF
 CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,spansHTML,func,101,KEEP,2026-11-20：整段和选区对着色区间逐一转义原文并生成对应颜色与斜体标记
 CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,makeHTML,func,123,KEEP,2026-11-20：用表格容器保存主题底色，按可选标题和字体组出复制所用HTML片段
@@ -3854,9 +3854,9 @@ TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebD
 TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,send,func,345,KEEP,2026-11-19：全部响应共用；尊重HEAD提供的长度否则按Data填入；跨队列结果回原服务串行队列并只向仍登记的连接发送；完成close
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryWindowController,init,init,14,KEEP,CastAppLibraryWindow.swift:10 shared
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryWindowController,show,func,16,KEEP,CastView.swift:629；FrsetNextApp.swift:347 菜单
-TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryView,tile,func,113,KEEP,CastAppLibraryWindow.swift:98 tile(app)
+TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryView,tile,func,113,KEEP,2026-11-20：筛选后的懒网格调用；有图标时复用App按路径保存的NSImage，缺图仍使用应用名首字，尺寸48点
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryView,open,func,141,KEEP,2026-11-20：应用磁贴Button动作；调用唯一后台startAppWindow，主线程成功回调才记录使用次数；失败不记使用
-TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryView,reload,func,147,KEEP,CastAppLibraryWindow.swift:109 onAppear
+TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryView,reload,func,147,KEEP,2026-11-20：窗口内容出现时读取当前设备目录；目录回主线程更新apps与loading，正文每轮只筛选一次以供计数和网格
 TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,init,init,34,KEEP,2026-11-20：shared唯一构造；panel和timer及serial和PID按挂载会话持有
 TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,attach,func,39,KEEP,2026-11-20：两处调用均在主线程；立即写serial及PID并startTracking，去除异步包装和即时tick以保持快速退出时的绑定，首个0.35秒tick定位
 TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,attachIfScrcpyRunning,func,47,KEEP,2026-11-20：页面onAppear调用；当前PID存活恢复跟踪；已死亡先detach结束旧绑定再后台ps读取实际投屏窗口--serial；回主线程只在仍无新绑定时挂载
@@ -3900,7 +3900,7 @@ TransferDock,Features/TransferDock/Cast/CastView.swift,CastContent,notifTint,fun
 TransferDock,Features/TransferDock/Cast/DeviceAppCatalog.swift,DeviceAppCatalog,init,init,45,KEEP,2026-11-20：shared单例构造缓存目录和labels.json；只在已有字典可解码时读取名称缓存，未读取手机
 TransferDock,Features/TransferDock/Cast/DeviceAppCatalog.swift,DeviceAppCatalog,load,func,57,KEEP,2026-11-20：两个目录入口共用；按传入serial合并等待者，后台nil时解析当前设备并固定用于整批列表与补图；scores每轮一次；主线程只交付本组等待者
 TransferDock,Features/TransferDock/Cast/DeviceAppCatalog.swift,DeviceAppCatalog,listPackages,func,93,KEEP,2026-11-20：load后台调用；显式设备前缀加pm list packages -3交共享runSync，超时20秒；只解析package前缀；原失败与空列表混同仍待处理
-TransferDock,Features/TransferDock/Cast/DeviceAppCatalog.swift,DeviceAppCatalog,fetchMissingIcons,func,104,KEEP,2026-11-20：load后台调用；仅补缺失PNG；比较本地与远端dex尺寸后按60包批处理；解析包名标签并pull到UUID临时目录，逐文件移入缓存后删本批临时目录
+TransferDock,Features/TransferDock/Cast/DeviceAppCatalog.swift,DeviceAppCatalog,fetchMissingIcons,func,104,KEEP,2026-11-20：load后台补缺失PNG；比较dex尺寸后每轮只切出当前最多60包，解析标签时仅查询当前切片；拉回图标移入缓存并删除本批临时目录
 TransferDock,Features/TransferDock/Cast/DeviceAppCatalog.swift,DeviceAppCatalog,saveLabels,func,151,KEEP,2026-11-20：每批图标读取完成调用；将当前名称字典编码后原子写回labels.json；沿原可选缓存写入语义
 TransferDock,Features/TransferDock/Cast/DeviceAppCatalog.swift,DeviceAppCatalog,bundledDex,func,158,KEEP,2026-11-20：fetchMissingIcons调用；只从主bundle的bin/icons.dex取已有打包助手；缺失由调用方记录原日志
 TransferDock,Features/TransferDock/Cast/DeviceAppCatalog.swift,DeviceAppCatalog,shortName,func,165,KEEP,2026-11-20：load构造无真实标签的应用时调用；取包名最后一段并首字母大写；不改已有缓存名称
