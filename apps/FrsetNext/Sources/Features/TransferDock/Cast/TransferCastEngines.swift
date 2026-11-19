@@ -578,28 +578,6 @@ public enum ADBWirelessEngine {
 
 public enum ADBFileBridge {
 
-    /// 推送文件到手机（默认 /sdcard/Download/Kitnest/）
-    /// - completion: (成功数, 输出文本)
-    public static func push(urls: [URL],
-                            remoteDir: String = "/sdcard/Download/Kitnest",
-                            completion: @escaping (Int, String) -> Void) {
-        guard !urls.isEmpty else {
-            DispatchQueue.main.async { completion(0, "没有要推送的文件") }
-            return
-        }
-        ADBExtrasEngine.run(["shell", "mkdir", "-p", remoteDir], timeout: nil) { output, status in
-            guard status == 0 else {
-                HapticFeedback.perform(.transferFailed)
-                completion(0, output ?? "adb 不可用")
-                return
-            }
-            runADBPush(urls: urls, remoteDir: remoteDir, index: 0, sent: 0, log: "") { sent, log in
-                HapticFeedback.perform(sent == urls.count ? .transferCompleted : .transferFailed)
-                completion(sent, log)
-            }
-        }
-    }
-
     // MARK: 带进度的推送（v122；用户：「数据也要显示」）
 
     /// 传输进度快照（整个批次，不是单文件）
@@ -769,26 +747,6 @@ public enum ADBFileBridge {
     private static func speedHint(_ text: String) -> String {
         guard let r = text.range(of: #"[\d.]+ ?[KMG]B/s"#, options: .regularExpression) else { return "" }
         return String(text[r])
-    }
-
-    /// 逐个推送（adb push 一次多源在个别 ROM 上行为不一，逐个最稳、还能精确报数）
-    private static func runADBPush(urls: [URL], remoteDir: String, index: Int,
-                                   sent: Int, log: String,
-                                   completion: @escaping (Int, String) -> Void) {
-        guard index < urls.count else {
-            DispatchQueue.main.async { completion(sent, log) }
-            return
-        }
-        let url = urls[index]
-        ADBExtrasEngine.run(["push", url.path, remoteDir + "/"], timeout: nil) { out, status in
-            // 成功输出形如 "1 file pushed, 0 skipped."；失败含 "adb: error"
-            let text = out ?? ""
-            let ok = status == 0 && text.contains("pushed") && !text.lowercased().contains("error")
-            var log = log
-            log += "\(url.lastPathComponent)：\(ok ? "✓" : "✗ \(text)")\n"
-            runADBPush(urls: urls, remoteDir: remoteDir, index: index + 1,
-                       sent: sent + (ok ? 1 : 0), log: log, completion: completion)
-        }
     }
 
     /// 拉取手机目录下全部文件到本地暂存目录（先清空暂存目录，避免重复堆积）
