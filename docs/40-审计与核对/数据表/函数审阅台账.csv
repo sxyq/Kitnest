@@ -791,34 +791,34 @@ Archive,Features/Archive/UI/ArchiveTextPreview.swift,ArchiveTextPreview,header,f
 Archive,Features/Archive/UI/ArchiveTextPreview.swift,ArchiveTextPreview,modeItem,func,142,KEEP,2026-11-17：modeSwitch预览和编辑按钮注册闭包；只改editing，正文Binding与onEdit仍交父模型负责脏状态和保存
 Archive,Features/Archive/UI/ArchiveTextPreview.swift,ArchiveTextPreview,rendered,func,162,KEEP,2026-11-17：body传入同轮分类结果，复用原Markdown/JSON/代码/文本组件；正文仍来自draft，不再保留未读取text入参
 Archive,Features/Archive/UI/ArchiveTextPreview.swift,ArchiveTextPreview,plainAttributed,func,189,KEEP,2026-11-17：rendered纯文本分支调用；按13号字体3点行距构造现有NSTextView正文；草稿由原Binding持有，未读取text入参及调用传值已删
-Audio,Features/Audio/AudioMixer.swift,-,cc,func,19,KEEP,本文件 14 处调用：122/130/138/144/177/214/226/231 等
-Audio,Features/Audio/AudioMixer.swift,-,addr,func,25,KEEP,本文件 13 处调用：122/130/138/177/187/204/214/226 等
-Audio,Features/Audio/AudioMixer.swift,AudioAppInfo,func,func,40,KEEP,Equatable 必需：icon 是 NSImage? 无法自动合成（:33 声明）
-Audio,Features/Audio/AudioMixer.swift,AudioDeviceInfo,func,func,49,KEEP,Equatable 协议实现（:44 声明 conformance）；无显式 == 调用
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,init,init,109,KEEP,shared 单例 :55 调用；init 内 reloadDevices:94
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,startRefreshing,func,116,KEEP,AudioMixerPane:326 .onAppear 调用
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,stopRefreshing,func,132,KEEP,AudioMixerPane:327 .onDisappear 调用
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,setIslandVisible,func,140,KEEP,刘海音量组件按consumer登记可见性，只监听默认输出状态，不启动设置页出声进程采样；最后消费者离开且设置不可见时移除监听
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,addOutputListeners,func,148,KEEP,设置页或刘海音量首次可见时监听设备列表、默认输出、实际音量属性与静音，登记成功项供成对移除，失败显示状态码
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,removeOutputListeners,func,165,KEEP,最后输出消费者离开时按保存的object/property逐项移除CoreAudio listener，清监听数组及设备id
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,refreshOutputState,func,174,KEEP,音量监听及设置/刘海出现共用读取，按设备实际属性更新可读态、音量、静音和设备列表，readingOutput覆盖本次读取
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,volumeProperties,func,197,KEEP,音量读写和监听共用设备公开属性，依次选voll或VolumeScalar主音量，没有则读取首选左右声道并保留存在的声道属性
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,getSystemVolume,func,214,KEEP,init:91 调用
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,setSystemVolume,func,229,KEEP,outputVolume.didSet :59 调用
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,getSystemMuted,func,243,KEEP,init:92 调用
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,setSystemMuted,func,252,KEEP,outputMuted.didSet :63 调用
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,getSelfAudible,func,262,KEEP,init:93 调用
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,setSelfAudible,func,270,KEEP,selfAudible.didSet :78 调用
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,reloadDevices,func,278,KEEP,init:94 与 selectDefaultDevice:207 调用
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,selectDefaultDevice,func,309,KEEP,selectedDevice.didSet :71 调用
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,refreshPlayingApps,func,321,KEEP,startRefreshing:101 与 Timer 回调 :107 调用
-Audio,Features/Audio/AudioMixer.swift,AudioMixerPane,init,init,374,KEEP,AppBootstrap.swift:99 SettingsPaneRegistry.build 闭包构造
-Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,setVisible,func,44,KEEP,正式媒体宿主按UUID登记消费者，首次可见立即刷新并每秒更新，最后离开停止timer、osascript及封面任务并清快照
-Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,refresh,func,64,KEEP,可见媒体timer仅在process为空时request(read)，复用同一系统正在播放读取路径
-Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,send,func,68,KEEP,媒体上一首/播放暂停/下一首把命令整数转为action交request，再读取系统返回的实际快照
-Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,seek,func,72,KEEP,媒体进度松手把秒数用MediaRemote命令24及seconds交request
-Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,request,func,76,KEEP,同一osascript JXA脚本读取或控制MediaRemote，后台收stdout并在主线程仅接纳当前Process结果；解码快照、反馈commandAccepted，曲目或封面变化才loadArtwork
-Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,loadArtwork,func,124,KEEP,新快照先取消旧封面任务，优先解播放器base64图片，否则读取播放器提供的文件或网络URL；取消后不发布，失败给实际读取原因
+Audio,Features/Audio/AudioMixer.swift,-,cc,func,19,KEEP,2026-11-20：本文件将短属性名逐字节移位合为 CoreAudio FourCC；供音量、静音、设备及有声进程属性读取和写入
+Audio,Features/Audio/AudioMixer.swift,-,addr,func,25,KEEP,2026-11-20：构造选择器、作用域和元素三元地址；输出设备的音量与静音传 output 作用域，系统级默认值为 global
+Audio,Features/Audio/AudioMixer.swift,AudioAppInfo,func,func,40,KEEP,2026-11-20：音频进程相等按 PID 判断；列表发布现走两组 PID 比较，SwiftUI ForEach 只消费 Identifiable；现行协议无业务调用
+Audio,Features/Audio/AudioMixer.swift,AudioDeviceInfo,func,func,49,KEEP,2026-11-20：设备相等只看系统设备 ID；Picker 按该 ID 作为选择值，未找到其他显式相等比较
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,init,init,109,KEEP,2026-11-20：shared 构造时读取系统输出、设备列表和本进程 audible；初始化无定时器
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,startRefreshing,func,116,KEEP,2026-11-20：设置页出现时登记监听和刷新初值；每2秒在主线程采样一次有声进程，不由刘海音量卡启动
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,stopRefreshing,func,132,KEEP,2026-11-20：设置页离开即失效采样计时器；刘海仍可见则保留系统输出监听；原进程图标和列表继续驻留
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,setIslandVisible,func,140,KEEP,2026-11-20：刘海音量卡按UUID登记可见消费；出现读取系统输出并按需建立监听，最后一位离开且设置页关闭后移除
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,addOutputListeners,func,148,KEEP,2026-11-20：设置页或刘海首次可见以及默认设备切换时，监听默认设备、设备列表、实际音量属性与静音；保存成功项与设备 ID
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,removeOutputListeners,func,165,KEEP,2026-11-20：最后观察者离开或设备切换时逐项按原对象和属性解除监听，并清空记录及设备 ID
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,refreshOutputState,func,174,KEEP,2026-11-20：输出回调、出现和手动写入后共用；readingOutput 防止快照反写系统；当前每次还会枚举全部设备
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,volumeProperties,func,197,KEEP,2026-11-20：给读写和监听选择同一设备的主音量属性；无主属性时读取首选立体声道并仅返回存在的控制属性
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,getSystemVolume,func,214,KEEP,2026-11-20：refreshOutputState 调用；平均可读声道音量，HAL错误则保留原显示值并发布具体错误
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,setSystemVolume,func,229,KEEP,2026-11-20：outputVolume 写入触发；夹到0至1并逐声道写入，失败记录 HAL 状态，最后刷新快照；边界触觉由属性入口处理
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,getSystemMuted,func,243,KEEP,2026-11-20：refreshOutputState 在默认输出有静音属性时调用；HAL失败保留旧布尔值并更新错误及可读状态
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,setSystemMuted,func,252,KEEP,2026-11-20：outputMuted 用户写入触发；设置默认设备的静音属性后刷新系统快照，readingOutput 阻止刷新回写
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,getSelfAudible,func,262,KEEP,2026-11-20：初始化读取系统对象对本进程的可听属性；读取失败返回默认可听
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,setSelfAudible,func,270,KEEP,2026-11-20：selfAudible 开关写系统对象的本进程可听属性；现实现没有向界面反馈 HAL 写入错误
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,reloadDevices,func,278,KEEP,2026-11-20：refreshOutputState 调用；枚举有输出流的设备并取得名称和当前默认项，刷新时不向 HAL 反写选择
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,selectDefaultDevice,func,309,KEEP,2026-11-20：设置 Picker 和刘海菜单共用；写系统默认设备，刷新监听和界面，返回状态码转为可见反馈
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,refreshPlayingApps,func,321,KEEP,2026-11-20：设置页首次出现及2秒计时调用；筛有声进程、读取 PID 和图标，只在 PID 序列变化时发布；旧图标按 PID 保留
+Audio,Features/Audio/AudioMixer.swift,AudioMixerPane,init,init,374,KEEP,2026-11-20：AppBootstrap 注册音频设置页的构建闭包使用无参初始化；视图出现和离开分别启停本页采样
+Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,setVisible,func,44,KEEP,2026-11-20：收起入口与展开媒体卡按UUID共用可见性；首次读取并每秒刷新，最后移除计时、进程和封面任务，保留过渡曲目
+Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,refresh,func,64,KEEP,2026-11-20：定时器与首次可见调用，只有没有执行中的 osascript 时才开始一次读取
+Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,send,func,68,KEEP,2026-11-20：媒体卡按钮及刘海快捷动作把系统命令转字符串送 request；是否成功由系统回调决定
+Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,seek,func,72,KEEP,2026-11-20：媒体进度条松手传秒数；命令24与秒数共用读取结果回调
+Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,request,func,76,KEEP,2026-11-20：系统 osascript 执行读取或指令，后台取管道内容，主线程只消费当前进程；暂停保留时间锚，原脚本仍每秒编码并传送封面
+Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,loadArtwork,func,124,KEEP,2026-11-20：曲目或封面变化取消旧任务；优先从 base64 构图，其次读文件或网络URL；仅未取消时发布，现任务完成后仍持有句柄
 Capture,Features/Capture/Annotation/AnnotationCompositor.swift,Annotation,init,init,128,KEEP,2026-11-19：编辑器笔画/文本/撤销恢复与历史快照多处构造；保留原ID、工具、像素坐标及样式和辅助参数，不另归一化
 Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,composite,func,166,KEEP,2026-11-19：EditorCanvas导出/复制调用；无标注原样返回，建同尺寸context绘底图并翻左上坐标，再缓存各强度马赛克/模糊层绘制
 Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,roundedCorners,func,218,KEEP,2026-11-19：Editor导出按圆角设置调用；半径限短边一半并透明裁切，context创建或makeImage失败保留原图
