@@ -95,10 +95,14 @@ public final class AudioMixerController: ObservableObject {
     private var islandConsumers = Set<UUID>()
     private var outputListeners: [(AudioObjectID, AudioObjectPropertyAddress)] = []
     private var listenedOutput: AudioObjectID = 0
-    private lazy var outputListener: AudioObjectPropertyListenerBlock = { [weak self] _, _ in
+    private lazy var outputListener: AudioObjectPropertyListenerBlock = { [weak self] count, addresses in
         guard let self, self.settingsVisible || !self.islandConsumers.isEmpty else { return }
-        if self.listenedOutput != self.defaultOutputID { self.removeOutputListeners(); self.addOutputListeners() }
-        self.refreshOutputState()
+        let outputChanged = self.listenedOutput != self.defaultOutputID
+        if outputChanged { self.removeOutputListeners(); self.addOutputListeners() }
+        let devicesChanged = UnsafeBufferPointer(start: addresses, count: Int(count)).contains {
+            $0.mSelector == kAudioHardwarePropertyDevices
+        }
+        self.refreshOutputState(refreshDevices: outputChanged || devicesChanged)
     }
 
     // v128（流畅度）：进程图标缓存（pid → NSImage）——原来每 2s 对每个有声进程
@@ -107,7 +111,7 @@ public final class AudioMixerController: ObservableObject {
     private var iconCache: [Int32: NSImage] = [:]
 
     private init() {
-        refreshOutputState()
+        refreshOutputState(refreshDevices: true)
         selfAudible = getSelfAudible()
     }
 
@@ -116,7 +120,7 @@ public final class AudioMixerController: ObservableObject {
     public func startRefreshing() {
         settingsVisible = true
         if outputListeners.isEmpty { addOutputListeners() }
-        refreshOutputState()
+        refreshOutputState(refreshDevices: true)
         guard refreshTimer == nil else { return }
         refreshPlayingApps()
         // v128（流畅度）：周期维持 2s——本 timer 仅在「设置 → 音频」页可见时跑
@@ -141,7 +145,7 @@ public final class AudioMixerController: ObservableObject {
         if visible { islandConsumers.insert(consumer) } else { islandConsumers.remove(consumer) }
         if visible {
             if outputListeners.isEmpty { addOutputListeners() }
-            refreshOutputState()
+            refreshOutputState(refreshDevices: true)
         } else if islandConsumers.isEmpty && !settingsVisible { removeOutputListeners() }
     }
 
@@ -150,7 +154,7 @@ public final class AudioMixerController: ObservableObject {
         listenedOutput = defaultOutputID
         let properties = [(system, addr(kAudioHardwarePropertyDefaultOutputDevice)),
                           (system, addr(kAudioHardwarePropertyDevices))] +
-            volumeProperties().map { (listenedOutput, $0) } +
+            volumeProperties(for: listenedOutput).map { (listenedOutput, $0) } +
             [(listenedOutput, addr(kAudioDevicePropertyMute, kAudioObjectPropertyScopeOutput))]
         for (object, property) in properties {
             var property = property
@@ -171,15 +175,17 @@ public final class AudioMixerController: ObservableObject {
         listenedOutput = 0
     }
 
-    public func refreshOutputState() {
+    private func refreshOutputState(refreshDevices: Bool = false) {
         readingOutput = true
         defer { readingOutput = false }
-        volumeReadable = !volumeProperties().isEmpty
-        if volumeReadable { outputVolume = getSystemVolume() }
+        let device = defaultOutputID
+        let properties = volumeProperties(for: device)
+        volumeReadable = !properties.isEmpty
+        if volumeReadable { outputVolume = getSystemVolume(device, properties: properties) }
         var mute = addr(kAudioDevicePropertyMute, kAudioObjectPropertyScopeOutput)
-        muteReadable = AudioObjectHasProperty(defaultOutputID, &mute)
-        if muteReadable { outputMuted = getSystemMuted() }
-        reloadDevices()
+        muteReadable = AudioObjectHasProperty(device, &mute)
+        if muteReadable { outputMuted = getSystemMuted(device) }
+        if refreshDevices { reloadDevices(defaultID: device) }
     }
 
     // MARK: 系统音量 / 静音（默认输出设备，scope output element main）
@@ -194,8 +200,7 @@ public final class AudioMixerController: ObservableObject {
         return id
     }
 
-    private func volumeProperties() -> [AudioObjectPropertyAddress] {
-        let device = defaultOutputID
+    private func volumeProperties(for device: AudioObjectID) -> [AudioObjectPropertyAddress] {
         // 本机默认设备仅提供公开 volm；部分设备使用虚拟主音量或独立左右声道。
         for selector in [cc("voll"), kAudioDevicePropertyVolumeScalar] {
             var property = addr(selector, kAudioObjectPropertyScopeOutput)
@@ -211,14 +216,12 @@ public final class AudioMixerController: ObservableObject {
         }
     }
 
-    public func getSystemVolume() -> Double {
-        let properties = volumeProperties()
-        guard !properties.isEmpty else { return outputVolume }
+    private func getSystemVolume(_ device: AudioObjectID, properties: [AudioObjectPropertyAddress]) -> Double {
         var total = 0.0
         for var property in properties {
             var volume: Float32 = 0
             var size = UInt32(MemoryLayout<Float32>.size)
-            let status = AudioObjectGetPropertyData(defaultOutputID, &property, 0, nil, &size, &volume)
+            let status = AudioObjectGetPropertyData(device, &property, 0, nil, &size, &volume)
             guard status == noErr else { volumeReadable = false; outputError = "读取系统音量失败：\(status)"; return outputVolume }
             total += Double(volume)
         }
@@ -227,24 +230,25 @@ public final class AudioMixerController: ObservableObject {
 
     @discardableResult
     public func setSystemVolume(_ v: Float) -> Bool {
-        let properties = volumeProperties()
+        let device = defaultOutputID
+        let properties = volumeProperties(for: device)
         guard !properties.isEmpty else { outputError = "输出设备不提供系统音量，请使用设备音量旋钮"; return false }
         outputError = ""
         var vol = min(1, max(0, v))
         var succeeded = true
         for var property in properties {
-            let status = AudioObjectSetPropertyData(defaultOutputID, &property, 0, nil, UInt32(MemoryLayout<Float32>.size), &vol)
+            let status = AudioObjectSetPropertyData(device, &property, 0, nil, UInt32(MemoryLayout<Float32>.size), &vol)
             if status != noErr { outputError = "设置系统音量失败：\(status)"; succeeded = false; break }
         }
         refreshOutputState()
         return succeeded
     }
 
-    public func getSystemMuted() -> Bool {
+    private func getSystemMuted(_ device: AudioObjectID) -> Bool {
         var a = addr(cc("mute"), kAudioObjectPropertyScopeOutput)
         var m: UInt32 = 0
         var size = UInt32(MemoryLayout<UInt32>.size)
-        let status = AudioObjectGetPropertyData(defaultOutputID, &a, 0, nil, &size, &m)
+        let status = AudioObjectGetPropertyData(device, &a, 0, nil, &size, &m)
         guard status == noErr else { muteReadable = false; outputError = "读取系统静音失败：\(status)"; return outputMuted }
         return m != 0
     }
@@ -275,10 +279,7 @@ public final class AudioMixerController: ObservableObject {
 
     // MARK: 输出设备
 
-    public func reloadDevices() {
-        let wasReading = readingOutput
-        readingOutput = true
-        defer { readingOutput = wasReading }
+    private func reloadDevices(defaultID: AudioObjectID) {
         let sys = AudioObjectID(kAudioObjectSystemObject)
         var listAddr = addr(cc("dev#"))
         var size: UInt32 = 0
@@ -286,7 +287,6 @@ public final class AudioMixerController: ObservableObject {
         var ids = [AudioObjectID](repeating: 0, count: Int(size) / MemoryLayout<AudioObjectID>.size)
         guard AudioObjectGetPropertyData(sys, &listAddr, 0, nil, &size, &ids) == 0 else { return }
 
-        let defaultID = defaultOutputID
         var out: [AudioDeviceInfo] = []
         for id in ids {
             // 有输出流的设备才有意义（output scope 的设备流数 > 0）
@@ -313,7 +313,7 @@ public final class AudioMixerController: ObservableObject {
         let status = AudioObjectSetPropertyData(sys, &a, 0, nil, UInt32(MemoryLayout<AudioObjectID>.size), &dev)
         outputError = status == noErr ? "" : "切换输出设备失败：\(status)"
         if !outputListeners.isEmpty { removeOutputListeners(); addOutputListeners() }
-        refreshOutputState()
+        refreshOutputState(refreshDevices: true)
     }
 
     // MARK: 实时有声 App（'prs#' + 'piro'）
