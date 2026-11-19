@@ -269,27 +269,27 @@ AI,Features/AI/Services/AnthropicService.swift,AnthropicService,parseModelIDs,fu
 AI,Features/AI/Services/AnthropicService.swift,AnthropicService,readableError,func,103,KEEP,2026-11-20：公共HTTP错误处理和字节流代理调用；尝试JSON字典后交LLMJSON.errorMessage，解析不成返回nil由已有原文提示处理
 AI,Features/AI/Services/AnthropicService.swift,AnthropicService,isTerminalLine,func,111,KEEP,2026-11-20：默认send在parseStreamLine前判定；按JSON type等于message_stop结束，不依赖空格风格，正常结束时公共流任务取消连接
 AI,Features/AI/Services/AnthropicService.swift,AnthropicService,normalizedBase,func,122,KEEP,2026-11-20：请求及模型发现共用；剥地址两端斜杠及尾部v1，之后调用方各拼唯一v1/messages或v1/models
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,init,init,49,KEEP,单例 L34；init 内 load() 解密既有文件
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,credential,func,58,KEEP,LLMCredentialStoring 实现；requireCredential 协议扩展读取
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,setCredential,func,63,KEEP,协议实现；设置页保存密钥入口
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,removeCredential,func,80,KEEP,协议要求，委托 setCredential(nil)
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,clear,func,84,KEEP,协议要求，设置页『清除全部凭证』
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,configuredProviders,func,92,KEEP,SettingsPanes:248 统计已配置厂商数
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,load,func,100,KEEP,init L52 调用；文件缺失置空缓存，解析失败不覆盖原文件
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,persist,func,117,KEEP,setCredential/clear L70/L84 落盘 AES 信封
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,ensureFileProtection,func,123,KEEP,persist L117 设 posix 0600
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,masterSecret,func,137,KEEP,derivedKey L168 取主密钥；v126 起进程内缓存
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,loadMasterSecret,func,151,KEEP,masterSecret L141 缓存未命中时读/建 keystore（首建 0600）
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,derivedKey,func,170,KEEP,encryptEnvelope L195 / decryptEnvelope L232 PBKDF2-SHA256 派生
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,encryptEnvelope,func,194,KEEP,persist L115 加密（salt+iv+CBC+PKCS7）
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,decryptEnvelope,func,226,KEEP,load L106 解密并校验文件魔数
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,randomBytes,func,261,KEEP,encryptEnvelope L193/L194 生成 salt 与 iv
-AI,Features/AI/Services/CredentialStore.swift,CredentialStore,randomFill,func,268,KEEP,loadMasterSecret L159 / randomBytes L260，arc4random_buf CSPRNG
-AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,init,init,279,KEEP,InMemoryCredentialStore.init；AIConnectionService:40 测试临时凭证
-AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,credential,func,283,KEEP,InMemory 实现，测试/预览路径
-AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,setCredential,func,287,KEEP,InMemory 实现，测试路径
-AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,removeCredential,func,293,KEEP,InMemory 实现，委托 setCredential(nil)
-AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,clear,func,294,KEEP,InMemory 实现
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,init,init,49,KEEP,2026-11-20：shared正式存储构造；默认应用数据目录的凭据与主密钥两个URL，可传独立URL；立即load解密已有凭据入内存，不输出值
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,credential,func,58,KEEP,2026-11-20：公共requireCredential、门面状态及候选连接读取；锁内按厂商rawValue查cache，不在每次请求重新读盘或派生密钥
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,setCredential,func,63,KEEP,2026-11-20：凭据提交协调器调用；锁内复制缓存并剥空白，空值删除；persist成功才替换cache，失败保留旧cache并写lastWriteError和错误日志
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,removeCredential,func,80,KEEP,2026-11-20：LLMCredentialStoring删除实现复用setCredential(nil)；保留统一持久化及lastWriteError语义，当前正式协调器删除同样直接提交nil
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,clear,func,84,KEEP,2026-11-20：满足存储协议清空要求；锁内先清cache再尝试persist空字典，当前吞持久化错误且不更新lastWriteError；旧设置清空按钮消费者已不存在，不据声明零引用删除协议实现
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,configuredProviders,func,92,DEAD_CANDIDATE,2026-11-20：锁内仅从缓存键集合筛厂商；源码与工具仅此定义，旧SettingsPanes统计调用已不存在；非协议要求且无objc动态入口，列入下一批删除
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,load,func,100,KEEP,2026-11-20：初始化唯一调用；缺文件置空cache，存在则读完整信封并decryptEnvelope，失败只记错误及空内存而不覆盖磁盘原件
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,persist,func,117,KEEP,2026-11-20：setCredential和clear共用；encryptEnvelope后原子写唯一凭据文件，再设0600权限；错误由正式写入入口处理
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,ensureFileProtection,func,123,KEEP,2026-11-20：persist调用；用FileManager设目标文件posixPermissions为0600，权限错误直接抛出，不吞掉必要文件访问失败
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,masterSecret,func,137,KEEP,2026-11-20：derivedKey共用；按密钥文件路径查加锁进程缓存，未命中在锁外loadMasterSecret再写缓存；当前双首次并发可重复读建同一路径待评估
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,loadMasterSecret,func,151,KEEP,2026-11-20：masterSecret未命中调用；已存在则剥FRSTKEY1头或保留旧随机串；缺失才系统随机32字节、原子写并设0600，不擅自重建已有密钥
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,derivedKey,func,170,KEEP,2026-11-20：加解密共用；主密钥加既有应用常量作材料，PBKDF2-SHA256用随机盐及100000轮派生32字节；非成功状态抛原错误
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,encryptEnvelope,func,194,KEEP,2026-11-20：persist调用；凭据字典JSON序列化，独立16字节salt和IV，AES256CBC配PKCS7，输出FRSTCRE1头及salt/IV/实际密文字节，保留既有存储格式
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,decryptEnvelope,func,226,KEEP,2026-11-20：load调用；确认信封头及基本长度，按既有偏移分salt/IV/cipher，派生密钥后CommonCrypto解密；结果必须字符串字典，否则抛decryptionFailed
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,randomBytes,func,261,KEEP,2026-11-20：加密各调用一次生成salt及IV；分配指定字节数组交randomFill再转Data，签名虽throws但实际系统随机函数不返回错误
+AI,Features/AI/Services/CredentialStore.swift,CredentialStore,randomFill,func,268,KEEP,2026-11-20：首次主密钥创建与salt/IV生成共用；直接调用Darwin arc4random_buf填指定缓冲，不另建随机生成器
+AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,init,init,279,KEEP,2026-11-20：AIConnectionService真实候选连接构造；把候选厂商Key按rawValue放入本对象字典，候选请求结束释放，不写正式凭据文件
+AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,credential,func,283,KEEP,2026-11-20：候选适配器requireCredential动态读取；锁内查独立字典，真实设置连接探测依赖，不能按旧仅测试注释删除
+AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,setCredential,func,287,KEEP,2026-11-20：满足同一存储协议；锁内非空写入而nil或空串删除，只改候选字典，正式凭据保存沿CredentialStore
+AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,removeCredential,func,293,KEEP,2026-11-20：内存存储协议删除实现复用setCredential(nil)，保持与候选读取同一加锁字典，不执行落盘
+AI,Features/AI/Services/CredentialStore.swift,InMemoryCredentialStore,clear,func,294,KEEP,2026-11-20：内存存储协议清空实现锁内替换为空字典；不清其他实例及正式凭据，保留候选请求依赖的完整存储协议
 AI,Features/AI/Services/CustomAIToolStore.swift,CustomAITool,init,init,21,KEEP,CustomAITool.init；AISettingsPane:99 新建工具
 AI,Features/AI/Services/CustomAIToolStore.swift,CustomAITool,render,func,34,KEEP,AISummaryView:111 把用户文本套进自定义模板
 AI,Features/AI/Services/CustomAIToolStore.swift,CustomAIToolStore,init,init,51,KEEP,Store 单例 init，prefs 可注入
