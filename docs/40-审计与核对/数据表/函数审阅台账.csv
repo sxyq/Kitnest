@@ -2367,29 +2367,29 @@ Island,Features/Island/IslandWidgetGrid.swift,IslandWidgetGrid,end,func,187,KEEP
 Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,settle,func,343,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；释放后接续当前卡片的实际位置与宽高，以 0.24 秒可中断弹性过渡吸附；减少动态效果下直接落定
 Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,adjustSize,func,349,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；编辑态方向键和辅助功能共用尺寸调整；候选来自实际可见画布，正常态不挂载此入口
 Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,distance,func,363,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；以行列归一化距离选择现有五档尺寸，并留 0.12 距离差避免边界附近反复切换
-Manual,Features/Manual/ManualDemoSamples.swift,ManualDemoSamples,example,func,69,KEEP,按功能标题提供固定示例输入和结果；没有专属示例时直接使用该篇操作步骤，不读取用户资料
+Manual,Features/Manual/ManualDemoSamples.swift,ManualDemoSamples,example,func,69,KEEP,2026-11-19：ManualDemoView.walkthrough按文章标题取固定输入和结果；已对齐改名后的JSON与Base64等标题，未匹配文章沿本文首尾步骤展示
 Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,advance,func,94,KEEP,切换到指定操作步骤并同步演示卡片、当前预览和示例阶段；减少动态效果时不播放过渡动画
 Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,preset,func,110,KEEP,呈现用途、操作和结果三种预设演示入口；点击时停止自动播放并切换到对应步骤
 Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,samplePanel,func,211,KEEP,在演示舞台中显示固定的输入或结果示例，供用户对照实际操作
 Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,displayPreview,func,279,KEEP,按当前演示步骤展示多个屏幕入口、搜索条和唯一工作台的预设变化
-Manual,Features/Manual/ManualDocument.swift,ManualNode,init,init,18,KEEP,parse 内 :111 兜底与 :153 正常构造
-Manual,Features/Manual/ManualDocument.swift,ManualNode,finalizeSearchText,func,27,KEEP,parse 的 register 内 :174 调用
-Manual,Features/Manual/ManualDocument.swift,ManualDocument,load,func,72,KEEP,ManualView.swift:18 @Stored 属性初始化调用
+Manual,Features/Manual/ManualDocument.swift,ManualNode,init,init,18,KEEP,2026-11-19：load创建分类及parse创建文章共用，保存稳定文档标识、标题、层级、演示分类和图标供双栏导航消费
+Manual,Features/Manual/ManualDocument.swift,ManualNode,finalizeSearchText,func,27,KEEP,2026-11-19：分类与文章解析结束后拼接标题和正文一次，searchIndex直接读取现成搜索文字
+Manual,Features/Manual/ManualDocument.swift,ManualDocument,load,func,72,KEEP,2026-11-19：ManualPaneView初始化时加载随包Guides，按八类排序并建立父索引与文章顺序；实际读取失败交由正文显示原因
 Manual,Features/Manual/ManualDocument.swift,ManualDocument,displayCategory,func,106,KEEP,把文章文件编号映射成用户分类；截图与录屏归在同一类，导航不显示文件序号
-Manual,Features/Manual/ManualDocument.swift,ManualDocument,parse,func,121,KEEP,load:117 调用
-Manual,Features/Manual/ManualDocument.swift,ManualDocument,parseBlocks,func,146,KEEP,parse 内 flush:130 调用
-Manual,Features/Manual/ManualDocument.swift,ManualDocument,firstRange,func,225,KEEP,parseBlocks:286/290 有序列表调用
-Manual,Features/Manual/ManualView.swift,ManualPaneView,init,init,17,KEEP,SettingsRootView.swift:138 ManualPaneView() 构造
+Manual,Features/Manual/ManualDocument.swift,ManualDocument,parse,func,121,KEEP,2026-11-19：load逐篇调用，元数据决定类别与演示，正文块按文章标识和序号分配稳定标识后生成搜索文字
+Manual,Features/Manual/ManualDocument.swift,ManualDocument,parseBlocks,func,146,KEEP,2026-11-19：parse消费逐行正文，依次解析标题、引用、列表和段落；有序列表由正文中的ManualDemoView呈现可点击操作步骤
+Manual,Features/Manual/ManualDocument.swift,ManualDocument,firstRange,func,225,KEEP,2026-11-19：parseBlocks复用同一数字列表正则取得步骤正文范围，Swift字符串索引转换沿Foundation合法匹配区间
+Manual,Features/Manual/ManualView.swift,ManualPaneView,init,init,17,KEEP,2026-11-19：SettingsRootView的manual分支构造公开SwiftUI页面，文档和导航状态归页面持有
 Manual,Features/Manual/ManualView.swift,ManualPaneView,sidebar,func,46,KEEP,2026-11-19：body只计算一次搜索命中与可见分类，并传给侧栏；分类展开、文章选择和快速入门沿用原绑定
 Manual,Features/Manual/ManualView.swift,ManualPaneView,detail,func,122,KEEP,2026-11-19：body传入本轮无结果状态；有序操作步骤原位展示ManualDemoView，正文和可点击步骤只保留一份，选文时滚回顶部
 Manual,Features/Manual/ManualView.swift,ManualPaneView,quickStartCard,func,189,KEEP,把查找剪贴板、截图识字、手机传文件和多屏设置四个常见任务连到各自的完整指南
-Manual,Features/Manual/ManualView.swift,ManualPaneView,breadcrumb,func,204,KEEP,detail 视图 :119 调用
-Manual,Features/Manual/ManualView.swift,ManualPaneView,sectionLinks,func,223,KEEP,detail 视图 :125 调用
-Manual,Features/Manual/ManualView.swift,ManualPaneView,navFooter,func,235,KEEP,detail 视图 :136 调用
-Manual,Features/Manual/ManualView.swift,ManualPaneView,ancestorPath,func,262,KEEP,breadcrumb:151 调用
-Manual,Features/Manual/ManualView.swift,ManualPaneView,parent,func,272,KEEP,ancestorPath:221 调用
-Manual,Features/Manual/ManualView.swift,ManualDisclosureStyle,makeBody,func,384,KEEP,DisclosureGroupStyle 协议；:309 disclosureGroupStyle 派发
-Manual,Features/Manual/ManualView.swift,-,inlineMarkdown,func,502,KEEP,v245 新增：ManualBlockView.inline 与 ManualTableView.inlineCell 合并后的唯一实现，两处调用
+Manual,Features/Manual/ManualView.swift,ManualPaneView,breadcrumb,func,204,KEEP,2026-11-19：detail文章页消费ancestorPath绘制可点击分类与标题，回跳只写当前selection
+Manual,Features/Manual/ManualView.swift,ManualPaneView,sectionLinks,func,223,KEEP,2026-11-19：detail分类页通过FlowLinks展示本分类全部文章入口，点击切换同一个selection
+Manual,Features/Manual/ManualView.swift,ManualPaneView,navFooter,func,235,KEEP,2026-11-19：detail文章末尾沿flatNodes顺序显示前后文导航，两端省略缺少的按钮
+Manual,Features/Manual/ManualView.swift,ManualPaneView,ancestorPath,func,262,KEEP,2026-11-19：breadcrumb从当前文章按parentIndex收集父分类，返回从分类到文章的可点击路径
+Manual,Features/Manual/ManualView.swift,ManualPaneView,parent,func,272,KEEP,2026-11-19：ancestorPath直接用解析期父索引查分类，未登记父级时结束遍历
+Manual,Features/Manual/ManualView.swift,ManualDisclosureStyle,makeBody,func,384,KEEP,2026-11-19：ManualTreeRow的DisclosureGroupStyle协议实现，三角按钮切换原expanded集合并沿主题播放展开过渡
+Manual,Features/Manual/ManualView.swift,-,inlineMarkdown,func,502,KEEP,2026-11-19：ManualBlockView直接调用唯一行内Markdown转换；已移除仅转发的inline方法，保留解析失败时原文显示
 Monitor,Features/Monitor/BatteryEnergy.swift,StatsEnergyItem,init,init,32,KEEP,构造于 BatteryEnergy.swift:133 tick 内建行，全仓唯一构造点
 Monitor,Features/Monitor/BatteryEnergy.swift,BatteryEnergySampler,init,init,68,KEEP,私有 init，仅 shared 单例 BatteryEnergy.swift:44 调用
 Monitor,Features/Monitor/BatteryEnergy.swift,BatteryEnergySampler,start,func,72,KEEP,onAppear :240；CPUEnergyImpactSection 在 MonitorDetailView:212
