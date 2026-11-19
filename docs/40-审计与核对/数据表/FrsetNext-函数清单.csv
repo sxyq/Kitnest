@@ -5851,11 +5851,11 @@ Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,var,multiDisplayPrevi
 Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,func,displayPreview,270,39,4
 Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,var,picture,310,0,1
 Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,var,capture,323,0,1
-Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,var,captureOverlay,385,0,1
-Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,var,captureCaption,407,0,1
-Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,var,archive,416,0,1
-Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,var,recording,435,0,1
-Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,var,monitor,456,0,1
+Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,var,captureOverlay,388,0,1
+Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,var,captureCaption,410,0,1
+Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,var,archive,419,0,1
+Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,var,recording,438,0,1
+Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,var,monitor,459,0,1
 Manual,Features/Manual/ManualDocument.swift,ManualNode,let,id,7,0,1
 Manual,Features/Manual/ManualDocument.swift,ManualNode,let,title,8,0,1
 Manual,Features/Manual/ManualDocument.swift,ManualNode,let,level,9,0,1
@@ -9124,7 +9124,7 @@ Settings,Features/Settings/Shell/SettingsPanes.swift,IgnoredAppsEditor,var,apps,
 Settings,Features/Settings/Shell/SettingsPanes.swift,IgnoredAppsEditor,var,expanded,605,0,1
 Settings,Features/Settings/Shell/SettingsPanes.swift,IgnoredAppsEditor,init,init,607,1,1
 Settings,Features/Settings/Shell/SettingsPanes.swift,IgnoredAppsEditor,var,body,609,0,1
-Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,let,probeHeight,19,0,1
+Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,let,probeHeight,20,0,1
 Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,var,state,24,0,1
 Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,var,editingSession,25,0,1
 Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,var,appearance,26,0,1
