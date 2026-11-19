@@ -12,13 +12,6 @@ final class ManualNode: Identifiable {
     var blocks: [ManualBlockItem] = []
     var children: [ManualNode] = []
 
-    var demoSteps: [String] {
-        for item in blocks {
-            if case .numbered(let steps) = item.block { return steps }
-        }
-        return []
-    }
-
     /// 解析时缓存标题与正文，供搜索直接读取。
     private(set) var searchText = ""
 
@@ -46,22 +39,12 @@ struct ManualBlockItem: Identifiable {
     let block: ManualBlock
 }
 
-enum ManualBlock: Identifiable {
+enum ManualBlock {
     case heading(String)
     case paragraph(String)
     case bullets([String])
     case numbered([String])
     case quote(String)
-
-    var id: String {
-        switch self {
-        case .heading(let s): return "h:" + s
-        case .paragraph(let s): return "p:" + String(s.prefix(48))
-        case .bullets(let a): return "ul:" + String(a.first?.prefix(32) ?? "")
-        case .numbered(let a): return "ol:" + String(a.first?.prefix(32) ?? "")
-        case .quote(let s): return "q:" + String(s.prefix(32))
-        }
-    }
 
     var plainText: String {
         switch self {
@@ -79,7 +62,6 @@ enum ManualDocument {
     struct Doc {
         let roots: [ManualNode]
         let index: [String: ManualNode]
-        let title: String
         /// 功能 id → 分类 id。
         let parentIndex: [String: String]
         /// 仅包含功能，供前后页导航使用。
@@ -111,12 +93,12 @@ enum ManualDocument {
                 parentIndex[node.id] = categoryID
             }
         } catch {
-            return Doc(roots: [], index: [:], title: "使用手册", parentIndex: [:], flatNodes: [],
+            return Doc(roots: [], index: [:], parentIndex: [:], flatNodes: [],
                        loadError: "无法读取手册：\(error.localizedDescription)")
         }
         let order = ["开始使用", "剪贴板", "截图与录屏", "文件与传输", "搜索与 AI", "工具箱", "电脑状态", "日常与设置"]
         roots.sort { (order.firstIndex(of: $0.title) ?? order.count) < (order.firstIndex(of: $1.title) ?? order.count) }
-        return Doc(roots: roots, index: index, title: "使用手册", parentIndex: parentIndex,
+        return Doc(roots: roots, index: index, parentIndex: parentIndex,
                    flatNodes: roots.flatMap(\.children), loadError: nil)
     }
 

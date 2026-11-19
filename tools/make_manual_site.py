@@ -63,7 +63,8 @@ def article(path: Path) -> dict:
     if listing:
         blocks.append(f"</{listing}>")
     return dict(id=path.stem, title=title, category=category_title(metadata["category"]),
-                demo=metadata["demo"], steps=steps, body="\n".join(blocks), text=text)
+                demo=metadata["demo"], steps=steps,
+                body=re.sub(r"<ol>.*?</ol>", "__DEMO__", "\n".join(blocks), flags=re.S), text=text)
 
 
 PAGE = r'''<!doctype html>
@@ -94,16 +95,18 @@ function sample(g,index){
  const t=g.title,done=index===g.steps.length-1,started=index>0;
  const rows=items=>'<div class="example">'+items.map((s,i)=>'<div class="'+(i===Math.min(index,items.length-1)?'chosen':'')+'">'+escape(s)+'</div>').join('')+'</div>';
  let pair=null;
- const examples=[['随机编号','点击生成','A1B2C3D4-1234-4ABC-8DEF-0123456789AB'],['时间戳','1700000000','2023-11-14 22:13:20 UTC'],['Base64','Hello','SGVsbG8='],['网址文字','hello world','hello%20world'],['JSON','{"name":"小林"}','{\n  "name": "小林"\n}'],['去重','苹果\n香蕉\n苹果','苹果\n香蕉'],['变量','user name','userName'],['网络地址','查看本机地址','本机地址 192.168.1.8 · 示例内容'],['文本翻译','Good morning','早上好'],['文本总结','今天整理照片，明天发送给同事。','整理照片，随后发送。'],['文本润色','资料发你了看看','资料已发送，请查收。'],['文本摘要值','hello','5d41402abc4b2a76b9719d911017c592'],['压缩图片','照片.png · 2 MB','照片.jpg · 420 KB'],['代码预览','print("你好")','带颜色的代码预览']];
+ const examples=[['随机编号','点击生成','A1B2C3D4-1234-4ABC-8DEF-0123456789AB'],['时间戳','1700000000','2023-11-14 22:13:20 UTC'],['特殊文字写法','Hello','SGVsbG8='],['网址文字','hello world','hello%20world'],['数据文字','{"name":"小林"}','{\n  "name": "小林"\n}'],['去重','苹果\n香蕉\n苹果','苹果\n香蕉'],['变量','user name','userName'],['网络地址','选择「公网 + 内网」','本机地址 192.168.1.8 · 示例内容'],['文本翻译','Good morning','早上好'],['文本总结','今天整理照片，明天发送给同事。','整理照片，随后发送。'],['文本润色','资料发你了看看','资料已发送，请查收。'],['确认两段文字','依次输入两份文字','比较两次生成的字符是否相同'],['压缩图片','照片.png · 2 MB','照片.jpg · 420 KB'],['代码预览','print("你好")','带颜色的代码预览']];
  for(const [key,input,output] of examples)if(t.includes(key)){pair=[input,output];break}
  if(pair)return '<div class="sample-pair">'+rows(['输入',pair[0]])+rows(['结果',started?pair[1]:'等待操作'])+'</div>';
  if(g.demo==='monitor'){
-  const metrics=t.includes('CPU')?['CPU 使用率','24%']:t.includes('GPU')?['GPU 使用率','18%']:t.includes('温度')?['温度','48 ℃']:t.includes('电池')?['电量','82%']:t.includes('功耗')?['整机功耗','12 W']:t.includes('内存')?['内存用量','8.2 GB']:t.includes('磁盘')||t.includes('存储')?['已用空间','180 GB']:['下载速度','1.8 MB/s'];
-  if(t.includes('端口'))return rows(['端口 8080 · 本机','端口 9000 · 对外','点击行复制信息']);
+  if(t==='释放内存')return rows(['先保存文稿',started?'深度释放 → 按系统提示授权':'选择是否暂停闲置应用',done?'查看释放结果与暂停应用名单':'等待处理']);
+  if(t==='存储管理')return rows(['扫描下载文件夹','设计资料 · 1.2 GB',done?'选中不需要的文件 → 移到废纸篓':'进入文件夹查看占用']);
+  if(t==='查看网络连接')return rows(['本地地址 192.168.1.8 · 示例','8080 · 示例应用 · 127.0.0.1',started?'9000 · 示例服务 · 对外连接':'点击「对外」筛选']);
+  const metrics=t==='处理器使用情况'?['CPU 使用率','24%']:t==='图形处理器使用情况'?['GPU 使用率','18%']:t.includes('温度')?['温度','48 ℃']:t.includes('电池')?['电量','82%']:t==='查看电脑用电情况'?['整机功耗','12 W']:t.includes('内存')?['内存用量','8.2 GB']:t.includes('磁盘')?['已用空间','180 GB']:t==='查看电脑状态'?['CPU 24% · 内存 8.2 GB','网络下载 1.8 MB/s']:['下载速度','1.8 MB/s'];
   return '<b>'+metrics[0]+' · '+(started?metrics[1]:'查看概况')+'</b><div class="chart">'+[24,41,32,56,43,64].map((h,i)=>'<i style="height:'+(started?h:20+i*3)+'px"></i>').join('')+'</div>';
  }
  if(g.demo==='capture'){
-  let result=t.includes('翻译')?'Good morning → 早上好':t.includes('文字识别')?'周五交付，整理照片。':t.includes('二维码')?'识别到链接，点击打开':t.includes('标注')?'添加箭头与文字':t.includes('水印')?'已添加水印':t.includes('钉图')?'图片留在桌面上':t.includes('图帘')?'拖动遮挡区域':t.includes('取色')?'#7B5CFF':t.includes('抹除')?'选中的物体已移除':t.includes('美化')?'添加背景和留白':t.includes('长截图')?'滚动后拼接成长图':'保存、复制或继续编辑';
+  let result=t.includes('翻译')?'Good morning → 早上好':t.includes('文字识别')?'周五交付，整理照片。':t.includes('二维码')?'识别到链接，可复制使用':t.includes('标注')?'添加箭头与文字':t.includes('水印')?'已添加水印':t.includes('钉图')?'图片留在桌面上':t.includes('图帘')?'截图卡片收在屏幕边缘 → 展开取用':t.includes('取色')?'#7B5CFF':t.includes('抹除')?'选中的物体已移除':t.includes('美化')?'添加背景和留白':t.includes('长截图')?'滚动后拼接成长图':'保存、复制或继续编辑';
   return '<div class="landscape">'+(!started?'<b></b>':'')+'</div>'+rows([started?result:'拖动选择屏幕区域']);
  }
  if(g.demo==='clipboard'){
@@ -114,12 +117,14 @@ function sample(g,index){
  if(g.demo==='recording')return rows(t.includes('剪辑')?['00:00 ━━━ 00:20',started?'拖动两端保留片段':'选择一段视频',done?'已导出新视频':'预览片段']:['选择录制范围',started?'● 00:08 · 录制中':'等待开始',done?'视频已保存':'可暂停或停止']);
  if(g.demo==='transfer'){
   if(t.includes('默认'))return rows(['ZIP 当前默认应用',started?'选择 Kitnest':'归档实用工具','在访达使用压缩与解压服务']);
-  if(t.includes('压缩包')||t.includes('解压'))return rows(t.includes('创建')?['选择照片与文档',started?'7z · 密码保护 · 可选分卷':'选择格式',done?'资料.7z 已保存':'开始压缩']:['打开资料.zip','查看其中的照片与文档',done?'文件已解压到所选位置':'选择解压位置']);
+  if(t.includes('拆分'))return rows(['项目资料 · 180 MB',started?'7z · 密码保护 · 每卷 100 MB':'选择格式和保存位置',done?'项目资料.7z.001\n项目资料.7z.002':'开始压缩']);
+  if(t.includes('解压'))return rows(['打开资料.zip','查看其中的照片与文档',done?'文件已解压到所选位置':'选择解压位置']);
+  if(t.includes('任务'))return rows(['资料.zip · 解压任务',started?'转到后台，任务继续':'查看当前进度',done?'解压完成 → 在访达中显示':'正在处理']);
   if(t.includes('投屏'))return rows(['连接手机',started?'手机画面出现在电脑上':'等待设备',done?'点击断开结束投屏':'可调整画面']);
   return rows(['设计说明.pdf',started?'电脑 → 手机 · 发送中':'选择文件和设备',done?'传输完成':'等待发送']);
  }
  if(g.demo==='search')return rows(t.includes('AI')?['输入问题',started?'正在生成回复':'等待发送',done?'回复完成，可复制使用':'继续输入']:t.includes('网盘')?['粘贴分享链接',started?'解析文件列表':'等待解析',done?'文件下载完成':'选择文件下载']:['输入「会议」',started?'会议记录 · 文档':'等待输入',done?'打开所选结果':'用方向键选择']);
- if(t.includes('Dock'))return '<div class="dock-demo"><div class="dock-window"><header><span>●</span> 设置 <span style="margin-left:auto">刘海工作台 · 剪贴板</span></header><p>'+(['打开设置窗口','Dock 中显示 Kitnest 图标','关闭设置窗口','菜单栏入口仍可打开 Kitnest'][index]||'设置窗口')+'</p></div><div class="dock-bar"><span>Finder</span>'+(index<2?'<span class="dock-app" aria-label="Kitnest">K</span>':'<span class="dock-empty">关闭窗口后图标隐藏</span>')+'<span>废纸篓</span></div></div>';
+ if(t.includes('Dock'))return '<div class="dock-demo"><div class="dock-window"><header><span>●</span> 设置 <span style="margin-left:auto">刘海工作台 · 剪贴板</span></header><p>'+(['打开设置窗口','Dock 中显示 Kitnest 图标','关闭设置窗口','最小化后从 Dock 恢复','最后一个独立窗口已关闭'][index])+'</p></div><div class="dock-bar"><span>Finder</span>'+(index!==2&&index!==4?'<span class="dock-app" aria-label="Kitnest">K</span>':'<span class="dock-empty">关闭窗口后图标隐藏</span>')+'<span>废纸篓</span></div></div>';
  if(g.demo==='settings')return rows(['打开「'+t+'」',started?'调整选项 · 未保存':'沿用当前设置',done?'设置已保存':'点击保存后生效']);
  if(t.includes('刘海'))return rows([started?'▾ 工作台已展开':'屏幕顶部入口','悬停停留或点击唤起',done?'点击另一屏入口迁移':'当前内容留在同一工作台']);
  if(t.includes('二维码'))return rows(['输入网址或文字',started?'▦ 二维码已生成':'等待生成',done?'保存或复制二维码':'调整尺寸']);
@@ -138,10 +143,10 @@ function show(){
  stop();const id=decodeURIComponent(location.hash.slice(1));current=Math.max(0,guides.findIndex(g=>g.id===id));
  const g=guides[current];
  links.forEach(a=>{const on=a.dataset.id===g.id;if(on){a.setAttribute('aria-current','page');a.parentElement.open=true}else a.removeAttribute('aria-current')});
- main.innerHTML='<div class="crumb">'+escape(g.category.replace(/^\d+ /,''))+'</div><h1>'+escape(g.title)+'</h1>'+
- '<section class="demo" aria-label="交互操作演示"><div class="bar"><b>跟着做一遍</b><button id="play">播放</button><button id="restart">重来</button></div>'+
+ const demo='<section class="demo" aria-label="交互操作演示"><div class="bar"><b>跟着做一遍 · 内置示例</b><button id="play">播放</button><button id="restart">重来</button></div>'+
  '<div class="stage"><div class="scene"><div class="scene-title">'+escape(g.title)+' · 操作示范</div><div class="scene-body" aria-live="polite"></div><small></small><div class="progress"><i></i></div><div class="cursor" aria-hidden="true">➤</div></div></div>'+
- '<div class="steps">'+g.steps.map((s,i)=>'<button data-step="'+i+'"><span>'+(i+1)+'</span>'+escape(s)+'</button>').join('')+'</div></section>'+g.body+
+ '<div class="steps">'+g.steps.map((s,i)=>'<button data-step="'+i+'"><span>'+(i+1)+'</span>'+escape(s)+'</button>').join('')+'</div></section>';
+ main.innerHTML='<div class="crumb">'+escape(g.category)+'</div><h1>'+escape(g.title)+'</h1>'+g.body.replace('__DEMO__',demo)+
  '<nav class="foot">'+(current?'<a href="#'+guides[current-1].id+'">← '+escape(guides[current-1].title)+'</a>':'<span></span>')+(current+1<guides.length?'<a href="#'+guides[current+1].id+'">'+escape(guides[current+1].title)+' →</a>':'')+'</nav>';
  selectStep(0);
  document.getElementById('play').onclick=()=>{if(timer){stop();return}selectStep(0);document.getElementById('play').textContent='暂停';timer=setInterval(()=>{if(active+1<g.steps.length)selectStep(active+1);else stop()},2400)};

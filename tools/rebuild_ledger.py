@@ -588,6 +588,10 @@ EVIDENCE.update({
 
 # ── 使用手册：文章分类与预设演示 ───────────────────────────────
 EVIDENCE.update({
+    ("Features/Manual/ManualView.swift", "sidebar"):
+        "2026-11-19：body只计算一次搜索命中与可见分类，并传给侧栏；分类展开、文章选择和快速入门沿用原绑定",
+    ("Features/Manual/ManualView.swift", "detail"):
+        "2026-11-19：body传入本轮无结果状态；有序操作步骤原位展示ManualDemoView，正文和可点击步骤只保留一份，选文时滚回顶部",
     ("Features/Capture/OCR/ScreenshotOCRWindow.swift", "setSourceImage"):
         "2026-11-19：show复用结果窗且截图变化时调用，更新现有SourceNSScrollView的原图，使左侧图片与重新识别输入一致",
     ("Features/Manual/ManualDemoSamples.swift", "example"):

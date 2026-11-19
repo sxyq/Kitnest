@@ -2041,19 +2041,19 @@ Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,SummaryState,reset,fu
 Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardTagFilterMenu,init,init,205,KEEP,:53 头部标签菜单
 Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardMenuActionItem,init,init,238,KEEP,:308-329 菜单项构造
 Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRowMenuContent,init,init,282,KEEP,Desk:602/:615 contextMenu
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,init,init,374,KEEP,TableHostView:573 行渲染
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imagePixelSize,func,508,KEEP,:460 图片行调用
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imagePixelSize,func,514,KEEP,:467 文件行调用
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imageSizeText,func,529,KEEP,:475/:479 调用
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,iconButton,func,548,KEEP,:400/:401 悬停按钮
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,quickActions,func,582,KEEP,按 JSON、链接和富文本类型提供对应的剪贴板快捷动作
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,items,func,594,KEEP,按记录类型提供复制图片文件、格式化、二维码、去重、纯文本与清链动作
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,body,func,608,KEEP,读取记录完整正文；读取失败时将原因显示为提示并终止动作
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,tool,func,614,KEEP,把正文交给工具窗执行，并先关闭预览和主面板
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,plainText,func,621,KEEP,通过 ClipboardManager.copyText 复制富文本记录的纯文本
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,cleanLink,func,627,KEEP,清除可移除的链接追踪参数，并明确保留签名参数时的结果提示
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardThumbnailView,init,init,651,KEEP,:370、Desk:1021
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,Color,init,init,740,KEEP,SettingsPanes:586 标签色
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,init,init,375,KEEP,TableHostView:573 行渲染
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imagePixelSize,func,515,KEEP,:460 图片行调用
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imagePixelSize,func,521,KEEP,:467 文件行调用
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imageSizeText,func,536,KEEP,:475/:479 调用
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,iconButton,func,555,KEEP,:400/:401 悬停按钮
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,quickActions,func,589,KEEP,按 JSON、链接和富文本类型提供对应的剪贴板快捷动作
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,items,func,601,KEEP,按记录类型提供复制图片文件、格式化、二维码、去重、纯文本与清链动作
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,body,func,615,KEEP,读取记录完整正文；读取失败时将原因显示为提示并终止动作
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,tool,func,621,KEEP,把正文交给工具窗执行，并先关闭预览和主面板
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,plainText,func,628,KEEP,通过 ClipboardManager.copyText 复制富文本记录的纯文本
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,cleanLink,func,634,KEEP,清除可移除的链接追踪参数，并明确保留签名参数时的结果提示
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardThumbnailView,init,init,658,KEEP,:370、Desk:1021
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,Color,init,init,747,KEEP,SettingsPanes:586 标签色
 Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardHistorySettingsDraft,init,init,10,KEEP,历史与备份草稿订阅偏好外观变化，保留历史清理的正式执行入口
 Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardHistorySettingsDraft,save,func,13,KEEP,历史保留期容量与捕获隐私分别只写实际变动值，错误反馈保留对应草稿
 Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardHistorySettingsDraft,discard,func,21,KEEP,取消历史或捕获页只重读该页保存值，不清理数据库内容
@@ -2193,26 +2193,26 @@ CodePreview,Features/CodePreview/CodeLexer.swift,CodeLexer,isDigit,func,357,KEEP
 CodePreview,Features/CodePreview/CodeLexer.swift,Spec,forLanguage,func,379,KEEP,调用方 本文件:46（按语言 id 取着色配置）
 CodePreview,Features/CodePreview/CodeLexer.swift,Spec,set,func,574,KEEP,forLanguage 内全部关键字表构造，本文件:385 起 60+ 处
 CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,init,init,48,KEEP,调用方 PreviewPopoverContentView.swift:670（态5 代码预览）
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,chipLabel,func,218,KEEP,本文件:168/202（语言与主题菜单 label 复用）
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,toolbarToggle,func,229,KEEP,本文件:137/142（行号、自动换行两个开关）
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,rebuild,func,360,KEEP,本文件:117 onAppear 与 :124 onChange(renderKey)
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,persist,func,372,KEEP,本文件:125/127 onChange 后落 Preferences
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,copyRichText,func,380,KEEP,本文件:288 主按钮与 :309 菜单项
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,copyAsImage,func,387,KEEP,本文件:310 复制菜单项；转调 CodeCardImage.render
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,copyPlainText,func,398,KEEP,本文件:312 复制菜单项
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,copyHTMLSource,func,404,KEEP,本文件:313 复制菜单项（makePayload.html 写剪贴板）
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,flashCopied,func,412,KEEP,本文件:392/403/408/415 四处复制结果反馈
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodeTextViewRepresentable,makeNSView,func,433,KEEP,NSViewRepresentable 协议要求；:348 构造后由 SwiftUI 派发
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodeTextViewRepresentable,updateNSView,func,483,KEEP,NSViewRepresentable 协议要求；主题/字号/换行变化时 SwiftUI 派发
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewTextView,setFrameSize,func,546,KEEP,override AppKit 布局回调，内部转 syncWrapContainer
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewTextView,syncWrapContainer,func,552,KEEP,本文件:545 didSet、:550 setFrameSize、:522 兜底
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewTextView,copy,func,564,KEEP,override NSResponder copy:，⌘C 菜单 action 动态派发
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodeLineNumberRuler,init,init,593,KEEP,本文件:478 makeNSView 内构造（唯一构造点）
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodeLineNumberRuler,init,init,603,KEEP,required init(coder:) 编译必需（已标 unavailable）
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodeLineNumberRuler,updateThickness,func,617,KEEP,本文件:600 init 与 :642 drawHashMarks 调用
-CodePreview,Features/CodePreview/CodePreviewView.swift,CodeLineNumberRuler,drawHashMarksAndLabels,func,628,KEEP,override NSRulerView，AppKit 滚动重绘时派发
-CodePreview,Features/CodePreview/CodePreviewView.swift,WindowThemeSync,makeNSView,func,696,KEEP,NSViewRepresentable 协议要求；:114 注入视图树
-CodePreview,Features/CodePreview/CodePreviewView.swift,WindowThemeSync,updateNSView,func,702,KEEP,NSViewRepresentable 协议要求；:114 主题变化时同步窗口外观
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,chipLabel,func,220,KEEP,本文件:168/202（语言与主题菜单 label 复用）
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,toolbarToggle,func,231,KEEP,本文件:137/142（行号、自动换行两个开关）
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,rebuild,func,362,KEEP,本文件:117 onAppear 与 :124 onChange(renderKey)
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,persist,func,374,KEEP,本文件:125/127 onChange 后落 Preferences
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,copyRichText,func,382,KEEP,本文件:288 主按钮与 :309 菜单项
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,copyAsImage,func,389,KEEP,本文件:310 复制菜单项；转调 CodeCardImage.render
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,copyPlainText,func,400,KEEP,本文件:312 复制菜单项
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,copyHTMLSource,func,406,KEEP,本文件:313 复制菜单项（makePayload.html 写剪贴板）
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewView,flashCopied,func,414,KEEP,本文件:392/403/408/415 四处复制结果反馈
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodeTextViewRepresentable,makeNSView,func,435,KEEP,NSViewRepresentable 协议要求；:348 构造后由 SwiftUI 派发
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodeTextViewRepresentable,updateNSView,func,485,KEEP,NSViewRepresentable 协议要求；主题/字号/换行变化时 SwiftUI 派发
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewTextView,setFrameSize,func,548,KEEP,override AppKit 布局回调，内部转 syncWrapContainer
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewTextView,syncWrapContainer,func,554,KEEP,本文件:545 didSet、:550 setFrameSize、:522 兜底
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodePreviewTextView,copy,func,566,KEEP,override NSResponder copy:，⌘C 菜单 action 动态派发
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodeLineNumberRuler,init,init,595,KEEP,本文件:478 makeNSView 内构造（唯一构造点）
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodeLineNumberRuler,init,init,605,KEEP,required init(coder:) 编译必需（已标 unavailable）
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodeLineNumberRuler,updateThickness,func,619,KEEP,本文件:600 init 与 :642 drawHashMarks 调用
+CodePreview,Features/CodePreview/CodePreviewView.swift,CodeLineNumberRuler,drawHashMarksAndLabels,func,630,KEEP,override NSRulerView，AppKit 滚动重绘时派发
+CodePreview,Features/CodePreview/CodePreviewView.swift,WindowThemeSync,makeNSView,func,698,KEEP,NSViewRepresentable 协议要求；:114 注入视图树
+CodePreview,Features/CodePreview/CodePreviewView.swift,WindowThemeSync,updateNSView,func,704,KEEP,NSViewRepresentable 协议要求；:114 主题变化时同步窗口外观
 CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,copyRichText,func,17,KEEP,调用方 CodePreviewView.swift:391
 CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,copyAttributed,func,24,KEEP,调用方 CodePreviewView.swift:575；:41-46 RTF 段与 makeRTF:94 同逻辑
 CodePreview,Features/CodePreview/CodeRichCopy.swift,CodeRichCopy,copyPlainText,func,51,KEEP,调用方 CodePreviewView.swift:407
@@ -2367,27 +2367,28 @@ Island,Features/Island/IslandWidgetGrid.swift,IslandWidgetGrid,end,func,187,KEEP
 Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,settle,func,343,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；释放后接续当前卡片的实际位置与宽高，以 0.24 秒可中断弹性过渡吸附；减少动态效果下直接落定
 Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,adjustSize,func,349,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；编辑态方向键和辅助功能共用尺寸调整；候选来自实际可见画布，正常态不挂载此入口
 Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,distance,func,363,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；以行列归一化距离选择现有五档尺寸，并留 0.12 距离差避免边界附近反复切换
-Manual,Features/Manual/ManualDemoSamples.swift,ManualDemoSamples,example,func,61,KEEP,按功能标题提供固定示例输入和结果；没有专属示例时直接使用该篇操作步骤，不读取用户资料
+Manual,Features/Manual/ManualDemoSamples.swift,ManualDemoSamples,example,func,69,KEEP,按功能标题提供固定示例输入和结果；没有专属示例时直接使用该篇操作步骤，不读取用户资料
 Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,advance,func,94,KEEP,切换到指定操作步骤并同步演示卡片、当前预览和示例阶段；减少动态效果时不播放过渡动画
 Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,preset,func,110,KEEP,呈现用途、操作和结果三种预设演示入口；点击时停止自动播放并切换到对应步骤
-Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,samplePanel,func,203,KEEP,在演示舞台中显示固定的输入或结果示例，供用户对照实际操作
-Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,displayPreview,func,270,KEEP,按当前演示步骤展示多个屏幕入口、搜索条和唯一工作台的预设变化
-Manual,Features/Manual/ManualDocument.swift,ManualNode,init,init,25,KEEP,parse 内 :111 兜底与 :153 正常构造
-Manual,Features/Manual/ManualDocument.swift,ManualNode,finalizeSearchText,func,34,KEEP,parse 的 register 内 :174 调用
-Manual,Features/Manual/ManualDocument.swift,ManualDocument,load,func,90,KEEP,ManualView.swift:18 @Stored 属性初始化调用
-Manual,Features/Manual/ManualDocument.swift,ManualDocument,displayCategory,func,124,KEEP,把文章文件编号映射成用户分类；截图与录屏归在同一类，导航不显示文件序号
-Manual,Features/Manual/ManualDocument.swift,ManualDocument,parse,func,139,KEEP,load:117 调用
-Manual,Features/Manual/ManualDocument.swift,ManualDocument,parseBlocks,func,164,KEEP,parse 内 flush:130 调用
-Manual,Features/Manual/ManualDocument.swift,ManualDocument,firstRange,func,243,KEEP,parseBlocks:286/290 有序列表调用
+Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,samplePanel,func,211,KEEP,在演示舞台中显示固定的输入或结果示例，供用户对照实际操作
+Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,displayPreview,func,279,KEEP,按当前演示步骤展示多个屏幕入口、搜索条和唯一工作台的预设变化
+Manual,Features/Manual/ManualDocument.swift,ManualNode,init,init,18,KEEP,parse 内 :111 兜底与 :153 正常构造
+Manual,Features/Manual/ManualDocument.swift,ManualNode,finalizeSearchText,func,27,KEEP,parse 的 register 内 :174 调用
+Manual,Features/Manual/ManualDocument.swift,ManualDocument,load,func,72,KEEP,ManualView.swift:18 @Stored 属性初始化调用
+Manual,Features/Manual/ManualDocument.swift,ManualDocument,displayCategory,func,106,KEEP,把文章文件编号映射成用户分类；截图与录屏归在同一类，导航不显示文件序号
+Manual,Features/Manual/ManualDocument.swift,ManualDocument,parse,func,121,KEEP,load:117 调用
+Manual,Features/Manual/ManualDocument.swift,ManualDocument,parseBlocks,func,146,KEEP,parse 内 flush:130 调用
+Manual,Features/Manual/ManualDocument.swift,ManualDocument,firstRange,func,225,KEEP,parseBlocks:286/290 有序列表调用
 Manual,Features/Manual/ManualView.swift,ManualPaneView,init,init,17,KEEP,SettingsRootView.swift:138 ManualPaneView() 构造
-Manual,Features/Manual/ManualView.swift,ManualPaneView,quickStartCard,func,183,KEEP,把查找剪贴板、截图识字、手机传文件和多屏设置四个常见任务连到各自的完整指南
-Manual,Features/Manual/ManualView.swift,ManualPaneView,breadcrumb,func,198,KEEP,detail 视图 :119 调用
-Manual,Features/Manual/ManualView.swift,ManualPaneView,sectionLinks,func,217,KEEP,detail 视图 :125 调用
-Manual,Features/Manual/ManualView.swift,ManualPaneView,navFooter,func,229,KEEP,detail 视图 :136 调用
-Manual,Features/Manual/ManualView.swift,ManualPaneView,ancestorPath,func,256,KEEP,breadcrumb:151 调用
-Manual,Features/Manual/ManualView.swift,ManualPaneView,parent,func,266,KEEP,ancestorPath:221 调用
-Manual,Features/Manual/ManualView.swift,ManualDisclosureStyle,makeBody,func,382,KEEP,DisclosureGroupStyle 协议；:309 disclosureGroupStyle 派发
-Manual,Features/Manual/ManualView.swift,ManualBlockView,inline,func,498,KEEP,ManualBlockView.body :403/413/430/442 调用
+Manual,Features/Manual/ManualView.swift,ManualPaneView,sidebar,func,46,KEEP,2026-11-19：body只计算一次搜索命中与可见分类，并传给侧栏；分类展开、文章选择和快速入门沿用原绑定
+Manual,Features/Manual/ManualView.swift,ManualPaneView,detail,func,122,KEEP,2026-11-19：body传入本轮无结果状态；有序操作步骤原位展示ManualDemoView，正文和可点击步骤只保留一份，选文时滚回顶部
+Manual,Features/Manual/ManualView.swift,ManualPaneView,quickStartCard,func,189,KEEP,把查找剪贴板、截图识字、手机传文件和多屏设置四个常见任务连到各自的完整指南
+Manual,Features/Manual/ManualView.swift,ManualPaneView,breadcrumb,func,204,KEEP,detail 视图 :119 调用
+Manual,Features/Manual/ManualView.swift,ManualPaneView,sectionLinks,func,223,KEEP,detail 视图 :125 调用
+Manual,Features/Manual/ManualView.swift,ManualPaneView,navFooter,func,235,KEEP,detail 视图 :136 调用
+Manual,Features/Manual/ManualView.swift,ManualPaneView,ancestorPath,func,262,KEEP,breadcrumb:151 调用
+Manual,Features/Manual/ManualView.swift,ManualPaneView,parent,func,272,KEEP,ancestorPath:221 调用
+Manual,Features/Manual/ManualView.swift,ManualDisclosureStyle,makeBody,func,384,KEEP,DisclosureGroupStyle 协议；:309 disclosureGroupStyle 派发
 Manual,Features/Manual/ManualView.swift,-,inlineMarkdown,func,502,KEEP,v245 新增：ManualBlockView.inline 与 ManualTableView.inlineCell 合并后的唯一实现，两处调用
 Monitor,Features/Monitor/BatteryEnergy.swift,StatsEnergyItem,init,init,32,KEEP,构造于 BatteryEnergy.swift:133 tick 内建行，全仓唯一构造点
 Monitor,Features/Monitor/BatteryEnergy.swift,BatteryEnergySampler,init,init,68,KEEP,私有 init，仅 shared 单例 BatteryEnergy.swift:44 调用

@@ -22,11 +22,13 @@ public struct ManualPaneView: View {
     }
 
     public var body: some View {
+        let idx = searchIndex
+        let roots = doc.roots.filter { idx.visible.contains($0.id) }
         HStack(spacing: 0) {
-            sidebar
+            sidebar(index: idx, roots: roots)
                 .frame(width: 236)
             Rectangle().fill(Color.primary.opacity(0.08)).frame(width: 0.5)
-            detail
+            detail(noResults: roots.isEmpty)
         }
         .onAppear {
             selection = quickStartID
@@ -41,7 +43,7 @@ public struct ManualPaneView: View {
 
     // MARK: - 左：分支树
 
-    private var sidebar: some View {
+    private func sidebar(index: (matched: Set<String>, visible: Set<String>), roots: [ManualNode]) -> some View {
         VStack(spacing: 0) {
             HStack(spacing: 6) {
                 Image(systemName: "magnifyingglass")
@@ -93,20 +95,19 @@ public struct ManualPaneView: View {
             .padding(.bottom, 4)
 
             ScrollView(.vertical, showsIndicators: true) {
-                let idx = searchIndex
                 VStack(alignment: .leading, spacing: 1) {
-                    if visibleRoots.isEmpty {
+                    if roots.isEmpty {
                         Text(query.isEmpty ? "暂无手册内容" : "未找到相关功能，请换个关键词。")
                             .font(.system(size: 12)).foregroundStyle(.secondary)
                             .padding(10)
                     }
-                    ForEach(visibleRoots) { node in
+                    ForEach(roots) { node in
                         ManualTreeRow(node: node,
                                       selection: $selection,
                                       expanded: $expanded,
                                       query: query,
-                                      matched: idx.matched,
-                                      visible: idx.visible)
+                                      matched: index.matched,
+                                      visible: index.visible)
                     }
                 }
                 .padding(.horizontal, 6)
@@ -118,12 +119,12 @@ public struct ManualPaneView: View {
 
     // MARK: - 右：内容
 
-    private var detail: some View {
+    private func detail(noResults: Bool) -> some View {
         ScrollViewReader { proxy in
             ScrollView(.vertical, showsIndicators: true) {
                 VStack(alignment: .leading, spacing: 14) {
                     Color.clear.frame(height: 0).id("manual-top")
-                    if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, visibleRoots.isEmpty {
+                    if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, noResults {
                         Text("未找到相关功能，请换个关键词。")
                             .foregroundStyle(.secondary)
                     } else if selection == quickStartID {
@@ -137,10 +138,15 @@ public struct ManualPaneView: View {
                         if node.level == 1 {
                             sectionLinks(node)
                         } else {
-                            ForEach(node.blocks) { item in ManualBlockView(block: item.block) }
-                            ManualDemoView(title: node.title, demoID: node.demoID ?? "tools",
-                                           symbol: node.symbol, steps: node.demoSteps)
-                                .id(node.id)
+                            ForEach(node.blocks) { item in
+                                if case .numbered(let steps) = item.block {
+                                    ManualDemoView(title: node.title, demoID: node.demoID ?? "tools",
+                                                   symbol: node.symbol, steps: steps)
+                                        .id(node.id)
+                                } else {
+                                    ManualBlockView(block: item.block)
+                                }
+                            }
                             navFooter(node)
                         }
                     } else {
@@ -296,10 +302,6 @@ public struct ManualPaneView: View {
         return (matched, visible)
     }
 
-    private var visibleRoots: [ManualNode] {
-        let idx = searchIndex
-        return doc.roots.filter { idx.visible.contains($0.id) }
-    }
 }
 
 // MARK: - 树行
@@ -439,12 +441,12 @@ private struct ManualBlockView: View {
     var body: some View {
         switch block {
         case .heading(let title):
-            Text(inline(title))
+            Text(inlineMarkdown(title))
                 .font(.system(size: 15, weight: .semibold))
                 .padding(.top, 10)
                 .textSelection(.enabled)
         case .paragraph(let s):
-            Text(inline(s))
+            Text(inlineMarkdown(s))
                 .font(.system(size: 12.5))
                 .lineSpacing(4)
                 .textSelection(.enabled)
@@ -454,7 +456,7 @@ private struct ManualBlockView: View {
                 ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                     HStack(alignment: .top, spacing: 7) {
                         Text("•").font(.system(size: 12)).foregroundStyle(.secondary)
-                        Text(inline(item))
+                        Text(inlineMarkdown(item))
                             .font(.system(size: 12.5))
                             .lineSpacing(3)
                             .textSelection(.enabled)
@@ -471,7 +473,7 @@ private struct ManualBlockView: View {
                             .font(.system(size: 12, weight: .medium).monospacedDigit())
                             .foregroundStyle(.secondary)
                             .frame(width: 18, alignment: .trailing)
-                        Text(inline(item))
+                        Text(inlineMarkdown(item))
                             .font(.system(size: 12.5))
                             .lineSpacing(3)
                             .textSelection(.enabled)
@@ -483,7 +485,7 @@ private struct ManualBlockView: View {
             HStack(alignment: .top, spacing: 8) {
                 RoundedRectangle(cornerRadius: 2, style: .continuous).fill(Theme.accent.opacity(0.45))
                     .frame(width: 3)
-                Text(inline(s))
+                Text(inlineMarkdown(s))
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .lineSpacing(3)
@@ -494,8 +496,6 @@ private struct ManualBlockView: View {
         }
     }
 
-    /// 行内 Markdown → AttributedString（与文件级 inlineMarkdown 同一实现）
-    private func inline(_ s: String) -> AttributedString { inlineMarkdown(s) }
 }
 
 /// 行内强调格式转为富文本。

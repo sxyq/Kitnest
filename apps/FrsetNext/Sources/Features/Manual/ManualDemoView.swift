@@ -33,7 +33,7 @@ struct ManualDemoView: View {
                     .buttonStyle(.borderless)
             }
             presetPicker
-            Text("仅展示预设内容，不读取剪贴板、文件或设备信息。")
+            Text("使用示例内容演示，不会改变你的文件或设置。")
                 .font(.caption).foregroundStyle(.secondary)
             stage
                 .frame(maxWidth: .infinity)
@@ -326,7 +326,7 @@ struct ManualDemoView: View {
                 Text("预设图片").font(.system(size: 10, weight: .medium))
             }.foregroundStyle(.white.opacity(0.9))
         }
-        .frame(width: 150, height: 96)
+        .frame(maxWidth: 150).frame(height: 96)
     }
 
     @ViewBuilder private var capture: some View {
@@ -469,7 +469,7 @@ struct ManualDemoView: View {
             HStack {
                 Label(title, systemImage: symbol).font(.system(size: 13, weight: .semibold))
                 Spacer()
-                Text("设置页固定预设值").font(.system(size: 9)).foregroundStyle(.secondary)
+                Text("示例读数").font(.system(size: 9)).foregroundStyle(.secondary)
             }
             if title == "释放内存" {
                 Text(step == 0 ? "保存文稿 → 打开内存维护" : finished ? "维护报告：缓存已释放\n全部唤醒：恢复暂停应用" : "深度释放 → 管理员授权\n等待维护结束")
