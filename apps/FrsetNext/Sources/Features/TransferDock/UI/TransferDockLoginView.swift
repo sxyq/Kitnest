@@ -256,17 +256,14 @@ private struct TransferDockWebView: NSViewRepresentable {
             let query = url?.query?.lowercased() ?? ""
 
             // 记录「进过授权页」这一事实
-            if host.contains("id.heytap.com") || path.contains("login") || path.contains("auth")
+            if host == "id.heytap.com" || path.contains("login") || path.contains("auth")
                 || path.contains("sso") || query.contains("code=") {
                 sawAuthPage = true
             }
 
             webView.configuration.websiteDataStore.httpCookieStore.getAllCookies { [weak self] cookies in
                 guard let self, !self.finished else { return }
-                let relevant = cookies.filter { c in
-                    let d = c.domain.lowercased()
-                    return d.hasSuffix("heytap.com") || d.hasSuffix("oppo.com")
-                }
+                let relevant = cookies.filter { TransferDockService.isLoginDomain($0.domain) }
                 guard !relevant.isEmpty else { return }
 
                 let names = Set(relevant.map { $0.name.uppercased() })
@@ -275,7 +272,7 @@ private struct TransferDockWebView: NSViewRepresentable {
                     ["TOKEN", "SESSION", "SSO", "TICKET", "LOGIN", "UID"].contains { n.contains($0) }
                 }
                 // 从授权页回到业务页
-                let backToBiz = self.sawAuthPage && host.contains("cloud.heytap.com")
+                let backToBiz = self.sawAuthPage && host == "cloud.heytap.com"
                     && !path.contains("login") && !path.contains("auth")
 
                 guard force || looksLoggedIn || backToBiz else { return }

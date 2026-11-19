@@ -302,14 +302,18 @@ final class TransferDockService: ObservableObject {
 
     // MARK: 登录态写回（WKWebView 抓到的 cookie → credentials/cookies.json）
 
+    static func isLoginDomain(_ domain: String) -> Bool {
+        let domain = domain.lowercased()
+        return ["heytap.com", "oppo.com"].contains {
+            domain == $0 || domain.hasSuffix("." + $0)
+        }
+    }
+
     /// 把浏览器 cookie 写成中转站工程认识的格式（数组，含 domain/expires/httpOnly/name/path/secure/value）
     /// - Parameter completion: v255 起必传的逻辑：登录页要等**服务端回验通过**才关窗。
     ///   `ok == false` 时 `reason` 是服务端原话（例如 1003 用户信息获取失败）。
     func saveCookies(_ cookies: [HTTPCookie], completion: ((Bool, String?) -> Void)? = nil) {
-        let keepDomains = ["heytap.com", "oppo.com"]
-        let relevant = cookies.filter { cookie in
-            keepDomains.contains { cookie.domain.hasSuffix($0) }
-        }
+        let relevant = cookies.filter { Self.isLoginDomain($0.domain) }
         guard !relevant.isEmpty else {
             errorMessage = "登录页没有产生有效 cookie，请确认已登录成功"
             completion?(false, "登录页没有产生有效 cookie")
@@ -415,19 +419,24 @@ final class TransferDockService: ObservableObject {
             return ["ok": false, "error": "无法启动桥接脚本：\(error.localizedDescription)"]
         }
 
-        // 先把两个管道读空再等退出（readDataToEndOfFile 阻塞到 EOF，零轮询开销；
-        // 顺序很重要：先读后 wait，否则子进程可能因管道写满而卡死）。
-        // 超时保护用「兜底杀手」：10 分钟后还在跑就 terminate，EOF 自然到达。
-        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 600) {
-            if process.isRunning {
-                process.terminate()
-            }
+        // 两条输出同时消费，避免stderr塞满时stdout一直等不到EOF。
+        let killer = DispatchWorkItem { [weak process] in
+            if let process, process.isRunning { process.terminate() }
+        }
+        DispatchQueue.global(qos: .utility).asyncAfter(deadline: .now() + 600, execute: killer)
+        let errors = NSMutableData()
+        let reading = DispatchGroup()
+        reading.enter()
+        DispatchQueue.global(qos: .utility).async {
+            errors.append(errPipe.fileHandleForReading.readDataToEndOfFile())
+            reading.leave()
         }
         let outData = outPipe.fileHandleForReading.readDataToEndOfFile()
-        let errData = errPipe.fileHandleForReading.readDataToEndOfFile()
         process.waitUntilExit()
+        killer.cancel()
+        reading.wait()
         let stdout = String(data: outData, encoding: .utf8) ?? ""
-        let stderr = String(data: errData, encoding: .utf8) ?? ""
+        let stderr = String(data: errors as Data, encoding: .utf8) ?? ""
 
         // 桥接只保证「最后一行」是 JSON（前面的懒续期日志走 stderr）
         for line in stdout.split(separator: "\n").reversed() {
