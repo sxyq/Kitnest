@@ -4013,19 +4013,19 @@ TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,respond,fu
 TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,tool,func,285,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：toolDefinitions逐项构造8个正式工具schema；required仅对原有必需参数填写；未发现外部动态注册
 TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,call,func,294,KEEP,2026-11-20：认证后的8项工具唯一分发；设备和命令及文件按退出码返回；截图成功才pull；安装和清单复用引擎；应用启动改异步并把后台解析失败原文交给isError响应
 TransferDock,Features/TransferDock/Transfer/QRCodeView.swift,QRCodeImage,make,func,19,KEEP,QRCodeView.swift:41；CastView.swift:184
-TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,init,init,89,KEEP,TransferDockService.swift:72 shared 单例
-TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,startLiveSync,func,92,KEEP,TransferDockView.swift:127 中转页 onAppear
-TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,stopLiveSync,func,104,KEEP,TransferDockView.swift:129 onDisappear
-TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,startKeepAlive,func,111,KEEP,TransferDockService.swift:329 登录后启动
-TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,refresh,func,139,KEEP,"TransferDockView.swift:126,146,153,501,848"
-TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,upload,func,200,KEEP,TransferDockView.swift:1548 加入云端
-TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,uploadBatch,func,225,KEEP,TransferDockView.swift:1139 批量上传
-TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,download,func,260,KEEP,"TransferDockView.swift:1395,1412,1414"
-TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,delete,func,284,KEEP,"TransferDockView.swift:1398,1415"
-TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,saveCookies,func,307,KEEP,TransferDockLoginView.swift:42 登录页写回
-TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,verifySession,func,368,KEEP,v249 桥回验 status：写 cookie 成功≠会话有效（服务端可回 1003）
-TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,archiveCookieEvidence,func,380,KEEP,v249 覆盖前留证 credentials/evidence/cookies-时间戳.json，只留最近 20 份
-TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,runBridge,func,400,KEEP,"TransferDockService.swift:120,152,175,207,234,262,284"
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,init,init,89,KEEP,2026-11-20：shared唯一构造；串行bridge队列及云端状态独立于本地暂存；初始化不启动同步或保活
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,startLiveSync,func,92,KEEP,2026-11-20：实际消费者为云端设置开始同步按钮；每30秒且已登录且无加载或上传才refresh；现有timer时不重建；源码旧注释声称页面onAppear启动与当前调用不符
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,stopLiveSync,func,104,KEEP,2026-11-20：云端设置停止同步按钮调用；停止并释放30秒liveSyncTimer；当前中转页onDisappear只移除鼠标监听不调此方法
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,startKeepAlive,func,111,KEEP,2026-11-20：saveCookies服务端回验成功后调用；主线程建立300秒timer，仅loggedIn时将keepalive交原bridge队列；重复调用复用同表
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,refresh,func,139,KEEP,2026-11-20：中转页刷新与配置即时动作及上传删除完成调用；串行status后loggedIn才list前200项；状态和数组更新回主线程；lastSyncedAt在列表结果校验前写入且重复调用可排队待质量处理
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,upload,func,200,KEEP,2026-11-20：本地文件右键加入云端调用；bridge队列上传单文件，主线程依据ok及data反馈并发一次触觉，结束再refresh；失败保留桥原错误
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,uploadBatch,func,225,KEEP,2026-11-20：中转勾选及转入sheet和登录后待传文件共用；原串行队列逐文件上传，汇总成功及失败名称后主线程反馈并只refresh一次
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,download,func,260,KEEP,2026-11-20：云端条目下载入口调用；bridge按file.id下载，ok且含真实返回path才回主线程通知与Finder定位，失败沿桥错误并发失败触觉
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,delete,func,284,KEEP,2026-11-20：云端条目删除入口调用；后台bridge以id删除，主线程按ok显示结果再refresh；不在Swift复制云端协议
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,saveCookies,func,307,KEEP,2026-11-20：登录页候选cookie回调调用；筛heytap.com与oppo.com后序列化原字段，保留用户既有凭据存档语义并原子写cookieFile；verifySession通过才loggedIn及启动保活；域名直接hasSuffix未限制点边界待安全处理
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,verifySession,func,368,KEEP,2026-11-20：saveCookies写入后调用；utility直接runBridge status并读data.loggedIn及reason，完成由调用方回主线程；不以cookie数量当服务端登录状态
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,archiveCookieEvidence,func,380,KEEP,2026-11-20：覆盖cookie前按既有用户历史要求调用；文件已存在才复制至credentials/evidence带时间名称，按名称保留20份；不读取或输出cookie值
+TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,runBridge,func,400,KEEP,2026-11-20：云端status/list/上传下载删除及保活共用唯一Python桥；串行读stdout再stderr可能互等；600秒asyncAfter强持有Process且不取消；倒序取最后合法JSON并原样返回，均待性能处理
 TransferDock,Features/TransferDock/UI/BatchImageCompressionWindow.swift,BatchImageCompressionWindowController,init,init,38,KEEP,建立共享压缩窗口、绑定原生内容和 Return/Escape 键行为
 TransferDock,Features/TransferDock/UI/BatchImageCompressionWindow.swift,BatchImageCompressionWindowController,init,init,65,KEEP,建立共享压缩窗口、绑定原生内容和 Return/Escape 键行为
 TransferDock,Features/TransferDock/UI/BatchImageCompressionWindow.swift,BatchImageCompressionWindowController,show,func,67,KEEP,复用可见窗口；重置图片队列、压缩选项和状态后淡入显示
@@ -4110,7 +4110,7 @@ TransferDock,Features/TransferDock/UI/TransferDockView.swift,LocalCardRowView,fu
 TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferRowStyle,iconName,func,1608,KEEP,CloudRowView:1377 与 LocalCardRowView:1449
 TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferRowStyle,fileTint,func,1621,KEEP,LocalCardRowView:1440 调用
 TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferRowStyle,miniButton,func,1637,KEEP,1394/1397/1476/1479 四处调用
-TransferDock,Features/TransferDock/UI/TransferIntakeDialog.swift,TransferIntakeDialog,card,func,98,KEEP,转入弹框单选卡片（hover 高亮 + 描边，点击 onConfirm）
+TransferDock,Features/TransferDock/UI/TransferIntakeDialog.swift,TransferIntakeDialog,card,func,98,KEEP,2026-11-20：PanelRootView转入sheet构造云端和本地两卡；点击直接onConfirm进入既有登录或上传及暂存路径；悬停改hovering导致body重算，summary的totalBytes每次同步读全部文件元信息待优化
 MemoryHelper,MemoryHelper/main.swift,-,fail,func,24,KEEP,独立可执行入口；:113/122/128/139/144/184 调用
 MemoryHelper,MemoryHelper/main.swift,-,runTool,func,29,KEEP,optimizeMemory:70 调用 purge
 MemoryHelper,MemoryHelper/main.swift,SimulatedMemoryPressure,set,func,55,KEEP,optimizeMemory:64 触发与 :66 defer 复位
