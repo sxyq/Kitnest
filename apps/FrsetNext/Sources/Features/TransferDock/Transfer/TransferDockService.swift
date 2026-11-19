@@ -88,13 +88,13 @@ final class TransferDockService: ObservableObject {
 
     private init() {}
 
-    /// 实时同步开关（面板打开中转页时启动；重复调用幂等）
+    /// 云端设置的开始同步按钮启用；重复调用复用原定时器。
     func startLiveSync() {
         guard liveSyncTimer == nil else { return }
         // v128（流畅度）：回调体进 autoreleasepool——桥接返回的 JSON 字典/字符串
-        // 不再等 runloop 排空；周期 30s 与启停时机（中转页 onAppear/onDisappear）不变。
+        // 不再等 runloop 排空；周期仍为30s，由云端设置开始或停止。
         let timer = Timer(timeInterval: 30, repeats: true) { [weak self] _ in
-            guard let self, self.loggedIn, !self.isLoading, !self.isUploading else { return }
+            guard let self, self.loggedIn, !self.isUploading else { return }
             autoreleasepool { self.refresh(clearError: false) }
         }
         RunLoop.main.add(timer, forMode: .common)
@@ -137,6 +137,7 @@ final class TransferDockService: ObservableObject {
     // MARK: 刷新（登录态 + 空间 + 列表一次拿）
 
     func refresh(clearError: Bool = true) {
+        guard !isLoading else { return }
         guard TransferDockPath.isAvailable else {
             errorMessage = "未找到中转站工程：\n\(TransferDockPath.root.path)"
             return
@@ -175,7 +176,6 @@ final class TransferDockService: ObservableObject {
                 let listing = Self.runBridge(["list", "1", "200"])
                 DispatchQueue.main.async {
                     self.isLoading = false
-                    self.lastSyncedAt = Date()
                     guard let data = listing["data"] as? [String: Any],
                           let rawFiles = data["files"] as? [[String: Any]] else {
                         self.errorMessage = (listing["error"] as? String) ?? "列表拉取失败"
@@ -190,6 +190,7 @@ final class TransferDockService: ObservableObject {
                             createdAt: (item["createdAt"] as? NSNumber)?.doubleValue ?? 0,
                             type: (item["type"] as? String) ?? "")
                     }
+                    self.lastSyncedAt = Date()
                 }
             }
         }

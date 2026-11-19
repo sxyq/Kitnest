@@ -175,6 +175,7 @@ private struct TransferDockWebView: NSViewRepresentable {
         }
 
         func detach() {
+            finished = true
             stopPolling()
             webView?.configuration.userContentController.removeScriptMessageHandler(forName: "frsetProbe")
             webView?.evaluateJavaScript("if (window.__frsetProbe) { clearInterval(window.__frsetProbe); }",
