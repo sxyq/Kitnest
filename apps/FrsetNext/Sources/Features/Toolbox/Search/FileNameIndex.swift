@@ -234,11 +234,12 @@ final class FileNameIndex: ObservableObject {
 
         buildQueue.async { [weak self] in
             guard let self else { return }
-            var pool: [UInt8] = []
+            let startedAt = Date()
+            var pool = Data(count: Self.headerSize)
             pool.reserveCapacity(200 * 1024 * 1024)
             var count = 0
             var lastReport = 0
-            let cap = 900 * 1024 * 1024   // 硬上限，防止意外把 / 扫进来撑爆磁盘
+            let cap = 900 * 1024 * 1024 + Self.headerSize
 
             let roots = Self.roots()
             for root in roots {
@@ -250,7 +251,7 @@ final class FileNameIndex: ObservableObject {
                 }
                 if pool.count >= cap { break }
             }
-            guard !pool.isEmpty else {
+            guard count > 0 else {
                 DispatchQueue.main.async {
                     self.building = false
                     self.state = .failed("没有可索引的目录")
@@ -258,20 +259,17 @@ final class FileNameIndex: ObservableObject {
                 return
             }
 
-            // 落盘
-            var out = [UInt8]()
-            out.reserveCapacity(pool.count + Self.headerSize)
-            out.append(contentsOf: Self.magic)
-            Self.appendU32(&out, 1)
-            Self.appendU32(&out, UInt32(clamping: count))
-            Self.appendU32(&out, UInt32(clamping: pool.count))
-            Self.appendF64(&out, Date().timeIntervalSince1970)
-            out.append(contentsOf: pool)
+            // 原池预留头部，扫描后直接写盘，避免再复制整个路径池。
+            var header = Self.magic
+            Self.appendU32(&header, 1)
+            Self.appendU32(&header, UInt32(clamping: count))
+            Self.appendU32(&header, UInt32(clamping: pool.count - Self.headerSize))
+            Self.appendF64(&header, Date().timeIntervalSince1970)
+            pool.replaceSubrange(0..<Self.headerSize, with: header)
 
             try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            let stamp = Date()
             do {
-                try Data(out).write(to: url, options: .atomic)
+                try pool.write(to: url, options: .atomic)
             } catch {
                 DispatchQueue.main.async {
                     self.building = false
@@ -280,12 +278,12 @@ final class FileNameIndex: ObservableObject {
                 return
             }
             Log.info("FileIndex", "全盘索引完成：\(count) 条 · "
-                     + "\(ByteCountFormatter.string(fromByteCount: Int64(out.count), countStyle: .file)) · "
-                     + "\(String(format: "%.1f", Date().timeIntervalSince(stamp)))s")
+                     + "\(ByteCountFormatter.string(fromByteCount: Int64(pool.count), countStyle: .file)) · "
+                     + "\(String(format: "%.1f", Date().timeIntervalSince(startedAt)))s")
 
             DispatchQueue.main.async {
                 self.building = false
-                // 立刻 mmap 回来（写文件用的是局部数组，池已释放）
+                // 立刻 mmap 回来，扫描与写盘使用的局部 Data 随后台任务结束释放。
                 if !self.loadFromDisk() {
                     self.state = .failed("索引写入后无法映射")
                 }
@@ -329,7 +327,7 @@ final class FileNameIndex: ObservableObject {
     }()
 
     /// 递归收集路径（DFS，先自己再子目录）。
-    private static func walk(_ path: String, pool: inout [UInt8], count: inout Int,
+    private static func walk(_ path: String, pool: inout Data, count: inout Int,
                              cap: Int, onProgress: (Int) -> Void) {
         guard pool.count < cap else { return }
         // 路径太长（>4000）多半是异常命名，跳过以免污染池
