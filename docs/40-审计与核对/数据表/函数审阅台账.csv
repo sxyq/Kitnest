@@ -2453,21 +2453,21 @@ Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReadResult,init,ini
 Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorExtra,update,func,47,KEEP,MonitorSampler.swift:296
 Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorExtra,reset,func,53,KEEP,MonitorSampler.swift:324 resetHistory
 Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,init,init,115,KEEP,MonitorSampler.swift:42 private let reader = MonitorReader()
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readResult,func,128,KEEP,MonitorSampler.swift:212
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,loadAverages,func,171,KEEP,MonitorSampler.swift:250
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readCPU,func,177,KEEP,readResult:147
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readMemory,func,240,KEEP,readResult:154、171
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readLoadAverages,func,270,KEEP,loadAverages:185
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readNetworkCounters,func,281,KEEP,readNetworkRate:334
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readNetworkRate,func,313,KEEP,readResult:160
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readDiskRate,func,327,KEEP,readResult:164
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readTemperatures,func,365,KEEP,readResult:177
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readBatteryLevel,func,372,KEEP,readResult:168
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readPower,func,390,KEEP,readResult:178
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,delta,func,417,KEEP,readCPU:233-235、readNetworkRate:340、readDiskRate:378
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,rate,func,421,KEEP,readNetworkRate:340-341、readDiskRate:378-379
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,clamp,func,428,KEEP,readCPU:240/245-247、readMemory:278、readBatteryLevel:504
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,uint64Value,func,433,KEEP,readDiskRate:365-366
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readResult,func,131,KEEP,MonitorSampler.swift:212
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,loadAverages,func,174,KEEP,MonitorSampler.swift:250
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readCPU,func,180,KEEP,readResult:147
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readMemory,func,243,KEEP,readResult:154、171
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readLoadAverages,func,273,KEEP,loadAverages:185
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readNetworkCounters,func,284,KEEP,readNetworkRate:334
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readNetworkRate,func,316,KEEP,readResult:160
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readDiskRate,func,330,KEEP,readResult:164
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readTemperatures,func,368,KEEP,readResult:177
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readBatteryLevel,func,374,KEEP,readResult:168
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readPower,func,392,KEEP,readResult:178
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,delta,func,419,KEEP,readCPU:233-235、readNetworkRate:340、readDiskRate:378
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,rate,func,423,KEEP,readNetworkRate:340-341、readDiskRate:378-379
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,clamp,func,430,KEEP,readCPU:240/245-247、readMemory:278、readBatteryLevel:504
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,uint64Value,func,435,KEEP,readDiskRate:365-366
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,History,init,init,40,KEEP,MonitorSampler:16/48/49 构造；resetHistory:326
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setIslandActive,func,69,KEEP,刘海监测实际可见时设置islandActive并applyPreferences重新安排现有采样，激活立即refresh，状态相同不重复安排
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setPanelActive,func,76,KEEP,MonitorPopoutWindow.swift:242/323/359
@@ -2481,7 +2481,7 @@ Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,refresh,fu
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,applyPreferences,func,167,KEEP,init 观察者:107、start:122
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,scheduleNext,func,187,KEEP,applyPreferences:164 + 自递归:183
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,sampleOnce,func,212,KEEP,start:123、refresh:141、scheduleNext:176
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,resetHistory,func,369,KEEP,MonitorSettingsPane.swift:189 重置按钮
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,resetHistory,func,373,KEEP,MonitorSettingsPane.swift:189 重置按钮
 Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,init,init,74,KEEP,私有 init，shared:39
 Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,startBackgroundUpdates,func,90,KEEP,MonitorModule.swift:14 常驻启动
 Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,stopBackgroundUpdates,func,104,KEEP,applyKeepAlivePreference:114
