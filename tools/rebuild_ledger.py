@@ -43,6 +43,12 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Features/TransferDock/Transfer/MCPServer.swift", "close"):
+        "2026-11-19：MCP网络失败、取消、接收EOF与响应发送完成共用；在服务串行队列移除登记连接、解绑状态回调并取消会话，stop清空同一连接集合",
+    ("Features/TransferDock/Android/AndroidWebDAVServer.swift", "close"):
+        "2026-11-19：WebDAV网络失败、取消、头或正文提前结束及响应完成共用；在原服务队列移除连接并解绑取消，关闭服务后迟到响应不再发送",
+    ("Features/TransferDock/Android/AndroidWebDAVServer.swift", "escapeXML"):
+        "2026-11-19：entryXML中的href和displayname共用；依次转义与号及左右尖括号，使文件名作为XML文本而非标签解释",
     ("Features/Archive/Table/ArchiveEntryTable.swift", "update"):
         "2026-11-18：归档表格viewFor复用行和行初始化共用；更新图标锁路径标记名称大小与压缩率，保留既有控件和约束",
     ("Features/Archive/Table/ArchiveHoverPreview.swift", "windowClosed"):

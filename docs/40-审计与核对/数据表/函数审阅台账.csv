@@ -3790,71 +3790,73 @@ Toolbox,Features/Toolbox/Tools/ToolSettingsPane.swift,AITextSettingsDraft,restor
 Toolbox,Features/Toolbox/Tools/ToolSettingsPane.swift,AITextSettingsDraft,addCustomTool,func,165,KEEP,把已填写名称与模板添加到AI文本工具草稿，保存后才进入正式工具存储；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Tools/ToolSettingsPane.swift,AITextSettingsDraft,clearNewTool,func,174,KEEP,提示词加入草稿或取消时清空页内输入，不影响正式工具列表；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,setActiveSerial,func,50,KEEP,"ADBExtrasEngine.swift:75,78 内部写缓存"
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,resolveSerialSync,func,58,KEEP,ADBExtrasEngine.swift:101 run 内解析
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,resolveSerialSync,func,58,KEEP,2026-11-19：run和WebDAV后台下载共用5秒设备缓存；先读devices输出再等待退出；优先无线其次首个device并写入同一缓存
 TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,needsSerialPin,func,83,KEEP,ADBExtrasEngine.swift:100 判断是否补 -s
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,run,func,92,KEEP,MCPServer.swift:272；AndroidWebDAVServer.swift:233
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,openWirelessDebugging,func,131,KEEP,CastView.swift:431 右键菜单调用
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,notifications,func,157,KEEP,CastView.swift:896 6 秒轮询
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,parseNotifications,func,163,KEEP,ADBExtrasEngine.swift:204 dumpsys 解析
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,extractValue,func,214,KEEP,ADBExtrasEngine.swift:242-246 取值
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,shortAppName,func,224,KEEP,"ADBExtrasEngine.swift:224,347；CastAppLibraryWindow.swift:147"
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,shortTime,func,236,KEEP,ADBExtrasEngine.swift:227 通知时间
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,storage,func,247,KEEP,CastView.swift:903 存储区块
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,byteValue,func,269,KEEP,ADBExtrasEngine.swift:308 容量排序
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,installAPK,func,286,KEEP,MCPServer.swift:293；TransferDockView.swift:767
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,thirdPartyApps,func,296,KEEP,MCPServer.swift:305 list_apps 工具
-TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,startAppWindow,func,325,KEEP,CastView.swift:686；CastAppLibraryWindow.swift:142
-TransferDock,Features/TransferDock/Android/AdbBonjour.swift,AdbBonjour,browse,func,31,KEEP,TransferCastEngines.swift:432 bonjour.browse 调用
-TransferDock,Features/TransferDock/Android/AdbBonjour.swift,AdbBonjour,finish,func,51,KEEP,"AdbBonjour.swift:34,46 超时任务调用"
-TransferDock,Features/TransferDock/Android/AdbBonjour.swift,AdbBonjour,netServiceBrowser,func,70,KEEP,NetServiceBrowserDelegate 协议回调
-TransferDock,Features/TransferDock/Android/AdbBonjour.swift,AdbBonjour,netServiceBrowser,func,78,KEEP,NetServiceBrowserDelegate 协议回调
-TransferDock,Features/TransferDock/Android/AdbBonjour.swift,AdbBonjour,netServiceDidResolveAddress,func,87,KEEP,NetServiceDelegate 协议回调
-TransferDock,Features/TransferDock/Android/AdbBonjour.swift,AdbBonjour,netService,func,100,KEEP,NetServiceDelegate 协议回调
-TransferDock,Features/TransferDock/Android/AdbBonjour.swift,AdbBonjour,ipv4String,func,105,KEEP,AdbBonjour.swift:90 解析地址
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,run,func,92,KEEP,2026-11-19：MCP与WebDAV及无线连接和文件桥共用唯一无进度命令入口；后台同时读取stdout与stderr并等待汇合；原超时任务结束后取消；完成回主线程且返回退出状态
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,openWirelessDebugging,func,141,KEEP,CastView.swift:431 右键菜单调用
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,notifications,func,167,KEEP,CastView.swift:896 6 秒轮询
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,parseNotifications,func,173,KEEP,ADBExtrasEngine.swift:204 dumpsys 解析
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,extractValue,func,224,KEEP,ADBExtrasEngine.swift:242-246 取值
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,shortAppName,func,234,KEEP,"ADBExtrasEngine.swift:224,347；CastAppLibraryWindow.swift:147"
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,shortTime,func,246,KEEP,ADBExtrasEngine.swift:227 通知时间
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,storage,func,257,KEEP,CastView.swift:903 存储区块
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,byteValue,func,279,KEEP,ADBExtrasEngine.swift:308 容量排序
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,installAPK,func,296,KEEP,2026-11-19：TransferDockView和MCP安装工具共用；仅退出码为0且含Success返回成功；缺失adb或启动失败沿回调传出
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,thirdPartyApps,func,306,KEEP,2026-11-19：MCP的list_apps唯一消费；原pm列表解析保持；退出状态非0返回错误字符串而不伪报空应用成功
+TransferDock,Features/TransferDock/Android/ADBExtrasEngine.swift,ADBExtrasEngine,startAppWindow,func,339,KEEP,CastView.swift:686；CastAppLibraryWindow.swift:142
+TransferDock,Features/TransferDock/Android/AdbBonjour.swift,AdbBonjour,browse,func,31,KEEP,2026-11-19：discoverServices调用；先收尾上一轮；两个NetServiceBrowser分别搜索连接与配对类型并复用1秒完成任务
+TransferDock,Features/TransferDock/Android/AdbBonjour.swift,AdbBonjour,finish,func,52,KEEP,2026-11-19：browse重入及到期共用；解绑停止两类浏览器与待解析服务；清空结果后只调用一次本轮完成回调
+TransferDock,Features/TransferDock/Android/AdbBonjour.swift,AdbBonjour,netServiceBrowser,func,71,KEEP,2026-11-19：NetServiceBrowserDelegate的didFind正式回调；只接纳当前浏览器并登记服务后按原1.2秒解析
+TransferDock,Features/TransferDock/Android/AdbBonjour.swift,AdbBonjour,netServiceBrowser,func,80,KEEP,2026-11-19：NetServiceBrowserDelegate的didRemove正式回调；按name/type/domain停止待解析项并移除同类已解析结果
+TransferDock,Features/TransferDock/Android/AdbBonjour.swift,AdbBonjour,netServiceDidResolveAddress,func,97,KEEP,2026-11-19：NetServiceDelegate解析回调；只接纳本轮pending服务；取IPv4及端口并按类型名称地址去重；结束解绑代理
+TransferDock,Features/TransferDock/Android/AdbBonjour.swift,AdbBonjour,netService,func,114,KEEP,2026-11-19：NetServiceDelegate的didNotResolve回调；解绑服务代理并从pending移除当前项
+TransferDock,Features/TransferDock/Android/AdbBonjour.swift,AdbBonjour,ipv4String,func,120,KEEP,AdbBonjour.swift:90 解析地址
 TransferDock,Features/TransferDock/Android/AdbCastMemory.swift,AdbCastMemory,init,init,53,KEEP,AdbCastMemory.swift:47 shared 单例构造
 TransferDock,Features/TransferDock/Android/AdbCastMemory.swift,AdbCastMemory,candidates,func,66,KEEP,AdbQrPairing.swift:357 重连候选
 TransferDock,Features/TransferDock/Android/AdbCastMemory.swift,AdbCastMemory,remember,func,86,KEEP,AdbQrPairing.swift:401 连接成功记忆
 TransferDock,Features/TransferDock/Android/AdbCastMemory.swift,AdbCastMemory,split,func,112,KEEP,AdbCastMemory.swift:87 解析 serial
 TransferDock,Features/TransferDock/Android/AdbCastMemory.swift,AdbCastMemory,load,func,118,KEEP,"AdbCastMemory.swift:60,89,112"
 TransferDock,Features/TransferDock/Android/AdbCastMemory.swift,AdbCastMemory,save,func,126,KEEP,"AdbCastMemory.swift:107,116 落盘"
-TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,init,init,131,KEEP,AdbQrPairing.swift:48 shared 单例
-TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,regenerate,func,143,KEEP,AdbQrPairing.swift:207 restart 换凭证
-TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,deinit,deinit,148,KEEP,单例释放时 invalidate timer
-TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,start,func,152,KEEP,CastView.swift:225 onAppear 启动
-TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,cancel,func,197,KEEP,AdbQrPairing.swift:206 restart 调用
-TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,restart,func,205,KEEP,CastView.swift:218 终态重新生成
-TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,skipReconnect,func,212,KEEP,CastView.swift:196 「改为扫码」
-TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,finish,func,222,KEEP,"AdbQrPairing.swift:232,452,480"
-TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,tick,func,230,KEEP,Timer 闭包 AdbQrPairing.swift:184
-TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,scheduleReconnectFallback,func,260,KEEP,AdbQrPairing.swift:168 重连降级
-TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,attemptReconnect,func,278,KEEP,AdbQrPairing.swift:191 启动重连
-TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,tryDiscoveredConnections,func,305,KEEP,"AdbQrPairing.swift:176,296,315"
-TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,tryDiscoveredTargets,func,328,KEEP,AdbQrPairing.swift:324 递归调用
-TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,tryCandidates,func,355,KEEP,AdbQrPairing.swift:299 递归调用
-TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,succeed,func,400,KEEP,"AdbQrPairing.swift:289,346,378,476"
-TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,pollPairingService,func,423,KEEP,AdbQrPairing.swift:252 tick 调度
-TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,doPair,func,436,KEEP,AdbQrPairing.swift:432
-TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,pollConnectService,func,461,KEEP,AdbQrPairing.swift:240 tick 调度
-TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,split,func,489,KEEP,"AdbQrPairing.swift:331,429,469"
-TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,randomToken,func,496,KEEP,"AdbQrPairing.swift:135,144"
-TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,randomDigits,func,502,KEEP,"AdbQrPairing.swift:139,145"
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,init,init,29,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：shared单例唯一创建；监听器默认未启动；CastView开关控制生命周期
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,start,func,31,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：CastView开关调用；已运行直接返回并从8768顺延8端口；同步bind等待可能占主线程待性能处理
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,bind,func,40,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：start调用；NWListener明确绑定127.0.0.1并注册接入回调；最长2秒信号等待和回调ok变量的线程同步需后续处理
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,stop,func,72,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：CastView关闭开关调用；取消既有listener并锁内更新running；不创建额外任务
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,accept,func,79,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：NWListener.newConnectionHandler动态调用；在既有服务队列启动连接后进入唯一readRequest
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,readRequest,func,84,KEEP,2026-11-19 安全复审：接收定长请求并由dispatch分发；负数及非整数回400，缺失长度按0；请求头和body无总长上限，PUT可占用全量内存；只绑定127.0.0.1
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,readBody,func,109,KEEP,2026-11-19 安全复审：按Content-Length续读PUT并在完整后dispatch；网络提前结束取消连接；全量body留内存且未设大小上限
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,headerValue,func,124,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：读取Content-Length和Depth共用；按字段名前缀读取冒号后剩余字符并去空白；无数组下标操作
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,dispatch,func,131,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：完整请求进入；既有OPTIONS/PROPFIND/GET/HEAD/PUT/MKCOL/DELETE分别派发；MKCOL和DELETE已有单引号转义
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,remotePath,func,167,KEEP,2026-11-19安全复审：百分号解码并剔除..段，路径固定在/sdcard；命令参数已引用转义；adb仍会跟随存储内软链接
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,propfind,func,182,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：PROPFIND路由调用；listRemote回调生成自身与Depth1子项XML；文件元信息复用同一列表；XML特殊字符未编码待质量处理
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,href,func,205,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：PROPFIND自身及子项调用；移除sdcard前缀并逐路径段百分号编码；XML输出仍需结合entryXML处理保留字符
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,entryXML,func,217,KEEP,2026-11-19安全复审：PROPFIND displayname未经XML实体编码；含尖括号或与号的合法文件名可破坏207 XML
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,listRemote,func,235,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：propfind调用；adb shell ls路径按现有MKCOL规则转义单引号；解析固定8列及软链名；避免请求文件名脱离shell引用
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,download,func,258,KEEP,2026-11-19 安全复审：GET/HEAD经adb读取/sdcard路径且shell单引号已转义；HEAD仍读取完整文件，响应前全量驻留内存
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,upload,func,290,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：PUT路由调用；将既有body写临时文件并交adb push；完成回调删除该临时文件；写入失败返回500
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,send,func,307,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：全部HTTP响应共用；尊重HEAD提供的Content-Length且否则按Data长度填入；发送完成取消连接
+TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,init,init,132,KEEP,AdbQrPairing.swift:48 shared 单例
+TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,regenerate,func,144,KEEP,AdbQrPairing.swift:207 restart 换凭证
+TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,deinit,deinit,149,KEEP,单例释放时 invalidate timer
+TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,start,func,153,KEEP,CastView.swift:225 onAppear 启动
+TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,cancel,func,198,KEEP,2026-11-19：restart重开时调用；通过finish结束计时和旧代回调；原终态保留否则回idle；CastView浮层隐藏仍继续配对
+TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,restart,func,202,KEEP,CastView.swift:218 终态重新生成
+TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,skipReconnect,func,209,KEEP,CastView.swift:196 「改为扫码」
+TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,finish,func,220,KEEP,2026-11-19：取消超时配对失败及成功共用；递增generation作废在途回调并释放请求标记；停止轮询及重连任务后发布目标阶段
+TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,tick,func,232,KEEP,2026-11-19：原1.2秒Timer调用；连接态轮询连接服务且仅waiting轮询配对；pairing与found不再重复发现；保留120秒总时限
+TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,scheduleReconnectFallback,func,264,KEEP,AdbQrPairing.swift:168 重连降级
+TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,attemptReconnect,func,283,KEEP,AdbQrPairing.swift:191 启动重连
+TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,tryDiscoveredConnections,func,310,KEEP,"AdbQrPairing.swift:176,296,315"
+TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,tryDiscoveredTargets,func,334,KEEP,AdbQrPairing.swift:324 递归调用
+TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,tryCandidates,func,361,KEEP,AdbQrPairing.swift:299 递归调用
+TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,succeed,func,406,KEEP,2026-11-19：已在线或重连及配对连接成功共用；保存设备记忆并finish到launching；调用onConnected后0.8秒状态变化须仍匹配新generation
+TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,pollPairingService,func,428,KEEP,2026-11-19：tick等待扫码时调用；requestInFlight覆盖发现至pair返回；只匹配本次serviceName；无候选释放标记；旧代回调不修改新会话
+TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,doPair,func,446,KEEP,2026-11-19：发现本次配对服务后调用；使用原配对码和尝试次数；当前代回调释放在途标记再进入连接或失败阶段
+TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,pollConnectService,func,472,KEEP,2026-11-19：tick连接态调用；单请求覆盖发现至connect；严格匹配pairedHost并移除选其他候选路径；旧代结果不发布
+TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,split,func,505,KEEP,"AdbQrPairing.swift:331,429,469"
+TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,randomToken,func,512,KEEP,"AdbQrPairing.swift:135,144"
+TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,randomDigits,func,518,KEEP,"AdbQrPairing.swift:139,145"
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,init,init,30,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：shared单例唯一创建；监听器默认未启动；CastView开关控制生命周期
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,start,func,32,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：CastView开关调用；已运行直接返回并从8768顺延8端口；同步bind等待可能占主线程待性能处理
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,bind,func,41,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：start调用；NWListener明确绑定127.0.0.1并注册接入回调；最长2秒信号等待和回调ok变量的线程同步需后续处理
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,stop,func,73,KEEP,2026-11-19：CastView关闭开关调用；取消listener后在原服务串行队列设running为false并取消清空全部登记连接
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,accept,func,87,KEEP,2026-11-19：NWListener接入回调在服务队列登记连接和失败状态回调；服务已关闭直接取消；唯一readRequest处理请求
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,close,func,101,KEEP,2026-11-19：WebDAV网络失败、取消、头或正文提前结束及响应完成共用；在原服务队列移除连接并解绑取消，关闭服务后迟到响应不再发送
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,readRequest,func,107,KEEP,2026-11-19 安全复审：接收定长请求并由dispatch分发；负数及非整数回400，缺失长度按0；请求头和body无总长上限，PUT可占用全量内存；只绑定127.0.0.1
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,readBody,func,132,KEEP,2026-11-19 安全复审：按Content-Length续读PUT并在完整后dispatch；网络提前结束取消连接；全量body留内存且未设大小上限
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,headerValue,func,147,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：读取Content-Length和Depth共用；按字段名前缀读取冒号后剩余字符并去空白；无数组下标操作
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,dispatch,func,154,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：完整请求进入；既有OPTIONS/PROPFIND/GET/HEAD/PUT/MKCOL/DELETE分别派发；MKCOL和DELETE已有单引号转义
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,remotePath,func,190,KEEP,2026-11-19安全复审：百分号解码并剔除..段，路径固定在/sdcard；命令参数已引用转义；adb仍会跟随存储内软链接
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,propfind,func,205,KEEP,2026-11-19：PROPFIND路由调用；listRemote回调生成自身及Depth1子项；统一href编码与entryXML文本转义
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,href,func,228,KEEP,2026-11-19：PROPFIND自身及子项共用；去sdcard前缀并按路径段编码；从urlPathAllowed去除百分号问号井号及斜线以保持文件名原意
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,escapeXML,func,241,KEEP,2026-11-19：entryXML中的href和displayname共用；依次转义与号及左右尖括号，使文件名作为XML文本而非标签解释
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,entryXML,func,247,KEEP,2026-11-19：PROPFIND每项XML输出；href和displayname均交escapeXML转义与号及左右尖括号；目录类型和文件长度沿原结构
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,listRemote,func,265,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：propfind调用；adb shell ls路径按现有MKCOL规则转义单引号；解析固定8列及软链名；避免请求文件名脱离shell引用
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,download,func,288,KEEP,2026-11-19：GET和HEAD后台复用resolveSerialSync解析当前目标并转义shell路径；读取pipe后等待退出；HEAD仍读完整文件且GET响应前全量驻内存待后续优化
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,upload,func,320,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：PUT路由调用；将既有body写临时文件并交adb push；完成回调删除该临时文件；写入失败返回500
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,send,func,337,KEEP,2026-11-19：全部响应共用；尊重HEAD提供的长度否则按Data填入；跨队列结果回原服务串行队列并只向仍登记的连接发送；完成close
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryWindowController,init,init,14,KEEP,CastAppLibraryWindow.swift:10 shared
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryWindowController,show,func,16,KEEP,CastView.swift:629；FrsetNextApp.swift:347 菜单
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryView,tile,func,112,KEEP,CastAppLibraryWindow.swift:98 tile(app)
@@ -3933,16 +3935,12 @@ TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEng
 TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,pair,func,539,KEEP,AdbQrPairing.swift:440
 TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,connect,func,550,KEEP,"AdbQrPairing.swift:335,367,470"
 TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,disconnect,func,566,KEEP,CastView.swift:461 重新发起授权
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBWirelessEngine,runADB,func,576,KEEP,"TransferCastEngines.swift:449,507,519,530"
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,push,func,630,KEEP,TransferDockView.swift:785 推送
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,PushProgress,init,init,661,KEEP,TransferCastEngines.swift:715 进度快照
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,push,func,691,KEEP,TransferDockView.swift:344 带进度推送
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,pushOne,func,722,KEEP,"TransferCastEngines.swift:662,736"
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,remoteFileSize,func,798,KEEP,TransferCastEngines.swift:713 轮询大小
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,speedHint,func,816,KEEP,TransferCastEngines.swift:734 日志速率
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,runADBPush,func,822,KEEP,"TransferCastEngines.swift:597,781"
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,pull,func,843,KEEP,TransferDockView.swift:798 拉取入库
-TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,runADB,func,876,KEEP,"TransferCastEngines.swift:596,661,775,794"
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,PushProgress,init,init,592,KEEP,TransferCastEngines.swift:715 进度快照
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,push,func,622,KEEP,TransferDockView.swift:785 推送
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,pushOne,func,653,KEEP,"TransferCastEngines.swift:662,736"
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,remoteFileSize,func,729,KEEP,TransferCastEngines.swift:713 轮询大小
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,speedHint,func,747,KEEP,TransferCastEngines.swift:734 日志速率
+TransferDock,Features/TransferDock/Cast/TransferCastEngines.swift,ADBFileBridge,pull,func,754,KEEP,2026-11-19：TransferDockView.pullFromPhone调用；接收目标改为TransferStaging下本批UUID目录且不再删除共享根；addUploads移入正式存储后仅成功批次清空本批接收目录
 TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FilePreviewBuilder,readText,func,20,KEEP,2026-11-17：PreviewPopoverContentModel文件正文构造调用；mappedIfSafe读取完整文件后依次解码UTF8及Latin1；失败抛原编码错误由正文显示；扩展名表由归档正文共用
 TransferDock,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,scheduleShow,func,39,KEEP,2026-11-17：文件中转卡片悬停调用；取消共享协调器悬停关闭并替换旧showWork；复用现有开窗延迟和锚点及弱窗口引用；work到点交showNow
 Transfer,Features/TransferDock/Transfer/FileHoverPreview.swift,FileHoverPreviewController,showNow,func,53,KEEP,2026-11-17：文件中转主动预览及归档悬停提取完成调用；取消待显示任务并保存currentURL后交现有共享协调器presentFile；窗口锚点和sourceWindow沿参数传递
@@ -4004,18 +4002,19 @@ TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransf
 TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,reveal,func,383,KEEP,"TransferDockView.swift:1477,1543"
 TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,open,func,387,KEEP,"TransferDockView.swift:1519,1542"
 TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,openStagingFolder,func,391,KEEP,TransferDockView.swift:1053；SettingsPane.swift:225
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,init,init,48,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：shared单例创建；进程令牌由既有UUID生成；服务仍须CastView手动开启
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,start,func,52,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：CastView开关调用；顺延8端口并复用bind；与WebDAV相同的同步监听等待待后续性能处理
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,bind,func,63,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：start调用；只绑定IPv4回环并记录不含令牌的基础地址；回调ok同步和主线程等待待处理
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,stop,func,97,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：CastView关闭开关调用；取消listener并锁内设置running为false；不改变进程令牌
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,handle,func,106,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：NWListener接入回调动态调用；连接在既有MCP串行队列启动后进入receive
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,receive,func,111,KEEP,2026-11-19安全复审：回环连接读取完整Content-Length后才验令牌；请求头和body累计无大小上限
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,contentLength,func,137,KEEP,2026-11-19安全复审：拒绝非法及负数，缺失字段按0；正数无上限，重复字段取首个值
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,send,func,146,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：HTTP与JSON-RPC所有响应共用；JSON序列化后设置实际长度nosniff及close；发送完成取消连接
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,authorized,func,154,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：respond在执行JSON-RPC前调用；支持query Bearer及x-kitnest-token三种既有令牌入口；无令牌返回401
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,respond,func,175,KEEP,2026-11-19安全复审：拒绝Origin和OPTIONS；GET健康信息无令牌；其他方法先验令牌再解JSON并派发固定工具
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,tool,func,263,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：toolDefinitions逐项构造8个正式工具schema；required仅对原有必需参数填写；未发现外部动态注册
-TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,call,func,272,KEEP,2026-11-19安全复审：令牌持有者可调用固定8项ADB/App工具；adb_shell接受任意命令，属授权功能范围
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,init,init,49,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：shared单例创建；进程令牌由既有UUID生成；服务仍须CastView手动开启
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,start,func,53,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：CastView开关调用；顺延8端口并复用bind；与WebDAV相同的同步监听等待待后续性能处理
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,bind,func,64,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：start调用；只绑定IPv4回环并记录不含令牌的基础地址；回调ok同步和主线程等待待处理
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,stop,func,98,KEEP,2026-11-19：CastView开关调用；取消listener并在原串行服务队列设running为false；解绑取消全部已接入连接并清空集合
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,handle,func,114,KEEP,2026-11-19：NWListener接入回调；仅服务运行时登记连接和失败回调；连接启动于原串行服务队列并进入receive
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,close,func,128,KEEP,2026-11-19：MCP网络失败、取消、接收EOF与响应发送完成共用；在服务串行队列移除登记连接、解绑状态回调并取消会话，stop清空同一连接集合
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,receive,func,134,KEEP,2026-11-19：只处理仍登记的连接；长度合法后立即拒绝Origin和OPTIONS并处理无令牌健康查询；其余请求先认证再等待正文；EOF统一close
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,contentLength,func,177,KEEP,2026-11-19安全复审：拒绝非法及负数，缺失字段按0；正数无上限，重复字段取首个值
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,send,func,186,KEEP,2026-11-19：全部HTTP及JSON-RPC响应共用；设置实际JSON长度及nosniff；切回原服务队列仅向仍登记的连接发送；完成后close
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,authorized,func,197,KEEP,2026-11-19：receive在等待正文前调用；沿原query及Bearer和x-kitnest-token三种入口匹配进程令牌；无令牌立即401
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,respond,func,218,KEEP,2026-11-19：receive已完成认证后调用；解析JSON对象并沿原方法列表分发initialize及ping和工具清单调用；解析失败400
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,tool,func,285,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：toolDefinitions逐项构造8个正式工具schema；required仅对原有必需参数填写；未发现外部动态注册
+TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,call,func,294,KEEP,2026-11-19：认证后的8项工具唯一分发入口；devices和shell及push和pull按退出码反馈；截屏成功才pull且pull成功才回保存路径；安装和应用清单复用ADBExtrasEngine并传真实失败
 TransferDock,Features/TransferDock/Transfer/QRCodeView.swift,QRCodeImage,make,func,19,KEEP,QRCodeView.swift:41；CastView.swift:184
 TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,init,init,89,KEEP,TransferDockService.swift:72 shared 单例
 TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,startLiveSync,func,92,KEEP,TransferDockView.swift:127 中转页 onAppear
@@ -4090,30 +4089,30 @@ TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent
 TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,runTransferProbe,func,625,KEEP,仅正式onAppear调用：probe.transfer指定preview/select后延时展示真实文件悬停或选前两项出码，再清空选择观察直传服务收起
 TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,smallAction,func,652,KEEP,文件添加、刷新、扫码、复制等紧凑操作复用11pt图标文字及圆角细边按钮，执行传入闭包
 TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,pullFromPhone,func,677,KEEP,预览只恢复三个固定本地示例并反馈接收数量；正式ADB拉取到暂存目录后经LocalTransferStore.add登记实际文件
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,refreshCloudLogin,func,706,KEEP,预览仅反馈云登录入口；正式运行现有extract_edge_cookies.py并按退出状态提示，最后刷新云服务
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,copySelectedMetadata,func,1009,KEEP,预览仅设置copyCompleted和本地反馈；正式按选择复制文件名或仍可用路径，提示不可用文件数量
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,copySelectedFiles,func,1025,KEEP,设置预览仅显示复制文件演示反馈；正式用stagedSelection取得实际文件URL并调用ClipboardManager.copyFiles，失败显示原因，成功状态保留1.2秒
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,toggleSelect,func,1036,KEEP,切换selectedIDs中指定id并更新selectionAnchorID，供勾选按钮及Command单击共用
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,selectLocal,func,1045,KEEP,单击选择当前id，Command切换单项；Shift按selectionAnchorID与当前项在displayedLocalItems形成连续范围，Command+Shift合并范围，保持锚点供后续多选
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,showPickQR,func,1062,KEEP,预览只写固定kitnest-preview.invalid接收地址；正式按勾选id启动所需LAN服务并取得带pick参数的分享URL
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,stopServiceIfStartedForTransfer,func,1086,KEEP,预览直接返回；正式仅停止由本次传输拉起的LAN服务，保留用户手动启动的服务
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,pushSelectedToCloud,func,1094,KEEP,预览只反馈已选数量；正式检查已选文件与云登录状态后批量上传暂存URL
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,removeSelected,func,1108,KEEP,预览仅改场景文件数组；正式把勾选项整批交local.remove，完成后仅保留仍在索引中的选择，失败项保持可见并显示具体原因
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,pickOverlay,func,1118,KEEP,定向接收覆盖层展示二维码、地址及关闭操作；预览复制/浏览器按钮只反馈，真实路径复制或打开已生成的分享链接
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,localCard,func,1233,KEEP,复用LocalCardRowView的选择、扫码、预览和移除回调，首个被选项持有空格预览目标；行内悬停、菜单预览和预览按钮均传PanelController.shared.panelWindowForProbe供共享预览贴面板同侧定位，设置预览不打开真实窗口；移除成功后才清除正式选择
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,sectionHeader,func,1259,KEEP,云端、本地暂存及文件发送区域共用图标、标题、条目数和右侧操作闭包，不参与服务状态变更
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,dropHint,func,1279,KEEP,拖放目标高亮用浅色圆角底、虚线边与提示文字，allowsHitTesting=false使文件拖放落到正式容器
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,urls,func,1296,KEEP,正式拖放用DispatchGroup加载各NSItemProvider的public.file-url，接受Data或URL并用NSLock汇总，全部完成后在主队列返回
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,handleLocalDrop,func,1318,KEEP,预览拒绝真实拖放；正式解析URL后调用本地store.add，按实际错误或新增数量显示反馈
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,handleCloudDrop,func,1333,KEEP,预览拒绝真实拖放；正式解析URL后交云服务uploadBatch处理
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,downloadCloudFile,func,1342,KEEP,预览把云文件元数据追加到场景暂存并反馈，不下载字节；正式调用service.download
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,deleteCloudFile,func,1350,KEEP,预览只从previewCloudFiles移除指定id；正式调用service.delete删除云文件
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,pickAndUpload,func,1355,KEEP,预览装入固定云文件列表并反馈；正式通过文件选择器多选后交service.uploadBatch上传
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,CloudRowView,func,func,1387,KEEP,CloudRowView相等比较保留文件值判断；LocalCardRowView同时比较item、selected、isKeyboardPreviewTarget和showsCloud，使首个选择项变化时空格预览目标随行重绘
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,LocalCardRowView,func,func,1453,KEEP,CloudRowView相等比较保留文件值判断；LocalCardRowView同时比较item、selected、isKeyboardPreviewTarget和showsCloud，使首个选择项变化时空格预览目标随行重绘
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferRowStyle,iconName,func,1607,KEEP,CloudRowView:1377 与 LocalCardRowView:1449
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferRowStyle,fileTint,func,1620,KEEP,LocalCardRowView:1440 调用
-TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferRowStyle,miniButton,func,1636,KEEP,1394/1397/1476/1479 四处调用
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,refreshCloudLogin,func,707,KEEP,预览仅反馈云登录入口；正式运行现有extract_edge_cookies.py并按退出状态提示，最后刷新云服务
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,copySelectedMetadata,func,1010,KEEP,预览仅设置copyCompleted和本地反馈；正式按选择复制文件名或仍可用路径，提示不可用文件数量
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,copySelectedFiles,func,1026,KEEP,设置预览仅显示复制文件演示反馈；正式用stagedSelection取得实际文件URL并调用ClipboardManager.copyFiles，失败显示原因，成功状态保留1.2秒
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,toggleSelect,func,1037,KEEP,切换selectedIDs中指定id并更新selectionAnchorID，供勾选按钮及Command单击共用
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,selectLocal,func,1046,KEEP,单击选择当前id，Command切换单项；Shift按selectionAnchorID与当前项在displayedLocalItems形成连续范围，Command+Shift合并范围，保持锚点供后续多选
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,showPickQR,func,1063,KEEP,预览只写固定kitnest-preview.invalid接收地址；正式按勾选id启动所需LAN服务并取得带pick参数的分享URL
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,stopServiceIfStartedForTransfer,func,1087,KEEP,预览直接返回；正式仅停止由本次传输拉起的LAN服务，保留用户手动启动的服务
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,pushSelectedToCloud,func,1095,KEEP,预览只反馈已选数量；正式检查已选文件与云登录状态后批量上传暂存URL
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,removeSelected,func,1109,KEEP,预览仅改场景文件数组；正式把勾选项整批交local.remove，完成后仅保留仍在索引中的选择，失败项保持可见并显示具体原因
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,pickOverlay,func,1119,KEEP,定向接收覆盖层展示二维码、地址及关闭操作；预览复制/浏览器按钮只反馈，真实路径复制或打开已生成的分享链接
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,localCard,func,1234,KEEP,复用LocalCardRowView的选择、扫码、预览和移除回调，首个被选项持有空格预览目标；行内悬停、菜单预览和预览按钮均传PanelController.shared.panelWindowForProbe供共享预览贴面板同侧定位，设置预览不打开真实窗口；移除成功后才清除正式选择
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,sectionHeader,func,1260,KEEP,云端、本地暂存及文件发送区域共用图标、标题、条目数和右侧操作闭包，不参与服务状态变更
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,dropHint,func,1280,KEEP,拖放目标高亮用浅色圆角底、虚线边与提示文字，allowsHitTesting=false使文件拖放落到正式容器
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,urls,func,1297,KEEP,正式拖放用DispatchGroup加载各NSItemProvider的public.file-url，接受Data或URL并用NSLock汇总，全部完成后在主队列返回
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,handleLocalDrop,func,1319,KEEP,预览拒绝真实拖放；正式解析URL后调用本地store.add，按实际错误或新增数量显示反馈
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,handleCloudDrop,func,1334,KEEP,预览拒绝真实拖放；正式解析URL后交云服务uploadBatch处理
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,downloadCloudFile,func,1343,KEEP,预览把云文件元数据追加到场景暂存并反馈，不下载字节；正式调用service.download
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,deleteCloudFile,func,1351,KEEP,预览只从previewCloudFiles移除指定id；正式调用service.delete删除云文件
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferDockContent,pickAndUpload,func,1356,KEEP,预览装入固定云文件列表并反馈；正式通过文件选择器多选后交service.uploadBatch上传
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,CloudRowView,func,func,1388,KEEP,CloudRowView相等比较保留文件值判断；LocalCardRowView同时比较item、selected、isKeyboardPreviewTarget和showsCloud，使首个选择项变化时空格预览目标随行重绘
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,LocalCardRowView,func,func,1454,KEEP,CloudRowView相等比较保留文件值判断；LocalCardRowView同时比较item、selected、isKeyboardPreviewTarget和showsCloud，使首个选择项变化时空格预览目标随行重绘
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferRowStyle,iconName,func,1608,KEEP,CloudRowView:1377 与 LocalCardRowView:1449
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferRowStyle,fileTint,func,1621,KEEP,LocalCardRowView:1440 调用
+TransferDock,Features/TransferDock/UI/TransferDockView.swift,TransferRowStyle,miniButton,func,1637,KEEP,1394/1397/1476/1479 四处调用
 TransferDock,Features/TransferDock/UI/TransferIntakeDialog.swift,TransferIntakeDialog,card,func,98,KEEP,转入弹框单选卡片（hover 高亮 + 描边，点击 onConfirm）
 MemoryHelper,MemoryHelper/main.swift,-,fail,func,24,KEEP,独立可执行入口；:113/122/128/139/144/184 调用
 MemoryHelper,MemoryHelper/main.swift,-,runTool,func,29,KEEP,optimizeMemory:70 调用 purge
