@@ -17,36 +17,29 @@ struct IslandMediaContent: View {
                     else { controller.changeTrack(command == 5 ? -1 : 1); controller.feedback = command == 5 ? "预览：上一首" : "预览：下一首" }
                 }, seek: { controller.seek = $0 })
         } else {
-            IslandLiveMediaContent(controller: controller, previewOnly: false, size: size)
+            IslandLiveMediaContent(controller: controller, size: size)
         }
     }
 }
 
 struct IslandLiveMediaContent: View {
     @ObservedObject var controller: IslandController
-    let previewOnly: Bool
     var size: IslandWidgetSize? = nil
     @ObservedObject private var player = NowPlayingController.shared
     @Stored private var consumer = UUID()
 
     private var visible: Bool {
-        !previewOnly && controller.contentVisible && (controller.page == .home || controller.page == .media)
+        controller.contentVisible && (controller.page == .home || controller.page == .media)
     }
 
     var body: some View {
-        Group {
-            if previewOnly {
-                IslandMediaContent(controller: controller, previewOnly: true, size: size)
-            } else {
-                IslandMediaPlayerContent(controller: controller, previewOnly: false, size: size,
-                    snapshot: player.snapshot, artwork: player.artwork, position: player.position,
-                    feedback: player.feedback, send: player.send, seek: { player.seek(to: $0) })
-            }
-        }
-        .onAppear { if !previewOnly { player.setVisible(visible, consumer: consumer) } }
-        .onChange(of: visible) { if !previewOnly { player.setVisible($0, consumer: consumer) } }
-        .onDisappear { if !previewOnly { player.setVisible(false, consumer: consumer) } }
-        .onChange(of: player.feedback) { if !previewOnly && !$0.isEmpty { controller.feedback = $0 } }
+        IslandMediaPlayerContent(controller: controller, previewOnly: false, size: size,
+            snapshot: player.snapshot, artwork: player.artwork, position: player.position,
+            feedback: player.feedback, send: player.send, seek: { player.seek(to: $0) })
+            .onAppear { player.setVisible(visible, consumer: consumer) }
+            .onChange(of: visible) { player.setVisible($0, consumer: consumer) }
+            .onDisappear { player.setVisible(false, consumer: consumer) }
+            .onChange(of: player.feedback) { if !$0.isEmpty { controller.feedback = $0 } }
     }
 }
 
@@ -251,36 +244,29 @@ struct IslandVolumeContent: View {
                           .init(id: 1, name: "耳机", isDefault: previewDevice == 1)], feedback: "",
                 select: { previewDevice = Int($0.id); controller.feedback = "预览：" + $0.name })
         } else {
-            IslandLiveVolumeContent(controller: controller, previewOnly: false, size: size)
+            IslandLiveVolumeContent(controller: controller, size: size)
         }
     }
 }
 
 struct IslandLiveVolumeContent: View {
     @ObservedObject var controller: IslandController
-    let previewOnly: Bool
     var size: IslandWidgetSize? = nil
     @ObservedObject private var audio = AudioMixerController.shared
     @Stored private var consumer = UUID()
 
     private var visible: Bool {
-        !previewOnly && controller.contentVisible && (controller.page == .home || controller.page == .media)
+        controller.contentVisible && (controller.page == .home || controller.page == .media)
     }
 
     var body: some View {
-        Group {
-            if previewOnly {
-                IslandVolumeContent(controller: controller, previewOnly: true, size: size)
-            } else {
-                IslandVolumeControls(controller: controller, size: size, volume: $audio.outputVolume, muted: $audio.outputMuted,
-                    volumeReadable: audio.volumeReadable, muteReadable: audio.muteReadable,
-                    devices: audio.devices, feedback: audio.outputError, select: { audio.selectDefaultDevice($0.id) })
-            }
-        }
-        .onAppear { if !previewOnly { audio.setIslandVisible(visible, consumer: consumer) } }
-        .onChange(of: visible) { if !previewOnly { audio.setIslandVisible($0, consumer: consumer) } }
-        .onDisappear { if !previewOnly { audio.setIslandVisible(false, consumer: consumer) } }
-        .onChange(of: audio.outputError) { if !previewOnly && !$0.isEmpty { controller.feedback = $0 } }
+        IslandVolumeControls(controller: controller, size: size, volume: $audio.outputVolume, muted: $audio.outputMuted,
+            volumeReadable: audio.volumeReadable, muteReadable: audio.muteReadable,
+            devices: audio.devices, feedback: audio.outputError, select: { audio.selectDefaultDevice($0.id) })
+            .onAppear { audio.setIslandVisible(visible, consumer: consumer) }
+            .onChange(of: visible) { audio.setIslandVisible($0, consumer: consumer) }
+            .onDisappear { audio.setIslandVisible(false, consumer: consumer) }
+            .onChange(of: audio.outputError) { if !$0.isEmpty { controller.feedback = $0 } }
     }
 }
 

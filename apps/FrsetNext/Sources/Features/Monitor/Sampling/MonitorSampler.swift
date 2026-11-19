@@ -228,8 +228,12 @@ public final class MonitorSampler: ObservableObject {
         // 最坏情况是拿到相邻两 tick 的混合快照（≤0.5s），不影响观感与正确性。
         let cSnap = g_snap
         let gSnapValid = (cSnap.valid != 0)
-
-        let result = reader.readResult(needFull: !gSnapValid)
+        let deepSample = StatsDataProvider.shared.current
+        let sensors = deepSample.sensors
+        let swapUsed = deepSample.memSwapUsed
+        let memoryPressureLevel = deepSample.memPressureLevel
+        let gpuUsage = deepSample.gpuUsage
+        let result = reader.readResult(needFull: !gSnapValid, sensors: sensors, swapUsed: swapUsed)
         let t2 = probe ? DispatchTime.now().uptimeNanoseconds : 0
         if probe {
             let ms = { (a: UInt64, b: UInt64) in Double(b - a) / 1_000_000 }
@@ -267,7 +271,9 @@ public final class MonitorSampler: ObservableObject {
                 sample.batteryLevel = cSnap.batteryPercent / 100.0
             }
         }
-        let loadAverages = reader.loadAverages()
+        let loadAverages = gSnapValid
+            ? [cSnap.load1, cSnap.load5, cSnap.load15]
+            : reader.loadAverages()
 
         lock.lock()
         let now = Date().timeIntervalSince1970
@@ -275,8 +281,7 @@ public final class MonitorSampler: ObservableObject {
         let previousCount = buffers.timestamps.count
         buffers.timestamps.append(now)
         buffers.intervals.append(interval)
-        let pressure = StatsDataProvider.shared.current.memPressureLevel
-        buffers.memoryPressure.append(pressure > 0 ? Double(pressure) : .nan)
+        buffers.memoryPressure.append(memoryPressureLevel > 0 ? Double(memoryPressureLevel) : .nan)
         buffers.battery.append(sample.batteryLevel ?? .nan)
         for name in Set(buffers.temperatures.keys).union(sample.temperatures.keys) {
             if buffers.temperatures[name] == nil {
@@ -293,7 +298,6 @@ public final class MonitorSampler: ObservableObject {
         buffers.netUpload.append(Double(sample.netUpload))
         buffers.diskRead.append(Double(sample.diskRead))
         buffers.diskWrite.append(Double(sample.diskWrite))
-        let gpuUsage = StatsDataProvider.shared.current.gpuUsage
         buffers.gpu.append(gpuUsage >= 0 ? gpuUsage : .nan)
         buffers.power.append(sample.powerWatts ?? .nan)
         // v129（内存）：History 快照双缓冲轮换——每 tick 7 个 values() 新数组
