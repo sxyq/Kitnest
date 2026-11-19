@@ -51,13 +51,11 @@ final class FileNameIndex: ObservableObject {
 
     private var map: UnsafeMutableRawPointer?
     private var mapLength = 0
-    private var poolOffset = 0
     private var poolLength = 0
-    private var builtAt: Date?
     /// 只读指针，搜索时零拷贝
     private var pool: UnsafePointer<UInt8>? {
         guard let map else { return nil }
-        return UnsafePointer(map.advanced(by: poolOffset).assumingMemoryBound(to: UInt8.self))
+        return UnsafePointer(map.advanced(by: Self.headerSize).assumingMemoryBound(to: UInt8.self))
     }
 
     private let buildQueue = DispatchQueue(label: "com.frsetnext.fileindex", qos: .utility)
@@ -209,12 +207,10 @@ final class FileNameIndex: ObservableObject {
         if let old = map { munmap(old, mapLength) }
         map = ptr
         mapLength = total
-        poolOffset = Self.headerSize
         poolLength = len
-        builtAt = Date(timeIntervalSince1970: stamp)
         stateLock.unlock()
 
-        state = .ready(count: count, builtAt: builtAt ?? Date())
+        state = .ready(count: count, builtAt: Date(timeIntervalSince1970: stamp))
         return true
     }
 
