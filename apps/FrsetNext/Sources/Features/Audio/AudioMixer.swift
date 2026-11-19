@@ -30,14 +30,10 @@ private func addr(_ selector: UInt32, _ scope: AudioObjectPropertyScope = kAudio
 // MARK: - 数据模型
 
 /// 一个正在输出音频的进程
-public struct AudioAppInfo: Identifiable, Equatable {
+public struct AudioAppInfo: Identifiable {
     public let id: Int              // pid
-    public let processObjectID: AudioObjectID
     public let name: String
-    public let bundleID: String
     public let icon: NSImage?
-
-    public static func == (l: AudioAppInfo, r: AudioAppInfo) -> Bool { l.id == r.id }
 }
 
 /// 一个输出设备
@@ -83,8 +79,6 @@ public final class AudioMixerController: ObservableObject {
     @Published public var selfAudible: Bool = true {
         didSet { setSelfAudible(selfAudible) }
     }
-    /// 每 App 音量能力（公开 API 实测不可用 → UI 显示说明）
-    @Published public private(set) var perAppVolumeSupported = false
     @Published public private(set) var volumeReadable = false
     @Published public private(set) var muteReadable = false
     @Published public private(set) var outputError = ""
@@ -353,13 +347,10 @@ public final class AudioMixerController: ObservableObject {
                 if let icon { iconCache[pid] = icon }
             }
             apps.append(AudioAppInfo(id: Int(pid),
-                                     processObjectID: objID,
                                      name: running?.localizedName ?? "PID \(pid)",
-                                     bundleID: running?.bundleIdentifier ?? "",
                                      icon: icon))
         }
-        // v128（流畅度）：无变化不触发 @Published——AudioAppInfo 的 == 只比 pid，
-        // 列表不变时写回会让整页 Form 每 2s 白重绘一次（含 Slider/Picker）。
+        // 进程顺序不变时不发布，避免每 2s 重绘设置页。
         if apps.map(\.id) != playingApps.map(\.id) {
             playingApps = apps
         }
