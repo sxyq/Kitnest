@@ -306,28 +306,28 @@ AI,Features/AI/Services/GeminiService.swift,GeminiService,parseComplete,func,94,
 AI,Features/AI/Services/GeminiService.swift,GeminiService,parseModelIDs,func,105,KEEP,2026-11-20：模型发现调用；models中已有methods但不含generateContent则排除，其余去models前缀；名称缺失略过，保留返回原序
 AI,Features/AI/Services/GeminiService.swift,GeminiService,readableError,func,118,KEEP,2026-11-20：公共HTTP失败及流式代理调用；尝试LLMJSON.object并取errorMessage，无可读字段则返回nil沿原错误提示
 AI,Features/AI/Services/GeminiService.swift,GeminiService,normalizedBase,func,125,KEEP,2026-11-20：两个请求构造入口共用；剥外层斜杠及v1beta或v1尾缀，调用方统一拼v1beta路径
-AI,Features/AI/Services/LLMProtocols.swift,LLMCompletionRequest,init,init,59,KEEP,LLMCompletionRequest.init；默认 stream/温度/上限，供 send/complete 构造
-AI,Features/AI/Services/LLMProtocols.swift,LLMCredentialStoring,credential,func,89,KEEP,协议要求（无实现体）；由 4 个适配器与协议扩展实现，经 LLMProviderAdapting 派发
-AI,Features/AI/Services/LLMProtocols.swift,LLMCredentialStoring,setCredential,func,91,KEEP,协议要求（无实现体）；由 4 个适配器与协议扩展实现，经 LLMProviderAdapting 派发
-AI,Features/AI/Services/LLMProtocols.swift,LLMCredentialStoring,removeCredential,func,93,KEEP,协议要求（无实现体）；由 4 个适配器与协议扩展实现，经 LLMProviderAdapting 派发
-AI,Features/AI/Services/LLMProtocols.swift,LLMCredentialStoring,clear,func,95,KEEP,协议要求（无实现体）；由 4 个适配器与协议扩展实现，经 LLMProviderAdapting 派发
-AI,Features/AI/Services/LLMProtocols.swift,LLMCredentialStoring,hasCredential,func,97,KEEP,协议扩展默认实现；AISettingsPane:42/170 调用
-AI,Features/AI/Services/LLMProtocols.swift,LLMCredentialStoring,hasCredential,func,102,KEEP,协议扩展默认实现；AISettingsPane:42/170 调用
-AI,Features/AI/Services/LLMProtocols.swift,LLMRequestBuilding,makeRequest,func,118,KEEP,协议要求（无实现体）；由 4 个适配器与协议扩展实现，经 LLMProviderAdapting 派发
-AI,Features/AI/Services/LLMProtocols.swift,LLMRequestBuilding,makeModelsRequest,func,120,KEEP,协议要求（无实现体）；由 4 个适配器与协议扩展实现，经 LLMProviderAdapting 派发
-AI,Features/AI/Services/LLMProtocols.swift,LLMResponseParsing,parseStreamLine,func,127,KEEP,协议要求（无实现体）；由 4 个适配器与协议扩展实现，经 LLMProviderAdapting 派发
-AI,Features/AI/Services/LLMProtocols.swift,LLMResponseParsing,parseComplete,func,129,KEEP,协议要求（无实现体）；由 4 个适配器与协议扩展实现，经 LLMProviderAdapting 派发
-AI,Features/AI/Services/LLMProtocols.swift,LLMResponseParsing,parseModelIDs,func,131,KEEP,协议要求（无实现体）；由 4 个适配器与协议扩展实现，经 LLMProviderAdapting 派发
-AI,Features/AI/Services/LLMProtocols.swift,LLMResponseParsing,readableError,func,133,KEEP,协议要求（无实现体）；由 4 个适配器与协议扩展实现，经 LLMProviderAdapting 派发
-AI,Features/AI/Services/LLMProtocols.swift,LLMResponseParsing,isTerminalLine,func,136,KEEP,协议扩展默认兜底 false；Anthropic 覆写为非空实现
-AI,Features/AI/Services/LLMProtocols.swift,LLMProviderAdapting,send,func,146,KEEP,协议扩展默认实现；LLMService:54 与 AIChatView:175 / AISummaryView:169 使用
-AI,Features/AI/Services/LLMProtocols.swift,LLMProviderAdapting,complete,func,148,KEEP,协议扩展默认实现；AIConnectionService:81 对话探测调用
-AI,Features/AI/Services/LLMProtocols.swift,LLMProviderAdapting,requireCredential,func,150,KEEP,协议扩展默认实现；availableModels/send 内 L156/L178 调用
-AI,Features/AI/Services/LLMProtocols.swift,LLMProviderAdapting,requireCredential,func,168,KEEP,协议扩展默认实现；availableModels/send 内 L156/L178 调用
-AI,Features/AI/Services/LLMProtocols.swift,LLMProviderAdapting,send,func,176,KEEP,协议扩展默认实现；LLMService:54 与 AIChatView:175 / AISummaryView:169 使用
-AI,Features/AI/Services/LLMProtocols.swift,LLMProviderAdapting,complete,func,230,KEEP,协议扩展默认实现；AIConnectionService:81 对话探测调用
-AI,Features/AI/Services/LLMProtocols.swift,LLMProviderAdapting,checkResponse,func,239,KEEP,协议扩展默认实现；availableModels L159 / send L190 校验 HTTP 状态
-AI,Features/AI/Services/LLMProtocols.swift,LLMResponseParsing,isTerminalLine,func,247,KEEP,协议扩展默认兜底 false；Anthropic 覆写为非空实现
+AI,Features/AI/Services/LLMProtocols.swift,LLMCompletionRequest,init,init,59,KEEP,2026-11-20：公共send构造请求描述；持有messages/model/stream/temperature/maxTokens，systemPrompt拼全部system而conversation过滤system，由四家请求构造分别消费
+AI,Features/AI/Services/LLMProtocols.swift,LLMCredentialStoring,credential,func,89,KEEP,2026-11-20：凭据协议只声明读取；正式CredentialStore从加锁内存缓存取厂商值，公共requireCredential及连接探测消费；不是厂商适配器自身实现存储
+AI,Features/AI/Services/LLMProtocols.swift,LLMCredentialStoring,setCredential,func,91,KEEP,2026-11-20：凭据协议写要求；CredentialStore逐厂商写加密文件，AI设置草稿保存调用并消费lastWriteError；nil与空白值作为删除
+AI,Features/AI/Services/LLMProtocols.swift,LLMCredentialStoring,removeCredential,func,93,KEEP,2026-11-20：凭据协议删除要求；正式存储复用setCredential(nil)，AI设置移除已存Key后保存调用，不在候选连接操作写正式凭据
+AI,Features/AI/Services/LLMProtocols.swift,LLMCredentialStoring,clear,func,95,KEEP,2026-11-20：凭据协议清空要求；正式CredentialStore提供清空缓存并持久化空字典实现，保留协议动态派发及现有存储能力
+AI,Features/AI/Services/LLMProtocols.swift,LLMCredentialStoring,hasCredential,func,97,KEEP,2026-11-20：协议声明有效凭据判断；LLMService.isConfigured及设置状态消费，下方扩展基于同一credential读取提供默认实现
+AI,Features/AI/Services/LLMProtocols.swift,LLMCredentialStoring,hasCredential,func,102,KEEP,2026-11-20：凭据协议默认实现；取对应厂商字符串并去首尾空白，缺失或空白返回false；不发网络请求或重复解密
+AI,Features/AI/Services/LLMProtocols.swift,LLMRequestBuilding,makeRequest,func,118,KEEP,2026-11-20：四家适配器必须实现的请求构造要求；公共send动态派发，将中立请求和凭据转URLRequest，保留各厂商实际字段差异
+AI,Features/AI/Services/LLMProtocols.swift,LLMRequestBuilding,makeModelsRequest,func,120,KEEP,2026-11-20：四家目录请求构造要求；公共availableModels动态派发，鉴权方式和路径由各适配器实现，不共用聊天请求体
+AI,Features/AI/Services/LLMProtocols.swift,LLMResponseParsing,parseStreamLine,func,127,KEEP,2026-11-20：四家流式解析要求；公共send逐行及尾行派发，返回本次文本或nil，服务端错误以原LLMError向上抛
+AI,Features/AI/Services/LLMProtocols.swift,LLMResponseParsing,parseComplete,func,129,KEEP,2026-11-20：四家完整正文解析要求；公共send非流式收到真实数据后调用，结果经同一流接口交消费者
+AI,Features/AI/Services/LLMProtocols.swift,LLMResponseParsing,parseModelIDs,func,131,KEEP,2026-11-20：四家模型目录解析要求；公共availableModels成功响应后调用，按各厂商目录结构返回模型名数组
+AI,Features/AI/Services/LLMProtocols.swift,LLMResponseParsing,readableError,func,133,KEEP,2026-11-20：四家错误解析要求；checkResponse和流代理错误完成共用，以可读文本替代原JSON正文，未能解析返回nil
+AI,Features/AI/Services/LLMProtocols.swift,LLMResponseParsing,isTerminalLine,func,136,KEEP,2026-11-20：流结束判断要求；公共send正文解析前派发，OpenAI/Anthropic/Ollama各有实现，Gemini沿默认false等待EOF
+AI,Features/AI/Services/LLMProtocols.swift,LLMProviderAdapting,send,func,146,KEEP,2026-11-20：适配器公共发送声明；门面LLMService转发至四家实现对象，下方默认方法提供唯一请求传输链
+AI,Features/AI/Services/LLMProtocols.swift,LLMProviderAdapting,complete,func,148,KEEP,2026-11-20：适配器一次性声明；AIConnectionService候选连接探测动态调用，默认实现复用send而不修改已保存门面或凭据
+AI,Features/AI/Services/LLMProtocols.swift,LLMProviderAdapting,requireCredential,func,150,KEEP,2026-11-20：适配器凭据要求；公共目录和发送都会调用，远端厂商用默认存储读取，Ollama覆盖为空串
+AI,Features/AI/Services/LLMProtocols.swift,LLMProviderAdapting,requireCredential,func,168,KEEP,2026-11-20：默认方法从credentialStore取kind对应值并剥首尾空白，缺失或空值抛missingCredential；只本地Ollama覆盖，保留公开动态入口
+AI,Features/AI/Services/LLMProtocols.swift,LLMProviderAdapting,send,func,176,KEEP,2026-11-20：公共唯一执行链；任务内取凭据构造请求，非流式shared data读取和解析，流式使用streamBytes及每请求行缓冲，结束事件主动完成；取消转LLMError.cancelled且onTermination取消原job
+AI,Features/AI/Services/LLMProtocols.swift,LLMProviderAdapting,complete,func,230,KEEP,2026-11-20：候选连接探测使用；通过send且stream为false收集完整文本，复用相同鉴权及取消语义，不计门面的请求统计
+AI,Features/AI/Services/LLMProtocols.swift,LLMProviderAdapting,checkResponse,func,239,KEEP,2026-11-20：模型发现和非流式发送共用；仅HTTP状态至少400时抛httpStatus，优先厂商错误文本否则正文换行压平前300字符，其他响应沿原解析
+AI,Features/AI/Services/LLMProtocols.swift,LLMResponseParsing,isTerminalLine,func,247,KEEP,2026-11-20：响应解析默认结束判断恒false，供未覆盖的Gemini实现使用；其余三家动态派发自己的DONE/message_stop/done处理
 AI,Features/AI/Services/LLMResolver.swift,AIProviderModelDiscoveryCache,key,func,21,KEEP,2026-11-20：models/store/invalidate共用；按厂商rawValue生成ai.models偏好键，内存与持久记录使用同一键
 AI,Features/AI/Services/LLMResolver.swift,AIProviderModelDiscoveryCache,timeKey,func,22,KEEP,2026-11-20：读取与写入及失效操作共用厂商时间键；和目录正文键一起表达30分钟有效期
 AI,Features/AI/Services/LLMResolver.swift,AIProviderModelDiscoveryCache,models,func,25,KEEP,2026-11-20：resolver及聊天和设置首屏使用；锁内先查30分钟内存项，再解码仍有效的偏好JSON并补内存；过期返回nil，故availableModels异常分支同样无法取过期数据
