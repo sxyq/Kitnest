@@ -57,7 +57,8 @@ private struct CastAppLibraryView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        let matches = shown
+        return VStack(spacing: 0) {
             HStack(spacing: 8) {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 12))
@@ -66,7 +67,7 @@ private struct CastAppLibraryView: View {
                     .textFieldStyle(.plain)
                     .font(.system(size: 12.5))
                 Spacer()
-                Text("\(shown.count) 个")
+                Text("\(matches.count) 个")
                     .font(.system(size: 11))
                     .foregroundStyle(Theme.tertiaryText)
             }
@@ -84,7 +85,7 @@ private struct CastAppLibraryView: View {
                     .foregroundStyle(Theme.tertiaryText)
                     .padding(.top, 8)
                 Spacer()
-            } else if shown.isEmpty {
+            } else if matches.isEmpty {
                 Spacer()
                 Text(apps.isEmpty ? "没有第三方应用" : "没有匹配的应用")
                     .font(.system(size: 12))
@@ -94,7 +95,7 @@ private struct CastAppLibraryView: View {
                 ScrollView {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 92, maximum: .infinity), spacing: 10)],
                               spacing: 12) {
-                        ForEach(shown) { app in
+                        ForEach(matches) { app in
                             Button { open(app) } label: { tile(app) }
                                 .buttonStyle(.plain)
                                 .help(app.id)

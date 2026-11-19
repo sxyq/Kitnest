@@ -16,10 +16,23 @@ final class DeviceAppCatalog {
     static let shared = DeviceAppCatalog()
 
     struct App: Identifiable, Equatable {
+        private static let icons: NSCache<NSString, NSImage> = {
+            let cache = NSCache<NSString, NSImage>()
+            cache.countLimit = 64
+            return cache
+        }()
+
         let id: String          // package
         let label: String       // 真实名称（微信 / 小红书…）
         let iconPath: String?   // 本地 PNG 路径
-        var icon: NSImage? { iconPath.flatMap { NSImage(contentsOfFile: $0) } }
+        var icon: NSImage? {
+            guard let iconPath else { return nil }
+            let key = iconPath as NSString
+            if let image = Self.icons.object(forKey: key) { return image }
+            guard let image = NSImage(contentsOfFile: iconPath) else { return nil }
+            Self.icons.setObject(image, forKey: key)
+            return image
+        }
     }
 
     private let cacheDir: URL
@@ -108,13 +121,14 @@ final class DeviceAppCatalog {
             _ = ADBExtrasEngine.runSync(target + ["push", dex.path, remoteDex], timeout: 20)
         }
 
-        for batch in stride(from: 0, to: missing.count, by: 60).map({ Array(missing[$0..<min($0 + 60, missing.count)]) }) {
+        for start in stride(from: 0, to: missing.count, by: 60) {
+            let batch = missing[start..<min(start + 60, missing.count)]
             let cmd = "rm -rf \(remoteOut); CLASSPATH=\(remoteDex) app_process /system/bin IconDump \(remoteOut) \(batch.joined(separator: " "))"
             let out = ADBExtrasEngine.runSync(target + ["shell", cmd], timeout: 40).0 ?? ""
             // 解析 "pkg\tlabel"
             for line in out.components(separatedBy: .newlines) {
                 let parts = line.components(separatedBy: "\t")
-                guard parts.count >= 2, packages.contains(parts[0]) else { continue }
+                guard parts.count >= 2, batch.contains(parts[0]) else { continue }
                 labels[parts[0]] = parts[1]
             }
             // 拉回这批图标
