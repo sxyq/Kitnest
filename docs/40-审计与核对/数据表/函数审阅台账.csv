@@ -865,7 +865,7 @@ Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanva
 Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,cursorRingRect,func,790,KEEP,2026-11-19：updateCursor按旧/新笔刷环求脏区；由图像坐标经适配缩放转视图坐标并含描边边界
 Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,keyDown,func,799,KEEP,2026-11-19：第一响应者键盘派发；优先删除/取消当前选中形状或文字，再交窗口快捷键闭包，未处理才super
 Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,eraseAt,func,827,KEEP,2026-11-19：鼠标按下与拖动调用；删除最上层命中标注并记录原索引供撤销恢复
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,applyRemoval,func,836,KEEP,2026-11-19：mouseUp移除笔迹调用；构造灰度mask后后台修复，主队列替换底图并记旧新快照；多个修复可并发基于同一旧图，完成顺序会覆盖状态与撤销链
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,applyRemoval,func,836,KEEP,2026-11-19：mouseUp抹除轨迹提交；同一时刻仅一个后台修复，返回主线程先比较当前底图与发起底图身份，撤销换图后丢弃旧结果；撤销快照保留实际发起底图
 Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,isValid,func,902,KEEP,2026-11-19：mouseUp提交通用标注前按工具检查点数/尺寸；计数点备注文字保留单击行为，橡皮与移除不落标注
 Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,selectShape,func,936,KEEP,2026-11-19：绘制命中与工具切换调用；更新单选shape ID、通知工具条并请求画布重绘
 Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,applyShapeStyleToSelection,func,942,KEEP,2026-11-19：形状样式控件调用；属性变更统一经mutateSelectedShape写撤销项
@@ -953,8 +953,8 @@ Capture,Features/Capture/Annotation/AnnotationToolbarView.swift,AnnotationToolRa
 Capture,Features/Capture/Annotation/AnnotationToolbarView.swift,RailButtonFrameKey,reduce,func,312,KEEP,PreferenceKey 协议要求，SwiftUI 派发
 Capture,Features/Capture/Annotation/AnnotationToolbarView.swift,AnnotationToolbarView,commitSize,func,595,KEEP,本文件 :536 Slider set 回调
 Capture,Features/Capture/Annotation/AnnotationToolbarView.swift,AnnotationToolbarView,isSameColor,func,723,KEEP,本文件 :486 选中色圈判定
-Capture,Features/Capture/Annotation/BeautifyPanel.swift,BeautifyOptions,init,init,29,KEEP,本文件 :159/:204 默认参数构造
-Capture,Features/Capture/Annotation/BeautifyPanel.swift,BeautifyRenderer,render,func,35,KEEP,本文件 :229 rerender 调用
+Capture,Features/Capture/Annotation/BeautifyPanel.swift,BeautifyOptions,init,init,29,KEEP,2026-11-19：控制视图新Binding默认值与renderer测试数据构造；覆盖渐变/颜色/32pt边距/14pt圆角/18阴影
+Capture,Features/Capture/Annotation/BeautifyPanel.swift,BeautifyRenderer,render,func,35,KEEP,2026-11-19：BeautifyWindow.rerender调用；像素尺寸正值后依padding/shadow扩画布，CoreGraphics失败nil，按背景样式绘底再圆角裁原图
 Capture,Features/Capture/Annotation/BeautifyPanel.swift,BeautifyController,init,init,105,KEEP,本文件 :101 shared 单例构造
 Capture,Features/Capture/Annotation/BeautifyPanel.swift,BeautifyController,show,func,108,KEEP,调用方 CaptureActionChain.swift:110、ScreenshotManager:828
 Capture,Features/Capture/Annotation/BeautifyPanel.swift,BeautifyController,showOnMain,func,118,KEEP,本文件 :111/:114 主线程跳转
@@ -965,7 +965,7 @@ Capture,Features/Capture/Annotation/BeautifyPanel.swift,BeautifyWindow,buildUI,f
 Capture,Features/Capture/Annotation/BeautifyPanel.swift,BeautifyWindow,rerender,func,228,KEEP,本文件 :160 didSet/:181/:186
 Capture,Features/Capture/Annotation/BeautifyPanel.swift,BeautifyWindow,copyTapped,func,241,KEEP,@objc target/action，:212 #selector
 Capture,Features/Capture/Annotation/BeautifyPanel.swift,BeautifyWindow,saveTapped,func,242,KEEP,@objc target/action，:213 #selector
-Capture,Features/Capture/Annotation/BeautifyPanel.swift,BeautifyWindow,pinTapped,func,243,KEEP,@objc target/action，:214 #selector
+Capture,Features/Capture/Annotation/BeautifyPanel.swift,BeautifyWindow,pinTapped,func,243,KEEP,2026-11-19：底部按钮selector调用；仅渲染结果存在时调用对应外部动作
 Capture,Features/Capture/Annotation/BeautifyPanel.swift,BeautifyControlsView,sliderRow,func,293,KEEP,本文件 :276/:278/:280 三个滑杆
 Capture,Features/Capture/Annotation/ImageProcessor.swift,ImageProcessor,pngData,func,12,KEEP,2026-11-19：截图保存/分享、长图和标注导出调用；ImageIO建立单帧PNG目的地并检查Finalize结果
 Capture,Features/Capture/Annotation/ImageProcessor.swift,ImageProcessor,scaled,func,24,KEEP,2026-11-19：截图历史缩略图及面板预览调用；仅最长边超maxSide且参数正时等比缩，否则复用原CGImage
@@ -1000,7 +1000,7 @@ Capture,Features/Capture/Annotation/Watermark.swift,Watermark,applied,func,85,KE
 Capture,Features/Capture/Annotation/Watermark.swift,Watermark,applied,func,89,KEEP,2026-11-19：正式调用与设置预览调用共享绘制；禁用/空文字原图返回，按透明度/角度/平铺配置绘双色水印，失败回原图
 Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,init,init,40,KEEP,2026-11-19：shared唯一构造；注册偏好变化和切换通知，移除默认由对象生命周期管理
 Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,attach,func,58,KEEP,2026-11-19：ScreenshotManager落盘、工具栏手动入口调用；开关/自动挂载/文件存在性通过后在utility detached读取尺寸和缩略图，再回MainActor插入
-Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,insert,func,85,KEEP,2026-11-19：attach解码完成回MainActor调用；当前开关关闭时丢弃迟到结果，保留卡片按时间新到旧且淘汰只移除内存缩略图
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,insert,func,85,KEEP,2026-11-19：attach解码完成回MainActor调用；只接纳同生命周期且功能开启结果，关闭再重开也丢弃旧任务；淘汰卡片只删内存缩略图
 Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,show,func,104,KEEP,2026-11-19：工具栏和切换通知入口调用；开关及空items返回，重排后显示并重置定时
 Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,hide,func,112,KEEP,2026-11-19：计时与用户收起共用；取消Task并orderOut，items和图像缓存保留
 Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,dismissAll,func,119,KEEP,2026-11-19：关闭总开关路径调用；取消定时、销毁窗口/canvas并清items/缩略图/拖动宽度
@@ -1013,131 +1013,131 @@ Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,
 Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,rebuild,func,203,KEEP,2026-11-19：窗口建/显示/偏好和缩放调用；live更新轻布局，非live重载项目与rope样式，绘制开关避免拖动逐事件同步刷帧
 Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,resizeStep,func,235,KEEP,2026-11-19：画布⌘拖动和滚轮事件调用；偏好范围钳制临时宽度并live重排，续自动收起时间
 Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,resizeEnd,func,245,KEEP,2026-11-19：画布缩放结束回调调用；持久写最终宽度、非动画重建并异步按需提高缩略清晰度
-Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,upgradeThumbnailsIfNeeded,func,255,KEEP,2026-11-19：resizeEnd调用；只在宽度大于220且现图像低于1.6倍卡片目标时后台重解，回MainActor更新缓存并仅可见时重建
-Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,windowFrame,func,279,KEEP,2026-11-19：rebuild调用；顶部对齐visibleFrame，宽高受屏幕范围限制并夹水平位置
-Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,activeScreen,func,290,KEEP,2026-11-19：rebuild定位窗口调用；优先鼠标所在屏，再用主屏和首屏回退
-Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,scheduleAutoHide,func,300,KEEP,2026-11-19：showPanel和resizeStep调用；取消旧任务，时长为0不建Task，到时只hide
-Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,toggleRequested,func,313,KEEP,2026-11-19：NotificationCenter selector动态入口；转toggle，无额外状态
-Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,preferencesChanged,func,315,KEEP,2026-11-19：偏好通知selector入口；总开关关闭时清空，刚开启不空展示，已展示时只重排并重置定时
-Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,saveAs,func,336,KEEP,2026-11-19：画布onSave回调调用；NSSavePanel确认后原子复制原文件，取消无副作用且写错透出提示
-Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,pin,func,351,KEEP,2026-11-19：画布onPin回调调用；由原文件即时解码，失败不改变图钉状态
-Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,runProbe,func,365,KEEP,2026-11-19：kitnest://curtainprobe动态深链调用；forceEnabled临时绕过开关，延时采集窗口状态后恢复屏幕捕获策略并清空探针内容
-Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,runResizeSweep,func,413,KEEP,2026-11-19：runProbe的sweep参数异步派发；对真实canvas循环宽度并同步绘制记耗时，结束清临时宽度
-Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,probeImage,func,439,KEEP,2026-11-19：runProbe生成样图调用；上下文失败nil，生成纯CoreGraphics渐变和图形内容
-Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,writePNG,func,476,KEEP,2026-11-19：runProbe按序列写临时PNG调用；ImageIO目标创建或完成失败返回nil供调用方跳过
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,upgradeThumbnailsIfNeeded,func,255,KEEP,2026-11-19：resizeEnd在卡片放大后后台重解不足尺寸缩略图；复用dismissAll递增的lifecycleGeneration排除关闭后结果，仅更新当前仍存在卡片的缓存，可见时重建
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,windowFrame,func,282,KEEP,2026-11-19：rebuild调用；顶部对齐visibleFrame，宽高受屏幕范围限制并夹水平位置
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,activeScreen,func,293,KEEP,2026-11-19：rebuild定位窗口调用；优先鼠标所在屏，再用主屏和首屏回退
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,scheduleAutoHide,func,303,KEEP,2026-11-19：showPanel和resizeStep调用；取消旧任务，时长为0不建Task，到时只hide
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,toggleRequested,func,316,KEEP,2026-11-19：NotificationCenter selector动态入口；转toggle，无额外状态
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,preferencesChanged,func,318,KEEP,2026-11-19：偏好通知selector入口；总开关关闭时清空，刚开启不空展示，已展示时只重排并重置定时
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,saveAs,func,339,KEEP,2026-11-19：画布onSave回调调用；NSSavePanel确认后原子复制原文件，取消无副作用且写错透出提示
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,pin,func,354,KEEP,2026-11-19：画布onPin回调调用；由原文件即时解码，失败不改变图钉状态
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,runProbe,func,368,KEEP,2026-11-19：kitnest://curtainprobe动态深链调用；forceEnabled临时绕过开关，延时采集窗口状态后恢复屏幕捕获策略并清空探针内容
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,runResizeSweep,func,416,KEEP,2026-11-19：runProbe的sweep参数异步派发；对真实canvas循环宽度并同步绘制记耗时，结束清临时宽度
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,probeImage,func,442,KEEP,2026-11-19：runProbe生成样图调用；上下文失败nil，生成纯CoreGraphics渐变和图形内容
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,writePNG,func,479,KEEP,2026-11-19：runProbe按序列写临时PNG调用；ImageIO目标创建或完成失败返回nil供调用方跳过
 Capture,Features/Capture/Curtain/CurtainModel.swift,CurtainItem,init,init,31,KEEP,2026-11-19：CurtainController.attach构造值类型；保存UUID、落盘URL、时间与像素尺寸，不持有解码图
 Capture,Features/Capture/Curtain/CurtainModel.swift,CurtainItem,cardSize,func,43,KEEP,2026-11-19：CurtainView按卡片宽度调用；比例异常时用0.62，按railScale限84–168并受屏幕maxHeight约束
 Capture,Features/Capture/Curtain/CurtainModel.swift,CurtainRopeStyle,normalized,func,91,KEEP,2026-11-19：CurtainPref.ropeStyle读取历史字符串调用；twine迁移candyCane，未知值classic
 Capture,Features/Capture/Curtain/CurtainModel.swift,CurtainThumbnail,make,func,225,KEEP,2026-11-19：CurtainController.attach及缩放升级调用；CGImageSource按maxPixel×2生成缩略图，源或解码失败返回nil
 Capture,Features/Capture/Curtain/CurtainModel.swift,CurtainThumbnail,pixelSize,func,237,KEEP,2026-11-19：CurtainController.attach读取；只取ImageIO元数据宽高，文件/属性/正值失败使用16×10比例占位
-Capture,Features/Capture/Curtain/CurtainRevealController.swift,CurtainRevealController,init,init,34,KEEP,控制器单例订阅图帘偏好和屏幕布局通知，启动时sync热区；RevealStripPanel按传入5pt框创建透明不激活状态栏级浮窗，只接进入事件不取键盘焦点
-Capture,Features/Capture/Curtain/CurtainRevealController.swift,CurtainRevealController,sync,func,48,KEEP,CaptureModule启动及偏好、屏幕通知共用；图帘总开关与悬停开关同时开启才安装热区
-Capture,Features/Capture/Curtain/CurtainRevealController.swift,CurtainRevealController,install,func,53,KEEP,相同屏幕几何复用已有热区，否则先拆旧窗，再为每个visibleFrame菜单栏下沿创建5pt透明条并接pointerEntered
-Capture,Features/Capture/Curtain/CurtainRevealController.swift,CurtainRevealController,uninstall,func,79,KEEP,关闭悬停功能时拆除热区、停止轮询并清空安装状态和屏幕签名
-Capture,Features/Capture/Curtain/CurtainRevealController.swift,CurtainRevealController,teardownWindows,func,88,KEEP,install重建与uninstall共用，将所有热区窗口orderOut后清空持有数组
-Capture,Features/Capture/Curtain/CurtainRevealController.swift,CurtainRevealController,pointerEntered,func,95,KEEP,热区onEnter清除收起期限，调用正式ImageCurtainController.show并启动离开轮询
-Capture,Features/Capture/Curtain/CurtainRevealController.swift,CurtainRevealController,startPolling,func,102,KEEP,只保留一个Task，每200ms调用tick判断热区与图帘之间的指针转移
-Capture,Features/Capture/Curtain/CurtainRevealController.swift,CurtainRevealController,stopPolling,func,113,KEEP,卸载或图帘已隐藏时取消Task，清空任务与收起期限
-Capture,Features/Capture/Curtain/CurtainRevealController.swift,CurtainRevealController,tick,func,120,KEEP,指针在热区扩展2pt或图帘扩展4pt内清除期限；离开800ms才hide，图帘已隐藏则停止轮询
-Capture,Features/Capture/Curtain/CurtainRevealController.swift,CurtainRevealController,preferencesChanged,func,141,KEEP,curtainPreferencesChanged选择器交sync更新热区安装状态
-Capture,Features/Capture/Curtain/CurtainRevealController.swift,CurtainRevealController,screensChanged,func,142,KEEP,屏幕参数通知选择器交sync按新屏幕几何重建热区
-Capture,Features/Capture/Curtain/CurtainRevealController.swift,RevealStripPanel,init,init,149,KEEP,控制器单例订阅图帘偏好和屏幕布局通知，启动时sync热区；RevealStripPanel按传入5pt框创建透明不激活状态栏级浮窗，只接进入事件不取键盘焦点
-Capture,Features/Capture/Curtain/CurtainRevealController.swift,RevealStripView,updateTrackingAreas,func,174,KEEP,RevealStripView布局更新先移除旧跟踪区，再沿可见边界接收始终活动的进入事件
-Capture,Features/Capture/Curtain/CurtainRevealController.swift,RevealStripView,mouseEntered,func,184,KEEP,RevealStripView把系统进入事件转给安装时接入的onEnter，不自行管理图帘内容
-Capture,Features/Capture/Curtain/CurtainRevealController.swift,RevealStripView,hitTest,func,189,KEEP,RevealStripView仅在自身bounds内返回自己，供透明5pt热区接收事件
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,init,init,20,KEEP,把正式CurtainCanvasView放入横向NSScrollView并设animatesIdleSway=false，挂模拟截图、展开按钮和键盘说明；复制、定位、保存、钉图仅反馈，移除和缩放只改变场景
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,init,init,67,KEEP,把正式CurtainCanvasView放入横向NSScrollView并设animatesIdleSway=false，挂模拟截图、展开按钮和键盘说明；复制、定位、保存、钉图仅反馈，移除和缩放只改变场景
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,accessibilityPerformPress,func,70,KEEP,辅助功能按下动作将CurtainPreviewScene设为窗口第一响应者并返回聚焦结果；无窗口返回false，回车、N、加减、删除和Escape交给场景键盘处理
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,becomeFirstResponder,func,71,KEEP,图帘场景取得原生键盘焦点时绘制2pt系统强调色场景边框，返回成功以接收键盘动作
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,resignFirstResponder,func,76,KEEP,图帘场景失去原生键盘焦点时清除场景边框，不改变卡片、图帘样式或收起状态
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,mouseDown,func,77,KEEP,点击场景空白区域将本视图设为窗口第一响应者，让回车、N、加减、删除和Escape操作留在预览
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,keyDown,func,78,KEEP,回车切换展开/收起，N模拟截图，加减调用正式画布缩放回调每次8pt，删除键移除最后一张场景卡片，Escape只收起保留内容，其余键转给NSView
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,update,func,91,KEEP,首次启用装入maxCards张固定卡片并静态显示；调参保留收起态与卡片数量，卡宽变化清本地缩放，上限变化补删卡片，样式原地更新，时长变化续收起计时；禁用时停任务并清空场景
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,sample,func,142,KEEP,按 index 生成固定 UUID、kitnest-preview://curtain 地址、零时间和 640×384 像素尺寸，图像引用内存 CapturePreviewImage，不读取文件
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,layout,func,149,KEEP,定位顶部模拟截图/展开按钮、底部状态行及中间横向滚动视口，场景尺寸变化时按原尺寸无动画重排正式画布
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,render,func,161,KEEP,按正式CurtainLayout.metrics与每项item.cardSize累加真实画布宽度，窄内容居中、超宽横向滚动并保留滚动原点；静态重排走updateLayout保留未变卡片状态，仅显式落入且未减少动态时reload播放新卡动画
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,simulateCapture,func,204,KEEP,模拟截图按钮和N键共用capture，只按当前自动上架开关追加场景卡片，不再调度自动截图任务
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,capture,func,207,KEEP,只在 enabled 且 attachOnCapture 时追加固定卡片，超过 maxCards 移除最旧项，展开并续收起计时；关闭自动上架时仅反馈
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,toggle,func,222,KEEP,用户切换shown；展开续自动收起计时，收起取消隐藏任务并停止卡片动画，两向均静态重排并保留场景卡片
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,scheduleHide,func,229,KEEP,替换已有 hideTask；duration>0 时等待指定秒数后收起场景，duration=0 不安排任务
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,hide,func,238,KEEP,隐藏正式画布、停止其卡片动画并把按钮改为展开，状态文字写明收起原因，卡片内容不删除
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,feedback,func,245,KEEP,把动作说明写到场景底部 NSTextField，供模拟复制、定位、保存、缩放和收起复用
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,updateTrackingAreas,func,247,KEEP,重建场景整体和顶部 30pt 两个悬停区域，用 userInfo.top 区分顶边唤出与离开场景
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,mouseEntered,func,256,KEEP,取消移开收起任务；仅 enabled/revealOnHover 且命中顶边时展开现有卡片并续自动收起计时
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,mouseExited,func,265,KEEP,离开整个场景且启用悬停唤出时安排 0.8 秒收起，离开顶边小区域不会触发
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,stop,func,274,KEEP,统一取消hideTask与leaveTask并停止画布卡片动画，供关闭、禁用及卸载调用
-Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,viewDidMoveToWindow,func,279,KEEP,失去宿主window时调用stop，停止收起计时和卡片动画
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,ropeHeight,func,45,KEEP,帘线区域高度 × 缩放（28pt @1×）
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,ropeInset,func,46,KEEP,线端距顶 12pt × 缩放（1Capture 反汇编 y = height - 12）
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,sagMax,func,47,KEEP,下垂上限 28pt × 缩放
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,ropeEndInset,func,48,KEEP,两端绳结留白 5pt × 缩放，最小 3pt
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,gap,func,49,KEEP,卡片间距 16pt × 缩放
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,padding,func,50,KEEP,左右留白 22pt × 缩放
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,clipHeight,func,51,KEEP,夹子高度 20pt × 缩放
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,bottomInset,func,52,KEEP,窗口底部投影余量 12pt × 缩放
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,cornerRadius,func,60,KEEP,卡片圆角：宽×0.16 夹 8…25 再乘缩放（1Capture 写死 25，我们宽度可变）
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeGeometry,init,init,85,KEEP,图帘各类型初始化：帘线几何 / 卡片（夹子+三按钮）/ 画布 / 面板（非激活浮窗）
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeGeometry,t,func,93,KEEP,按 x 反解贝塞尔参数 t（控制点在 1/3、2/3，x(t) 精确线性）
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeGeometry,y,func,98,KEEP,曲线上某点 y = y0 + 3·sag·t(1-t)
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeGeometry,slope,func,104,KEEP,切线斜率 dy/dx = 3·sag·(1-2t)/width，卡片倾斜用
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeGeometry,tilt,func,112,KEEP,卡片沿帘线切线倾斜，限幅 ±4°
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,init,init,177,KEEP,图帘各类型初始化：帘线几何 / 卡片（夹子+三按钮）/ 画布 / 面板（非激活浮窗）
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,init,init,199,KEEP,图帘各类型初始化：帘线几何 / 卡片（夹子+三按钮）/ 画布 / 面板（非激活浮窗）
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,update,func,205,KEEP,⌘ 缩放时原地更新卡片尺寸/按钮位置并重绘，不重建视图、不重挂动画
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,draw,func,216,KEEP,绘制入口：卡片（倾斜+缩略图+描边+夹子）与帘线（四样式+绳结）；缩放中卡片低插值
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,placeholderGradient,func,319,KEEP,缩略图未解码时的占位渐变（1Capture 四段灰度 0.62/0.94/0.80/0.61，水平）
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,drawClip,func,329,KEEP,夹子：小梯形 + 投影 + 夹口暗线；尺寸乘 railScale
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,updateTrackingAreas,func,365,KEEP,重建 .inVisibleRect 悬停追踪区（卡片尺寸变化后仍覆盖全卡）
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,mouseEntered,func,375,KEEP,悬停：停摆、显示保存/钉图/移除、上浮 2pt
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,mouseExited,func,386,KEEP,移出：收起按钮、复位、恢复微摆
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,startSway,func,405,KEEP,Card常驻摆动总入口仅在animatesIdleSway=true、未减少动态、未悬停且已有窗口时执行；正式默认true，预览false；沿用CABasicAnimation且已有摆动不重复挂载
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,stopSway,func,424,KEEP,停止微摆（悬停/缩放/窗口收起时）
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,viewDidMoveToWindow,func,428,KEEP,窗口收起时撤动画，避免不可见图层空转
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,setupButtons,func,439,KEEP,创建关闭/保存/钉图三个悬停按钮
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,layoutButtons,func,448,KEEP,按钮位置/圆角随卡片尺寸与 railScale 走（⌘ 缩放每帧调用）
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,configure,func,468,KEEP,悬停按钮样式：无边框、白色图标、半透明黑底、圆角随缩放
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,setButtonsHidden,func,482,KEEP,统一显隐三个悬停按钮
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,removeTapped,func,486,KEEP,关闭按钮 → 从图帘移除
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,saveTapped,func,487,KEEP,保存按钮 → 控制器 saveAs
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,pinTapped,func,488,KEEP,钉图按钮 → 控制器 pin 到屏幕
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,refreshAccessibility,func,490,KEEP,CurtainCanvasView.layoutCards 给每张卡片同步辅助功能：降低透明度时三颗操作按钮用不透明黑底，减少动态时移除图层动画并复位变换
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,acceptsFirstMouse,func,502,KEEP,首击即响应（图帘是非激活面板）
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,mouseDown,func,504,KEEP,卡片/画布按下：⌘ 进入缩放并记屏幕坐标；普通按下记录起点供拖出/点击判定
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,mouseDragged,func,517,KEEP,⌘ 拖动按屏幕坐标增量缩放；否则卡片超过 4pt 拖出成文件
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,mouseUp,func,532,KEEP,⌘ 缩放结束回调；普通点击复制图片；画布空白处只结束缩放
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,scrollWheel,func,547,KEEP,⌘ + 滚轮缩放图帘；非 ⌘ 交给系统
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,copyToPasteboard,func,559,KEEP,卡片复制先交给宿主 onCopy 回调；正式图帘无回调时读取 PNG，同时写入图片数据及文件 URL
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,beginDrag,func,579,KEEP,卡片拖出先交给宿主 onDrag 回调；正式图帘无回调时以文件 URL 和卡片快照开始复制拖放
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,snapshot,func,587,KEEP,拖拽缩略图：优先用已解码 CGImage，避免再读原图
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,menu,func,597,KEEP,右键菜单：复制/保存/在 Finder 显示/钉住/放大缩小图帘/移除
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,zoomIn,func,614,KEEP,右键放大 40pt（走与 ⌘ 拖动同一条 resizeStep/resizeEnd）
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,zoomOut,func,619,KEEP,右键缩小 40pt（同 resizeStep/resizeEnd）
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,copyFromMenu,func,624,KEEP,右键「复制图片」→ copyToPasteboard
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,revealInFinder,func,626,KEEP,有 onReveal 回调时只反馈预览定位动作；正式卡片使用 NSWorkspace 在 Finder 选中文件
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,draggingSession,func,635,KEEP,拖出操作固定 .copy，不移动原文件
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,draw,func,676,KEEP,绘制入口：卡片（倾斜+缩略图+描边+夹子）与帘线（四样式+绳结）；缩放中卡片低插值
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,ropePath,func,731,KEEP,帘线三次贝塞尔路径，两端留绳结位；inset 随 scale
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,drawKnots,func,744,KEEP,两端绳结（实心圆 + 暗描边），半径/描边随 scale
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,clearShadow,func,759,KEEP,清掉 CG 阴影，避免细芯/装饰重复投影
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,stroke,func,763,KEEP,圆头描边封装（宽度/灰度/透明度）
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,dashed,func,772,KEEP,圆头虚线描边封装（拐杖糖红条纹）
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,drawLights,func,787,KEEP,圣诞彩灯：沿帘线等距、四色循环、低透明外圈当光晕
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,drawSnow,func,811,KEEP,积雪：确定性伪随机球径 1.3–3.2pt，间距 6.5pt，随 scale
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,samplePoints,func,823,KEEP,按 x 均匀取样再用贝塞尔求 y，间距随 scale
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainLayout,metrics,func,845,KEEP,正式 ImageCurtainController.layoutMetrics 与 CurtainPreviewScene.render 共用：两轮按可见宽度和卡片数反算卡宽，帘线缩放夹在 0.8…3，并扣除绳高与底边求卡片高度上限
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,init,init,885,KEEP,图帘各类型初始化：帘线几何 / 卡片（夹子+三按钮）/ 画布 / 面板（非激活浮窗）
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,init,init,892,KEEP,图帘各类型初始化：帘线几何 / 卡片（夹子+三按钮）/ 画布 / 面板（非激活浮窗）
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,stopAnimations,func,894,KEEP,为全部画布卡片设置reduceMotion并移除图层动画，供预览收起、禁用及卸载停止摆动，保留卡片内容和视图
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,reload,func,906,KEEP,重建卡片视图并排版；animate=false 用于缩放后的高质量重绘
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,updateLayout,func,925,KEEP,⌘ 缩放专用：卡片数与 id 不变时只改尺寸/位置，不 remove/add 子视图
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,layoutCards,func,940,KEEP,按item.cardSize累计卡片真实宽度并居中定位，创建新卡时传播Canvas.animatesIdleSway，原卡仅更新尺寸和辅助功能；新卡显式落入受减少动态控制，其余摆动交startSway统一判断
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,mouseDown,func,1014,KEEP,卡片/画布按下：⌘ 进入缩放并记屏幕坐标；普通按下记录起点供拖出/点击判定
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,mouseDragged,func,1023,KEEP,⌘ 拖动按屏幕坐标增量缩放；否则卡片超过 4pt 拖出成文件
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,mouseUp,func,1034,KEEP,⌘ 缩放结束回调；普通点击复制图片；画布空白处只结束缩放
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,scrollWheel,func,1044,KEEP,⌘ + 滚轮缩放图帘；非 ⌘ 交给系统
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,animateDrop,func,1061,KEEP,新增卡片播放位移、淡入及绕顶部衰减回弹；完成后调用startSway，由animatesIdleSway决定是否接常驻摆动，预览false仍保留显式落入效果
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,topPivot,func,1104,KEEP,把 CA 旋转中心从图层中心挪到顶部中心
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainPanel,init,init,1117,KEEP,图帘各类型初始化：帘线几何 / 卡片（夹子+三按钮）/ 画布 / 面板（非激活浮窗）
+Capture,Features/Capture/Curtain/CurtainRevealController.swift,CurtainRevealController,init,init,34,KEEP,2026-11-19：控制器单例订阅图帘偏好和屏幕布局通知，启动时sync热区；RevealStripPanel按传入5pt框创建透明不激活状态栏级浮窗，只接进入事件不取键盘焦点
+Capture,Features/Capture/Curtain/CurtainRevealController.swift,CurtainRevealController,sync,func,48,KEEP,2026-11-19：CaptureModule启动及偏好、屏幕通知共用；图帘总开关与悬停开关同时开启才安装热区
+Capture,Features/Capture/Curtain/CurtainRevealController.swift,CurtainRevealController,install,func,53,KEEP,2026-11-19：相同屏幕几何复用已有热区，否则先拆旧窗，再为每个visibleFrame菜单栏下沿创建5pt透明条并接pointerEntered
+Capture,Features/Capture/Curtain/CurtainRevealController.swift,CurtainRevealController,uninstall,func,79,KEEP,2026-11-19：关闭悬停功能时拆除热区、停止轮询并清空安装状态和屏幕签名
+Capture,Features/Capture/Curtain/CurtainRevealController.swift,CurtainRevealController,teardownWindows,func,88,KEEP,2026-11-19：install重建与uninstall共用，将所有热区窗口orderOut后清空持有数组
+Capture,Features/Capture/Curtain/CurtainRevealController.swift,CurtainRevealController,pointerEntered,func,95,KEEP,2026-11-19：热区onEnter清除收起期限，调用正式ImageCurtainController.show并启动离开轮询
+Capture,Features/Capture/Curtain/CurtainRevealController.swift,CurtainRevealController,startPolling,func,102,KEEP,2026-11-19：只保留一条200ms轮询Task；取消若打断sleep则立即退出，不在卸载后多执行一次tick
+Capture,Features/Capture/Curtain/CurtainRevealController.swift,CurtainRevealController,stopPolling,func,114,KEEP,2026-11-19：卸载或图帘已隐藏时取消Task，清空任务与收起期限
+Capture,Features/Capture/Curtain/CurtainRevealController.swift,CurtainRevealController,tick,func,121,KEEP,2026-11-19：指针在热区扩展2pt或图帘扩展4pt内清除期限；离开800ms才hide，图帘已隐藏则停止轮询
+Capture,Features/Capture/Curtain/CurtainRevealController.swift,CurtainRevealController,preferencesChanged,func,142,KEEP,2026-11-19：curtainPreferencesChanged选择器交sync更新热区安装状态
+Capture,Features/Capture/Curtain/CurtainRevealController.swift,CurtainRevealController,screensChanged,func,143,KEEP,2026-11-19：屏幕参数通知选择器交sync按新屏幕几何重建热区
+Capture,Features/Capture/Curtain/CurtainRevealController.swift,RevealStripPanel,init,init,150,KEEP,2026-11-19：控制器单例订阅图帘偏好和屏幕布局通知，启动时sync热区；RevealStripPanel按传入5pt框创建透明不激活状态栏级浮窗，只接进入事件不取键盘焦点
+Capture,Features/Capture/Curtain/CurtainRevealController.swift,RevealStripView,updateTrackingAreas,func,175,KEEP,2026-11-19：RevealStripView布局更新先移除旧跟踪区，再沿可见边界接收始终活动的进入事件
+Capture,Features/Capture/Curtain/CurtainRevealController.swift,RevealStripView,mouseEntered,func,185,KEEP,2026-11-19：RevealStripView把系统进入事件转给安装时接入的onEnter，不自行管理图帘内容
+Capture,Features/Capture/Curtain/CurtainRevealController.swift,RevealStripView,hitTest,func,190,KEEP,2026-11-19：RevealStripView仅在自身bounds内返回自己，供透明5pt热区接收事件
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,init,init,20,KEEP,2026-11-19：把正式CurtainCanvasView放入横向NSScrollView并设animatesIdleSway=false，挂模拟截图、展开按钮和键盘说明；复制、定位、保存、钉图仅反馈，移除和缩放只改变场景
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,init,init,67,KEEP,2026-11-19：把正式CurtainCanvasView放入横向NSScrollView并设animatesIdleSway=false，挂模拟截图、展开按钮和键盘说明；复制、定位、保存、钉图仅反馈，移除和缩放只改变场景
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,accessibilityPerformPress,func,70,KEEP,2026-11-19：辅助功能按下动作将CurtainPreviewScene设为窗口第一响应者并返回聚焦结果；无窗口返回false，回车、N、加减、删除和Escape交给场景键盘处理
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,becomeFirstResponder,func,71,KEEP,2026-11-19：图帘场景取得原生键盘焦点时绘制2pt系统强调色场景边框，返回成功以接收键盘动作
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,resignFirstResponder,func,76,KEEP,2026-11-19：图帘场景失去原生键盘焦点时清除场景边框，不改变卡片、图帘样式或收起状态
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,mouseDown,func,77,KEEP,2026-11-19：点击场景空白区域将本视图设为窗口第一响应者，让回车、N、加减、删除和Escape操作留在预览
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,keyDown,func,78,KEEP,2026-11-19：回车切换展开/收起，N模拟截图，加减调用正式画布缩放回调每次8pt，删除键移除最后一张场景卡片，Escape只收起保留内容，其余键转给NSView
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,update,func,91,KEEP,2026-11-19：首次启用装入maxCards张固定卡片并静态显示；调参保留收起态与卡片数量，卡宽变化清本地缩放，上限变化补删卡片，样式原地更新，时长变化续收起计时；禁用时停任务并清空场景
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,sample,func,142,KEEP,2026-11-19：按 index 生成固定 UUID、kitnest-preview://curtain 地址、零时间和 640×384 像素尺寸，图像引用内存 CapturePreviewImage，不读取文件
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,layout,func,149,KEEP,2026-11-19：定位顶部模拟截图/展开按钮、底部状态行及中间横向滚动视口，场景尺寸变化时按原尺寸无动画重排正式画布
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,render,func,161,KEEP,2026-11-19：按正式CurtainLayout.metrics与每项item.cardSize累加真实画布宽度，窄内容居中、超宽横向滚动并保留滚动原点；静态重排走updateLayout保留未变卡片状态，仅显式落入且未减少动态时reload播放新卡动画
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,simulateCapture,func,204,KEEP,2026-11-19：模拟截图按钮和N键共用capture，只按当前自动上架开关追加场景卡片，不再调度自动截图任务
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,capture,func,207,KEEP,2026-11-19：只在 enabled 且 attachOnCapture 时追加固定卡片，超过 maxCards 移除最旧项，展开并续收起计时；关闭自动上架时仅反馈
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,toggle,func,222,KEEP,2026-11-19：用户切换shown；展开续自动收起计时，收起取消隐藏任务并停止卡片动画，两向均静态重排并保留场景卡片
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,scheduleHide,func,229,KEEP,2026-11-19：替换已有 hideTask；duration>0 时等待指定秒数后收起场景，duration=0 不安排任务
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,hide,func,238,KEEP,2026-11-19：隐藏正式画布、停止其卡片动画并把按钮改为展开，状态文字写明收起原因，卡片内容不删除
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,feedback,func,245,KEEP,2026-11-19：把动作说明写到场景底部 NSTextField，供模拟复制、定位、保存、缩放和收起复用
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,updateTrackingAreas,func,247,KEEP,2026-11-19：重建场景整体和顶部 30pt 两个悬停区域，用 userInfo.top 区分顶边唤出与离开场景
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,mouseEntered,func,256,KEEP,2026-11-19：取消移开收起任务；仅 enabled/revealOnHover 且命中顶边时展开现有卡片并续自动收起计时
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,mouseExited,func,265,KEEP,2026-11-19：离开整个场景且启用悬停唤出时安排 0.8 秒收起，离开顶边小区域不会触发
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,stop,func,274,KEEP,2026-11-19：统一取消hideTask与leaveTask并停止画布卡片动画，供关闭、禁用及卸载调用
+Capture,Features/Capture/Curtain/CurtainSettingsPreview.swift,CurtainPreviewScene,viewDidMoveToWindow,func,279,KEEP,2026-11-19：失去宿主window时调用stop，停止收起计时和卡片动画
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,ropeHeight,func,45,KEEP,2026-11-19：帘线区域高度 × 缩放（28pt @1×）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,ropeInset,func,46,KEEP,2026-11-19：线端距顶 12pt × 缩放（1Capture 反汇编 y = height - 12）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,sagMax,func,47,KEEP,2026-11-19：下垂上限 28pt × 缩放
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,ropeEndInset,func,48,KEEP,2026-11-19：两端绳结留白 5pt × 缩放，最小 3pt
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,gap,func,49,KEEP,2026-11-19：卡片间距 16pt × 缩放
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,padding,func,50,KEEP,2026-11-19：左右留白 22pt × 缩放
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,clipHeight,func,51,KEEP,2026-11-19：夹子高度 20pt × 缩放
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,bottomInset,func,52,KEEP,2026-11-19：窗口底部投影余量 12pt × 缩放
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainMetrics,cornerRadius,func,60,KEEP,2026-11-19：卡片圆角：宽×0.16 夹 8…25 再乘缩放（1Capture 写死 25，我们宽度可变）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeGeometry,init,init,85,KEEP,2026-11-19：图帘各类型初始化：帘线几何 / 卡片（夹子+三按钮）/ 画布 / 面板（非激活浮窗）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeGeometry,t,func,93,KEEP,2026-11-19：按 x 反解贝塞尔参数 t（控制点在 1/3、2/3，x(t) 精确线性）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeGeometry,y,func,98,KEEP,2026-11-19：曲线上某点 y = y0 + 3·sag·t(1-t)
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeGeometry,slope,func,104,KEEP,2026-11-19：切线斜率 dy/dx = 3·sag·(1-2t)/width，卡片倾斜用
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeGeometry,tilt,func,112,KEEP,2026-11-19：卡片沿帘线切线倾斜，限幅 ±4°
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,init,init,177,KEEP,2026-11-19：图帘各类型初始化：帘线几何 / 卡片（夹子+三按钮）/ 画布 / 面板（非激活浮窗）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,init,init,199,KEEP,2026-11-19：图帘各类型初始化：帘线几何 / 卡片（夹子+三按钮）/ 画布 / 面板（非激活浮窗）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,update,func,205,KEEP,2026-11-19：⌘ 缩放时原地更新卡片尺寸/按钮位置并重绘，不重建视图、不重挂动画
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,draw,func,216,KEEP,2026-11-19：绘制入口：卡片（倾斜+缩略图+描边+夹子）与帘线（四样式+绳结）；缩放中卡片低插值
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,placeholderGradient,func,319,KEEP,2026-11-19：缩略图未解码时的占位渐变（1Capture 四段灰度 0.62/0.94/0.80/0.61，水平）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,drawClip,func,329,KEEP,2026-11-19：夹子：小梯形 + 投影 + 夹口暗线；尺寸乘 railScale
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,updateTrackingAreas,func,365,KEEP,2026-11-19：重建 .inVisibleRect 悬停追踪区（卡片尺寸变化后仍覆盖全卡）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,mouseEntered,func,375,KEEP,2026-11-19：悬停：停摆、显示保存/钉图/移除、上浮 2pt
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,mouseExited,func,386,KEEP,2026-11-19：移出：收起按钮、复位、恢复微摆
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,startSway,func,405,KEEP,2026-11-19：Card常驻摆动总入口仅在animatesIdleSway=true、未减少动态、未悬停且已有窗口时执行；正式默认true，预览false；沿用CABasicAnimation且已有摆动不重复挂载
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,stopSway,func,424,KEEP,2026-11-19：停止微摆（悬停/缩放/窗口收起时）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,viewDidMoveToWindow,func,428,KEEP,2026-11-19：窗口收起时撤动画，避免不可见图层空转
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,setupButtons,func,439,KEEP,2026-11-19：创建关闭/保存/钉图三个悬停按钮
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,layoutButtons,func,448,KEEP,2026-11-19：按钮位置/圆角随卡片尺寸与 railScale 走（⌘ 缩放每帧调用）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,configure,func,468,KEEP,2026-11-19：悬停按钮样式：无边框、白色图标、半透明黑底、圆角随缩放
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,setButtonsHidden,func,482,KEEP,2026-11-19：统一显隐三个悬停按钮
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,removeTapped,func,486,KEEP,2026-11-19：关闭按钮 → 从图帘移除
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,saveTapped,func,487,KEEP,2026-11-19：保存按钮 → 控制器 saveAs
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,pinTapped,func,488,KEEP,2026-11-19：钉图按钮 → 控制器 pin 到屏幕
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,refreshAccessibility,func,490,KEEP,2026-11-19：CurtainCanvasView.layoutCards 给每张卡片同步辅助功能：降低透明度时三颗操作按钮用不透明黑底，减少动态时移除图层动画并复位变换
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,acceptsFirstMouse,func,502,KEEP,2026-11-19：首击即响应（图帘是非激活面板）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,mouseDown,func,504,KEEP,2026-11-19：卡片/画布按下：⌘ 进入缩放并记屏幕坐标；普通按下记录起点供拖出/点击判定
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,mouseDragged,func,517,KEEP,2026-11-19：⌘ 拖动按屏幕坐标增量缩放；否则卡片超过 4pt 拖出成文件
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,mouseUp,func,532,KEEP,2026-11-19：⌘ 缩放结束回调；普通点击复制图片；画布空白处只结束缩放
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,scrollWheel,func,547,KEEP,2026-11-19：⌘ + 滚轮缩放图帘；非 ⌘ 交给系统
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,copyToPasteboard,func,559,KEEP,2026-11-19：卡片复制先交给宿主 onCopy 回调；正式图帘无回调时读取 PNG，同时写入图片数据及文件 URL
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,beginDrag,func,579,KEEP,2026-11-19：卡片拖出先交给宿主 onDrag 回调；正式图帘无回调时以文件 URL 和卡片快照开始复制拖放
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,snapshot,func,587,KEEP,2026-11-19：拖拽缩略图：优先用已解码 CGImage，避免再读原图
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,menu,func,597,KEEP,2026-11-19：右键菜单：复制/保存/在 Finder 显示/钉住/放大缩小图帘/移除
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,zoomIn,func,614,KEEP,2026-11-19：右键放大 40pt（走与 ⌘ 拖动同一条 resizeStep/resizeEnd）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,zoomOut,func,619,KEEP,2026-11-19：右键缩小 40pt（同 resizeStep/resizeEnd）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,copyFromMenu,func,624,KEEP,2026-11-19：右键「复制图片」→ copyToPasteboard
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,revealInFinder,func,626,KEEP,2026-11-19：有 onReveal 回调时只反馈预览定位动作；正式卡片使用 NSWorkspace 在 Finder 选中文件
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,draggingSession,func,635,KEEP,2026-11-19：拖出操作固定 .copy，不移动原文件
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,draw,func,676,KEEP,2026-11-19：绘制入口：卡片（倾斜+缩略图+描边+夹子）与帘线（四样式+绳结）；缩放中卡片低插值
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,ropePath,func,731,KEEP,2026-11-19：帘线三次贝塞尔路径，两端留绳结位；inset 随 scale
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,drawKnots,func,744,KEEP,2026-11-19：两端绳结（实心圆 + 暗描边），半径/描边随 scale
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,clearShadow,func,759,KEEP,2026-11-19：清掉 CG 阴影，避免细芯/装饰重复投影
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,stroke,func,763,KEEP,2026-11-19：圆头描边封装（宽度/灰度/透明度）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,dashed,func,772,KEEP,2026-11-19：圆头虚线描边封装（拐杖糖红条纹）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,drawLights,func,787,KEEP,2026-11-19：圣诞彩灯：沿帘线等距、四色循环、低透明外圈当光晕
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,drawSnow,func,811,KEEP,2026-11-19：积雪：确定性伪随机球径 1.3–3.2pt，间距 6.5pt，随 scale
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,samplePoints,func,823,KEEP,2026-11-19：按 x 均匀取样再用贝塞尔求 y，间距随 scale
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainLayout,metrics,func,845,KEEP,2026-11-19：正式 ImageCurtainController.layoutMetrics 与 CurtainPreviewScene.render 共用：两轮按可见宽度和卡片数反算卡宽，帘线缩放夹在 0.8…3，并扣除绳高与底边求卡片高度上限
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,init,init,885,KEEP,2026-11-19：图帘各类型初始化：帘线几何 / 卡片（夹子+三按钮）/ 画布 / 面板（非激活浮窗）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,init,init,892,KEEP,2026-11-19：图帘各类型初始化：帘线几何 / 卡片（夹子+三按钮）/ 画布 / 面板（非激活浮窗）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,stopAnimations,func,894,KEEP,2026-11-19：为全部画布卡片设置reduceMotion并移除图层动画，供预览收起、禁用及卸载停止摆动，保留卡片内容和视图
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,reload,func,906,KEEP,2026-11-19：重建卡片视图并排版；animate=false 用于缩放后的高质量重绘
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,updateLayout,func,925,KEEP,2026-11-19：⌘ 缩放专用：卡片数与 id 不变时只改尺寸/位置，不 remove/add 子视图
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,layoutCards,func,940,KEEP,2026-11-19：按item.cardSize累计卡片真实宽度并居中定位，创建新卡时传播Canvas.animatesIdleSway，原卡仅更新尺寸和辅助功能；新卡显式落入受减少动态控制，其余摆动交startSway统一判断
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,mouseDown,func,1014,KEEP,2026-11-19：卡片/画布按下：⌘ 进入缩放并记屏幕坐标；普通按下记录起点供拖出/点击判定
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,mouseDragged,func,1023,KEEP,2026-11-19：⌘ 拖动按屏幕坐标增量缩放；否则卡片超过 4pt 拖出成文件
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,mouseUp,func,1034,KEEP,2026-11-19：⌘ 缩放结束回调；普通点击复制图片；画布空白处只结束缩放
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,scrollWheel,func,1044,KEEP,2026-11-19：⌘ + 滚轮缩放图帘；非 ⌘ 交给系统
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,animateDrop,func,1061,KEEP,2026-11-19：新增卡片播放位移、淡入及绕顶部衰减回弹；完成后调用startSway，由animatesIdleSway决定是否接常驻摆动，预览false仍保留显式落入效果
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,topPivot,func,1104,KEEP,2026-11-19：把 CA 旋转中心从图层中心挪到顶部中心
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainPanel,init,init,1117,KEEP,2026-11-19：图帘各类型初始化：帘线几何 / 卡片（夹子+三按钮）/ 画布 / 面板（非激活浮窗）
 Capture,Features/Capture/History/CaptureHistoryStore.swift,AnnotationStateSnapshot,encode,func,52,KEEP,2026-11-19：AnnotationEditorWindow关窗未保存状态调用；将Annotation字段转扁平点数组并编码JSON，失败返回空串
 Capture,Features/Capture/History/CaptureHistoryStore.swift,AnnotationStateSnapshot,decode,func,66,KEEP,2026-11-19：AnnotationEditorWindow历史继续标注调用；JSON解码后过滤未知工具，按成对坐标恢复Annotation，坏快照返回nil
 Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,init,init,102,KEEP,2026-11-19：shared单例初始化；独立SQLite路径建表/索引，打开失败沿SQLiteDatabase.fallback继续并记录错误
@@ -1352,31 +1352,32 @@ Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow
 Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,setupRightPane,func,367,KEEP,2026-11-19：window init调用；建QR stack、三个结果滚动区及按键控件，容器宽度约束绑定scroll contentView
 Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,labelledRightPane,func,417,KEEP,2026-11-19：window init装配右侧面板调用；组合标题与右栏并随窗口改宽高
 Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,labelled,func,430,KEEP,2026-11-19：window init装配左原图调用；统一标题和内容尺寸，保留缩放能力
-Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,setResultText,func,453,KEEP,2026-11-19：controller.show非空更新与reRecognize有效返回调用；清空译文流并切回OCR页，重置整理态后流式展示新原文；show空串分支不调用以保留QR增量内容
-Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,organizeText,func,467,KEEP,2026-11-19：整理换行按钮selector调用；重复调用保存当前整理草稿，首次基于originalText生成并切到可编辑整理稿
-Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,versionChanged,func,478,KEEP,2026-11-19：版本selector调用；在原文/整理稿间保持滚动、按当前版本设置可编辑态
-Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,updateTextInfo,func,489,KEEP,2026-11-19：文本设置、版本切换、选择变更观察器调用；复制按钮/字数/整理结果一致更新
-Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,setQRPayloads,func,499,KEEP,2026-11-19：窗口构造与controller QR增量调用；重建payload行并按数量更新第二段标题
-Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,selectQRTab,func,506,KEEP,2026-11-19：autoDetectQR自动选择及controller调用；仅payload非空才选QR页，复用tabChanged
-Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,tabChanged,func,511,KEEP,2026-11-19：SegmentedControl selector与两个外部选页入口调用；同一组视图显隐一致，翻译页通过闭包交controller
-Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,selectTranslateTab,func,524,KEEP,2026-11-19：controller.show autoTranslate与外部选择入口调用；设置第三段并走通用selector处理
-Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,setTranslatedText,func,530,KEEP,2026-11-19：controller翻译任务反馈调用；成功流式展示，nil改写“翻译中”，setter取消旧流
-Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,rebuildQRRows,func,541,KEEP,2026-11-19：setQRPayloads唯一调用；移除旧arrangedSubview并按空/有结果建立新行
-Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,qrRow,func,558,KEEP,2026-11-19：rebuildQRRows逐payload调用；文本可选复制，仅http(s)通过白名单scheme展示打开按钮
-Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,copyQR,func,588,KEEP,2026-11-19：QR行按钮selector调用；tag按当前payload数组边界检查后写粘贴板并报告失败
-Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,openQR,func,599,KEEP,2026-11-19：仅http(s)行的按钮selector调用；重新按tag取payload解析URL并由NSWorkspace打开，失败提示
-Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,copyTapped,func,609,KEEP,2026-11-19：复制按钮selector调用；只通知controller复制当前选中或全文
-Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,redoWrapped,func,610,KEEP,2026-11-19：重新识别按钮selector调用；只通知controller发起OCR
-Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,closeTapped,func,611,KEEP,2026-11-19：关闭按钮selector与Esc退出共用performClose
-Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRWindowController,init,init,633,KEEP,2026-11-19：shared唯一构造；controller持有结果窗、源图/数据、识别与翻译任务状态
-Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRWindowController,invalidateTranslation,func,635,KEEP,2026-11-19：新非空OCR文本与窗口关闭时调用；取消旧翻译、递增代号并清缓存，迟到完成不得写当前窗
-Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRWindowController,invalidateRecognition,func,643,KEEP,2026-11-19：新非空OCR文本和窗口关闭时调用；递增识别代号并清活动标记，迟到OCR不得更新结果或广播事件
-Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRWindowController,show,func,650,KEEP,2026-11-19：ScreenshotManager OCR及QR结果、应用深链入口调用；仅新非空文本失效OCR/翻译并更新结果，空文本QR增量保留已有原文和译文
-Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRWindowController,translateCurrentText,func,692,KEEP,2026-11-19：翻译页闭包调用；空文本提示、同源译文复用、异步请求以任务代号确保只更新发起时窗口及文本
-Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRWindowController,debugDemo,func,734,KEEP,2026-11-19：CaptureModule的probe.ocrDemo默认偏好打开时调用；合成固定示例并走正常窗口呈现，不触及用户图片
-Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRWindowController,copyResult,func,761,KEEP,2026-11-19：结果窗onCopy闭包调用；取当前选择或完整结果，交ClipboardManager并透传错误Toast
-Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRWindowController,reRecognize,func,768,KEEP,2026-11-19：结果窗onReRecognize闭包调用；保存发起窗和识别代号，空结果/失败提示，只有窗仍相同且代号有效才更新和广播
-Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRWindowController,windowWillClose,func,803,KEEP,2026-11-19：NSWindowDelegate派发；递增识别代号、作废译文并清源图/数据引用，移除失焦观察器
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,setSourceImage,func,453,KEEP,2026-11-19：show复用结果窗且截图变化时调用，更新现有SourceNSScrollView的原图，使左侧图片与重新识别输入一致
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,setResultText,func,457,KEEP,2026-11-19：show换图或非空结果、reRecognize有效返回调用；清空旧译文流与整理草稿，空结果同步清原文，非空结果流式显示；同图QR增量不覆盖已有OCR原文
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,organizeText,func,471,KEEP,2026-11-19：整理换行按钮selector调用；重复调用保存当前整理草稿，首次基于originalText生成并切到可编辑整理稿
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,versionChanged,func,482,KEEP,2026-11-19：版本selector调用；在原文/整理稿间保持滚动、按当前版本设置可编辑态
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,updateTextInfo,func,493,KEEP,2026-11-19：文本设置、版本切换、选择变更观察器调用；复制按钮/字数/整理结果一致更新
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,setQRPayloads,func,503,KEEP,2026-11-19：窗口构造与controller QR增量调用；重建payload行并按数量更新第二段标题
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,selectQRTab,func,510,KEEP,2026-11-19：autoDetectQR自动选择及controller调用；仅payload非空才选QR页，复用tabChanged
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,tabChanged,func,515,KEEP,2026-11-19：SegmentedControl selector与两个外部选页入口调用；同一组视图显隐一致，翻译页通过闭包交controller
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,selectTranslateTab,func,528,KEEP,2026-11-19：controller.show autoTranslate与外部选择入口调用；设置第三段并走通用selector处理
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,setTranslatedText,func,534,KEEP,2026-11-19：controller翻译任务反馈调用；成功流式展示，nil改写“翻译中”，setter取消旧流
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,rebuildQRRows,func,545,KEEP,2026-11-19：setQRPayloads唯一调用；移除旧arrangedSubview并按空/有结果建立新行
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,qrRow,func,562,KEEP,2026-11-19：rebuildQRRows逐payload调用；文本可选复制，仅http(s)通过白名单scheme展示打开按钮
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,copyQR,func,592,KEEP,2026-11-19：QR行按钮selector调用；tag按当前payload数组边界检查后写粘贴板并报告失败
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,openQR,func,603,KEEP,2026-11-19：仅http(s)行的按钮selector调用；重新按tag取payload解析URL并由NSWorkspace打开，失败提示
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,copyTapped,func,613,KEEP,2026-11-19：复制按钮selector调用；只通知controller复制当前选中或全文
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,redoWrapped,func,614,KEEP,2026-11-19：重新识别按钮selector调用；只通知controller发起OCR
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRResultWindow,closeTapped,func,615,KEEP,2026-11-19：关闭按钮selector与Esc退出共用performClose
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRWindowController,init,init,637,KEEP,2026-11-19：shared唯一构造；controller持有结果窗、源图/数据、识别与翻译任务状态
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRWindowController,invalidateTranslation,func,639,KEEP,2026-11-19：新非空OCR文本与窗口关闭时调用；取消旧翻译、递增代号并清缓存，迟到完成不得写当前窗
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRWindowController,invalidateRecognition,func,647,KEEP,2026-11-19：新非空OCR文本和窗口关闭时调用；递增识别代号并清活动标记，迟到OCR不得更新结果或广播事件
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRWindowController,show,func,653,KEEP,2026-11-19：截图OCR、自动识码及深链共用；沿已持有图片身份和编码数据识别换图，更新原图并清旧文本/二维码/翻译，作废旧请求；同图空文本二维码增量保留原文
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRWindowController,translateCurrentText,func,697,KEEP,2026-11-19：翻译页闭包调用；任务弱捕获窗口，在await返回后取回并比较请求代号与当前窗，关闭后不继续持有源图；空文本提示，同源有效译文复用
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRWindowController,debugDemo,func,739,KEEP,2026-11-19：CaptureModule的probe.ocrDemo默认偏好打开时调用；合成固定示例并走正常窗口呈现，不触及用户图片
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRWindowController,copyResult,func,766,KEEP,2026-11-19：结果窗onCopy闭包调用；取当前选择或完整结果，交ClipboardManager并透传错误Toast
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRWindowController,reRecognize,func,773,KEEP,2026-11-19：重识别按钮提交真实OCR；异步期间弱持有窗口，完成后比较识别代号和窗口身份，过期结果不改原文/译文或广播；输入编码数据仅保留至识别完成
+Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRWindowController,windowWillClose,func,808,KEEP,2026-11-19：NSWindowDelegate派发；递增识别代号、作废译文并清源图/数据引用，移除失焦观察器
 Capture,Features/Capture/Pin/PinChrome.swift,PinBubbleView,init,init,30,KEEP,PinBubblePanel.show 构造 本文件:118
 Capture,Features/Capture/Pin/PinChrome.swift,PinBubbleView,init,init,41,KEEP,required init?(coder:) 覆写桩，删除后无法编译
 Capture,Features/Capture/Pin/PinChrome.swift,PinBubbleView,badgeWidth,func,45,KEEP,draw 内 本文件:82
@@ -1404,29 +1405,29 @@ Capture,Features/Capture/Pin/PinChrome.swift,PinMenuPanel,present,func,433,KEEP,
 Capture,Features/Capture/Pin/PinChrome.swift,PinMenuPanel,dismiss,func,454,KEEP,本文件:407/425/428/430、PinWindow:1319
 Capture,Features/Capture/Pin/PinChrome.swift,PinMenuPanel,reload,func,466,KEEP,本文件:412/417/435
 Capture,Features/Capture/Pin/PinChrome.swift,PinMenuPanel,layoutPanel,func,487,KEEP,present 内 本文件:436
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,init,init,46,KEEP,使用 CapturePreviewImage 创建正式 PinImageView；交互场景挂控制条/关闭按钮及键盘操作辅助说明，标注、复制、缩放、气泡和关闭只作用本地场景，缩略预设不挂控件
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,init,init,91,KEEP,使用 CapturePreviewImage 创建正式 PinImageView；交互场景挂控制条/关闭按钮及键盘操作辅助说明，标注、复制、缩放、气泡和关闭只作用本地场景，缩略预设不挂控件
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,accessibilityPerformPress,func,93,KEEP,辅助功能按下动作将PinPreviewScene设为宿主窗口第一响应者并返回聚焦结果；无宿主窗口返回false，键盘随后在本场景内移动、缩放和操作控制条
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,becomeFirstResponder,func,94,KEEP,交互钉图场景取得原生键盘焦点时，在场景图层绘制 2pt 系统强调色描边并返回成功
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,resignFirstResponder,func,99,KEEP,钉图场景失去原生键盘焦点时将图层描边宽度归零，不改变图像外观草稿
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,keyDown,func,100,KEEP,方向键每次移动8pt，加减每次缩放5%并限55%…115%，0复位中心偏移和100%缩放；回车显示控制条，Escape隐藏控制条及气泡，其余键交NSView
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,update,func,118,KEEP,把PinAppearance原值交正式PinImageView绘制图像、阴影；降低透明度仅改变控制条底色，外观变化显示控制条并请求静态排版，更新接口不再接收reduceMotion
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,layout,func,136,KEEP,初始scale=1、offset=0时按场景中心定位图像，原点限制在对称8pt可见边界；仅offset非零且吸附开启时调用PinMagnet，图像和控制条直接同步设置frame，不启动自动位移或缩放
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,hitTest,func,163,KEEP,非交互预设缩略图不接鼠标；图像和状态行命中转给场景处理拖动，其余命中仍交给正式控制条
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,updateTrackingAreas,func,169,KEEP,交互场景建立跟随可见区域的进入、移动、离开追踪，非交互缩略图不建追踪区域
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,mouseEntered,func,178,KEEP,移入场景重新显示被模拟关闭的图像，并显示控制条与关闭按钮
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,mouseMoved,func,182,KEEP,鼠标在场景移动时复用 showChrome，保持控制条可见并刷新静止自动隐藏计时
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,mouseExited,func,183,KEEP,离开场景取消隐藏任务，隐藏控制条及关闭按钮并移除当前气泡
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,mouseDown,func,189,KEEP,点击将场景设为窗口第一响应者；双击复位为100%缩放，单击记录鼠标原点及当前offset供手动拖动，并显示控制条
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,mouseDragged,func,196,KEEP,按鼠标与 dragOrigin 的差值更新 offset，触发局部排版并反馈吸附是否启用，不移动真实窗口
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,scrollWheel,func,203,KEEP,滚轮按scrollingDeltaY/150调整本地scale并限制55%…115%，交setScale显示缩放反馈，不改变外观草稿
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,magnify,func,206,KEEP,捏合把magnification加到本地scale并限制55%…115%，复用setScale更新场景缩放
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,setScale,func,209,KEEP,更新本地 scale、请求排版、显示百分比并唤出控制条，草稿 PinAppearance 不改变
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,feedback,func,215,KEEP,将拖动、复制、标注、缩放和自动隐藏说明写入场景状态行
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,showBubble,func,216,KEEP,移除旧气泡后按 PinBubbleModel 创建正式 PinBubbleView 并请求排版，nil 表示关闭气泡
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,showChrome,func,222,KEEP,显示正式控制条及关闭按钮并替换 hideTask；chromeAutoHide>0 时到期收起，工具条悬停时保留，0 表示永不自动隐藏
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,stop,func,237,KEEP,取消控制条自动隐藏任务，移除图像图层动画及气泡，供场景关闭和SwiftUI卸载调用
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,viewDidMoveToWindow,func,242,KEEP,预览场景不再属于 window 时调用 stop，清理场景内计时及动画
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,init,init,46,KEEP,2026-11-19：设置预览与缩略样式实例调用；在本地场景接正式子视图回调，不触碰真实钉图、剪贴板或窗口
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,init,init,91,KEEP,2026-11-19：NSView coder构造必需覆写；预览只经init(interactive:)程序创建
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,accessibilityPerformPress,func,93,KEEP,2026-11-19：辅助功能Press派发；有window则请求场景第一响应者，window缺失返回false
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,becomeFirstResponder,func,94,KEEP,2026-11-19：AppKit第一响应者获取回调；图层加系统强调边框并成功
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,resignFirstResponder,func,99,KEEP,2026-11-19：AppKit失去第一响应者回调；仅清焦点边框
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,keyDown,func,100,KEEP,2026-11-19：第一响应者键盘事件派发；方向键移动、加减缩放、归零、显控制条或隐藏并清气泡，其余super
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,update,func,118,KEEP,2026-11-19：外观草稿onChange调用；同步正式PinImageView及工具栏透明偏好，外观变更时重显控制条并排版
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,layout,func,136,KEEP,2026-11-19：NSView布局派发；按可用区域限制尺寸，位置边界夹紧，仅偏移且magnet启用时调用正式吸附几何
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,hitTest,func,163,KEEP,2026-11-19：AppKit命中派发；只允许交互场景接收鼠标，图片和状态标签路由至场景拖动
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,updateTrackingAreas,func,169,KEEP,2026-11-19：AppKit布局/窗口显示派发；先移旧追踪区，交互模式仅建可视区覆盖追踪
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,mouseEntered,func,178,KEEP,2026-11-19：trackingArea进入调用；恢复图像显现并重启控制条显示时长
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,mouseMoved,func,182,KEEP,2026-11-19：trackingArea移动调用；重用showChrome延时隐藏逻辑
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,mouseExited,func,183,KEEP,2026-11-19：trackingArea离开调用；取消Task并立即隐藏工具和气泡
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,mouseDown,func,189,KEEP,2026-11-19：NSResponder鼠标按下派发；获取焦点，双击复位，仅单击记录起始点并显示工具
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,mouseDragged,func,196,KEEP,2026-11-19：AppKit拖动派发；基于起点增量更新offset并请求布局/反馈
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,scrollWheel,func,203,KEEP,2026-11-19：AppKit滚轮派发；deltaY换算缩放并限55%–115%
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,magnify,func,206,KEEP,2026-11-19：AppKit触控板放大事件派发；缩放增量限55%–115%
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,setScale,func,209,KEEP,2026-11-19：滚轮、magnify和工具条复位调用；只改演示scale，反馈后显示控制条
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,feedback,func,215,KEEP,2026-11-19：全部演示动作闭包调用；只更新本地状态标签
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,showBubble,func,216,KEEP,2026-11-19：按钮气泡闭包与窗口Esc调用；移除旧view后按可选模型重建正式PinBubbleView
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,showChrome,func,222,KEEP,2026-11-19：进入/移动/键盘及气泡调用；取消旧自动隐藏任务，偏好时长大于0才建MainActor Task，悬停保留工具条
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,stop,func,237,KEEP,2026-11-19：关闭演示按钮及移出窗口调用；取消Task、清图层动画与气泡
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,viewDidMoveToWindow,func,242,KEEP,2026-11-19：NSView窗口挂接变化派发；脱离window时调用stop释放计时器与场景动画
 Capture,Features/Capture/Pin/PinWindow.swift,PinStyle,sampledBorderColor,func,68,KEEP,PinWindow.swift:590 init 内调用
 Capture,Features/Capture/Pin/PinWindow.swift,PinAppearance,init,init,114,KEEP,PinAppearance.init建立单图外观值；PinImageView.init接收图像/尺寸/外观并一次取样描边色，正式PinnedScreenshotContentView继承它并挂控制条和鼠标追踪，预览使用同一图像基类
 Capture,Features/Capture/Pin/PinWindow.swift,PinAppearance,preset,func,141,KEEP,动作条四形态：经典/无边框/卡片/强调，数值与设置页预设一致，只影响这一张
@@ -1615,16 +1616,16 @@ Capture,Features/Capture/Screenshot/CaptureSettingsPane.swift,CaptureSettingsDra
 Capture,Features/Capture/Screenshot/CaptureSettingsPane.swift,CaptureSettingsDraft,restoreDefaults,func,112,KEEP,2026-11-19：编辑会话恢复默认调用；重置appearance草稿与空保存路径，待save提交
 Capture,Features/Capture/Screenshot/CaptureSettingsPane.swift,CaptureSettingsContent,row,func,406,KEEP,2026-11-19：截图/OCR/水印各设置区共用；构造92pt标题与内容行并按搜索目标字段高亮
 Capture,Features/Capture/Screenshot/CaptureSettingsPane.swift,CaptureSettingsContent,chooseDirectory,func,423,KEEP,2026-11-19：保存目录选择按钮调用；只允许选/新建目录，确认后改draft路径，持久化延后到save
-Capture,Features/Capture/Screenshot/ColorValuePanel.swift,ColorFormats,hex,func,15,KEEP,ColorValuePanel.swift:65 调用
-Capture,Features/Capture/Screenshot/ColorValuePanel.swift,ColorFormats,rgb,func,18,KEEP,ColorValuePanel.swift:66 调用
-Capture,Features/Capture/Screenshot/ColorValuePanel.swift,ColorFormats,hsb,func,21,KEEP,ColorValuePanel.swift:67 调用
-Capture,Features/Capture/Screenshot/ColorValuePanel.swift,ColorValueView,formatRow,func,105,KEEP,ColorValuePanel.swift:65-67 调用
-Capture,Features/Capture/Screenshot/ColorValuePanel.swift,ColorValuePanel,cancelOperation,func,137,KEEP,把 Escape 取消动作转发到色值面板关闭回调
-Capture,Features/Capture/Screenshot/ColorValuePanel.swift,ColorValuePanelController,init,init,144,KEEP,ColorValuePanel.swift:134 shared 构造
-Capture,Features/Capture/Screenshot/ColorValuePanel.swift,ColorValuePanelController,show,func,147,KEEP,Eyedropper.swift:317 手动取色后调用
-Capture,Features/Capture/Screenshot/ColorValuePanel.swift,ColorValuePanelController,windowDidResignKey,func,206,KEEP,色值窗失去键盘焦点后请求 TransientWindowCenter 收起
-Capture,Features/Capture/Screenshot/ColorValuePanel.swift,ColorValuePanelController,close,func,212,KEEP,":142 show 首行, :158 onClose, :188 外部点击"
-Capture,Features/Capture/Screenshot/ColorValuePanel.swift,Color,init,init,228,KEEP,ColorValuePanel.swift:81 Color(hexString:)
+Capture,Features/Capture/Screenshot/ColorValuePanel.swift,ColorFormats,hex,func,15,KEEP,2026-11-19：ColorValueView的HEX行调用；复用EyedropperView统一sRGB格式化
+Capture,Features/Capture/Screenshot/ColorValuePanel.swift,ColorFormats,rgb,func,18,KEEP,2026-11-19：ColorValueView的RGB行调用；输出0–255整数并复用Eyedropper实现
+Capture,Features/Capture/Screenshot/ColorValuePanel.swift,ColorFormats,hsb,func,21,KEEP,2026-11-19：HSB行调用；不可转换sRGB给零值，色相角和饱和/亮度百分数四舍五入
+Capture,Features/Capture/Screenshot/ColorValuePanel.swift,ColorValueView,formatRow,func,105,KEEP,2026-11-19：body三格式展示共用；点击回调仅传对应格式字符串
+Capture,Features/Capture/Screenshot/ColorValuePanel.swift,ColorValuePanel,cancelOperation,func,137,KEEP,2026-11-19：ColorValuePanel的Esc系统取消派发；转onClose
+Capture,Features/Capture/Screenshot/ColorValuePanel.swift,ColorValuePanelController,init,init,144,KEEP,2026-11-19：shared唯一构造
+Capture,Features/Capture/Screenshot/ColorValuePanel.swift,ColorValuePanelController,show,func,147,KEEP,2026-11-19：Eyedropper选色回调调用；先收旧窗，再根据指定点或鼠标创建色值host及复制闭包
+Capture,Features/Capture/Screenshot/ColorValuePanel.swift,ColorValuePanelController,windowDidResignKey,func,206,KEEP,2026-11-19：panel变非key时NSWindowDelegate派发；向TransientWindowCenter请求收起
+Capture,Features/Capture/Screenshot/ColorValuePanel.swift,ColorValuePanelController,close,func,212,KEEP,2026-11-19：show开头、外部关闭与视图关闭共用；先清controller引用再播放缩回动画，结束下屏并注销瞬态窗
+Capture,Features/Capture/Screenshot/ColorValuePanel.swift,Color,init,init,228,KEEP,2026-11-19：ColorValueView近期色块调用；trim/去#后严格解析6位十六进制，非法值显灰色
 Capture,Features/Capture/Screenshot/DelayedCaptureHUD.swift,DelayedCaptureController,init,init,19,KEEP,2026-11-19：shared唯一构造；集中持有倒计时窗、Timer、按键监视器和秒数
 Capture,Features/Capture/Screenshot/DelayedCaptureHUD.swift,DelayedCaptureController,start,func,22,KEEP,2026-11-19：ScreenshotManager与CaptureHistoryView入口调用；先取消旧倒计时，再按秒建HUD/键监视器/主RunLoop Timer
 Capture,Features/Capture/Screenshot/DelayedCaptureHUD.swift,DelayedCaptureController,cancel,func,52,KEEP,2026-11-19：start重入及DeleteKeyMonitor取消回调调用；失效Timer、释放监视器并关闭HUD，可选Toast
@@ -1728,41 +1729,41 @@ Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,pi
 Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureLongScreenshot,func,1307,KEEP,AppBootstrap:372 / CaptureModule:187
 Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,annotate,func,1314,KEEP,"CaptureSectionView.swift:197,251 调用"
 Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,annotateLatest,func,1320,KEEP,CaptureModule:188 / CaptureSectionView:250
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,DeleteKeyMonitor,init,init,14,KEEP,ScreenshotOverlay.swift:217、DelayedCaptureHUD.swift:32 构造
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,DeleteKeyMonitor,deinit,deinit,22,KEEP,ARC 释放即执行；L23 removeMonitor，缺它监视器泄漏
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotMagnifierView,draw,func,39,KEEP,NSView 绘制覆写；L87 addSubview(magnifierView) 由 AppKit 调
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotMagnifierContainerView,init,init,76,KEEP,ScreenshotOverlay.swift:158 构造私有常量 magnifier
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotMagnifierContainerView,init,init,90,KEEP,NSView 必需 required init(coder:)，删则编译失败；无 nib 不调
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotMagnifierContainerView,layout,func,92,KEEP,NSView 布局回调；wantsLayer L78 触发，L94 摆放子视图
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotMagnifierContainerView,follow,func,98,KEEP,ScreenshotOverlay.swift:271 拖拽 / L295 移动时定位放大镜
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,snapshotWindowHits,func,214,KEEP,init L216 调用，填充 windowHits（窗口模式命中表）
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,viewRect,func,238,KEEP,L280/310/317/376/497 五处复用：全局矩形转视图坐标
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,init,init,242,KEEP,ScreenshotOverlayWindow L587 唯一构造点；建监视器与窗口表
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,commitMultiWindows,func,262,KEEP,按用户勾选顺序生成窗口矩形列表并提交给 ScreenshotManager
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,init,init,269,KEEP,NSView 必需 required init(coder:)，删则编译失败；无 nib 不调
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,acceptsFirstMouse,func,278,KEEP,首击即生效：App 未激活时 AppKit 会吞掉激活点击，覆盖层必须返回 true，否则要点第二次
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,mouseDown,func,289,KEEP,NSView 事件覆写；L597 ignoresMouseEvents=false 由 AppKit 派发
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,toggleMultiSelection,func,307,KEEP,按 windowID 添加或移除窗口，并重绘已选状态
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,mouseDragged,func,316,KEEP,NSView 事件覆写；拖拽由窗口 L598 命中派发到本视图
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,constrained,func,345,KEEP,优先应用已设定比例，否则按住 Shift 生成正方形选区
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,mouseMoved,func,357,KEEP,L598 acceptsMouseMovedEvents=true → 移动事件真实到达
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,flagsChanged,func,375,KEEP,NSResponder 覆写；L238 acceptsFirstResponder 使其成为第一响应者
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,mouseUp,func,380,KEEP,NSView 事件覆写；提交走 onCommit（ScreenshotManager:546）
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,windowRect,func,442,KEEP,光标所在窗口的视图矩形，供拖框吸附丢弃「整窗大小」的 AX 命中（否则一拉就吸回整窗）
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,refreshSnap,func,453,KEEP,L266 拖拽 / L293 悬停调用，90ms 节流查 ElementSnapEngine
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,snappedPoint,func,470,KEEP,L267 拖拽时对 currentPoint 做 8pt 边缘吸附
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,elementHit,func,482,KEEP,L285 窗口模式 / L356 吸附共用，转调 ElementSnapEngine.snap
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,draw,func,491,KEEP,NSView 绘制覆写；needsDisplay 见 L229/258/269/287/302
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawSnapHighlight,func,546,KEEP,draw L427（region+snapActive+snapHighlight）调用
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawElementHighlight,func,570,KEEP,draw L415 窗口模式命中 AX 元素时调用
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawWindowMultiHint,func,594,KEEP,展示已选窗口数、回车提交、Command 点选增删与 Escape 取消提示
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawHint,func,599,KEEP,顶部居中绘制截图说明，并附当前截图快捷键对应的近期复制提示
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawWindowSelection,func,619,KEEP,给已选窗口绘制强调色蒙层、描边和顺序编号
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawWindowHighlight,func,643,KEEP,draw L412 窗口模式 hover 命中窗口时调用
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawHandles,func,675,KEEP,draw L404 存在选区时绘制四角把手
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawSizeLabel,func,686,KEEP,draw L405 存在选区时绘制 W×H 像素标签
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawCrosshair,func,720,KEEP,draw L424 currentPoint 非空时绘制十字准星
-Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayWindow,init,init,740,KEEP,ScreenshotManager:545/711、LongScreenshotCoordinator:146 构造
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,DeleteKeyMonitor,init,init,14,KEEP,2026-11-19：每个截图覆盖层创建；本地键盘/右键监视器弱捕获视图并消费onCancel返回true的事件，防窗口失焦漏Esc
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,DeleteKeyMonitor,deinit,deinit,22,KEEP,2026-11-19：监视器所有者销毁时移除NSEvent本地监视器token，避免延续到下一次截图
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotMagnifierView,draw,func,39,KEEP,2026-11-19：AppKit按dirtyRect绘制覆写；清底后裁切快照采样区，夹十字准线并留边空白
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotMagnifierContainerView,init,init,76,KEEP,2026-11-19：ScreenshotOverlayView构造唯一创建；设置图层连续圆角/描边/阴影并加入放大镜子视图
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotMagnifierContainerView,init,init,90,KEEP,2026-11-19：NSView必需coder构造覆写且fatalError；覆盖层程序化装配
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotMagnifierContainerView,layout,func,92,KEEP,2026-11-19：AppKit布局回调按外框bounds inset定位放大镜子视图
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotMagnifierContainerView,follow,func,98,KEEP,2026-11-19：拖拽更新放大镜调用；快照像素和视图比例换算采样点，边缘时翻侧并夹在视口内
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,snapshotWindowHits,func,214,KEEP,2026-11-19：ScreenshotOverlayView.init调用一次；CGWindowList只取屏幕可见非本进程普通层窗并换成Cocoa全局坐标
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,viewRect,func,238,KEEP,2026-11-19：窗口命中、拖拽吸附、窗口提交与绘制均复用；NSWindow屏幕坐标转此视图局部矩形
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,init,init,242,KEEP,2026-11-19：ScreenshotOverlayWindow构造调用；生成图窗快照、建监视器和缓存窗口命中，回调边界留给管理器
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,commitMultiWindows,func,262,KEEP,2026-11-19：Return键与多选窗口单击调用；按勾选顺序转视图坐标，先清多选状态再发布commit闭包
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,init,init,269,KEEP,2026-11-19：NSView必需coder构造不可用且fatalError，窗口全用init程序构造
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,acceptsFirstMouse,func,278,KEEP,2026-11-19：AppKit首鼠标判断；允许非key覆盖层首次点击直接进入截图交互
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,mouseDown,func,289,KEEP,2026-11-19：AppKit按下派发；Command窗口点选优先，否则记录窗口高亮及鼠标起点并控制放大镜
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,toggleMultiSelection,func,307,KEEP,2026-11-19：Command点窗口调用；以CGWindowID切换多选列表并请求重绘
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,mouseDragged,func,316,KEEP,2026-11-19：AppKit拖动派发；4pt死区后转自定义区域，取消窗口意图、节流元素吸附、应用比例/Shift约束并更新放大镜
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,constrained,func,345,KEEP,2026-11-19：拖动提交和move事件共用；用户锁比例优先，未锁时Shift按正方形算点
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,mouseMoved,func,357,KEEP,2026-11-19：仅无拖动状态接收窗口移动；以缓存命中窗和节流AX命中刷新高亮，放大镜隐藏
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,flagsChanged,func,375,KEEP,2026-11-19：modifierFlags变化AppKit派发；拖动中请求重绘以即时呈现修饰键效果
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,mouseUp,func,380,KEEP,2026-11-19：鼠标抬起判决拖框/Command抑制/多选/窗口/桌面；defer总清状态，非法小框走取消
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,windowRect,func,442,KEEP,2026-11-19：拖动开始refreshSnap调用；当前鼠标窗矩形用于排除整窗级AX回退框
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,refreshSnap,func,453,KEEP,2026-11-19：拖动中mouseDragged节流调用；Option关闭时清吸附框，90ms以内复用上次命中，排除整窗包围命中
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,snappedPoint,func,470,KEEP,2026-11-19：mouseDragged在锁定比例之前调用；仅吸附开关开启且8pt内时按边缘对齐
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,elementHit,func,482,KEEP,2026-11-19：窗口hover和区域吸附共用；屏幕坐标经ElementSnapEngine取命中再转本视图坐标
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,draw,func,491,KEEP,2026-11-19：AppKit脏区绘制派发；拖动区只压暗区外四矩形，非拖动绘多选/窗/元素/十字/提示
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawSnapHighlight,func,546,KEEP,2026-11-19：draw区域模式显示元素吸附命中时调用；绘制橙色填充、边框和裁边标签
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawElementHighlight,func,570,KEEP,2026-11-19：draw存在AX窗口元素高亮时调用；绘制黄虚线框和下方标签
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawWindowMultiHint,func,594,KEEP,2026-11-19：多选数组非空的draw分支调用；说明数量及回车提交、Command增删、Esc取消
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawHint,func,599,KEEP,2026-11-19：非多选draw分支调用；组合交互提示和最近剪贴板信息并按宽度居中
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawWindowSelection,func,619,KEEP,2026-11-19：draw先于hover高亮显示多选数组；窗口区域染色并标顺序号
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawWindowHighlight,func,643,KEEP,2026-11-19：draw窗口hover分支调用；裁至bounds后画提亮框和可选窗口名
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawHandles,func,675,KEEP,2026-11-19：draw自定义选区分支调用；四角显示固定5pt控制点
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawSizeLabel,func,686,KEEP,2026-11-19：draw自定义选区分支调用；backingScale换算像素并加入锁比例标签，边缘内翻
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayView,drawCrosshair,func,720,KEEP,2026-11-19：draw鼠标点非空分支调用；在全屏画横纵双色细线
+Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotOverlayWindow,init,init,740,KEEP,2026-11-19：ScreenshotManager、长截图协调器及录屏选区器按屏创建；screenSaver级key窗口接mouseMoved，注入该屏快照并由View回调提交或取消
 Capture,Features/Capture/Workflow/CaptureWorkflow.swift,WorkflowStep,init,init,49,KEEP,2026-11-19：七类步骤共用kind及a/b参数，id独立生成；fieldTitles仅为上传和Issue步骤暴露配置项
 Capture,Features/Capture/Workflow/CaptureWorkflow.swift,CaptureWorkflow,init,init,62,KEEP,2026-11-19：设置草稿与JSON解码构造名称、启用态和有序步骤；新建默认禁用
 Capture,Features/Capture/Workflow/CaptureWorkflow.swift,WorkflowStore,load,func,77,KEEP,2026-11-19：WorkflowSettingsDraft初始化/取消与截图回调读取workflows/workflows.json；读取或解码失败统一返回禁用示例

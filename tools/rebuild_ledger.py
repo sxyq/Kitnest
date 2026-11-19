@@ -588,6 +588,8 @@ EVIDENCE.update({
 
 # ── 使用手册：文章分类与预设演示 ───────────────────────────────
 EVIDENCE.update({
+    ("Features/Capture/OCR/ScreenshotOCRWindow.swift", "setSourceImage"):
+        "2026-11-19：show复用结果窗且截图变化时调用，更新现有SourceNSScrollView的原图，使左侧图片与重新识别输入一致",
     ("Features/Manual/ManualDemoSamples.swift", "example"):
         "按功能标题提供固定示例输入和结果；没有专属示例时直接使用该篇操作步骤，不读取用户资料",
     ("Features/Manual/ManualDemoView.swift", "advance"):
