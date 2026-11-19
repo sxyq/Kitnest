@@ -79,7 +79,7 @@ public struct CodePreviewView: View {
 
     /// 影响高亮结果的输入组合。值一变就必须重新着色（见 body 里的 onChange）。
     private var renderKey: String {
-        "\(themeID)|\(fontSize)|\(languageID)|\(showsLineNumbers)"
+        "\(themeID)|\(fontSize)|\(languageID)"
     }
 
     private var options: CodeRenderOptions {
@@ -113,6 +113,7 @@ public struct CodePreviewView: View {
         }
         .task(id: renderKey) { await rebuild() }
         .onChange(of: renderKey) { _ in persist() }
+        .onChange(of: showsLineNumbers) { _ in persist() }
         .onChange(of: wraps) { _ in persist() }
     }
 
@@ -342,8 +343,9 @@ public struct CodePreviewView: View {
     // MARK: 状态条
 
     private var statusBar: some View {
-        HStack(spacing: Theme.Space.sm) {
-            Text("\(statistics.lines) 行 · \(statistics.characters) 字符")
+        let count = statistics
+        return HStack(spacing: Theme.Space.sm) {
+            Text("\(count.lines) 行 · \(count.characters) 字符")
             Text("·")
             Text(CodeLanguageCatalog.displayName(resolvedLanguage))
             if languageID == "auto" { Text("（自动识别）") }
