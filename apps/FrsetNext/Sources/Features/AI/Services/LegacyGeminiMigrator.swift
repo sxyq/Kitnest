@@ -87,6 +87,10 @@ public final class LegacyGeminiMigrator {
         if !credentials.hasCredential(for: .gemini),
            let key = firstValue(Self.legacyAPIKeyKeys) {
             credentials.setCredential(key, for: .gemini)
+            if let reason = credentials.lastWriteError {
+                Log.error("AI", "旧版 Gemini 凭证迁移失败：\(reason)")
+                return false
+            }
             moved = true
             Log.info("AI", "已迁移旧版 Gemini 凭证")
         }
