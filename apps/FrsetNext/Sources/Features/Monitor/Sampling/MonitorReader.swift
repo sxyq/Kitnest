@@ -130,9 +130,11 @@ public final class MonitorReader {
     ///   - swapUsed: 当前采样帧的交换空间用量。
     public func readResult(needFull: Bool = true, sensors: [StatsSensorItem], swapUsed: UInt64) -> MonitorReadResult {
         var sample = MonitorSample()
+        let memory = readMemory(swapUsed: swapUsed)
+        sample.memoryPressure = memory.pressure
+        sample.swapUsed = memory.swapUsed
 
         // —— 以下 5 组会被 g_snap 覆盖：仅 needFull 时才采 ——
-        var memory = MemoryReading()
         if needFull {
             let cpu = readCPU()
             sample.cpuUsage = cpu.usage
@@ -141,11 +143,8 @@ public final class MonitorReader {
             sample.idleCPU = cpu.idle
             sample.perCore = cpu.perCore
 
-            memory = readMemory(swapUsed: swapUsed)
             sample.memoryUsed = memory.used
             sample.memoryTotal = memory.total
-            sample.memoryPressure = memory.pressure
-            sample.swapUsed = memory.swapUsed
 
             let network = readNetworkRate()
             sample.netUpload = network.upload
@@ -156,11 +155,6 @@ public final class MonitorReader {
             sample.diskWrite = disk.written
 
             sample.batteryLevel = readBatteryLevel()
-        } else {
-            // 只取 g_snap 不覆盖的内存侧字段（压力/交换/压缩）
-            memory = readMemory(swapUsed: swapUsed)
-            sample.memoryPressure = memory.pressure
-            sample.swapUsed = memory.swapUsed
         }
 
         // —— 以下 g_snap 不提供，恒采 ——
@@ -168,11 +162,6 @@ public final class MonitorReader {
         readPower(into: &sample)
 
         return MonitorReadResult(sample: sample, compressedMemory: memory.compressed)
-    }
-
-    /// 平均负载（1/5/15 分钟）
-    func loadAverages() -> [Double] {
-        readLoadAverages()
     }
 
     // MARK: - CPU
@@ -270,7 +259,8 @@ public final class MonitorReader {
         return result
     }
 
-    private func readLoadAverages() -> [Double] {
+    /// 平均负载（1/5/15 分钟）
+    func loadAverages() -> [Double] {
         var values = [Double](repeating: 0, count: 3)
         let count = values.withUnsafeMutableBufferPointer { buffer in
             getloadavg(buffer.baseAddress, Int32(buffer.count))
