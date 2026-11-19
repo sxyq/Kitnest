@@ -3811,12 +3811,12 @@ TransferDock,Features/TransferDock/Android/AdbBonjour.swift,AdbBonjour,netServic
 TransferDock,Features/TransferDock/Android/AdbBonjour.swift,AdbBonjour,netServiceDidResolveAddress,func,97,KEEP,2026-11-19：NetServiceDelegate解析回调；只接纳本轮pending服务；取IPv4及端口并按类型名称地址去重；结束解绑代理
 TransferDock,Features/TransferDock/Android/AdbBonjour.swift,AdbBonjour,netService,func,114,KEEP,2026-11-19：NetServiceDelegate的didNotResolve回调；解绑服务代理并从pending移除当前项
 TransferDock,Features/TransferDock/Android/AdbBonjour.swift,AdbBonjour,ipv4String,func,120,KEEP,AdbBonjour.swift:90 解析地址
-TransferDock,Features/TransferDock/Android/AdbCastMemory.swift,AdbCastMemory,init,init,53,KEEP,AdbCastMemory.swift:47 shared 单例构造
-TransferDock,Features/TransferDock/Android/AdbCastMemory.swift,AdbCastMemory,candidates,func,66,KEEP,AdbQrPairing.swift:357 重连候选
-TransferDock,Features/TransferDock/Android/AdbCastMemory.swift,AdbCastMemory,remember,func,86,KEEP,AdbQrPairing.swift:401 连接成功记忆
-TransferDock,Features/TransferDock/Android/AdbCastMemory.swift,AdbCastMemory,split,func,112,KEEP,AdbCastMemory.swift:87 解析 serial
-TransferDock,Features/TransferDock/Android/AdbCastMemory.swift,AdbCastMemory,load,func,118,KEEP,"AdbCastMemory.swift:60,89,112"
-TransferDock,Features/TransferDock/Android/AdbCastMemory.swift,AdbCastMemory,save,func,126,KEEP,"AdbCastMemory.swift:107,116 落盘"
+TransferDock,Features/TransferDock/Android/AdbCastMemory.swift,AdbCastMemory,init,init,53,KEEP,2026-11-20：shared唯一创建；使用原frset.cast.devices.v1键及NSLock缓存；首次读取devices才load
+TransferDock,Features/TransferDock/Android/AdbCastMemory.swift,AdbCastMemory,candidates,func,66,KEEP,2026-11-20：AdbQrPairing.tryCandidates使用；排除空host并按5555固定端口优先及lastSeen倒序取最多3项；与lastDevice最近使用展示分开
+TransferDock,Features/TransferDock/Android/AdbCastMemory.swift,AdbCastMemory,remember,func,86,KEEP,2026-11-20：配对succeed在设备确实连接后调用；锁内按host合并端口和名称并累加成功次数，保留最近8台后更新缓存；锁外写UserDefaults，当前调用主线程串行
+TransferDock,Features/TransferDock/Android/AdbCastMemory.swift,AdbCastMemory,split,func,112,KEEP,2026-11-20：remember唯一消费；按当前IPv4加端口格式拆前两段且要求非空host；QR与Bonjour现有入口均选IPv4
+TransferDock,Features/TransferDock/Android/AdbCastMemory.swift,AdbCastMemory,load,func,118,KEEP,2026-11-20：devices首次读取与remember缓存未建立时共用；从UserDefaults读取原Codable数组；缺失或不可解码按原空列表
+TransferDock,Features/TransferDock/Android/AdbCastMemory.swift,AdbCastMemory,save,func,126,KEEP,2026-11-20：remember完成合并后唯一调用；沿原JSONEncoder写入同一偏好键，不另建文件或设备列表
 TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,init,init,132,KEEP,AdbQrPairing.swift:48 shared 单例
 TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,regenerate,func,144,KEEP,AdbQrPairing.swift:207 restart 换凭证
 TransferDock,Features/TransferDock/Android/AdbQrPairing.swift,AdbQrPairing,deinit,deinit,149,KEEP,单例释放时 invalidate timer
@@ -3862,29 +3862,26 @@ TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibrar
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryView,tile,func,112,KEEP,CastAppLibraryWindow.swift:98 tile(app)
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryView,open,func,140,KEEP,2026-11-20：应用磁贴Button动作；调用唯一后台startAppWindow，主线程成功回调才记录使用次数；失败不记使用
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryView,reload,func,146,KEEP,CastAppLibraryWindow.swift:109 onAppear
-TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,init,init,34,KEEP,CastControlBar.swift:19 shared
-TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,attach,func,39,KEEP,TransferCastEngines.swift:344 投屏启动后挂载
-TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,attachIfScrcpyRunning,func,51,KEEP,CastView.swift:109 页面重建补挂
-TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,isAttached,func,78,KEEP,通过进程 PID 判断 scrcpy 控制条是否附着到当前投屏窗口
-TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,detach,func,81,KEEP,TransferCastEngines.swift:332；CastControlBar.swift:99
-TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,startTracking,func,92,KEEP,CastControlBar.swift:45
-TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,tick,func,101,KEEP,Timer 闭包 CastControlBar.swift:84
-TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,isCastOwner,func,138,KEEP,CastControlBar.swift:147 窗口筛选
-TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,scrcpyWindow,func,149,KEEP,"CastControlBar.swift:53,92"
-TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,barFrame,func,180,KEEP,CastControlBar.swift:111
-TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,makePanel,func,194,KEEP,CastControlBar.swift:110
-TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,sendKey,func,215,KEEP,CastControlBar.swift:198 按钮回调闭包
-TransferDock,Features/TransferDock/Cast/CastControlBar.swift,CastControlBarView,init,init,248,KEEP,CastControlBar.swift:197 构造视图
-TransferDock,Features/TransferDock/Cast/CastControlBar.swift,CastControlBarView,init,init,276,KEEP,NSView 必需 required init?(coder:)
-TransferDock,Features/TransferDock/Cast/CastControlBar.swift,CastControlBarView,layout,func,278,KEEP,覆写 NSView.layout()，AppKit 布局时派发
-TransferDock,Features/TransferDock/Cast/CastControlBar.swift,CastControlBarView,tapped,func,289,KEEP,@objc + #selector，CastControlBar.swift:252
-TransferDock,Features/TransferDock/Cast/CastScreenKeeper.swift,CastScreenKeeper,init,init,23,KEEP,CastScreenKeeper.swift:16 shared
-TransferDock,Features/TransferDock/Cast/CastScreenKeeper.swift,CastScreenKeeper,start,func,25,KEEP,TransferCastEngines.swift:346
-TransferDock,Features/TransferDock/Cast/CastScreenKeeper.swift,CastScreenKeeper,stop,func,40,KEEP,TransferCastEngines.swift:331 退出
-TransferDock,Features/TransferDock/Cast/CastScreenKeeper.swift,CastScreenKeeper,tick,func,48,KEEP,Timer 闭包 CastScreenKeeper.swift:33
-TransferDock,Features/TransferDock/Cast/CastScreenKeeper.swift,CastScreenKeeper,wakefulness,func,69,KEEP,CastScreenKeeper.swift:52
-TransferDock,Features/TransferDock/Cast/CastScreenKeeper.swift,CastScreenKeeper,sendWake,func,78,KEEP,CastScreenKeeper.swift:64
-TransferDock,Features/TransferDock/Cast/CastScreenKeeper.swift,CastScreenKeeper,run,func,84,KEEP,"CastScreenKeeper.swift:70,80"
+TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,init,init,34,KEEP,2026-11-20：shared唯一构造；panel和timer及serial和PID按挂载会话持有
+TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,attach,func,39,KEEP,2026-11-20：ScreenCastEngine启动进程后调用；回主线程写目标serial和PID并开始跟踪及立即定位；异步attach与快速进程退出的次序仍待真机
+TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,attachIfScrcpyRunning,func,51,KEEP,2026-11-20：投屏页onAppear调用；现有PID存活则恢复跟踪；否则后台ps读取实际窗口进程的--serial再挂载；旧PID死亡但尚非nil可能影响补挂待后续
+TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,isAttached,func,78,KEEP,2026-11-20：ScreenCastEngine进程结束回调使用；只让当前挂载进程结束时停止锁屏保持和控制条，其他进程退出不误拆
+TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,detach,func,81,KEEP,2026-11-20：当前投屏进程退出或tick发现已死亡调用；停表隐藏释放panel并清serial和PID
+TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,startTracking,func,92,KEEP,2026-11-20：attach及页面补挂调用；复用已有timer且每0.35秒在common模式调用tick并包autoreleasepool
+TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,tick,func,101,KEEP,2026-11-20：只找已挂载PID的投屏窗；无窗隐藏但进程存活继续跟踪；定位后按外窗编号置于其上；鼠标附近透明度1否则0.62且变化才动画
+TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,isCastOwner,func,138,KEEP,2026-11-20：scrcpyWindow筛选共用；识别当前Kitnest投屏名及实际旧scrcpy进程名
+TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,scrcpyWindow,func,149,KEEP,2026-11-20：补挂和tick调用；枚举CG窗口按owner及普通层级和透明度及最小尺寸和在屏状态过滤；有指定PID则精确匹配并取最大窗口
+TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,barFrame,func,180,KEEP,2026-11-20：tick定位共用；CG坐标用主显示屏maxY转换Cocoa逻辑点；按与窗口最大相交面积选屏；宽160至176高38置窗下6pt并限制该屏visibleFrame内4pt
+TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,makePanel,func,198,KEEP,2026-11-20：tick首次有投屏窗口时创建唯一非激活panel；普通层级按外窗编号排序；保留原跨Space行为并以按钮回调sendKey
+TransferDock,Features/TransferDock/Cast/CastControlBar.swift,ScrcpyControlBarController,sendKey,func,219,KEEP,2026-11-20：控制条按钮回调；保留缺ADB提示后把已绑定serial和keycode交统一ADBExtrasEngine.run；失败按真实退出码写原日志，不再创建未读取pipe
+TransferDock,Features/TransferDock/Cast/CastControlBar.swift,CastControlBarView,init,init,241,KEEP,2026-11-20：makePanel唯一创建；按3个正式Android导航码构造无边框按钮和辅助功能提示；黑色0.55背景与0.12边线
+TransferDock,Features/TransferDock/Cast/CastControlBar.swift,CastControlBarView,init,init,269,KEEP,2026-11-20：NSView必需coder初始化声明；本视图只由makePanel代码构造，保留原不支持归档恢复语义
+TransferDock,Features/TransferDock/Cast/CastControlBar.swift,CastControlBarView,layout,func,271,KEEP,2026-11-20：AppKit布局回调；3键各44×28且间隔6pt，在原panel内居中排列
+TransferDock,Features/TransferDock/Cast/CastControlBar.swift,CastControlBarView,tapped,func,282,KEEP,2026-11-20：NSButton的target-action正式入口；把sender.tag转Android keycode交makePanel注入的sendKey闭包
+TransferDock,Features/TransferDock/Cast/CastScreenKeeper.swift,CastScreenKeeper,init,init,25,KEEP,2026-11-20：shared唯一创建；不启动timer，投屏进程成功启动后才start
+TransferDock,Features/TransferDock/Cast/CastScreenKeeper.swift,CastScreenKeeper,start,func,27,KEEP,2026-11-20：ScreenCastEngine启动后调用；立即增generation作废旧会话，主线程异步初始化也匹配代次；重建原3秒common模式timer并清休眠状态
+TransferDock,Features/TransferDock/Cast/CastScreenKeeper.swift,CastScreenKeeper,stop,func,46,KEEP,2026-11-20：ScreenCastEngine当前挂载进程结束的主线程回调调用；立即增代次停表清serial与busy；迟到查询不再唤醒旧设备
+TransferDock,Features/TransferDock/Cast/CastScreenKeeper.swift,CastScreenKeeper,tick,func,54,KEEP,2026-11-20：3秒timer调用；busy跨越查询和唤醒仅允许单请求；两命令复用ADBExtrasEngine.run并设6秒超时；主线程回调先验generation再更新状态；原30秒及每次休眠一次规则保留
 TransferDock,Features/TransferDock/Cast/CastView.swift,CastContent,init,init,65,KEEP,CastContent 接收可选二维码配对与面板选择服务；正式宿主注入服务并读取剪贴板同步偏好，固定预览不取得ADB配对单例
 TransferDock,Features/TransferDock/Cast/CastView.swift,CastContent,qrButton,func,424,KEEP,扫码连接入口只设置 showQrPair；正式页在hero锚点打开配对弹层，设置预览在当前场景内覆盖固定二维码
 TransferDock,Features/TransferDock/Cast/CastView.swift,CastContent,deviceCard,func,457,KEEP,按设备serial和连接state展示图标、状态及投屏/重新授权操作，所有开始投屏动作复用 startMirror
