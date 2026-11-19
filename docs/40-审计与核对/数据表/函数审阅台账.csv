@@ -2364,7 +2364,7 @@ Island,Features/Island/IslandWidgetGrid.swift,IslandWidgetGrid,end,func,187,KEEP
 Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,settle,func,343,KEEP,释放后接续当前卡片的实际位置与宽高，以 0.24 秒可中断弹性过渡吸附；减少动态效果下直接落定
 Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,adjustSize,func,349,KEEP,编辑态方向键和辅助功能共用尺寸调整；候选来自实际可见画布，正常态不挂载此入口
 Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,distance,func,363,KEEP,以行列归一化距离选择现有五档尺寸，并留 0.12 距离差避免边界附近反复切换
-Manual,Features/Manual/ManualDemoSamples.swift,ManualDemoSamples,example,func,58,KEEP,按功能标题提供固定示例输入和结果；没有专属示例时直接使用该篇操作步骤，不读取用户资料
+Manual,Features/Manual/ManualDemoSamples.swift,ManualDemoSamples,example,func,61,KEEP,按功能标题提供固定示例输入和结果；没有专属示例时直接使用该篇操作步骤，不读取用户资料
 Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,advance,func,94,KEEP,切换到指定操作步骤并同步演示卡片、当前预览和示例阶段；减少动态效果时不播放过渡动画
 Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,preset,func,110,KEEP,呈现用途、操作和结果三种预设演示入口；点击时停止自动播放并切换到对应步骤
 Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,samplePanel,func,203,KEEP,在演示舞台中显示固定的输入或结果示例，供用户对照实际操作
@@ -2376,15 +2376,16 @@ Manual,Features/Manual/ManualDocument.swift,ManualDocument,displayCategory,func,
 Manual,Features/Manual/ManualDocument.swift,ManualDocument,parse,func,139,KEEP,load:117 调用
 Manual,Features/Manual/ManualDocument.swift,ManualDocument,parseBlocks,func,164,KEEP,parse 内 flush:130 调用
 Manual,Features/Manual/ManualDocument.swift,ManualDocument,firstRange,func,243,KEEP,parseBlocks:286/290 有序列表调用
-Manual,Features/Manual/ManualView.swift,ManualPaneView,init,init,12,KEEP,SettingsRootView.swift:138 ManualPaneView() 构造
-Manual,Features/Manual/ManualView.swift,ManualPaneView,breadcrumb,func,143,KEEP,detail 视图 :119 调用
-Manual,Features/Manual/ManualView.swift,ManualPaneView,sectionLinks,func,162,KEEP,detail 视图 :125 调用
-Manual,Features/Manual/ManualView.swift,ManualPaneView,navFooter,func,174,KEEP,detail 视图 :136 调用
-Manual,Features/Manual/ManualView.swift,ManualPaneView,ancestorPath,func,201,KEEP,breadcrumb:151 调用
-Manual,Features/Manual/ManualView.swift,ManualPaneView,parent,func,211,KEEP,ancestorPath:221 调用
-Manual,Features/Manual/ManualView.swift,ManualDisclosureStyle,makeBody,func,322,KEEP,DisclosureGroupStyle 协议；:309 disclosureGroupStyle 派发
-Manual,Features/Manual/ManualView.swift,ManualBlockView,inline,func,438,KEEP,ManualBlockView.body :403/413/430/442 调用
-Manual,Features/Manual/ManualView.swift,-,inlineMarkdown,func,442,KEEP,v245 新增：ManualBlockView.inline 与 ManualTableView.inlineCell 合并后的唯一实现，两处调用
+Manual,Features/Manual/ManualView.swift,ManualPaneView,init,init,17,KEEP,SettingsRootView.swift:138 ManualPaneView() 构造
+Manual,Features/Manual/ManualView.swift,ManualPaneView,quickStartCard,func,183,KEEP,把查找剪贴板、截图识字、手机传文件和多屏设置四个常见任务连到各自的完整指南
+Manual,Features/Manual/ManualView.swift,ManualPaneView,breadcrumb,func,198,KEEP,detail 视图 :119 调用
+Manual,Features/Manual/ManualView.swift,ManualPaneView,sectionLinks,func,217,KEEP,detail 视图 :125 调用
+Manual,Features/Manual/ManualView.swift,ManualPaneView,navFooter,func,229,KEEP,detail 视图 :136 调用
+Manual,Features/Manual/ManualView.swift,ManualPaneView,ancestorPath,func,256,KEEP,breadcrumb:151 调用
+Manual,Features/Manual/ManualView.swift,ManualPaneView,parent,func,266,KEEP,ancestorPath:221 调用
+Manual,Features/Manual/ManualView.swift,ManualDisclosureStyle,makeBody,func,382,KEEP,DisclosureGroupStyle 协议；:309 disclosureGroupStyle 派发
+Manual,Features/Manual/ManualView.swift,ManualBlockView,inline,func,498,KEEP,ManualBlockView.body :403/413/430/442 调用
+Manual,Features/Manual/ManualView.swift,-,inlineMarkdown,func,502,KEEP,v245 新增：ManualBlockView.inline 与 ManualTableView.inlineCell 合并后的唯一实现，两处调用
 Monitor,Features/Monitor/BatteryEnergy.swift,StatsEnergyItem,init,init,32,KEEP,构造于 BatteryEnergy.swift:133 tick 内建行，全仓唯一构造点
 Monitor,Features/Monitor/BatteryEnergy.swift,BatteryEnergySampler,init,init,68,KEEP,私有 init，仅 shared 单例 BatteryEnergy.swift:44 调用
 Monitor,Features/Monitor/BatteryEnergy.swift,BatteryEnergySampler,start,func,72,KEEP,onAppear :240；CPUEnergyImpactSection 在 MonitorDetailView:212
