@@ -54,8 +54,8 @@ public enum ADBExtrasEngine {
         serialLock.unlock()
     }
 
-    /// 同步解析目标设备（后台队列里调用）：优先 USB，其次第一条 device
-    private static func resolveSerialSync(_ adb: String) -> String? {
+    /// 同步解析目标设备（后台队列里调用）：优先无线，其次第一条 device。
+    static func resolveSerialSync(_ adb: String) -> String? {
         if let cached = activeSerial { return cached }
         let task = Process()
         task.executableURL = URL(fileURLWithPath: adb)
@@ -64,8 +64,8 @@ public enum ADBExtrasEngine {
         task.standardOutput = pipe
         task.standardError = FileHandle.nullDevice
         guard (try? task.run()) != nil else { return nil }
-        task.waitUntilExit()
         let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        task.waitUntilExit()
         var first: String?
         for line in out.components(separatedBy: .newlines).dropFirst() {
             let parts = line.split(separator: "\t").map(String.init)
@@ -88,8 +88,8 @@ public enum ADBExtrasEngine {
         return !global.contains(first)
     }
 
-    /// 运行 adb（后台；自动 -s 目标设备；返回合并输出）
-    static func run(_ args: [String], timeout: TimeInterval = 25,
+    /// 运行 adb（后台；自动 -s 目标设备；优先返回 stdout，空时返回 stderr）。
+    static func run(_ args: [String], timeout: TimeInterval? = 25,
                     completion: @escaping (String?, Int32?) -> Void) {
         guard let adb = ScreenCastEngine.findADB() else {
             DispatchQueue.main.async { completion(nil, nil) }
@@ -111,16 +111,26 @@ public enum ADBExtrasEngine {
                 DispatchQueue.main.async { completion(nil, nil) }
                 return
             }
-            let deadline = DispatchTime.now() + timeout
-            while task.isRunning && DispatchTime.now() < deadline {
-                usleep(60_000)
+            let killer = DispatchWorkItem { [weak task] in
+                if let task, task.isRunning { task.terminate() }
             }
-            if task.isRunning { task.terminate() }
+            if let timeout {
+                DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: killer)
+            }
+            // 两条管道同时读取，避免输出塞满后进程无法退出。
+            let errors = NSMutableData()
+            let reading = DispatchGroup()
+            reading.enter()
+            DispatchQueue.global(qos: .utility).async {
+                errors.append(err.fileHandleForReading.readDataToEndOfFile())
+                reading.leave()
+            }
             let data = out.fileHandleForReading.readDataToEndOfFile()
-            let errData = err.fileHandleForReading.readDataToEndOfFile()
             task.waitUntilExit()
+            killer.cancel()
+            reading.wait()
             var text = String(data: data, encoding: .utf8) ?? ""
-            let e = String(data: errData, encoding: .utf8) ?? ""
+            let e = String(data: errors as Data, encoding: .utf8) ?? ""
             if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { text = e }
             DispatchQueue.main.async { completion(text.trimmingCharacters(in: .whitespacesAndNewlines), task.terminationStatus) }
         }
@@ -284,24 +294,28 @@ public enum ADBExtrasEngine {
     // MARK: ⑤ APK 安装
 
     public static func installAPK(url: URL, completion: @escaping (Bool, String) -> Void) {
-        run(["install", "-r", "-d", url.path], timeout: 180) { out, _ in
-            let text = out ?? "安装无输出"
-            let ok = text.contains("Success")
+        run(["install", "-r", "-d", url.path], timeout: 180) { out, status in
+            let text = out ?? "adb 不可用或启动失败"
+            let ok = status == 0 && text.contains("Success")
             completion(ok, text)
         }
     }
 
     // MARK: ⑥ 第三方应用
 
-    public static func thirdPartyApps(completion: @escaping ([AppItem]) -> Void) {
-        run(["shell", "pm", "list", "packages", "-3"], timeout: 20) { out, _ in
+    public static func thirdPartyApps(completion: @escaping ([AppItem], String?) -> Void) {
+        run(["shell", "pm", "list", "packages", "-3"], timeout: 20) { out, status in
+            guard status == 0 else {
+                completion([], out ?? "adb 不可用或启动失败")
+                return
+            }
             let apps = (out ?? "").components(separatedBy: .newlines).compactMap { line -> AppItem? in
                 guard line.hasPrefix("package:") else { return nil }
                 let pkg = String(line.dropFirst("package:".count)).trimmingCharacters(in: .whitespaces)
                 guard !pkg.isEmpty else { return nil }
                 return AppItem(id: pkg, label: shortAppName(pkg))
             }
-            completion(apps.sorted { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending })
+            completion(apps.sorted { $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending }, nil)
         }
     }
 

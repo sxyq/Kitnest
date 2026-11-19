@@ -480,7 +480,7 @@ public enum ADBWirelessEngine {
 
     /// 兜底：解析 `adb mdns services`（旧版 adb / Bonjour 被防火墙拦时）
     private static func discoverViaADB(completion: @escaping ([DiscoveredService]?) -> Void) {
-        runADB(["mdns", "services"]) { out, _ in
+        ADBExtrasEngine.run(["mdns", "services"], timeout: nil) { out, _ in
             guard let out, !out.isEmpty else { emit([], completion: completion); return }
             var result: [DiscoveredService] = []
             var seen = Set<String>()
@@ -538,7 +538,7 @@ public enum ADBWirelessEngine {
     /// `adb pair ip:port code`（后台执行；输出如 "Successfully paired to ..."）
     public static func pair(host: String, port: String, code: String,
                             completion: @escaping (String) -> Void) {
-        runADB(["pair", "\(host):\(port)", code]) { out, _ in
+        ADBExtrasEngine.run(["pair", "\(host):\(port)", code], timeout: nil) { out, _ in
             DispatchQueue.main.async { completion(out ?? "adb 不可用") }
         }
     }
@@ -550,8 +550,8 @@ public enum ADBWirelessEngine {
     public static func connect(host: String, port: String,
                                timeout: TimeInterval? = nil,
                                completion: @escaping (String) -> Void) {
-        runADB(["connect", "\(host):\(port)"], timeout: timeout) { out, succeeded in
-            if succeeded, out?.lowercased().hasPrefix("connected to ") == true {
+        ADBExtrasEngine.run(["connect", "\(host):\(port)"], timeout: timeout) { out, status in
+            if status == 0, out?.lowercased().hasPrefix("connected to ") == true {
                 ScreenCastEngine.deviceConnectionChanged("\(host):\(port)", connected: true)
             }
             DispatchQueue.main.async { completion(out ?? "adb 不可用") }
@@ -564,61 +564,14 @@ public enum ADBWirelessEngine {
     /// 自己重新握手，只有 disconnect 之后再 connect 才会重新向手机发起授权请求，
     /// 手机上才会重新弹出「允许 USB 调试吗」。
     public static func disconnect(_ serial: String, completion: (() -> Void)? = nil) {
-        runADB(["disconnect", serial], timeout: 5) { out, succeeded in
-            if succeeded, out?.lowercased().hasPrefix("disconnected ") == true {
+        ADBExtrasEngine.run(["disconnect", serial], timeout: 5) { out, status in
+            if status == 0, out?.lowercased().hasPrefix("disconnected ") == true {
                 ScreenCastEngine.deviceConnectionChanged(serial, connected: false)
             }
             DispatchQueue.main.async { completion?() }
         }
     }
 
-    /// adb 子进程统一封装（全后台；v105 教训：adb 挂起不得碰主线程）
-    private static func runADB(_ args: [String], timeout: TimeInterval? = nil,
-                               completion: @escaping (String?, Bool) -> Void) {
-        guard let adb = ScreenCastEngine.findADB() else {
-            DispatchQueue.main.async { completion(nil, false) }
-            return
-        }
-        DispatchQueue.global(qos: .userInitiated).async {
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: adb)
-            // v117：多设备（USB + 无线）同时在线时必须指定目标
-            // mdns / pair / connect / devices / tcpip 是 adb 的**全局命令**，
-            // 加 -s 会被当成「对某台设备执行」而直接失败（多设备时必踩）。
-            let global: Set<String> = ["devices", "connect", "disconnect", "pair",
-                                       "mdns", "tcpip", "start-server", "kill-server", "version"]
-            var full = args
-            if let serial = ADBExtrasEngine.activeSerial,
-               let first = args.first, !global.contains(first), !args.contains("-s") {
-                full = ["-s", serial] + args
-            }
-            task.arguments = full
-            let out = Pipe(); let err = Pipe()
-            task.standardOutput = out
-            task.standardError = err
-            do { try task.run() } catch {
-                DispatchQueue.main.async { completion(nil, false) }
-                return
-            }
-            // v159：可选超时。到点 terminate，让调用方立刻拿到当前输出（通常为空），
-            // 而不是等 adb 自己的 75 秒 TCP 超时。
-            if let timeout {
-                let killer = DispatchWorkItem { [weak task] in
-                    if let t = task, t.isRunning { t.terminate() }
-                }
-                DispatchQueue.global().asyncAfter(deadline: .now() + timeout, execute: killer)
-                task.waitUntilExit()
-                killer.cancel()
-            } else {
-                task.waitUntilExit()
-            }
-            var text = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-            let e = String(data: err.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-            if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { text = e }
-            let succeeded = task.terminationStatus == 0
-            DispatchQueue.main.async { completion(text.trimmingCharacters(in: .whitespacesAndNewlines), succeeded) }
-        }
-    }
 }
 
 // MARK: ⑤ ADB 文件桥（v112；对标报告第一批 P1——暂存区 ↔ 手机，扫码直传的 Android 侧替代）
@@ -634,8 +587,8 @@ public enum ADBFileBridge {
             DispatchQueue.main.async { completion(0, "没有要推送的文件") }
             return
         }
-        runADB(["shell", "mkdir", "-p", remoteDir]) { output, succeeded in
-            guard succeeded else {
+        ADBExtrasEngine.run(["shell", "mkdir", "-p", remoteDir], timeout: nil) { output, status in
+            guard status == 0 else {
                 HapticFeedback.perform(.transferFailed)
                 completion(0, output ?? "adb 不可用")
                 return
@@ -705,8 +658,8 @@ public enum ADBFileBridge {
         tracker.bytesTotal = sizes.reduce(0, +)
         tracker.start = Date()
 
-        runADB(["shell", "mkdir", "-p", remoteDir]) { output, succeeded in
-            guard succeeded else {
+        ADBExtrasEngine.run(["shell", "mkdir", "-p", remoteDir], timeout: nil) { output, status in
+            guard status == 0 else {
                 HapticFeedback.perform(.transferFailed)
                 completion(0, output ?? "adb 不可用")
                 return
@@ -827,10 +780,10 @@ public enum ADBFileBridge {
             return
         }
         let url = urls[index]
-        runADB(["push", url.path, remoteDir + "/"]) { out, succeeded in
+        ADBExtrasEngine.run(["push", url.path, remoteDir + "/"], timeout: nil) { out, status in
             // 成功输出形如 "1 file pushed, 0 skipped."；失败含 "adb: error"
             let text = out ?? ""
-            let ok = succeeded && text.contains("pushed") && !text.lowercased().contains("error")
+            let ok = status == 0 && text.contains("pushed") && !text.lowercased().contains("error")
             var log = log
             log += "\(url.lastPathComponent)：\(ok ? "✓" : "✗ \(text)")\n"
             runADBPush(urls: urls, remoteDir: remoteDir, index: index + 1,
@@ -846,13 +799,13 @@ public enum ADBFileBridge {
         let fm = FileManager.default
         try? fm.removeItem(at: stagingDir)
         try? fm.createDirectory(at: stagingDir, withIntermediateDirectories: true)
-        runADB(["pull", remoteDir + "/.", stagingDir.path]) { out, succeeded in
+        ADBExtrasEngine.run(["pull", remoteDir + "/.", stagingDir.path], timeout: nil) { out, status in
             guard let out else {
                 HapticFeedback.perform(.transferFailed)
                 DispatchQueue.main.async { completion(0, "adb 不可用") }
                 return
             }
-            guard succeeded else {
+            guard status == 0 else {
                 HapticFeedback.perform(.transferFailed)
                 completion(0, out)
                 return
@@ -873,33 +826,4 @@ public enum ADBFileBridge {
         return dir
     }
 
-    private static func runADB(_ args: [String], completion: @escaping (String?, Bool) -> Void) {
-        guard let adb = ScreenCastEngine.findADB() else {
-            DispatchQueue.main.async { completion(nil, false) }
-            return
-        }
-        DispatchQueue.global(qos: .userInitiated).async {
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: adb)
-            // v117：多设备（USB + 无线）同时在线时必须指定目标
-            var full = args
-            if let serial = ADBExtrasEngine.activeSerial, !args.contains("-s") {
-                full = ["-s", serial] + args
-            }
-            task.arguments = full
-            let out = Pipe(); let err = Pipe()
-            task.standardOutput = out
-            task.standardError = err
-            do { try task.run() } catch {
-                DispatchQueue.main.async { completion(nil, false) }
-                return
-            }
-            task.waitUntilExit()
-            var text = String(data: out.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-            let e = String(data: err.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
-            if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { text = e }
-            let succeeded = task.terminationStatus == 0
-            DispatchQueue.main.async { completion(text.trimmingCharacters(in: .whitespacesAndNewlines), succeeded) }
-        }
-    }
 }
