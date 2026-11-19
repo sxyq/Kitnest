@@ -55,16 +55,8 @@ public final class AICredentialJournalStore {
     public func record(action: AICredentialJournalEntry.Action,
                        provider: LLMProviderKind,
                        secret: String? = nil) {
-        record(action: action, providerRaw: provider.rawValue, secret: secret)
-    }
-
-    // MARK: - 私有
-
-    private func record(action: AICredentialJournalEntry.Action,
-                        providerRaw: String,
-                        secret: String?) {
         let fp = secret.flatMap { $0.isEmpty ? nil : Self.fingerprint($0) }
-        let entry = AICredentialJournalEntry(provider: providerRaw, action: action, fingerprint: fp)
+        let entry = AICredentialJournalEntry(provider: provider.rawValue, action: action, fingerprint: fp)
         guard let line = Self.encodeLine(entry) else { return }
         lock.lock()
         // v126（性能审计 F0102/F0104/F0105）：单行追加代替「全量 decode → 追加 → 全量 re-encode → 整文件重写」。
