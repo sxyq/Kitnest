@@ -88,13 +88,6 @@ public final class CredentialStore: LLMCredentialStoring {
         lock.unlock()
     }
 
-    /// 已配置凭证的厂商列表（设置页展示用）
-    public func configuredProviders() -> [LLMProviderKind] {
-        lock.lock(); defer { lock.unlock() }
-        let keys = Set((cache ?? [:]).keys)
-        return LLMProviderKind.allCases.filter { keys.contains($0.rawValue) }
-    }
-
     // MARK: - 持久化
 
     private func load() {
