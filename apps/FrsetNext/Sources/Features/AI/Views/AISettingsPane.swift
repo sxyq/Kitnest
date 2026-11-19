@@ -150,16 +150,14 @@ public final class AIProviderSettingsViewModel: SettingsEditableDraft {
         let candidateModel = modelText
         let kind = provider
         let generation = configurationGeneration
-        testTask = Task { [weak self, connectionService] in
+        testTask = Task { @MainActor [weak self, connectionService] in
             let result = await connectionService.test(provider: kind, baseURL: candidateURL,
                                                       model: candidateModel, apiKey: candidateKey)
-            await MainActor.run {
-                guard let self, generation == self.configurationGeneration else { return }
-                self.testTask = nil
-                self.testResult = result
-                self.isTesting = false
-                if result.ok { self.models = result.models }
-            }
+            guard let self, generation == self.configurationGeneration else { return }
+            self.testTask = nil
+            self.testResult = result
+            self.isTesting = false
+            if result.ok { self.models = result.models }
         }
     }
 }
