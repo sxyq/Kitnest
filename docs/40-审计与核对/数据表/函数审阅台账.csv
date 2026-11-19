@@ -255,9 +255,9 @@ Core,Core/UI/Toast.swift,MenuBarToastManager,layoutContent,func,257,KEEP,2026-11
 Core,Core/UI/Toast.swift,MenuBarToastManager,resolveTargetScreen,func,269,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；positionOnTargetScreen:272 调用
 Core,Core/UI/Toast.swift,MenuBarToastManager,positionOnTargetScreen,func,284,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；present:160 调用
 Core,Core/UI/Toast.swift,Toast,show,func,318,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；全仓 60+ 文件调用（ScreenshotManager:19 处）
-AI,Features/AI/Services/AIConnectionService.swift,AIConnectionTestResult,init,init,15,KEEP,AIConnectionTestResult.init；test() 三处 return 构造
-AI,Features/AI/Services/AIConnectionService.swift,AIProviderConnectionService,init,init,23,KEEP,服务单例 init；AISettingsPane:30 默认参数注入 .shared
-AI,Features/AI/Services/AIConnectionService.swift,AIProviderConnectionService,test,func,31,KEEP,AISettingsPane:160 设置页『测试连接』调用；临时凭证+临时地址，defer 还原
+AI,Features/AI/Services/AIConnectionService.swift,AIConnectionTestResult,init,init,15,KEEP,2026-11-20：候选连接成功和失败返回构造，保存ok、用户文案、目录及耗时，不持有凭据
+AI,Features/AI/Services/AIConnectionService.swift,AIProviderConnectionService,init,init,23,KEEP,2026-11-20：共享候选连接服务构造，无状态初始化，由AIProviderSettingsViewModel默认注入
+AI,Features/AI/Services/AIConnectionService.swift,AIProviderConnectionService,test,func,31,KEEP,2026-11-20：设置测试按钮调用，用InMemoryCredentialStore和候选URL构造独立厂商适配器，不修改正式偏好；先实际请求目录，失败沿原对话探测，返回模型和耗时；配置变化当前只丢旧结果而不取消请求
 AI,Features/AI/Services/AIEventBus.swift,AIEventBus,emitResult,func,17,KEEP,AISummaryView:137 调用；AppBootstrap:258 接线到剪贴板 is_generated_by_tool
 AI,Features/AI/Services/AIModule.swift,AIModule,start,func,12,KEEP,ModuleRegistry.startAll() 经 AppModule 协议派发；AppBootstrap:29 注册
 AI,Features/AI/Services/AnthropicService.swift,AnthropicService,init,init,25,KEEP,2026-11-20：resolver及连接探测构造；保存凭据依赖与可选候选地址，未传地址时每次读取已保存偏好；候选地址不写配置
@@ -3055,7 +3055,7 @@ Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverCont
 Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeMarkdown,func,260,KEEP,2026-11-20：classifyRawText调用；强信号复用静态正则任一命中即返回，弱信号每轮重编下划线正则，扫描最多40条且累计两分；当前注释240字分支实际不存在
 Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeCode,func,293,KEEP,2026-11-20：classifyRawText最后代码判定；maxSplits30保留空行并只取前30行，少于4行仍false；原尾标点前缀和至少3行缩进计分，合计3分判断代码
 Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,MarkdownScrollState,init,init,317,KEEP,2026-11-20：Markdown滚动回调构造并由共享协调器按条目键持有，仅保存实际传入和恢复的scrollOffset；无消费者的块锚点和矩形字段已删除
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewRichTextView,init,init,82,KEEP,调用方 :53（.richText 分支构造）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewRichTextView,init,init,82,KEEP,2026-11-20：richText分支构造，直接持有model.richAttributed既有解析对象，缺格式时以inlineText构造普通正文，不再自身读盘或解析RTF
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewSourceTextView,copy,func,106,KEEP,覆写 NSResponder.copy(_:)；⌘C 经响应链派发；:151 实例化
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewTextViewRepresentable,makeNSView,func,158,KEEP,NSViewRepresentable 协议；ArchiveTextPreview.swift:176 亦用
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewTextViewRepresentable,updateNSView,func,222,KEEP,NSViewRepresentable 协议要求；:227 转调 scrollToCharacter
@@ -3569,22 +3569,22 @@ Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcher,updateNSVie
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcherView,viewDidMoveToWindow,func,631,KEEP,NSView override（框架回调）；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcherView,deinit,deinit,644,KEEP,deinit 生命周期，移除本地 monitor；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,Array,subscript,subscript,652,KEEP,CommandPalette.swift:507 items[safe:] 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,init,init,73,KEEP,单例私有 init（零常驻：App 启动、面板打开都不会走到这里）；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,ensureReady,func,84,KEEP,有缓存就 mmap，没有才后台建；只在用户真的搜文件时调用（零常驻）；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,preloadIfCached,func,96,KEEP,面板出现时只 mmap 已有缓存，没有就保持「未建立」——不在这里触发建索引；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,rebuild,func,102,KEEP,用户点「重建」：释放旧映射、删缓存文件、后台重扫；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,search,func,117,KEEP,按字节子序列扫描完整 mmap 池，32 字符以上复用连续匹配口径；只解码命中项，先筛文件类型，再按正式 FuzzyMatcher 得分保留 limit 条，不因时间或前部命中数量漏掉后部目录；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,depth,func,173,KEEP,路径深度（/ 的个数），用于「浅层优先」重排；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,loadFromDisk,func,194,KEEP,校验 magic/版本/长度后 mmap 整个池；锁内替换指针，避免搜索读到已释放的页；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,unmap,func,228,KEEP,重建前释放旧映射（同时把 poolLength 归零，搜索会立刻返回空）；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,build,func,240,KEEP,后台遍历盲区根 → 扁平字节池 → 写盘 → 立刻 mmap 回来；每 2 万条回主线程报进度；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,roots,func,313,KEEP,只取 Spotlight 不覆盖的：~ 下点开头目录、~/Library、/Applications、/opt、/usr/local；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,walk,func,344,KEEP,POSIX readdir 递归；目录留给下一层写（避免同一条写两遍），文件直接入池；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,terms,func,388,KEEP,普通关键词按全部空白分词并小写归一化，绝对路径保留内部空格；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,u32,func,396,KEEP,索引头小端 UInt32 解码；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,f64,func,400,KEEP,索引头小端 Double 解码（建立时间）；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,appendU32,func,406,KEEP,索引头小端 UInt32 编码；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,appendF64,func,413,KEEP,索引头小端 Double 编码；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,init,init,73,KEEP,2026-11-20：shared唯一私有构造，初始化本身不扫描；SearchSectionView计算属性及其state订阅会取得单例，旧注释称面板不走初始化失实
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,ensureReady,func,84,KEEP,2026-11-20：搜索调度及建立按钮调用，ready或building直接返回，先尝试loadFromDisk，失败交既有后台build；非路径文件搜索才需要该索引
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,preloadIfCached,func,96,KEEP,2026-11-20：正式搜索面板onAppear调用，只在absent时尝试映射已存索引，缺失保持absent不遍历磁盘
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,rebuild,func,102,KEEP,2026-11-20：重建重试按钮及深链build=1调用，已有构建则返回，unmap后删除该索引文件并异步build；业务状态由原state发布
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,search,func,117,KEEP,2026-11-20：FileSearchSource及诊断深链消费，锁覆盖整池扫描避免映射替换；短查询ASCII折叠子序列，长查询strcasestr，命中后才解码路径和筛类型；用FuzzyMatcher得分、深度和路径字典序插入排序保留limit条
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,depth,func,173,KEEP,2026-11-20：search构造候选时遍历路径UTF8计斜线数，同分时浅路径先排；未调用文件系统获取层级
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,loadFromDisk,func,194,KEEP,2026-11-20：preload和ensureReady及构建完成调用，读取24字节头，实际验证magic及count/length正数而未读取版本字段；按头长度mmap，锁内替换指针并发布ready，builtAt存储仅用于此处发布
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,unmap,func,228,KEEP,2026-11-20：rebuild调用，锁内munmap并清映射长度、池长度和entryCount；搜索在同一锁下读取，后续重新build才恢复
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,build,func,240,KEEP,2026-11-20：ensureReady和rebuild调用，原building合并任务，utility队列递归构建pool并每20000项发布；创建out复制完整pool后Data写盘，现有实际文件179660825字节，存在整池重复对象；完成主线程loadFromDisk，日志计时从写盘前开始
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,roots,func,313,KEEP,2026-11-20：build每轮调用，列用户主目录所有点开头目录及Library、Applications、opt、usr/local，并逐项确认目录；不把整个根目录加入
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,walk,func,344,KEEP,2026-11-20：build及自身递归调用，POSIX opendir/readdir，目录延后递归避免重复写；文件直接追加UTF8和NUL，跳过超过4000字节路径，池沿原900MiB上限；每次递归重新计算skipPrefixes，普通文件分支未调用该过滤
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,terms,func,388,KEEP,2026-11-20：search输入先trim及lowercase，绝对或波浪路径作为单词保留空格，普通查询按空白拆分；search随后joined形成连续查询字符
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,u32,func,396,KEEP,2026-11-20：loadFromDisk读取头内count和poolLength，按4字节小端解码UInt32；当前未消费版本字段
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,f64,func,400,KEEP,2026-11-20：loadFromDisk将头内8字节小端位模式解为Double作为建立时间；仅内部固定偏移调用
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,appendU32,func,406,KEEP,2026-11-20：build写版本1、条目数及池长三个4字节小端字段，数和长度沿原UInt32 clamping
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,appendF64,func,413,KEEP,2026-11-20：build将当前时间Double位模式按8字节小端写入原头格式，与f64读取配对
 Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatch,init,init,23,KEEP,2026-11-20：match短查询和超过32字符连续查询两处分支构造，保存score及升序命中位置，供命令文件排序和文本高亮
 Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,match,func,37,KEEP,2026-11-20：命令面板斜杠工具文件索引和搜索标题调用；小写贪心取最早位置直接交rate，删除同下界反向firstIndex无效遍历；超过32字符仍连续匹配
 Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,isMatch,func,69,KEEP,2026-11-20：工具综合字段和剪贴板正文调用；lowercase后迭代子序列，不创建得分和位置；超过32字符仍子序列而match要求连续，保留既有差异
