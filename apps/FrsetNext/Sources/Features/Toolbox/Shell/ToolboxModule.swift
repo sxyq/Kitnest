@@ -23,11 +23,9 @@ public enum ToolboxModule: AppModule {
 
         // 3) 设置页签：工具 / 快捷键
         SettingsPaneRegistry.register(SettingsPaneDescriptor(
-            id: "tools", title: "工具", systemImage: "wrench",
-            build: { AnyView(ToolSettingsPane()) }))
+            id: "tools", title: "工具", systemImage: "wrench"))
         SettingsPaneRegistry.register(SettingsPaneDescriptor(
-            id: "shortcuts", title: "快捷键", systemImage: "keyboard",
-            build: { AnyView(ShortcutSettingsPane()) }))
+            id: "shortcuts", title: "快捷键", systemImage: "keyboard"))
 
         // 4) 全局搜索默认数据源：工具名检索（其他模块可再注册自己的检索源）
         ToolboxSearchSource.register()

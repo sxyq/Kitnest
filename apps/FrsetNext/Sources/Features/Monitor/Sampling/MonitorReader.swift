@@ -125,7 +125,10 @@ public final class MonitorReader {
     ///   属冗余计算（实测 0.7ms/tick）。`needFull = false` 时**跳过这 5 路采集**，
     ///   只留 g_snap 不提供的字段：温度 / 功耗 / 内存压力 / 交换 / 压缩内存。
     ///   `needFull = true`（默认）保持原全量行为，供 g_snap 无效时兜底。
-    public func readResult(needFull: Bool = true) -> MonitorReadResult {
+    /// - Parameters:
+    ///   - sensors: 当前采样帧的传感器快照。
+    ///   - swapUsed: 当前采样帧的交换空间用量。
+    public func readResult(needFull: Bool = true, sensors: [StatsSensorItem], swapUsed: UInt64) -> MonitorReadResult {
         var sample = MonitorSample()
 
         // —— 以下 5 组会被 g_snap 覆盖：仅 needFull 时才采 ——
@@ -138,7 +141,7 @@ public final class MonitorReader {
             sample.idleCPU = cpu.idle
             sample.perCore = cpu.perCore
 
-            memory = readMemory()
+            memory = readMemory(swapUsed: swapUsed)
             sample.memoryUsed = memory.used
             sample.memoryTotal = memory.total
             sample.memoryPressure = memory.pressure
@@ -155,13 +158,13 @@ public final class MonitorReader {
             sample.batteryLevel = readBatteryLevel()
         } else {
             // 只取 g_snap 不覆盖的内存侧字段（压力/交换/压缩）
-            memory = readMemory()
+            memory = readMemory(swapUsed: swapUsed)
             sample.memoryPressure = memory.pressure
             sample.swapUsed = memory.swapUsed
         }
 
         // —— 以下 g_snap 不提供，恒采 ——
-        sample.temperatures = temperatureEnabled ? readTemperatures() : [:]
+        sample.temperatures = temperatureEnabled ? readTemperatures(from: sensors) : [:]
         readPower(into: &sample)
 
         return MonitorReadResult(sample: sample, compressedMemory: memory.compressed)
@@ -237,7 +240,7 @@ public final class MonitorReader {
 
     // MARK: - 内存 / Swap / 负载
 
-    private func readMemory() -> MemoryReading {
+    private func readMemory(swapUsed: UInt64) -> MemoryReading {
         var result = MemoryReading()
         var pageSize: vm_size_t = 0
         guard host_page_size(mach_host_self(), &pageSize) == KERN_SUCCESS else { return result }
@@ -263,7 +266,7 @@ public final class MonitorReader {
         result.used = min(result.total, rawUsed > purgeable ? rawUsed - purgeable : rawUsed)
         result.compressed = compressed
         result.pressure = result.total > 0 ? clamp(Double(result.used) / Double(result.total)) : 0
-        result.swapUsed = MemoryBreakdownReader.readSwapUsed()
+        result.swapUsed = swapUsed
         return result
     }
 
@@ -362,9 +365,8 @@ public final class MonitorReader {
 
     // MARK: - 温度（共用既有 SMC 全量扫描快照）
 
-    private func readTemperatures() -> [String: Double] {
-        Dictionary(uniqueKeysWithValues: StatsDataProvider.shared.current.sensors
-            .filter { $0.category == 0 }.map { ($0.key, $0.value) })
+    private func readTemperatures(from sensors: [StatsSensorItem]) -> [String: Double] {
+        Dictionary(uniqueKeysWithValues: sensors.lazy.filter { $0.category == 0 }.map { ($0.key, $0.value) })
     }
 
     // MARK: - 电池

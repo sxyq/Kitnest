@@ -143,7 +143,7 @@ public final class LanTransferServer: ObservableObject {
         do {
             listener = try NWListener(using: params, on: nwPort)
         } catch {
-            if remaining > 0 { attemptBind(startingAt: candidate + 1, remaining: remaining - 1) }
+            if remaining > 0, candidate < UInt16.max { attemptBind(startingAt: candidate + 1, remaining: remaining - 1) }
             return
         }
 
@@ -165,12 +165,12 @@ public final class LanTransferServer: ObservableObject {
                         TransferDockPref.lanPort = candidate  // 顺延后的端口写回，避免每次重新试
                     }
                 }
-                Log.info("TransferDock", "局域网直传已就绪 \(url)")
+                Log.info("TransferDock", "局域网直传已就绪（端口 \(candidate)）")
             case .failed(let error):
                 Log.warn("TransferDock", "局域网直传端口 \(candidate) 绑定失败：\(error)")
                 self.listener?.cancel()
                 self.listener = nil
-                if remaining > 0 {
+                if remaining > 0, candidate < UInt16.max {
                     self.queue.asyncAfter(deadline: .now() + 0.15) {
                         self.attemptBind(startingAt: candidate + 1, remaining: remaining - 1)
                     }
@@ -288,6 +288,7 @@ public final class LanTransferServer: ObservableObject {
             if !context.done {
                 context.done = true
                 if context.isFileTransfer { HapticFeedback.perform(.transferFailed) }
+                self.cleanupBody(context)
                 connection.cancel()
             }
         }
@@ -300,6 +301,7 @@ public final class LanTransferServer: ObservableObject {
             if error != nil {
                 context.done = true
                 if context.isFileTransfer { HapticFeedback.perform(.transferFailed) }
+                self.cleanupBody(context)
                 context.connection.cancel()
                 return
             }
@@ -310,6 +312,7 @@ public final class LanTransferServer: ObservableObject {
             if isComplete {
                 context.done = true
                 if context.isFileTransfer { HapticFeedback.perform(.transferFailed) }
+                self.cleanupBody(context)
                 context.connection.cancel()
                 return
             }
@@ -331,6 +334,12 @@ public final class LanTransferServer: ObservableObject {
             let remainder = context.headerBuffer.subdata(in: headerEnd.upperBound..<context.headerBuffer.count)
             context.headerBuffer = Data()
             context.headersParsed = true
+
+            guard hasValidToken(context.path, method: context.method) else {
+                respond(context, status: 403, html: Self.errorPage("链接已失效",
+                                                                   detail: "请重新扫描 Kitnest 上的二维码。"))
+                return
+            }
 
             if context.contentLength > 0 {
                 let tmp = FileManager.default.temporaryDirectory
@@ -367,6 +376,14 @@ public final class LanTransferServer: ObservableObject {
         context.contentLength = Int(context.headers["content-length"] ?? "0") ?? 0
     }
 
+    private func hasValidToken(_ requestPath: String, method: String) -> Bool {
+        let path = requestPath.split(separator: "?", maxSplits: 1).first.map(String.init) ?? requestPath
+        let parts = path.split(separator: "/")
+        guard parts.count >= 2, parts[0] == "s" else { return false }
+        let token = String(parts[1])
+        return token == Self.tokenCache || (method == "GET" && selection?.token == token)
+    }
+
     private func writeBody(_ context: ConnectionContext, _ data: Data) {
         let remaining = context.contentLength - context.bodyReceived
         guard remaining > 0 else { return }
@@ -388,6 +405,7 @@ public final class LanTransferServer: ObservableObject {
     // MARK: - 路由
 
     private func route(_ context: ConnectionContext) {
+        defer { cleanupBody(context) }
         var sub = context.path
         var query: [String: String] = [:]
 
@@ -475,7 +493,6 @@ public final class LanTransferServer: ObservableObject {
     }
 
     private func handleUpload(_ context: ConnectionContext) {
-        defer { cleanupBody(context) }
         guard !context.transferFailed else {
             respond(context, status: 500, json: ["error": "写入请求体失败"])
             return
@@ -573,6 +590,8 @@ public final class LanTransferServer: ObservableObject {
     }
 
     private func cleanupBody(_ context: ConnectionContext) {
+        try? context.bodyHandle?.close()
+        context.bodyHandle = nil
         if let file = context.bodyFile { try? FileManager.default.removeItem(at: file) }
         context.bodyFile = nil
     }

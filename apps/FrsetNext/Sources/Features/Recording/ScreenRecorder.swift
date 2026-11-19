@@ -337,7 +337,6 @@ public final class ScreenRecorder: ObservableObject {
     private var timer: Timer?
     private var startedAt: Date?
     private var accumulated: TimeInterval = 0
-    private var currentOptions = RecordingOptions()
 
     private init() {}
 
@@ -405,8 +404,6 @@ public final class ScreenRecorder: ObservableObject {
                 unavailableFeatures.append("输入监听未授权，本次无按键与点击叠加")
             }
         }
-        currentOptions = options
-
         do {
             let setup = try await makeStream(options: options)
             guard state == .preparing else {

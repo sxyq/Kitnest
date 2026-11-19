@@ -74,8 +74,6 @@ extension EnvironmentValues {
 //   · macOS 26+ 用真·NSGlassEffectView；旧系统回退 NSVisualEffectView（原观感）。
 
 extension LiquidGlass {
-    static var prefersSolid: Bool { Personalization.shared.material == .solid }
-
     static func makeView(frame: NSRect = .zero, cornerRadius: CGFloat,
                          material: NSVisualEffectView.Material = .hudWindow,
                          tint: NSColor? = nil, personalization: Personalization = .shared) -> NSView {
@@ -444,12 +442,6 @@ struct SpringyIconButtonStyle: ButtonStyle {
             .animation(Theme.Motion.springBouncy,
                        value: configuration.isPressed)
     }
-}
-
-// MARK: - 悬停微浮起（卡片）
-
-
-extension View {
 }
 
 // MARK: - 统一「玻璃面」（v179）

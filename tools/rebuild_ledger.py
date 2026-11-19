@@ -591,7 +591,13 @@ EVIDENCE.update({
     ("Features/Capture/OCR/ScreenshotOCRWindow.swift", "setSourceImage"):
         "2026-11-19：show复用结果窗且截图变化时调用，更新现有SourceNSScrollView的原图，使左侧图片与重新识别输入一致",
     ("Features/Manual/ManualDemoSamples.swift", "example"):
-        "按功能标题提供固定示例输入和结果；没有专属示例时直接使用该篇操作步骤，不读取用户资料",
+        "按功能标题为每篇现有功能指南提供固定示例输入与结果，不运行工具或读取用户资料",
+    ("Features/Manual/ManualView.swift", "quickStartCard"):
+        "把查找剪贴板、截图识字、手机传文件和多屏设置四个常见任务连到各自的完整指南",
+    ("Features/Manual/ManualDemoView.swift", "searchPreview"):
+        "用预设搜索结果、网盘文件和 AI 回复逐步展示搜索类指南的入口与结果",
+    ("Features/Manual/ManualDemoView.swift", "settingsPreview"):
+        "展示设置页选项预览、保存状态和当前操作步骤，不修改用户设置",
     ("Features/Manual/ManualDemoView.swift", "advance"):
         "切换到指定操作步骤并同步演示卡片、当前预览和示例阶段；减少动态效果时不播放过渡动画",
     ("Features/Manual/ManualDemoView.swift", "preset"):
@@ -2487,6 +2493,35 @@ EVIDENCE.update({
         "将预设输入、过程或结果排成手册演示面板，仅呈现示例文字",
     ("Features/Manual/ManualDemoView.swift", "displayPreview"):
         "绘制普通屏搜索短条与真实刘海的两屏演示画面，不创建额外窗口或控制器",
+})
+
+EVIDENCE.update({
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "store"):
+        "2026-11-19：把窗口与整屏 SCK 异步结果交给有超时的同步入口，锁保护等待与迟到完成间的读写",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "load"):
+        "2026-11-19：与 store 共用同一结果锁，超时后调用方返回 nil，不让 SCK 永久卡住截图流程",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "isUsableImage"):
+        "2026-11-19：过滤小图、比例错屏与透明空帧；源自安装版 00:04:46 原生抓图失败后仍将 848×77 单色裁图复制成功",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "windowImageMatchesFrozen"):
+        "2026-11-19：窗口 SCK 重抓需同时匹配点击点和屏幕九个抽样点，否则保留触发冻结裁片",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "monochromeColor"):
+        "2026-11-19：以整屏抽样识别异常平面帧并和另一通道对照；同色候选仍可保存",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "sameColor"):
+        "2026-11-19：允许 3 级像素量化差，用于比较两个通道中的合法纯色屏幕",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "averageDifference"):
+        "2026-11-19：同尺寸抽样两路同屏像素并略过 Toast 矩形，排除提示卡后平均色差超过 18 才取消保存",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "pixelColor"):
+        "2026-11-19：只抽取点击点颜色，用于窗口 SCK 图与触发时屏幕快照的对应校验",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "captureScreenForScreenshot"):
+        "2026-11-19：同屏原生彩色帧直接冻结；单色或失败才取 SCK 对照，Toast 可见时排除通知区域比较",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "screencaptureDisplayIndex"):
+        "2026-11-19：将 NSScreen 的 CGDirectDisplayID 映射到 screencapture -D 主屏序号，避免抓错屏再套用原坐标",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "captureScreenOnDisplay"):
+        "2026-11-19：按已映射的显示器 -D 序号抓取独立原生帧，后台任务不再捕获 NSScreen 对象",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "sckCaptureWindowSync"):
+        "2026-11-19：窗口 SCK 等待设 4 秒上限，超时回退触发时冻结图而不阻塞交付",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "globalPoint"):
+        "2026-11-19：把覆盖层中的真实点击点转为屏幕全局坐标，窗口候选只和同一画面位置比较",
 })
 
 if __name__ == "__main__":
