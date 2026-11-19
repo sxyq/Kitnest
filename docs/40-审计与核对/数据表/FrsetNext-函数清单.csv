@@ -10255,9 +10255,9 @@ TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebD
 TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,func,escapeXML,241,5,1
 TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,func,entryXML,247,17,1
 TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,func,listRemote,265,20,8
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,func,download,288,38,7
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,func,upload,327,14,3
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,func,send,344,14,4
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,func,download,288,39,7
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,func,upload,328,14,3
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,func,send,345,14,4
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryWindowController,let,shared,10,0,1
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryWindowController,var,window,12,0,1
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryWindowController,init,init,14,1,1
