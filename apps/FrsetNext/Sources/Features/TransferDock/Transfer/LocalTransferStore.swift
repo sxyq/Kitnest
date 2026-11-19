@@ -312,12 +312,8 @@ public final class LocalTransferStore: ObservableObject {
             return .hardlink
         } catch {
             // EXDEV（跨卷）/ 文件系统不支持硬链 → 拷贝
-            do {
-                try fm.copyItem(at: source, to: dest)
-                return .copy
-            } catch {
-                throw error
-            }
+            try fm.copyItem(at: source, to: dest)
+            return .copy
         }
     }
 
