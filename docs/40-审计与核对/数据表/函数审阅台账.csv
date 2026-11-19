@@ -4035,23 +4035,23 @@ TransferDock,Features/TransferDock/UI/BatchImageCompressionWindow.swift,BatchIma
 TransferDock,Features/TransferDock/UI/BatchImageCompressionWindow.swift,BatchImageCompressionWindowController,viewInTransferDock,func,133,KEEP,关闭压缩窗并打开文件中转面板中的中转页
 TransferDock,Features/TransferDock/UI/BatchImageCompressionWindow.swift,BatchImageCompressionWindowController,cancelOrClose,func,138,KEEP,压缩期间请求停止；空闲时关闭窗口
 TransferDock,Features/TransferDock/UI/BatchImageCompressionWindow.swift,BatchImageCompressionWindowController,windowShouldClose,func,142,KEEP,关闭窗口时先请求停止压缩并阻止任务运行中的窗口销毁
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,TransferDockWebView,makeNSView,func,104,KEEP,2026-11-20：登录sheet的body构造后由SwiftUI派发；默认WebKit存储及桌面UA，创建前挂探针handler，再设导航和弹窗代理、加载官方业务页并启动轮询
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,TransferDockWebView,updateNSView,func,127,KEEP,2026-11-20：SwiftUI更新时交forceTick给原Coordinator；不是空实现，重新检测按钮增tick后沿同一check强制候选回调
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,TransferDockWebView,dismantleNSView,func,131,KEEP,2026-11-20：登录sheet退出后的框架回调；调用detach结束候选、停1秒timer、移除脚本handler并清网页探针interval
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,TransferDockWebView,makeCoordinator,func,135,KEEP,2026-11-20：NSViewRepresentable构造协调对象，传登录候选及进度两个闭包；同一对象负责导航、弹窗、脚本消息和cookie轮询
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,userContentController,func,145,KEEP,2026-11-20：创建WebView前注册frsetProbe消息回调；只读path与cookie长度及localStorage键名，按签名去重；键名日志截前24项，不记录值
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,installProbe,func,159,KEEP,2026-11-20：didFinish导航回调注入原2.5秒探针；同页已存在则复用，跨页重新注入；只向原消息handler送路径和长度及存储键名
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,detach,func,177,KEEP,2026-11-20：dismantleNSView唯一调用；将既有finished设true使在途cookie回调停止，取消timer和消息handler，并清网页interval
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,webView,func,186,KEEP,2026-11-20：WKUIDelegate弹窗回调；targetFrame为空时原WebView加载request并返回nil，复用一个登录窗口而非新建业务视图
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,init,init,209,KEEP,2026-11-20：makeCoordinator唯一构造；持有候选及进度闭包，弱持有WebView；timer及抓取状态属于此登录会话
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,TransferDockWebView,makeNSView,func,105,KEEP,2026-11-20：登录sheet的body构造后由SwiftUI派发；默认WebKit存储及桌面UA，创建前挂探针handler，再设导航和弹窗代理、加载官方业务页并启动轮询
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,TransferDockWebView,updateNSView,func,128,KEEP,2026-11-20：SwiftUI更新时交forceTick给原Coordinator；不是空实现，重新检测按钮增tick后沿同一check强制候选回调
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,TransferDockWebView,dismantleNSView,func,132,KEEP,2026-11-20：登录sheet退出后的框架回调；调用detach结束候选、停1秒timer、移除脚本handler并清网页探针interval
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,TransferDockWebView,makeCoordinator,func,136,KEEP,2026-11-20：NSViewRepresentable构造协调对象，传登录候选及进度两个闭包；同一对象负责导航、弹窗、脚本消息和cookie轮询
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,userContentController,func,146,KEEP,2026-11-20：创建WebView前注册frsetProbe消息回调；只读path与cookie长度及localStorage键名，按签名去重；键名日志截前24项，不记录值
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,installProbe,func,160,KEEP,2026-11-20：didFinish导航回调注入原2.5秒探针；同页已存在则复用，跨页重新注入；只向原消息handler送路径和长度及存储键名
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,detach,func,178,KEEP,2026-11-20：dismantleNSView唯一调用；将既有finished设true使在途cookie回调停止，取消timer和消息handler，并清网页interval
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,webView,func,187,KEEP,2026-11-20：WKUIDelegate弹窗回调；targetFrame为空时原WebView加载request并返回nil，复用一个登录窗口而非新建业务视图
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,init,init,209,KEEP,2026-11-20：makeCoordinator唯一构造；持有返回是否接收候选的闭包及进度闭包，弱持有WebView；timer及上次实际提交Cookie属于此登录会话
 TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,startPolling,func,215,KEEP,2026-11-20：makeNSView调用；记录弱WebView，0.8秒后只记cookie名称，建立1秒common模式timer交check；结束沿detach停表
 TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,dumpCookieNames,func,229,KEEP,2026-11-20：startPolling延迟调用；从同一WebKit store读取所有cookie的域和名称用于既有登录诊断，不记录值；当前日志范围包含该store其他站点名称
 TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,stopPolling,func,237,KEEP,2026-11-20：detach调用；invalidate并释放原1秒timer，旧台账声称checkCookies调用已失效
 TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,applyForceTick,func,243,KEEP,2026-11-20：updateNSView每轮传tick；值改变才保存并check(force:true)，按钮在验证或成功阶段禁用
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,check,func,251,KEEP,2026-11-20：timer、手动检测及导航完成共用；结束态提前返回；候选和写入共享域名边界，按会话类名称或授权后回精确业务主机判定；原3秒同名签名节流保留，最终仍由服务端回验
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,webView,func,293,KEEP,2026-11-20：WKNavigationDelegate didFinish完成后显示进度、重新安装网页探针并立即check；view仅waiting阶段消费进度，不覆盖验证结果
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,webView,func,300,KEEP,2026-11-20：WKNavigationDelegate didFail完成加载失败回调；沿onProgress传系统错误，view仅waiting阶段更新说明
-TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,webView,func,304,KEEP,2026-11-20：WKNavigationDelegate didFailProvisionalNavigation失败回调；沿相同进度闭包传错误，不修改云端登录状态或凭据
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,check,func,251,KEEP,2026-11-20：timer、手动检测及导航完成共用；结束态提前返回；共享官方域名边界；内存比较域路径名称值，只在候选实际接收后保存，原样Cookie不自动重发而手动强制可重验；日志仅域名和Cookie名，最终仍服务端回验
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,webView,func,291,KEEP,2026-11-20：WKNavigationDelegate didFinish完成后显示进度、重新安装网页探针并立即check；view仅waiting阶段消费进度，不覆盖验证结果
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,webView,func,298,KEEP,2026-11-20：WKNavigationDelegate didFail完成加载失败回调；沿onProgress传系统错误，view仅waiting阶段更新说明
+TransferDock,Features/TransferDock/UI/TransferDockLoginView.swift,Coordinator,webView,func,302,KEEP,2026-11-20：WKNavigationDelegate didFailProvisionalNavigation失败回调；沿相同进度闭包传错误，不修改云端登录状态或凭据
 TransferDock,Features/TransferDock/UI/TransferDockPreferences.swift,TransferDockPref,migrateLegacyFeatureFlag,func,25,KEEP,v260 拆键迁移：featureEnabled 缺失时从旧键 panelVisible 继承，老用户的「启用文件中转」状态不因换键丢失
 TransferDock,Features/TransferDock/UI/TransferDockPreferences.swift,TransferDockPref,isOn,func,56,KEEP,AppBootstrap.swift:71 与 LanTransferServer.swift:63 调用
 TransferDock,Features/TransferDock/UI/TransferDockSettingsPane.swift,LocalTransferSettingsDraft,init,init,11,KEEP,LocalTransferSettingsDraft读取自动暂存、悬停预览和保留天数三个已保存值，以字符串序列saved比较是否有待保存编辑
