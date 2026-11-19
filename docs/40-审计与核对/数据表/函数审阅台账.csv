@@ -318,12 +318,12 @@ AI,Features/AI/Services/LLMProtocols.swift,LLMResponseParsing,parseStreamLine,fu
 AI,Features/AI/Services/LLMProtocols.swift,LLMResponseParsing,parseComplete,func,129,KEEP,2026-11-20：四家完整正文解析要求；公共send非流式收到真实数据后调用，结果经同一流接口交消费者
 AI,Features/AI/Services/LLMProtocols.swift,LLMResponseParsing,parseModelIDs,func,131,KEEP,2026-11-20：四家模型目录解析要求；公共availableModels成功响应后调用，按各厂商目录结构返回模型名数组
 AI,Features/AI/Services/LLMProtocols.swift,LLMResponseParsing,readableError,func,133,KEEP,2026-11-20：四家错误解析要求；checkResponse和流代理错误完成共用，以可读文本替代原JSON正文，未能解析返回nil
-AI,Features/AI/Services/LLMProtocols.swift,LLMResponseParsing,isTerminalLine,func,136,KEEP,2026-11-20：流结束判断要求；公共send正文解析前派发，OpenAI/Anthropic/Ollama各有实现，Gemini沿默认false等待EOF
+AI,Features/AI/Services/LLMProtocols.swift,LLMResponseParsing,isTerminalLine,func,136,KEEP,2026-11-20：流结束判断要求；公共send交付本行正文后派发，OpenAI/Anthropic/Ollama各自实现，Gemini沿默认false等待EOF
 AI,Features/AI/Services/LLMProtocols.swift,LLMProviderAdapting,send,func,146,KEEP,2026-11-20：适配器公共发送声明；门面LLMService转发至四家实现对象，下方默认方法提供唯一请求传输链
 AI,Features/AI/Services/LLMProtocols.swift,LLMProviderAdapting,complete,func,148,KEEP,2026-11-20：适配器一次性声明；AIConnectionService候选连接探测动态调用，默认实现复用send而不修改已保存门面或凭据
 AI,Features/AI/Services/LLMProtocols.swift,LLMProviderAdapting,requireCredential,func,150,KEEP,2026-11-20：适配器凭据要求；公共目录和发送都会调用，远端厂商用默认存储读取，Ollama覆盖为空串
 AI,Features/AI/Services/LLMProtocols.swift,LLMProviderAdapting,requireCredential,func,168,KEEP,2026-11-20：默认方法从credentialStore取kind对应值并剥首尾空白，缺失或空值抛missingCredential；只本地Ollama覆盖，保留公开动态入口
-AI,Features/AI/Services/LLMProtocols.swift,LLMProviderAdapting,send,func,176,KEEP,2026-11-20：公共唯一执行链；任务内取凭据构造请求，非流式shared data读取和解析，流式使用streamBytes及每请求行缓冲，结束事件主动完成；取消转LLMError.cancelled且onTermination取消原job
+AI,Features/AI/Services/LLMProtocols.swift,LLMProviderAdapting,send,func,176,KEEP,2026-11-20：公共唯一执行链；流式及flush先交付本行正文再判断终止，Ollama done行正文保留且不待EOF；每请求行缓冲和原取消链保持，非流式仍原data和解析
 AI,Features/AI/Services/LLMProtocols.swift,LLMProviderAdapting,complete,func,230,KEEP,2026-11-20：候选连接探测使用；通过send且stream为false收集完整文本，复用相同鉴权及取消语义，不计门面的请求统计
 AI,Features/AI/Services/LLMProtocols.swift,LLMProviderAdapting,checkResponse,func,239,KEEP,2026-11-20：模型发现和非流式发送共用；仅HTTP状态至少400时抛httpStatus，优先厂商错误文本否则正文换行压平前300字符，其他响应沿原解析
 AI,Features/AI/Services/LLMProtocols.swift,LLMResponseParsing,isTerminalLine,func,247,KEEP,2026-11-20：响应解析默认结束判断恒false，供未覆盖的Gemini实现使用；其余三家动态派发自己的DONE/message_stop/done处理
@@ -386,8 +386,8 @@ AI,Features/AI/Services/OllamaService.swift,OllamaService,parseStreamLine,func,7
 AI,Features/AI/Services/OllamaService.swift,OllamaService,parseComplete,func,85,KEEP,2026-11-20：非流式send消费；JSON必须字典，error串抛provider；message存在取content否则读旧response字段，两者缺失返回空串
 AI,Features/AI/Services/OllamaService.swift,OllamaService,parseModelIDs,func,95,KEEP,2026-11-20：公共目录发现消费；models数组内优先name其次model并排序，缺数组返回空；当前不单独抛服务端字典错误
 AI,Features/AI/Services/OllamaService.swift,OllamaService,readableError,func,101,KEEP,2026-11-20：公共HTTP错误及字节代理调用；JSON字典先读error字符串再读通用errorMessage，不能解码返回nil沿原文案
-AI,Features/AI/Services/OllamaService.swift,OllamaService,isTerminalLine,func,109,KEEP,2026-11-20：公共send先于正文解析判定；仅done为true且message.content为空才主动结束；done同时带正文时保留正文解析且仍待EOF
-AI,Features/AI/Services/OllamaService.swift,OllamaService,normalizedBase,func,121,KEEP,2026-11-20：聊天及目录请求共用；去外部斜杠及api或v1尾缀，调用方分别加api/chat与api/tags
+AI,Features/AI/Services/OllamaService.swift,OllamaService,isTerminalLine,func,109,KEEP,2026-11-20：公共send解析交付正文后调用；JSON done为true即完成，不再要求content为空，末行文本先交付后结束原请求
+AI,Features/AI/Services/OllamaService.swift,OllamaService,normalizedBase,func,120,KEEP,2026-11-20：聊天及目录请求共用；去外部斜杠及api或v1尾缀，调用方分别加api/chat与api/tags
 AI,Features/AI/Services/OpenAICompatibleService.swift,OpenAICompatibleService,init,init,23,KEEP,2026-11-20：resolver及候选连接构造；保留凭据依赖与可选地址覆盖，未覆盖时读取保存地址；默认gpt-4o-mini
 AI,Features/AI/Services/OpenAICompatibleService.swift,OpenAICompatibleService,makeRequest,func,30,KEEP,2026-11-20：公共send调用；POST规范地址chat/completions，Bearer和JSON头，stream时设置SSE Accept；模型消息温度max_tokens及stream沿原字段序列化
 AI,Features/AI/Services/OpenAICompatibleService.swift,OpenAICompatibleService,makeModelsRequest,func,54,KEEP,2026-11-20：公共availableModels调用；GET规范地址models，Bearer及60秒期限；不复用聊天正文
@@ -459,15 +459,13 @@ AI,Features/AI/Views/AIChatView.swift,AISectionView,init,init,407,KEEP,AISection
 AI,Features/AI/Views/AIChatView.swift,AISectionState,init,init,434,KEEP,AISectionState.init；@StateObject 持有页签状态
 AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalEntry,init,init,28,KEEP,2026-11-20：日志record构造值记录，默认生成UUID和当前时间，保存厂商动作及可选凭据摘要；编码不持有原始密钥
 AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,init,init,50,KEEP,2026-11-20：共享协调器默认使用shared，初始化只保存日志URL且不读文件；可注入URL供既有调用使用
-AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,record,func,55,KEEP,2026-11-20：凭据commit成功保存或删除调用，将枚举厂商转rawValue后交唯一私有record，不另建文件写入链
-AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,recordGlobal,func,62,DEAD_CANDIDATE,2026-11-20：只把星号厂商和空secret交私有record；全源码和工具仅此定义，旧clearAll消费已不存在，无协议或objc动态入口；下一批删除，不在本批构建期间改源码
-AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,record,func,68,KEEP,2026-11-20：公共record调用；锁内保存日志，已有文件每次全文读入数行，少于500行追加，否则重新读取解码后保留最新500条并整份重写；达到上限后每次都走裁剪，旧注释500次一次失实；只存凭据摘要不存明文
-AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,encodeLine,func,108,KEEP,2026-11-20：首次记录及达到500条时重写共用JSONEncoder编码值记录再转UTF8，编码失败返回nil沿原调用跳过
-AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,loadAll,func,113,KEEP,2026-11-20：只在record达到500条时调用；完整UTF8读取后拆非空行，逐行解码日志条目并跳过坏行；与调用前数行的读取重复，旧entries消费者不存在
-AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,fingerprint,func,123,KEEP,2026-11-20：私有record仅对非空secret调用既有CommonCrypto摘要，取前6字节转12位十六进制供日志身份比较；本批不改变格式和持久数据
-AI,Features/AI/Views/AICredentialJournal.swift,AICredentialCommitCoordinator,init,init,139,KEEP,2026-11-20：AIProviderSettingsViewModel默认注入shared；保存既有凭据存储和日志依赖，不在初始化执行文件写入或网络访问
-AI,Features/AI/Views/AICredentialJournal.swift,AICredentialCommitCoordinator,commit,func,147,KEEP,2026-11-20：设置保存和remove共用凭证写入；空值删除非空保存，失败返回store.lastWriteError；成功记录动作后调用现有invalidate清除该厂商内存目录和偏好目录及时间，不记录密钥内容
-AI,Features/AI/Views/AICredentialJournal.swift,AICredentialCommitCoordinator,remove,func,163,KEEP,2026-11-20：设置删除凭据调用commit(nil)复用实际写入、错误返回及模型缓存失效，不另建删除流程
+AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,record,func,55,KEEP,2026-11-20：commit成功后保存删除共用唯一record执行体；已有日志只读一次，未满500条追加，满额同一raw解码后保留最新500条；读取失败沿原catch报告
+AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,encodeLine,func,90,KEEP,2026-11-20：首次记录及达到500条时重写共用JSONEncoder编码值记录再转UTF8，编码失败返回nil沿原调用跳过
+AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,decodeLines,func,95,KEEP,2026-11-20：改名decodeLines；record满500条时消费本次raw，逐行JSON解码跳过坏行；删除第二次读盘，suffix直接编码而不复制Array，保持原格式和上限
+AI,Features/AI/Views/AICredentialJournal.swift,AICredentialJournalStore,fingerprint,func,104,KEEP,2026-11-20：私有record仅对非空secret调用既有CommonCrypto摘要，取前6字节转12位十六进制供日志身份比较；本批不改变格式和持久数据
+AI,Features/AI/Views/AICredentialJournal.swift,AICredentialCommitCoordinator,init,init,120,KEEP,2026-11-20：AIProviderSettingsViewModel默认注入shared；保存既有凭据存储和日志依赖，不在初始化执行文件写入或网络访问
+AI,Features/AI/Views/AICredentialJournal.swift,AICredentialCommitCoordinator,commit,func,128,KEEP,2026-11-20：设置保存和remove共用凭证写入；空值删除非空保存，失败返回store.lastWriteError；成功记录动作后调用现有invalidate清除该厂商内存目录和偏好目录及时间，不记录密钥内容
+AI,Features/AI/Views/AICredentialJournal.swift,AICredentialCommitCoordinator,remove,func,144,KEEP,2026-11-20：设置删除凭据调用commit(nil)复用实际写入、错误返回及模型缓存失效，不另建删除流程
 AI,Features/AI/Views/AISettings.swift,AISettings,baseURLKey,func,19,KEEP,AIConnectionService:101 备份原地址；本文件 baseURL/setBaseURL 读写
 AI,Features/AI/Views/AISettings.swift,AISettings,baseURL,func,35,KEEP,四家适配器 baseURL 计算属性、AISettingsPane 首屏、迁移判定均调用
 AI,Features/AI/Views/AISettings.swift,AISettings,setBaseURL,func,46,KEEP,设置页 commitBaseURL、测试连接临时写入、旧配置迁移调用
@@ -1812,17 +1810,17 @@ Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipDe
 Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipDeskStore,paste,func,309,KEEP,:600/:613 双击；Window:380/:407
 Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipDeskStore,pasteSelected,func,316,KEEP,:353 onSubmit 回车粘贴
 Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipDeskStore,delete,func,322,KEEP,Window:386 ⌘⌫ 删除
-Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipDeskStore,rebuildPreviewModel,func,339,KEEP,:183/:337 选中项变化后重建
-Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipDeskStore,suspendPreview,func,388,KEEP,FloatingClipboardWindowController.hide 与 windowWillClose 调用；取消查询/预览任务并清除当前预览模型
-Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipDeskStore,persistSplitRatio,func,403,KEEP,:494 SplitDivider onCommit
-Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipDeskStore,moveSelection,func,409,KEEP,Window:418-431 方向键
-Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipboardDeskView,init,init,476,KEEP,Window:216 构建根视图
-Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipboardDeskView,columnItems,func,807,KEEP,gridContent按实际栏宽以150pt计算可容纳列数，最多使用卡片档位列数、至少1列；columnItems按传入列数对原下标取模分列，保留固定条目顺序
-Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipboardDeskView,card,func,815,KEEP,网格条目复用FloatingClipCard并连接选择、悬停、拖放及操作回调；图片在GeometryReader得到的本列宽高内scaledToFit，高度为minHeight-34，模拟文件用PDF类型图标，正式文件按真实路径取图标
-Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipboardDeskView,dragProvider,func,952,KEEP,:603/:616 onDrag 提供者
-Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipPreview,func,func,989,KEEP,FloatingClipboardDeskView.previewPane 内以 equatable 渲染；按 sessionID 判断模型等价并将正文交给 PreviewPopoverContentView
-Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipCard,textBody,func,1124,KEEP,:831 文本卡片调用
-Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipCard,placeholder,func,1230,KEEP,:848 图片占位调用
+Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipDeskStore,rebuildPreviewModel,func,339,KEEP,2026-11-20：选中项变化复用匹配item缓存或取消旧任务，后台读全文后直接构造fullTextLoaded模型，删除预分类；模型持有一次RTF解析结果，主线程仅发布当前项结果，原1MiB缓存范围保持
+Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipDeskStore,suspendPreview,func,385,KEEP,FloatingClipboardWindowController.hide 与 windowWillClose 调用；取消查询/预览任务并清除当前预览模型
+Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipDeskStore,persistSplitRatio,func,400,KEEP,:494 SplitDivider onCommit
+Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipDeskStore,moveSelection,func,406,KEEP,Window:418-431 方向键
+Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipboardDeskView,init,init,473,KEEP,Window:216 构建根视图
+Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipboardDeskView,columnItems,func,804,KEEP,gridContent按实际栏宽以150pt计算可容纳列数，最多使用卡片档位列数、至少1列；columnItems按传入列数对原下标取模分列，保留固定条目顺序
+Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipboardDeskView,card,func,812,KEEP,网格条目复用FloatingClipCard并连接选择、悬停、拖放及操作回调；图片在GeometryReader得到的本列宽高内scaledToFit，高度为minHeight-34，模拟文件用PDF类型图标，正式文件按真实路径取图标
+Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipboardDeskView,dragProvider,func,949,KEEP,:603/:616 onDrag 提供者
+Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipPreview,func,func,986,KEEP,FloatingClipboardDeskView.previewPane 内以 equatable 渲染；按 sessionID 判断模型等价并将正文交给 PreviewPopoverContentView
+Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipCard,textBody,func,1121,KEEP,:831 文本卡片调用
+Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipCard,placeholder,func,1227,KEEP,:848 图片占位调用
 Clipboard,Features/Clipboard/Floating/FloatingClipboardWindow.swift,FloatingClipboardPinState,init,init,19,KEEP,单例 :10 初始化
 Clipboard,Features/Clipboard/Floating/FloatingClipboardWindow.swift,FloatingClipboardPinState,migrateLayoutIfNeeded,func,45,KEEP,:211 初始化时迁移旧版式
 Clipboard,Features/Clipboard/Floating/FloatingClipboardWindow.swift,FloatingClipboardPinState,save,func,69,KEEP,:340/:345 窗口移动/缩放回写
@@ -3048,16 +3046,15 @@ Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRender
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,isTableSeparator,func,624,KEEP,parseSourced :233/240
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,splitTableRow,func,632,KEEP,parseSourced :241
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderTable,func,655,KEEP,render(block) :454 表格块
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,init,init,64,KEEP,2026-11-20：共享协调器及浮动剪贴板刘海归档消费；只对文件拆路径，保存条目会话并判型；单文件按loadFileContents决定完整读文或解码1600像素图，目录文档包分流；kindOverride避免读旧路径；移除无人读取的提示副本
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,classifyRawText,func,127,KEEP,2026-11-20：模型及落盘文本视图、归档和编辑后预览共用；先JSON，再以代码强度及Markdown强信号分流，最后普通代码或文本；长文视图每次body仍调用完整分类
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,markdownStrongCount,func,140,KEEP,2026-11-20：classifyRawText强代码分支调用；去首尾空白后对10条静态正则分别找首命中，统计模式数而非全部匹配次数
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,codeStrength,func,152,KEEP,2026-11-20：classifyRawText调用；maxSplits80后仅取前80条非空行，不分配样本外每行；以去空白文本排除Markdown结构且允许井叹/include/import，代码标点前缀及原行4空格或Tab参与代码比例
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isCodeLine,func,172,KEEP,2026-11-20：codeStrength唯一调用；接收去空白行按语言前缀尾标点和操作符判代码，编译指令已能到达本方法；原始缩进由调用方判断，删除本方法不可达缩进分支
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,classify,func,197,KEEP,2026-11-20：模型初始化及浮动预览加载调用；图片文件按类型，富文本先读解析RTF判存在；textPath存在即fileBackedText，故共享协调器先取全文后视图仍二次加载
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isJSONPreviewEligible,func,224,KEEP,2026-11-20：classifyRawText首段调用；200000字符内尝试对象数组单根，失败则逐行统计对象数组JSONL，至少2条有效且有效不少于坏行；不改变既有资格范围
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeMarkdown,func,273,KEEP,2026-11-20：classifyRawText调用；强信号复用静态正则任一命中即返回，弱信号每轮重编下划线正则，扫描最多40条且累计两分；当前注释240字分支实际不存在
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeCode,func,306,KEEP,2026-11-20：classifyRawText最后代码判定；maxSplits30保留空行并只取前30行，少于4行仍false；原尾标点前缀和至少3行缩进计分，合计3分判断代码
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,MarkdownScrollState,init,init,330,KEEP,2026-11-20：Markdown滚动回调构造并由共享协调器按条目键持有，仅保存实际传入和恢复的scrollOffset；无消费者的块锚点和矩形字段已删除
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,init,init,66,KEEP,2026-11-20：唯一条目判型，富文本仅初始化解析一次保存NSAttributedString供正文测量共用；无有效RTF按正文分类，textPath且全文未加载仍异步，浮动已读全文直接分类；编辑kindOverride不读旧RTF，文件加载保留
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,classifyRawText,func,144,KEEP,2026-11-20：模型及落盘文本视图、归档和编辑后预览共用；先JSON，再以代码强度及Markdown强信号分流，最后普通代码或文本；长文视图每次body仍调用完整分类
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,markdownStrongCount,func,157,KEEP,2026-11-20：classifyRawText强代码分支调用；去首尾空白后对10条静态正则分别找首命中，统计模式数而非全部匹配次数
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,codeStrength,func,169,KEEP,2026-11-20：classifyRawText调用；maxSplits80后仅取前80条非空行，不分配样本外每行；以去空白文本排除Markdown结构且允许井叹/include/import，代码标点前缀及原行4空格或Tab参与代码比例
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isCodeLine,func,189,KEEP,2026-11-20：codeStrength唯一调用；接收去空白行按语言前缀尾标点和操作符判代码，编译指令已能到达本方法；原始缩进由调用方判断，删除本方法不可达缩进分支
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isJSONPreviewEligible,func,211,KEEP,2026-11-20：classifyRawText首段调用；200000字符内尝试对象数组单根，失败则逐行统计对象数组JSONL，至少2条有效且有效不少于坏行；不改变既有资格范围
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeMarkdown,func,260,KEEP,2026-11-20：classifyRawText调用；强信号复用静态正则任一命中即返回，弱信号每轮重编下划线正则，扫描最多40条且累计两分；当前注释240字分支实际不存在
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeCode,func,293,KEEP,2026-11-20：classifyRawText最后代码判定；maxSplits30保留空行并只取前30行，少于4行仍false；原尾标点前缀和至少3行缩进计分，合计3分判断代码
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,MarkdownScrollState,init,init,317,KEEP,2026-11-20：Markdown滚动回调构造并由共享协调器按条目键持有，仅保存实际传入和恢复的scrollOffset；无消费者的块锚点和矩形字段已删除
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewRichTextView,init,init,82,KEEP,调用方 :53（.richText 分支构造）
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewSourceTextView,copy,func,106,KEEP,覆写 NSResponder.copy(_:)；⌘C 经响应链派发；:151 实例化
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewTextViewRepresentable,makeNSView,func,158,KEEP,NSViewRepresentable 协议；ArchiveTextPreview.swift:176 亦用
@@ -3588,10 +3585,10 @@ Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,u32,func,396,K
 Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,f64,func,400,KEEP,索引头小端 Double 解码（建立时间）；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,appendU32,func,406,KEEP,索引头小端 UInt32 编码；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,appendF64,func,413,KEEP,索引头小端 Double 编码；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatch,init,init,23,KEEP,match:45/71 构造；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,match,func,37,KEEP,CommandPalette:375/398、SearchSectionView:110/197/1132 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,isMatch,func,81,KEEP,SearchSectionView.swift:112/1131 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,rate,func,95,KEEP,match:71 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatch,init,init,23,KEEP,2026-11-20：match短查询和超过32字符连续查询两处分支构造，保存score及升序命中位置，供命令文件排序和文本高亮
+Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,match,func,37,KEEP,2026-11-20：命令面板斜杠工具文件索引和搜索标题调用；小写贪心取最早位置直接交rate，删除同下界反向firstIndex无效遍历；超过32字符仍连续匹配
+Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,isMatch,func,69,KEEP,2026-11-20：工具综合字段和剪贴板正文调用；lowercase后迭代子序列，不创建得分和位置；超过32字符仍子序列而match要求连续，保留既有差异
+Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,rate,func,83,KEEP,2026-11-20：仅match短查询调用，基础16分每字符，连续段奖励、词边界14和驼峰10、靠前加分及最多8分间隔扣分，消费原始字符保留大小写边界
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchResultItem,init,init,48,KEEP,ToolboxSearchSource.item:119、本文件:99 构造；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchHookRegistry,register,func,64,KEEP,ToolboxSearchSource.register:91 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchHookRegistry,search,func,70,KEEP,scheduleSearch:1551 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
@@ -3608,37 +3605,37 @@ Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,fetchRe
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,resolveURL,func,417,KEEP,fetchResults:342 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,webView,func,437,KEEP,nonisolated WKNavigationDelegate：didFinish / didFail 两个重载都回 MainActor resume navContinuation，等待导航时不会卡死或泄漏；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,webView,func,445,KEEP,nonisolated WKNavigationDelegate：didFinish / didFail 两个重载都回 MainActor resume navContinuation，等待导航时不会卡死或泄漏；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,init,init,575,KEEP,ToolboxModule.swift:16 经 PanelSectionRegistry.build 构造；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,init,init,581,KEEP,正式 SearchSectionView.init 观察共享服务；草稿重载观察 SearchDisplayDraft.service 并注入三项分类绑定，预览与正式路径复用同一视图；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,previewAction,func,761,KEEP,设置预览的网页/工具/引擎动作仅显示演示反馈，消费clearSearchInputAfterWebAction决定调用clearInput或保留输入；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ContentHeightKey,reduce,func,877,KEEP,PreferenceKey 协议实现（:710 onPreferenceChange 消费）；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,categoryHeader,func,970,KEEP,webCategory:844、clipboard:1173、files:1299、tools:1381 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webCategory,func,1034,KEEP,listContent:732/734 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webResultArea,func,1095,KEEP,webCategory:849 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ClipboardFilterKind,matches,func,1285,KEEP,filteredClipboardMatches:1127 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filterChips,func,1354,KEEP,clipboardCategory:1176、filesCategory:1302 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardCategory,func,1376,KEEP,listContent:731/736 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardIcon,func,1467,KEEP,clipboardCategory:1195/1215 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fileIcon,func,1488,KEEP,filesCategory:1318/1340 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,resultFileIcon,func,1499,KEEP,设置预览文件行用 doc SF Symbol，正式文件行继续读取缓存的 NSWorkspace 文件图标；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,ago,func,1578,KEEP,「22 分钟前建立」相对时间文案；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filesCategory,func,1586,KEEP,listContent:729/738 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,toolCategory,func,1681,KEEP,listContent:730/747 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,highlighted,func,1750,KEEP,web:1014/1036、clipboard:1199、files:1321、tools:1396 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,updatePreviewCategories,func,1795,KEEP,仅设置预览响应分类开关；当前类关闭时切回全部并调用本地 scheduleSearch，不写持久分类；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filterPreviewItems,func,1802,KEEP,固定工具名/命令、副标题、五类文件名及网页标题/摘要通过 FuzzyMatcher 本地筛选，更新结果与搜索状态，不进入注册检索源、文件索引或网页抓取；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,previewSelectionFill,func,1828,KEEP,按 previewSelectedResultID 给被点击的固定结果绘制强调色圆角底，正式搜索行使用透明底；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,performWebSearch,func,1839,KEEP,onSubmit:603、engineActionsRow:865 等 5 处调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clearInput,func,1865,KEEP,搜索框 ✕ 按钮:629、toolCategory:1385、performWebSearch:1486 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fetchWebResults,func,1880,KEEP,categoryChips:658、engineActionsRow:863、scheduleSearch:1567；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,scheduleSearch,func,1919,KEEP,body onChange(query):502 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,1976,KEEP,WKNavigationDelegate 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,1979,KEEP,WKNavigationDelegate 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,1982,KEEP,WKNavigationDelegate 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeCoordinator,func,1987,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeNSView,func,1989,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,updateNSView,func,2000,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,dismantleNSView,func,2006,KEEP,NSViewRepresentable 静态协议方法；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,init,init,576,KEEP,ToolboxModule.swift:16 经 PanelSectionRegistry.build 构造；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,init,init,582,KEEP,正式 SearchSectionView.init 观察共享服务；草稿重载观察 SearchDisplayDraft.service 并注入三项分类绑定，预览与正式路径复用同一视图；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,previewAction,func,762,KEEP,设置预览的网页/工具/引擎动作仅显示演示反馈，消费clearSearchInputAfterWebAction决定调用clearInput或保留输入；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ContentHeightKey,reduce,func,878,KEEP,PreferenceKey 协议实现（:710 onPreferenceChange 消费）；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,categoryHeader,func,971,KEEP,webCategory:844、clipboard:1173、files:1299、tools:1381 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webCategory,func,1035,KEEP,listContent:732/734 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webResultArea,func,1096,KEEP,webCategory:849 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ClipboardFilterKind,matches,func,1286,KEEP,filteredClipboardMatches:1127 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filterChips,func,1326,KEEP,clipboardCategory:1176、filesCategory:1302 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardCategory,func,1348,KEEP,listContent:731/736 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardIcon,func,1439,KEEP,clipboardCategory:1195/1215 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fileIcon,func,1460,KEEP,filesCategory:1318/1340 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,resultFileIcon,func,1471,KEEP,设置预览文件行用 doc SF Symbol，正式文件行继续读取缓存的 NSWorkspace 文件图标；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,ago,func,1550,KEEP,「22 分钟前建立」相对时间文案；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filesCategory,func,1558,KEEP,listContent:729/738 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,toolCategory,func,1653,KEEP,listContent:730/747 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,highlighted,func,1722,KEEP,web:1014/1036、clipboard:1199、files:1321、tools:1396 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,updatePreviewCategories,func,1767,KEEP,仅设置预览响应分类开关；当前类关闭时切回全部并调用本地 scheduleSearch，不写持久分类；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filterPreviewItems,func,1774,KEEP,固定工具名/命令、副标题、五类文件名及网页标题/摘要通过 FuzzyMatcher 本地筛选，更新结果与搜索状态，不进入注册检索源、文件索引或网页抓取；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,previewSelectionFill,func,1800,KEEP,按 previewSelectedResultID 给被点击的固定结果绘制强调色圆角底，正式搜索行使用透明底；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,performWebSearch,func,1811,KEEP,onSubmit:603、engineActionsRow:865 等 5 处调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clearInput,func,1837,KEEP,搜索框 ✕ 按钮:629、toolCategory:1385、performWebSearch:1486 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fetchWebResults,func,1852,KEEP,categoryChips:658、engineActionsRow:863、scheduleSearch:1567；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,scheduleSearch,func,1891,KEEP,body onChange(query):502 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,1948,KEEP,WKNavigationDelegate 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,1951,KEEP,WKNavigationDelegate 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,1954,KEEP,WKNavigationDelegate 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeCoordinator,func,1959,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeNSView,func,1961,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,updateNSView,func,1972,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,dismantleNSView,func,1978,KEEP,NSViewRepresentable 静态协议方法；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SlashCommands.swift,SlashCommandCatalog,build,func,52,KEEP,CommandPalette.swift:58 buildSlash 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SlashCommands.swift,SlashCommandCatalog,match,func,112,KEEP,SearchSectionView.swift:97 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Shell/ToolboxModule.swift,ToolboxModule,start,func,9,KEEP,AppModule 协议，经 ModuleRegistry.startAll 派发；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
@@ -3988,16 +3985,16 @@ TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransf
 TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,add,func,159,KEEP,2026-11-20：拖入选文件图片压缩结果及自动暂存共用；串行队列逐项在安全作用域内建UUID目录并stage，失败删本次空目录；主线程发布成功项和错误并回调数量；入口无条件记录发送统计，自动暂存也被统计为发送待处理
 TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,autoStage,func,213,KEEP,2026-11-20：AppBootstrap收到剪贴板文件通知后按开关调用；标准化去重且pendingAutoStagePaths合并在途，原路径或暂存路径命中只刷新addedAt排序及通知，其余交add并回传实际数量和错误，不限制扩展名
 TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,addUploads,func,249,KEEP,2026-11-20：LanTransferServer手机上传及TransferDockView安卓拉取调用；串行队列把临时文件移入UUID目录，失败沿现有拷贝再删源路径；主线程发布成功upload条目并显示真实来源和错误，原temp路径仅记录元数据
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,stage,func,299,KEEP,2026-11-20：仅add调用；目录建符号链接，普通文件先硬链接失败再拷贝；实际Mode写入索引并显示，拷贝catch仅重新throw同一错误可在后续精简
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,sizeOf,func,324,KEEP,2026-11-20：add和addUploads入库前读取fileSize与isDirectory元数据；目录或失败返回0，列表以破折号显示，不递归扫描目录内容
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,startRetentionCleanup,func,332,KEEP,2026-11-20：AppBootstrap启动或保留期变更和相应配置导入调用；取消释放旧计时，0结束，正数注册每3600秒弱引用计时并立即pruneExpired一次；加入主runloop common模式
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,pruneExpired,func,344,KEEP,2026-11-20：原计时和设置立即清理按钮调用；按正式retentionDays及addedAt筛选，截止为当前时间减天数乘86400秒，过期项交统一remove；0直接回调none，不执行文件操作
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,remove,func,351,KEEP,2026-11-20：单项删除清空和保留期共用；后台逐项把stagingRoot/item.id目录送废纸篓，主线程仅删成功索引并persist及通知，失败项保留且列原因；回调成功数量及0回收字节，不操作原文件
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,remove,func,375,KEEP,2026-11-20：列表菜单及手机删除调用，单条转数组重载，统一异步送废纸篓及发布真实结果
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,clearAll,func,379,KEEP,2026-11-20：设置清空及列表清空交remove(items)；由同一异步删除链确认每项实际结果，不先清索引也不直接递归删除原目录
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,reveal,func,383,KEEP,2026-11-20：文件卡片和右键在Finder显示调用；交NSWorkspace选择暂存URL，定位到暂存链接或副本，不切原始路径
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,open,func,387,KEEP,2026-11-20：文件卡片及右键打开调用，NSWorkspace按暂存URL启动默认应用；目录符号链接按系统语义进入目标
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,openStagingFolder,func,391,KEEP,2026-11-20：中转列表打开目录及本地设置打开按钮调用NSWorkspace.open(stagingRoot)，复用现有暂存根目录
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,stage,func,299,KEEP,2026-11-20：仅add调用，目录符号链接、文件先硬链接失败再拷贝，实际Mode写索引；删除原样throw的重复catch，拷贝失败直接交add统一处理
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,sizeOf,func,320,KEEP,2026-11-20：add和addUploads入库前读取fileSize与isDirectory元数据；目录或失败返回0，列表以破折号显示，不递归扫描目录内容
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,startRetentionCleanup,func,328,KEEP,2026-11-20：AppBootstrap启动或保留期变更和相应配置导入调用；取消释放旧计时，0结束，正数注册每3600秒弱引用计时并立即pruneExpired一次；加入主runloop common模式
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,pruneExpired,func,340,KEEP,2026-11-20：原计时和设置立即清理按钮调用；按正式retentionDays及addedAt筛选，截止为当前时间减天数乘86400秒，过期项交统一remove；0直接回调none，不执行文件操作
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,remove,func,347,KEEP,2026-11-20：单项删除清空和保留期共用；后台逐项把stagingRoot/item.id目录送废纸篓，主线程仅删成功索引并persist及通知，失败项保留且列原因；回调成功数量及0回收字节，不操作原文件
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,remove,func,371,KEEP,2026-11-20：列表菜单及手机删除调用，单条转数组重载，统一异步送废纸篓及发布真实结果
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,clearAll,func,375,KEEP,2026-11-20：设置清空及列表清空交remove(items)；由同一异步删除链确认每项实际结果，不先清索引也不直接递归删除原目录
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,reveal,func,379,KEEP,2026-11-20：文件卡片和右键在Finder显示调用；交NSWorkspace选择暂存URL，定位到暂存链接或副本，不切原始路径
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,open,func,383,KEEP,2026-11-20：文件卡片及右键打开调用，NSWorkspace按暂存URL启动默认应用；目录符号链接按系统语义进入目标
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,openStagingFolder,func,387,KEEP,2026-11-20：中转列表打开目录及本地设置打开按钮调用NSWorkspace.open(stagingRoot)，复用现有暂存根目录
 TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,init,init,49,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：shared单例创建；进程令牌由既有UUID生成；服务仍须CastView手动开启
 TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,start,func,53,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：CastView开关调用；顺延8端口并复用bind；与WebDAV相同的同步监听等待待后续性能处理
 TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,bind,func,64,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：start调用；只绑定IPv4回环并记录不含令牌的基础地址；回调ok同步和主线程等待待处理
