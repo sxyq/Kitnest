@@ -17,7 +17,7 @@ final class LocalTransferSettingsDraft: SettingsEditableDraft {
         if values[2] != saved[2] { Preferences.shared.set(TransferDockPref.hoverPreviewKey, hoverPreview) }
         if values[3] != saved[3] { Preferences.shared.set(TransferDockPref.retentionDaysKey, retentionDays) }
         guard UserDefaults.standard.synchronize() else { return "本地中转设置写入磁盘失败，调整已保留" }
-        LocalTransferStore.shared.startRetentionCleanup()
+        if values[3] != saved[3] { LocalTransferStore.shared.startRetentionCleanup() }
         NotificationCenter.default.post(name: .transferDockSettingsDidChange, object: nil)
         saved = values
         objectWillChange.send()
