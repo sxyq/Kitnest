@@ -575,15 +575,12 @@ enum PreviewMarkdownRenderer {
             }
 
             // 注释（行尾）
-            if let range = line.range(of: "//") {
-                let loc = line.distance(from: line.startIndex, to: range.lowerBound)
-                if loc > 0 {
-                    // 不在字符串内才标（粗略：看前面引号数量）
-                    let prefix = String(line.prefix(loc))
-                    let quotes = prefix.filter { $0 == "\"" }.count
-                    if quotes % 2 == 0 {
-                        out.addAttribute(.foregroundColor, value: commentColor, range: NSRange(location: loc, length: ns.length - loc))
-                    }
+            if let range = line.range(of: "//"), range.lowerBound != line.startIndex {
+                // 不在字符串内才标（粗略：看前面引号数量）；富文本用 UTF-16 偏移。
+                let prefix = line[..<range.lowerBound]
+                if prefix.filter({ $0 == "\"" }).count % 2 == 0 {
+                    let loc = prefix.utf16.count
+                    out.addAttribute(.foregroundColor, value: commentColor, range: NSRange(location: loc, length: ns.length - loc))
                 }
             }
 
