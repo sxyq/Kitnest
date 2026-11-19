@@ -105,15 +105,14 @@ public final class OllamaService: LLMProviderAdapting {
     }
 
     /// Ollama 的 NDJSON 流以 `{"done":true}` 收尾；识别它可在连接不被主动关闭时立即结束。
-    /// 仅当该行不再携带增量文本时才判定为终止行，避免个别版本把收尾文本放在 done 行里被丢弃。
+    /// 公共流处理先交付本行文本，再识别完成标志。
     public func isTerminalLine(_ line: String) -> Bool {
         guard let payload = LLMJSON.streamPayload(line),
               let data = payload.data(using: .utf8),
               let obj = try? JSONSerialization.jsonObject(with: data),
               let dict = obj as? [String: Any],
               (dict["done"] as? Bool) == true else { return false }
-        let content = (dict["message"] as? [String: Any])?["content"] as? String
-        return (content ?? "").isEmpty
+        return true
     }
 
     // MARK: - 私有
