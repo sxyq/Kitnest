@@ -2084,7 +2084,7 @@ Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardListTopScr
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardRowChromeView,drawSelection,func,132,KEEP,NSTableRowView 覆盖；:607 返回本类由 AppKit 派发绘制
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardRowChromeView,drawBackground,func,143,KEEP,NSTableRowView 覆盖，AppKit 行绘制派发（空实现）
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,init,init,170,KEEP,本文件:566 viewFor 内构造行视图
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,init,init,184,UNSURE,零调用且 unavailable；是否编译期必需（禁 build 无法验证）
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,init,init,184,KEEP,2026-11-19：SDK SwiftUI.swiftinterface的NSHostingView明确声明required init(rootView:)；本类新增reuseIdentifier专用构造后仍须实现父类要求的初始化器，unavailable只限制外部误用，正常行由viewFor构造
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,init,init,189,KEEP,NSView required init?(coder:) 编译期必需；unavailable 阻断 nib
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,setItem,func,196,KEEP,本文件:590 viewFor 配置行内容
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,setHovered,func,205,KEEP,本文件:721 进入 hover / 738 清除
