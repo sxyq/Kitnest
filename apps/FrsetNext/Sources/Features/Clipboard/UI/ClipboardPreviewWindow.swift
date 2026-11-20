@@ -484,10 +484,16 @@ struct ClipboardPreviewWindowView: View {
     }
 
     private func save() {
-        ClipboardManager.shared.saveContent(dedupeKey: item.dedupeKey, newContent: draft)
-        model = Self.makeModel(item: item, editedText: draft)
-        isEditing = false
-        Toast.show("已保存", icon: "checkmark.circle")
+        let content = draft
+        ClipboardManager.shared.saveContent(dedupeKey: item.dedupeKey, newContent: content) { saved in
+            guard let saved else {
+                Toast.show("保存失败", icon: "exclamationmark.triangle", isWarning: true)
+                return
+            }
+            model = Self.makeModel(item: saved, editedText: content)
+            isEditing = false
+            Toast.show("已保存", icon: "checkmark.circle")
+        }
     }
 
     // MARK: 模型 / 文案

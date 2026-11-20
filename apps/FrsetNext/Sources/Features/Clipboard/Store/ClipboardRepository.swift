@@ -224,41 +224,35 @@ public final class ClipboardRepository: @unchecked Sendable {
     public func updateContent(dedupeKey: String,
                               content: String,
                               textPath: String?,
+                              richTextPath: String?,
                               charCount: Int?,
                               lineCount: Int?,
-                              storageBytes: Int) -> Bool {
+                              storageBytes: Int,
+                              aliasTitle: String?) -> Bool {
+        let shouldUpdateAlias = aliasTitle != nil
+        let storedAlias = aliasTitle.flatMap {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0
+        }
         do {
             try db.run("""
             UPDATE clipboard_items
                SET content = ?, text_path = ?, full_text_char_count = ?,
-                   full_text_line_count = ?, storage_bytes = ?, title = ?
+                   rich_text_path = ?, full_text_line_count = ?, storage_bytes = ?, title = ?,
+                   alias_title = CASE WHEN ? THEN ? ELSE alias_title END
              WHERE dedupe_key = ?
             """, [.text(content),
                   textPath.map { SQLiteValue.text($0) } ?? .null,
                   charCount.map { SQLiteValue.int(Int64($0)) } ?? .null,
+                  richTextPath.map { SQLiteValue.text($0) } ?? .null,
                   lineCount.map { SQLiteValue.int(Int64($0)) } ?? .null,
                   .int(Int64(storageBytes)),
                   .text(content.firstLineBrief),
+                  .int(shouldUpdateAlias ? 1 : 0),
+                  storedAlias.map(SQLiteValue.text) ?? .null,
                   .text(dedupeKey)])
             return true
         } catch {
             Log.error("clipboard", "保存正文失败: \(error)")
-            return false
-        }
-    }
-
-    /// 重命名（alias_title）
-    public func updateAliasTitle(dedupeKey: String, aliasTitle: String?) -> Bool {
-        do {
-            if let alias = aliasTitle, !alias.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                try db.run("UPDATE clipboard_items SET alias_title = ? WHERE dedupe_key = ?",
-                        [.text(alias), .text(dedupeKey)])
-            } else {
-                try db.run("UPDATE clipboard_items SET alias_title = NULL WHERE dedupe_key = ?", [.text(dedupeKey)])
-            }
-            return true
-        } catch {
-            Log.error("clipboard", "保存标题失败: \(error)")
             return false
         }
     }

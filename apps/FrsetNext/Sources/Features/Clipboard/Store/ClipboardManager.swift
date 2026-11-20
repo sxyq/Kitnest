@@ -896,7 +896,14 @@ public final class ClipboardManager: ObservableObject {
         queue.async { [weak self] in
             guard let self else { return }
             var savedItem: ClipboardItem?
+            var textPath: String?
+            var richTextPath: String?
+            var didSave = false
             defer {
+                if !didSave {
+                    ClipboardTextStorage.remove(textPath)
+                    ClipboardFileStore.remove(richTextPath)
+                }
                 let result = savedItem
                 DispatchQueue.main.async {
                     self.reload(reset: false)
@@ -905,39 +912,42 @@ public final class ClipboardManager: ObservableObject {
             }
             guard let existing = self.repository.item(dedupeKey: dedupeKey) else { return }
             let length = (newContent as NSString).length
-            // 正文改变才更新 RTF；仅重命名时保留原格式。
-            if let richTextPath = existing.richTextPath, newContent != self.fullText(for: existing) {
+            // 正文改变时将新 RTF 写到独立文件；SQL 成功后再移除旧附件。
+            if existing.richTextPath != nil, newContent != self.fullText(for: existing) {
                 let richText = NSAttributedString(string: newContent)
                 guard let data = richText.rtf(from: NSRange(location: 0, length: richText.length),
-                                             documentAttributes: [:]),
-                      ClipboardFileStore.write(data, toRelativePath: richTextPath) else { return }
+                                             documentAttributes: [:]) else { return }
+                guard let stored = ClipboardRichTextStorage.write(data) else { return }
+                richTextPath = stored
             }
+            let currentRichTextPath = richTextPath ?? existing.richTextPath
             let auxiliary = self.auxiliaryBytes(item: existing)
+                - ClipboardFileStore.fileSize(existing.richTextPath)
+                + ClipboardFileStore.fileSize(currentRichTextPath)
+            var content = newContent
+            var charCount: Int?
+            var lineCount: Int?
             if length > Self.inlineTextByteLimit {
                 guard let stored = ClipboardTextStorage.write(newContent) else { return }
-                let previewBytes = String(newContent.prefix(Self.inlinePreviewLength)).utf8.count
-                guard self.repository.updateContent(dedupeKey: dedupeKey,
-                                              content: String(newContent.prefix(Self.inlinePreviewLength)),
-                                              textPath: stored.path,
-                                              charCount: length,
-                                              lineCount: newContent.lineCount,
-                                              storageBytes: stored.bytes + previewBytes + auxiliary) else {
-                    ClipboardTextStorage.remove(stored.path)
-                    return
-                }
-                if let old = existing.textPath, old != stored.path { ClipboardTextStorage.remove(old) }
-            } else {
-                guard self.repository.updateContent(dedupeKey: dedupeKey,
-                                              content: newContent,
-                                              textPath: nil,
-                                              charCount: nil,
-                                              lineCount: nil,
-                                              storageBytes: newContent.utf8.count + auxiliary) else { return }
-                if let old = existing.textPath { ClipboardTextStorage.remove(old) }
+                textPath = stored.path
+                charCount = length
+                lineCount = newContent.lineCount
+                content = String(newContent.prefix(Self.inlinePreviewLength))
             }
-            if let aliasTitle {
-                guard self.repository.updateAliasTitle(dedupeKey: dedupeKey, aliasTitle: aliasTitle) else { return }
+            let storageBytes = (textPath.map { ClipboardFileStore.fileSize($0) } ?? content.utf8.count) + auxiliary
+            guard self.repository.updateContent(dedupeKey: dedupeKey,
+                                                content: content,
+                                                textPath: textPath,
+                                                richTextPath: currentRichTextPath,
+                                                charCount: charCount,
+                                                lineCount: lineCount,
+                                                storageBytes: storageBytes,
+                                                aliasTitle: aliasTitle) else { return }
+            if let old = existing.textPath { ClipboardTextStorage.remove(old) }
+            if let old = existing.richTextPath, old != currentRichTextPath {
+                ClipboardFileStore.remove(old)
             }
+            didSave = true
             savedItem = self.repository.item(dedupeKey: dedupeKey)
         }
     }
