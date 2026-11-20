@@ -759,7 +759,12 @@ public final class ClipboardManager: ObservableObject {
         guard let path = item.imagePath else { return "图片没有持久化原文件" }
         let url = ClipboardFileStore.url(forRelativePath: path)
         guard FileManager.default.isReadableFile(atPath: url.path) else { return "图片原文件不可读取：\(url.lastPathComponent)" }
-        return copyFiles([url], successMessage: "已复制图片文件")
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        guard pasteboard.writeObjects([url as NSURL]) else { return "复制失败：无法写入文件 URL" }
+        Self.scheduleAutoStage([url])
+        finishCopy(message: "已复制图片文件", event: .historyCopy)
+        return nil
     }
 
     private func finishCopy(message: String, event: AnalyticsEvent) {
