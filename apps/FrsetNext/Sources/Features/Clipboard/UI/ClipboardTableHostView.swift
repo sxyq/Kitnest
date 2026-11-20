@@ -5,7 +5,7 @@ import SwiftUI
 //
 // 职责：NSScrollView + NSTableView 骨架，承载原作列表交互族：
 // - 行视图复用（RowHostingView，按条目类型注册复用标识）
-// - 行点击语义（specs/14 §3.7）：单击/空格 = 预览（不复制）、双击/↩ = 复制、右键 = 菜单
+// - 行点击语义：单击选中、空格预览、双击/↩复制、右键菜单
 // - 右键按下即触发（specs/14 §3.2 ClipboardRowContextMenuActivationTrackerNSView 语义）
 // - hover 高亮与抑制（specs/14 §3.3 ClipboardRowHoverSuppressionController：抑制至鼠标再次移动）
 // - 顶部滚动迟滞跟踪（specs/14 §3.4 ClipboardListTopScrollTracker → 回顶按钮）
@@ -157,8 +157,6 @@ final class RowHostingView: NSHostingView<AnyView> {
     /// 两个动作缺一不可——见 mouseDown 内注释。尾部 hover 操作按钮区不走此回调。
     var onPlainMouseDown: ((Int, NSEvent) -> Void)?
 
-    /// 单击（clickCount == 1）→ 预览
-    var onSingleClick: ((ClipboardItem) -> Void)?
     /// 双击（clickCount >= 2）→ 复制
     var onDoubleClick: ((ClipboardItem) -> Void)?
     /// 修饰键点击（⌘=toggle 加选 / ⇧=范围加选）→ 多选批量复制（原版「已复制 N 项」）。
@@ -224,7 +222,7 @@ final class RowHostingView: NSHostingView<AnyView> {
             super.mouseDown(with: event)
             return
         }
-        // 行点击语义（specs/14 §3.7）：单击=预览、双击=复制；
+        // 单击由表格统一选择并广播，双击复制；
         // ⌘=toggle 加选、⇧=范围加选（多选期间不触发预览/复制）
         let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let cmd = mods.contains(.command), shift = mods.contains(.shift)
@@ -235,9 +233,6 @@ final class RowHostingView: NSHostingView<AnyView> {
         }
         if event.clickCount >= 2 {
             onDoubleClick?(item)
-        } else {
-            Log.info("clipboard", "row mouseDown: single click dispatched (row=\(row))")
-            onSingleClick?(item)
         }
         // 分派之后才建立选中态与键盘归属（修复 C11，两个动作缺一不可）：
         // ① 选中——本类不透传 super，AppKit 默认选中路径不执行，selectedRow 恒 -1，
@@ -245,7 +240,6 @@ final class RowHostingView: NSHostingView<AnyView> {
         // ② 键盘归属——本类 acceptsFirstMouse=true 会抢走 first responder，
         //    若不显式把表格设为 first responder，ClipboardTableView.keyDown 收不到
         //    空格/↩，即使选中态已成立。
-        // 放在分派之后：让 popover 先完成呈现，再落first responder。
         if row >= 0 { onPlainMouseDown?(row, event) }
     }
 
@@ -562,7 +556,8 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         // 交互族状态
         let topTracker = ClipboardListTopScrollTracker()
         let hoverSuppression = ClipboardRowHoverSuppressionController()
-        private var hoveredRowView: RowHostingView?
+        private weak var hoveredRowView: RowHostingView?
+        private var scrollTopObserver: NSObjectProtocol?
         private var hoveredItemID: String?
         /// 行号 → 行视图弱引用（view-based NSTableView 的视图层级不可用于反查，见 viewFor 注释）
         private var rowViewsByRow: [Int: WeakRowBox] = [:]
@@ -578,13 +573,17 @@ public struct ClipboardTableHostView: NSViewRepresentable {
             }
         }
 
+        deinit {
+            if let scrollTopObserver { NotificationCenter.default.removeObserver(scrollTopObserver) }
+        }
+
         func bind(scrollView: ClipboardListScrollView, table: ClipboardTableView, proxy: ClipboardTableScrollProxy) {
             self.scrollView = scrollView
             self.table = table
             self.proxy = proxy
             proxy.scrollView = scrollView
             // v102：底部「回到顶部」按钮经通知触发（代理在别处持有）
-            NotificationCenter.default.addObserver(
+            scrollTopObserver = NotificationCenter.default.addObserver(
                 forName: .frsetClipboardScrollTop, object: nil, queue: .main
             ) { [weak proxy] _ in proxy?.scrollToTop() }
 
@@ -614,6 +613,9 @@ public struct ClipboardTableHostView: NSViewRepresentable {
                 ?? RowHostingView(reuseIdentifier: identifier,
                                   frame: NSRect(x: 0, y: 0, width: tableView.bounds.width, height: owner.rowHeight))
             host.identifier = identifier
+            if rowViewsByRow[host.row]?.view === host {
+                rowViewsByRow.removeValue(forKey: host.row)
+            }
             host.row = row
 
             host.contentBuilder = { [weak self] item, hovered in
@@ -627,7 +629,6 @@ public struct ClipboardTableHostView: NSViewRepresentable {
                     personalization: self.owner.personalization
                 ))
             }
-            host.onSingleClick = { [weak self] item in self?.handleSingleClick(item) }
             host.onDoubleClick = { [weak self] item in self?.handleDoubleClick(item) }
             host.onModifierClick = { [weak self] row, shift in self?.handleModifierClick(row: row, shift: shift) }
             host.onPlainMouseDown = { [weak self] row, event in self?.handlePlainMouseDown(row: row, event: event) }
@@ -868,11 +869,6 @@ public struct ClipboardTableHostView: NSViewRepresentable {
                 guard let view, view.window != nil else { return nil }
                 return view.convert(view.bounds, to: nil)
             }
-        }
-
-        private func handleSingleClick(_ item: ClipboardItem) {
-            // 单击只选中条目；预览由悬停触发。
-            NotificationCenter.default.post(name: .clipboardSelectionChanged, object: item)
         }
 
         private func handleDoubleClick(_ item: ClipboardItem) {
