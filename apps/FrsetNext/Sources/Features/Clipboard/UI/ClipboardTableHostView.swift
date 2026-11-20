@@ -730,9 +730,6 @@ public struct ClipboardTableHostView: NSViewRepresentable {
                 isAnchorScrolling = false
             }
 
-            // 预览协调器对接（specs/12 F7 顺序表 + F8 __pendingPreviewPaginationRequest 对接点）：
-            // 顺序表随列表/分页刷新，预览导航与分页可见新页条目
-            ServiceLocator.panelPreview?.setPreviewOrder(items.map(\.id))
         }
 
         // MARK: 滚动跟踪

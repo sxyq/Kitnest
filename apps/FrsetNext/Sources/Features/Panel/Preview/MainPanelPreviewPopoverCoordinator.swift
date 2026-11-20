@@ -1,5 +1,4 @@
 import AppKit
-import Combine
 import Foundation
 import SwiftUI
 
@@ -13,7 +12,7 @@ import SwiftUI
 //
 // 三路触发：悬停（开/关 DispatchWorkItem + hover-intent 阈值 + 总开关）、单击、空格键。
 // 关闭仲裁：hoverOut（含鼠标实测位置兜底）/ Esc / 点外 / 滚动出视口 / 条目删除 /
-// 面板收起等待（waitsForPreviewClose）。
+// 面板收起前等待预览关闭。
 
 /// 关闭原因（类型名实证 @0x10096a3f0；case 集⬜，以下为语义推测，禁当实证）
 public enum MainPanelPreviewPopoverCloseReason: String {
@@ -118,21 +117,11 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     private var sessionID = UUID()                        // F9 __previewSessionID
     private var hoverStartedAt: Date?
     private var isPreviewPopoverHovered = false           // F4 __isPreviewPopoverHovered
-    // v126（性能审计 死代码复审）：删除死属性 cancellables（Set<AnyCancellable>，
-    // 全工程无 store(in:) 订阅引用，Combine import 保留供后续订阅使用）
     private var pendingCloseCompletion: (() -> Void)?
     private var escapeMonitor: Any?
 
-    // F7/F8：导航顺序表与滚动跟踪
-    private var previewOrder: [String] = []
-    private var trackedPreviewItemMinYByID: [String: CGFloat] = [:]
-    private var pendingPreviewVisibilityValidationTargetID: String?
     public private(set) var activeItemID: String?
     private var restoreAfterHover: (() -> Bool)?
-    private var activeSource: PreviewPopoverContentModel.Source = .mainPreview
-
-    /// 面板收起前是否等待预览关闭（P8 waitsForPreviewClose；PanelController.hide() 依赖）
-    public var waitsForPreviewClose: Bool { true }
 
     /// 是否有存活的预览窗
     public var hasActivePreview: Bool {
@@ -182,7 +171,6 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
         cancelHoverWorkItems()
         cancelKeyboardPreview()
         restoreAfterHover = nil
-        activeSource = source
 
         let panelFrame: CGRect
         let visibleFrame: CGRect
@@ -477,17 +465,6 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
         if let m = escapeMonitor { NSEvent.removeMonitor(m); escapeMonitor = nil }
     }
 
-    // MARK: 导航（F7）
-
-    /// 提供当前过滤态下的条目顺序表（dev-clipboard 在列表变化时调用）
-    public func setPreviewOrder(_ ids: [String]) {
-        previewOrder = ids
-    }
-
-
-    // MARK: 滚动跟随与校验（F8/P6）
-
-
     // MARK: 条目删除（F10 itemRemoved）
 
     public func notifyItemRemoved(itemID: String) {
@@ -608,8 +585,6 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
         activeItemID = nil
         restoreAfterHover = nil
         isPreviewPopoverHovered = false
-        trackedPreviewItemMinYByID.removeAll()
-        pendingPreviewVisibilityValidationTargetID = nil
         // F3：关闭后抑制悬停复弹，直到鼠标移动
         beginHoverSuppression()
         removeEscapeMonitor()
