@@ -1598,11 +1598,11 @@ Capture,Features/Capture/Screenshot/CaptureOCRNotify.swift,OCRNotePanel,show,fun
 Capture,Features/Capture/Screenshot/CaptureOCRNotify.swift,OCRNotePanel,fadeOut,func,113,KEEP,2026-11-19：show的sleep到期调用；动画完成后orderOut并复位alpha
 Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,init,init,14,KEEP,2026-11-19：CaptureModule面板区段build闭包构造；无需参数
 Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,entryButton,func,117,KEEP,2026-11-19：body九个CaptureMode入口共用；标题/图标只从enum读，动作由调用闭包执行
-Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,thumbnailView,func,175,KEEP,2026-11-19：最近截图网格前九项调用；命中共享thumbnail后可点开原文件或由菜单交manager动作
-Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,pickAndStitch,func,208,KEEP,2026-11-19：长图按钮调用；NSOpenPanel选至少两张图并限Stitcher上限，后台拼接，主线程恢复忙态并保存或给失败因
-Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,pinLatest,func,241,KEEP,2026-11-19：钉图按钮调用；优先最近记录URL，无记录才弹单张图片选择器
-Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,annotateLatest,func,250,KEEP,2026-11-19：标注按钮调用；先请求manager.annotateLatest，失败/无最近项才选文件后标注
-Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,chooseSingleImage,func,256,KEEP,2026-11-19：pinLatest与annotateLatest共用；NSOpenPanel仅接收单个图片文件，取消返回nil
+Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,thumbnailView,func,175,KEEP,最近截图网格前九项调用；绘制RecentCaptureThumbnail并保留原点击、右键和时间提示
+Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,pickAndStitch,func,199,KEEP,2026-11-19：长图按钮调用；NSOpenPanel选至少两张图并限Stitcher上限，后台拼接，主线程恢复忙态并保存或给失败因
+Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,pinLatest,func,232,KEEP,2026-11-19：钉图按钮调用；优先最近记录URL，无记录才弹单张图片选择器
+Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,annotateLatest,func,241,KEEP,2026-11-19：标注按钮调用；先请求manager.annotateLatest，失败/无最近项才选文件后标注
+Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,chooseSingleImage,func,247,KEEP,2026-11-19：pinLatest与annotateLatest共用；NSOpenPanel仅接收单个图片文件，取消返回nil
 Capture,Features/Capture/Screenshot/CaptureSettingsPane.swift,CaptureSettingsPane,init,init,20,KEEP,2026-11-19：SettingsPaneRegistry及OCR/水印设置路由构造；默认capture区段，按section建立DraftEditor ID与模型
 Capture,Features/Capture/Screenshot/CaptureSettingsPane.swift,CaptureSettingsDraft,init,init,38,KEEP,2026-11-19：SettingsDraftEditor工厂构造；订阅内层appearance变化并转发draft objectWillChange
 Capture,Features/Capture/Screenshot/CaptureSettingsPane.swift,CaptureSettingsDraft,save,func,58,KEEP,2026-11-19：SettingsDraftEditor保存调用；按capture/OCR/watermark差量持久化，比例先编码，最终synchronize失败保留saved快照并返回错误
@@ -1723,18 +1723,19 @@ Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,ne
 Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,copyToPasteboard,func,1363,KEEP,2026-11-20：截图与编辑图统一复制，当前重复编码PNG且教程事件冒用lastHistoryPath。
 Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,playShutterSound,func,1379,KEEP,2026-11-20：登记函数在原声音偏好启用时调用Pop。
 Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,reloadRecent,func,1389,KEEP,2026-11-20：同步枚举用户与暂存两目录、按路径去重、时间排序取60项；耗时未量化。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,thumbnail,func,1411,KEEP,2026-11-20：实际缩略图入口240px，缓存未命中先解整图再缩小，可复用现有ImageIO缩略解码。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognize,func,1428,KEEP,2026-11-20：内存图编码PNG后进入Data识别，动作条与默认OCR消费。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognizeAndTranslate,func,1434,KEEP,2026-11-20：动作条翻译编码后设autoTranslate，结果窗选择翻译页。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognizeShowing,func,1446,KEEP,2026-11-20：复制并识别入口设forceWindow，保留强制结果窗口语义。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognize,func,1451,KEEP,2026-11-20：异步OCR后发布文字、事件及结果窗；晚读共享lastHistoryPath会将A识别文字写入B截图历史。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,copyOCRText,func,1501,KEEP,2026-11-20：截图区、刘海以及静默识别将现有文字写入系统剪贴板并反馈；不再广播已由 recognize 提交的识别事件
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,autoDetectQR,func,1520,KEEP,2026-11-20：截图完成识码回调展示局部payload；公开qrPayloads只有赋值无人读取。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,saveStitchedResult,func,1537,KEEP,2026-11-20：拼接保存、最近列表、long历史与图像事件具有真实消费者，和统一登记的声音/教程语义不同不直接合并。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,pin,func,1560,KEEP,2026-11-20：近期图或文件选择URL读图后交原钉图管理器。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureLongScreenshot,func,1568,KEEP,2026-11-20：热键与模块使用原长截图协调器进入选区。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,annotate,func,1575,KEEP,2026-11-20：近期图菜单、文件选择和刘海将已知URL交原标注编辑器。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,annotateLatest,func,1581,KEEP,2026-11-20：模块、命令面板及刘海消费打开最近图结果，false时沿各自文件选择入口。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,thumbnail,func,1411,KEEP,最近截图单元格视图读取共享NSCache；缓存未命中只显示占位图，不执行文件读取或图像解码
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,loadThumbnail,func,1416,KEEP,CaptureSectionView最近截图单元格task调用；先读取共享NSCache，未命中时后台ImageIO生成最长边限制缩略图，在主Actor创建NSImage并写入现有有界缓存
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognize,func,1439,KEEP,2026-11-20：内存图编码PNG后进入Data识别，动作条与默认OCR消费。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognizeAndTranslate,func,1445,KEEP,2026-11-20：动作条翻译编码后设autoTranslate，结果窗选择翻译页。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognizeShowing,func,1457,KEEP,2026-11-20：复制并识别入口设forceWindow，保留强制结果窗口语义。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognize,func,1462,KEEP,2026-11-20：异步OCR后发布文字、事件及结果窗；晚读共享lastHistoryPath会将A识别文字写入B截图历史。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,copyOCRText,func,1512,KEEP,2026-11-20：截图区、刘海以及静默识别将现有文字写入系统剪贴板并反馈；不再广播已由 recognize 提交的识别事件
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,autoDetectQR,func,1531,KEEP,2026-11-20：截图完成识码回调展示局部payload；公开qrPayloads只有赋值无人读取。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,saveStitchedResult,func,1548,KEEP,2026-11-20：拼接保存、最近列表、long历史与图像事件具有真实消费者，和统一登记的声音/教程语义不同不直接合并。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,pin,func,1571,KEEP,2026-11-20：近期图或文件选择URL读图后交原钉图管理器。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureLongScreenshot,func,1579,KEEP,2026-11-20：热键与模块使用原长截图协调器进入选区。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,annotate,func,1586,KEEP,2026-11-20：近期图菜单、文件选择和刘海将已知URL交原标注编辑器。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,annotateLatest,func,1592,KEEP,2026-11-20：模块、命令面板及刘海消费打开最近图结果，false时沿各自文件选择入口。
 Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,DeleteKeyMonitor,init,init,14,KEEP,2026-11-19：每个截图覆盖层创建；本地键盘/右键监视器弱捕获视图并消费onCancel返回true的事件，防窗口失焦漏Esc
 Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,DeleteKeyMonitor,deinit,deinit,22,KEEP,2026-11-19：监视器所有者销毁时移除NSEvent本地监视器token，避免延续到下一次截图
 Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotMagnifierView,draw,func,39,KEEP,2026-11-19：AppKit按dirtyRect绘制覆写；清底后裁切快照采样区，夹十字准线并留边空白

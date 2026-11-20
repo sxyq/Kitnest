@@ -1407,19 +1407,30 @@ public final class ScreenshotManager: ObservableObject {
         recent = Array(items.sorted { $0.createdAt > $1.createdAt }.prefix(60))
     }
 
-    /// 缩略图（带内存缓存）
+    /// 读取已有缩略图缓存；未命中时由 loadThumbnail 在后台生成。
     public func thumbnail(for url: URL, maxSide: CGFloat = 240) -> NSImage? {
-        if let cached = thumbCache.object(forKey: url as NSURL) { return cached }
-        // v128（内存优化）：包 autoreleasepool——缩略图生成（CGImage 解码 + 缩放）
-        // 在列表滚动时成批触发，临时对象显式 drain
-        return autoreleasepool {
-            guard let cg = ImageProcessor.cgImage(from: url) else { return nil }
-            let image = ImageProcessor.nsImage(ImageProcessor.scaled(cg, maxSide: maxSide))
-            // v128（内存优化）：按像素字节记账，配合 totalCostLimit 控制缓存驻留
-            thumbCache.setObject(image, forKey: url as NSURL,
-                                 cost: Int(image.size.width * image.size.height * 4))
-            return image
-        }
+        thumbCache.object(forKey: url as NSURL)
+    }
+
+    @MainActor
+    public func loadThumbnail(for url: URL, maxSide: CGFloat = 240) async -> NSImage? {
+        if let cached = thumbnail(for: url, maxSide: maxSide) { return cached }
+        let maxPixelSize = Int(maxSide.rounded(.up))
+        let cgImage = await Task.detached(priority: .utility) { () -> CGImage? in
+            guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+            let options: [CFString: Any] = [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceShouldCacheImmediately: true,
+                kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
+            ]
+            return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+        }.value
+        guard !Task.isCancelled, let cgImage else { return nil }
+        let image = ImageProcessor.nsImage(cgImage)
+        thumbCache.setObject(image, forKey: url as NSURL,
+                             cost: Int(image.size.width * image.size.height * 4))
+        return image
     }
 
     // MARK: OCR

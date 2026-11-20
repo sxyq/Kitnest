@@ -104,6 +104,8 @@ EVIDENCE = {
         "JSONInspectorView切离表格模式调用；释放缓存行、文档引用和列键，不触发表格或其他视图更新",
     ("Features/Capture/History/CaptureHistoryView.swift", "loadThumbnail"):
         "CaptureHistoryThumbnail.task调用；后台ImageIO读取并生成最长边240像素图像，任务完成且未取消时在原单元格状态中显示，缺图沿占位图呈现",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "loadThumbnail"):
+        "CaptureSectionView最近截图单元格task调用；先读取共享NSCache，未命中时后台ImageIO生成最长边限制缩略图，在主Actor创建NSImage并写入现有有界缓存",
     ("Features/Toolbox/Tools/MediaTools.swift", "compress"):
         "BuiltinTools注册的async执行闭包调用；由ToolRegistry.run与ToolDescriptor.execute沿非MainActor async链执行，压缩流程无需再移出主线程",
     ("Features/Panel/Inspector/JSONInspectorView.swift", "makeRowValues"):
