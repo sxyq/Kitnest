@@ -25,11 +25,13 @@ private struct ToolSheetItem: Identifiable { let id: String }
 
 public struct ToolboxSectionView: View {
     @ObservedObject private var uiState = ToolboxUIState.shared
+    @ObservedObject private var language = LanguageManager.shared
     @Stored private var refreshTick = 0
 
     public init() {}
 
     public var body: some View {
+        let _ = language.overrideDisplayLanguage
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 Theme.sectionHeader("工具")
@@ -105,6 +107,7 @@ public struct ToolRunnerView: View {
     private let presentFileDialog: ((@escaping () -> Void) -> Void)?
     private let onInputChange: ((String) -> Void)?
     @ObservedObject private var windowController = ToolRunnerWindowController.shared
+    @ObservedObject private var language = LanguageManager.shared
     @Stored private var input: String = ""
     @Stored private var options: [String: String] = [:]
     @Stored private var output: ToolOutput?
@@ -138,6 +141,7 @@ public struct ToolRunnerView: View {
     }
 
     public var body: some View {
+        let _ = language.overrideDisplayLanguage
         Group {
             if compact {
                 ScrollView { runnerContent }

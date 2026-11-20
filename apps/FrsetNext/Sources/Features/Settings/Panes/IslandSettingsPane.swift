@@ -39,10 +39,16 @@ final class IslandSettingsDraft: SettingsEditableDraft {
         previewController.layoutDidChange = { [weak self] value in
             guard let self else { return }
             var next = self.configuration
-            next.widgetSizes = value.widgetSizes
-            next.widgetPositions = value.widgetPositions
-            next.hiddenWidgets = value.hiddenWidgets
-            next.widgetOrder = value.widgetOrder
+            if self.previewController.page == .custom {
+                next.customWidgetSizes = value.widgetSizes
+                next.customWidgetPositions = value.widgetPositions ?? [:]
+                next.customWidgetOrder = value.widgetOrder.filter { !value.hiddenWidgets.contains($0) }
+            } else {
+                next.widgetSizes = value.widgetSizes
+                next.widgetPositions = value.widgetPositions
+                next.hiddenWidgets = value.hiddenWidgets
+                next.widgetOrder = value.widgetOrder
+            }
             next.metricOrder = value.metricOrder
             self.configuration = next
         }
@@ -118,11 +124,18 @@ final class IslandSettingsDraft: SettingsEditableDraft {
         case .activation:
             field(\.enabled); field(\.hoverEnabled); field(\.hoverDelay); field(\.collapseDelay)
             field(\.displayScope); members(\.selectedDisplayIDs)
+            field(\.pageOrder); members(\.hiddenPages); field(\.openingPageMode); field(\.fixedPage)
+            field(\.customPageName); field(\.commonWidgetLimit); field(\.clipboardRecentLimit)
+            field(\.clipboardFavoritesOnly); field(\.searchCategory)
+            keys(\.hotspots); keys(\.hotspotWidths); keys(\.entryVisibilities); keys(\.entryTriggers)
         case .peeks:
             members(\.visiblePeeks); field(\.peekOrder); field(\.peeksShowValues); field(\.peeksQuickActions)
+            keys(\.peekPlacements)
         case .canvas:
             field(\.width); field(\.height); field(\.gridColumns); field(\.gridRows)
+            field(\.customGridColumns); field(\.customGridRows); field(\.commonWidgetLimit)
             field(\.widgetOrder); members(\.hiddenWidgets); keys(\.widgetSizes); field(\.metricOrder)
+            field(\.customWidgetOrder); keys(\.customWidgetSizes); keys(\.customWidgetPositions)
             if value.widgetPositions != original.widgetPositions {
                 if let values = value.widgetPositions {
                     let old = original.widgetPositions ?? [:]
@@ -164,13 +177,14 @@ private struct IslandSettingsContent: View {
             switch part {
             case .activation:
                 if draft.configuration.enabled {
+                    pageSettings
                     behavior
                     displaySettings
                     entryPreviews
                     preview
                 }
             case .peeks: peeks; preview
-            case .canvas: canvas; preview; widgets; metrics
+            case .canvas: canvas; preview; widgets; customWidgets; metrics
             case .appearance: appearance; preview; colors
             }
         }
@@ -192,6 +206,67 @@ private struct IslandSettingsContent: View {
             IslandSettingsPreview(draft: draft, controller: draft.previewController)
         }
         .id(part)
+    }
+
+    private var pageSettings: some View {
+        SettingsSection("页面与默认展开") {
+            SettingsGroupBox {
+                ForEach(draft.configuration.pageOrder) { page in
+                    SettingsRow(icon: "rectangle.on.rectangle", title: draft.configuration.pageTitle(page)) {
+                        Toggle("显示\(draft.configuration.pageTitle(page))", isOn: Binding(
+                            get: { !draft.configuration.hiddenPages.contains(page) },
+                            set: { visible in
+                                if visible { draft.configuration.hiddenPages.remove(page) }
+                                else if draft.configuration.visiblePages.count > 1 {
+                                    draft.configuration.hiddenPages.insert(page)
+                                    if draft.configuration.fixedPage == page {
+                                        draft.configuration.fixedPage = draft.configuration.visiblePages.first ?? .home
+                                    }
+                                }
+                            }
+                        )).labelsHidden()
+                        IslandSettingsOrderControls(order: $draft.configuration.pageOrder,
+                                                    item: page, title: draft.configuration.pageTitle(page))
+                    }
+                }
+                SettingsDivider()
+                SettingsRow(title: "展开时打开", subtitle: "只在收起后重新展开时应用") {
+                    Picker("展开时打开", selection: $draft.configuration.openingPageMode) {
+                        ForEach(IslandOpeningPageMode.allCases) { mode in Text(mode.title).tag(mode) }
+                    }.labelsHidden().frame(width: 150)
+                }
+                if draft.configuration.openingPageMode == .fixed {
+                    SettingsRow(title: "固定页面") {
+                        Picker("固定页面", selection: $draft.configuration.fixedPage) {
+                            ForEach(draft.configuration.visiblePages) { page in
+                                Text(draft.configuration.pageTitle(page)).tag(page)
+                            }
+                        }.labelsHidden().frame(width: 150)
+                    }
+                }
+                SettingsDivider()
+                SettingsRow(title: "常用页同屏组件") {
+                    Picker("常用页同屏组件", selection: $draft.configuration.commonWidgetLimit) {
+                        ForEach(1...4, id: \.self) { Text("\($0) 个").tag($0) }
+                    }.labelsHidden().frame(width: 110)
+                }
+                SettingsRow(title: "剪贴板页显示条数") {
+                    Picker("剪贴板页显示条数", selection: $draft.configuration.clipboardRecentLimit) {
+                        ForEach([2, 3, 4, 6, 8], id: \.self) { Text("\($0) 条").tag($0) }
+                    }.labelsHidden().frame(width: 110)
+                    Toggle("仅显示收藏", isOn: $draft.configuration.clipboardFavoritesOnly).labelsHidden()
+                }
+                SettingsRow(title: "搜索页默认范围") {
+                    Picker("搜索页默认范围", selection: $draft.configuration.searchCategory) {
+                        ForEach(IslandSearchCategory.allCases) { Text($0.title).tag($0) }
+                    }.labelsHidden().frame(width: 110)
+                }
+                SettingsRow(title: "第四页名称") {
+                    TextField("第四页名称", text: $draft.configuration.customPageName).frame(width: 160)
+                }
+            }
+            .textFieldStyle(.roundedBorder)
+        }
     }
 
     private var displaySettings: some View {
@@ -228,6 +303,37 @@ private struct IslandSettingsContent: View {
                         }
                     }
                 }
+                ForEach(displays) { display in
+                    SettingsRow(icon: "cursorarrow.motionlines", title: "\(display.name) 顶部热区",
+                                subtitle: display.hasNotch ? "刘海位置按屏幕硬件自动定位" : "只读取鼠标位置，不覆盖桌面点击") {
+                        Picker("\(display.name) 热区位置", selection: Binding(
+                            get: { draft.configuration.hotspots[display.id] ?? .center },
+                            set: { draft.configuration.hotspots[display.id] = $0 }
+                        )) {
+                            ForEach(IslandHotspot.allCases) { Text($0.title).tag($0) }
+                        }.labelsHidden().frame(width: 112).disabled(display.hasNotch)
+                        if !display.hasNotch {
+                            Picker("\(display.name) 热区宽度", selection: Binding(
+                                get: { draft.configuration.hotspotWidths[display.id] ?? 210 },
+                                set: { draft.configuration.hotspotWidths[display.id] = $0 }
+                            )) {
+                                ForEach([150, 210, 270], id: \.self) { Text("\($0) pt").tag($0) }
+                            }.labelsHidden().frame(width: 88)
+                            Picker("\(display.name) 胶囊", selection: Binding(
+                                get: { draft.configuration.entryVisibilities[display.id] ?? .event },
+                                set: { draft.configuration.entryVisibilities[display.id] = $0 }
+                            )) {
+                                ForEach(IslandEntryVisibility.allCases) { Text($0.title).tag($0) }
+                            }.labelsHidden().frame(width: 115)
+                            Picker("\(display.name) 触发", selection: Binding(
+                                get: { draft.configuration.entryTriggers[display.id] ?? .hoverAndClick },
+                                set: { draft.configuration.entryTriggers[display.id] = $0 }
+                            )) {
+                                ForEach(IslandEntryTrigger.allCases) { Text($0.title).tag($0) }
+                            }.labelsHidden().frame(width: 100)
+                        }
+                    }
+                }
               }
             Text("状态按当前草稿显示，保存后应用；指定屏幕离线时临时使用主屏，重新连接后恢复；镜像屏共用一个入口，所有屏幕共用单一工作台。")
                 .font(.system(size: 11)).foregroundStyle(.secondary)
@@ -256,6 +362,23 @@ private struct IslandSettingsContent: View {
                     Text("×")
                     Picker("画布行数", selection: Binding(get: { draft.configuration.rows },
                         set: { draft.setGrid(columns: draft.configuration.columns, rows: $0) })) {
+                        ForEach(1...4, id: \.self) { Text("\($0) 行").tag($0) }
+                    }.labelsHidden().frame(width: 90)
+                }
+                SettingsDivider()
+                SettingsRow(title: "我的空间列数", subtitle: "只改变第四页；组件保持自由排序与尺寸") {
+                    Picker("我的空间列数", selection: Binding(
+                        get: { draft.configuration.customColumns },
+                        set: { draft.configuration.customGridColumns = $0 }
+                    )) {
+                        ForEach(2...6, id: \.self) { Text("\($0) 列").tag($0) }
+                    }.labelsHidden().frame(width: 90)
+                }
+                SettingsRow(title: "我的空间行数") {
+                    Picker("我的空间行数", selection: Binding(
+                        get: { draft.configuration.customRows },
+                        set: { draft.configuration.customGridRows = $0 }
+                    )) {
                         ForEach(1...4, id: \.self) { Text("\($0) 行").tag($0) }
                     }.labelsHidden().frame(width: 90)
                 }
@@ -310,7 +433,7 @@ private struct IslandSettingsContent: View {
                     Toggle("悬停唤出", isOn: $draft.configuration.hoverEnabled).labelsHidden()
                 }
                 if draft.configuration.hoverEnabled {
-                SettingsRow(title: "悬停停留时间", subtitle: "普通屏在菜单栏中央 180 × 28 pt 透明热区内停留后，显示同尺寸搜索短条") {
+                SettingsRow(title: "悬停停留时间", subtitle: "在对应屏幕的顶部热区停留后展开；透明热区不拦截点击") {
                     TextField("悬停停留时间", value: $draft.configuration.hoverDelay,
                               format: .number.precision(.fractionLength(2)))
                         .frame(width: 64)
@@ -352,6 +475,16 @@ private struct IslandSettingsContent: View {
                         IslandSettingsOrderControls(order: $draft.configuration.peekOrder, item: peek, title: peek.title)
                     }
                 }
+                ForEach(displays.filter(\.hasNotch)) { display in
+                    SettingsRow(title: "\(display.name) 常态数据位置") {
+                        Picker("\(display.name) 常态数据位置", selection: Binding(
+                            get: { draft.configuration.peekPlacements[display.id] ?? .both },
+                            set: { draft.configuration.peekPlacements[display.id] = $0 }
+                        )) {
+                            ForEach(IslandPeekPlacement.allCases) { Text($0.title).tag($0) }
+                        }.labelsHidden().frame(width: 145)
+                    }
+                }
             }
         }
     }
@@ -384,6 +517,41 @@ private struct IslandSettingsContent: View {
                 }
             }
             Text("尺寸按行 × 列；五档均可保存，画布不足时适配显示；组件溢出时分页，隐藏组件仍可从全部功能进入")
+                .font(.system(size: 11)).foregroundStyle(.secondary)
+        }
+    }
+
+    private var customWidgets: some View {
+        SettingsSection("第四页组件 · 独立布局", collapsible: true, expanded: true,
+                        summary: "\(draft.configuration.customWidgetOrder.count) 个") {
+            SettingsGroupBox {
+                ForEach(Array(draft.configuration.customWidgetOrder.enumerated()), id: \.element) { _, widget in
+                    SettingsRow(icon: widget.icon, title: widget.title) {
+                        Picker("\(widget.title)尺寸", selection: Binding(
+                            get: { draft.configuration.customWidgetSizes[widget.rawValue] ?? .small },
+                            set: { draft.configuration.customWidgetSizes[widget.rawValue] = $0 }
+                        )) {
+                            ForEach(IslandWidgetSize.allCases.filter { $0 != .strip }) { size in
+                                Text(size.rawValue).tag(size)
+                            }
+                        }.labelsHidden().frame(width: 90)
+                        IslandSettingsOrderControls(order: $draft.configuration.customWidgetOrder,
+                                                    item: widget, title: widget.title)
+                        Button {
+                            draft.configuration.customWidgetOrder.removeAll { $0 == widget }
+                        } label: { Image(systemName: "minus.circle") }
+                            .buttonStyle(.plain).help("从第四页移除")
+                    }
+                }
+                Menu {
+                    ForEach(IslandWidget.allCases.filter { !draft.configuration.customWidgetOrder.contains($0) }) { widget in
+                        Button(widget.title) { draft.configuration.customWidgetOrder.append(widget) }
+                    }
+                } label: {
+                    Label("添加现有组件", systemImage: "plus")
+                }.disabled(draft.configuration.customWidgetOrder.count == IslandWidget.allCases.count)
+            }
+            Text("组件来自 Kitnest 现有模块；空白页面有效，只有添加到此页的组件会显示。")
                 .font(.system(size: 11)).foregroundStyle(.secondary)
         }
     }
@@ -512,6 +680,7 @@ private struct IslandSettingsPreview: View {
 /// 仅预览容器接收正式形变尺寸；每帧高度变化不发布到草稿或设置整页。
 private struct IslandSettingsPreviewViewport: View {
     @ObservedObject var controller: IslandController
+    @Environment(\.settingsPreviewViewport) private var viewport
     @Stored private var height: CGFloat?
 
     var body: some View {
@@ -528,8 +697,7 @@ private struct IslandSettingsPreviewViewport: View {
         .background(GeometryReader { geo in
             Color.clear.preference(key: AppearancePreviewVisibilityKey.self,
                 value: geo.frame(in: .named("settingsPreviewViewport")).intersects(
-                    CGRect(x: 0, y: 66, width: 940 - Theme.settingsSidebarWidth,
-                           height: SettingsRootView.probeHeight - 98)))
+                    viewport))
         })
         .onPreferenceChange(AppearancePreviewVisibilityKey.self) { controller.previewVisible = $0 }
         .onAppear {

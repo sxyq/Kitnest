@@ -341,9 +341,10 @@ final class CommandPaletteState: ObservableObject {
 
     var onDismiss: (() -> Void)?
 
-    private let all: [CommandItem]
+    private var all: [CommandItem]
     /// 斜杠命令池（v172）
-    private let slashAll: [CommandItem]
+    private var slashAll: [CommandItem]
+    private let selection: AppBootstrap.SelectionResult
 
     /// 命令模式：查询以 `/` 开头
     var isSlashMode: Bool {
@@ -351,6 +352,7 @@ final class CommandPaletteState: ObservableObject {
     }
 
     init(initialQuery: String = "", selection: AppBootstrap.SelectionResult) {
+        self.selection = selection
         all = CommandCatalog.build(selection: selection)
         slashAll = CommandCatalog.buildSlash()
         if !initialQuery.isEmpty { query = initialQuery }
@@ -364,6 +366,12 @@ final class CommandPaletteState: ObservableObject {
         } else {
             query = "/"
         }
+        refilter()
+    }
+
+    func refreshLanguage() {
+        all = CommandCatalog.build(selection: selection)
+        slashAll = CommandCatalog.buildSlash()
         refilter()
     }
 
@@ -544,6 +552,9 @@ struct CommandPaletteView: View {
         // 统一走 glassPlate：26+ 真玻璃 / 旧系统毛玻璃 / 纯色偏好退化为不透明底。
         .glassPlate()
         .background(keyHandler)
+        .onReceive(NotificationCenter.default.publisher(for: LanguageManager.languageDidChange)) { _ in
+            state.refreshLanguage()
+        }
         .onAppear {
             state.refilter()
             focused = true

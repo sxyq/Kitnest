@@ -49,10 +49,10 @@ public enum BuiltinTools {
     private static func registerAITool(id: String, name: String, description: String,
                                        kind: ToolKind) {
         ToolRegistry.register(ToolDescriptor(
-            identifier: id, kind: kind, name: L10n.t(name),
-            keyword: id, toolDescription: L10n.t(description),
+            identifier: id, kind: kind, name: name,
+            keyword: id, toolDescription: description,
             systemImage: id == "translate" ? "character.bubble" : (id == "polish" ? "sparkles" : "text.alignleft"),
-            category: .convert, placeholder: L10n.t(description)
+            category: .convert, placeholder: description
         ) { input, _ in
             do {
                 if kind == .translation {
@@ -73,9 +73,9 @@ public enum BuiltinTools {
     private static func registerUUIDTool() {
         ToolRegistry.register(ToolDescriptor(
             identifier: "uuid", kind: .uuid, name: "UUID",
-            keyword: "uuid", toolDescription: L10n.t("Generate random UUID v4 values"),
+            keyword: "uuid", toolDescription: "Generate random UUID v4 values",
             systemImage: "number", category: .convert,
-            placeholder: L10n.t("Generate random UUID v4 values")
+            placeholder: "Generate random UUID v4 values"
         ) { _, _ in
             ToolOutput(text: UUID().uuidString.lowercased())
         })
@@ -87,9 +87,9 @@ public enum BuiltinTools {
         ToolRegistry.register(ToolDescriptor(
             identifier: "timestamp",
             kind: .timestampConverter,
-            name: L10n.t("Timestamp"),
+            name: "Timestamp",
             keyword: "time",
-            toolDescription: L10n.t("Convert between timestamps and dates"),
+            toolDescription: "Convert between timestamps and dates",
             systemImage: "clock",
             category: .convert,
             placeholder: "输入 Unix 时间戳（1700000000）或日期（2025-03-01 12:00:00），留空显示当前时间",
@@ -109,9 +109,9 @@ public enum BuiltinTools {
         ToolRegistry.register(ToolDescriptor(
             identifier: "ip",
             kind: .ipAddress,
-            name: L10n.t("IP Addresses"),
+            name: "IP Addresses",
             keyword: "ip",
-            toolDescription: L10n.t("View your public and local IP addresses"),
+            toolDescription: "View your public and local IP addresses",
             systemImage: "network",
             category: .network,
             placeholder: "无需输入，点击执行即查询（公网走 api.ipify.org，失败降级内网 IP）",
@@ -138,7 +138,7 @@ public enum BuiltinTools {
         ToolRegistry.register(ToolDescriptor(
             identifier: "varname",
             kind: .varNameConverter,
-            name: L10n.t("Variable Naming"),
+            name: "Variable Naming",
             keyword: "var",
             toolDescription: "转换变量命名格式（本地执行）",
             systemImage: "chevron.left.forwardslash.chevron.right",
@@ -162,9 +162,9 @@ public enum BuiltinTools {
         ToolRegistry.register(ToolDescriptor(
             identifier: "base64",
             kind: .base64,
-            name: L10n.t("Base64"),
+            name: "Base64",
             keyword: "base64",
-            toolDescription: L10n.t("Encode or decode Base64 text"),
+            toolDescription: "Encode or decode Base64 text",
             systemImage: "doc.text.magnifyingglass",
             category: .encode,
             placeholder: "输入文本（编码）或 Base64 串（解码），支持中文",
@@ -190,9 +190,9 @@ public enum BuiltinTools {
         ToolRegistry.register(ToolDescriptor(
             identifier: "urlencode",
             kind: .urlEncode,
-            name: L10n.t("URL Encode"),
+            name: "URL Encode",
             keyword: "url",
-            toolDescription: L10n.t("Encode or decode URL text"),
+            toolDescription: "Encode or decode URL text",
             systemImage: "link",
             category: .encode,
             placeholder: "输入 URL 或查询参数文本",
@@ -221,9 +221,9 @@ public enum BuiltinTools {
         ToolRegistry.register(ToolDescriptor(
             identifier: "json",
             kind: .jsonFormat,
-            name: L10n.t("JSON"),
+            name: "JSON",
             keyword: "json",
-            toolDescription: L10n.t("Format or minify JSON"),
+            toolDescription: "Format or minify JSON",
             systemImage: "curlybraces",
             category: .format,
             placeholder: "粘贴 JSON 文本",
@@ -300,9 +300,9 @@ public enum BuiltinTools {
         ToolRegistry.register(ToolDescriptor(
             identifier: "imagecompress",
             kind: .imageCompress,
-            name: L10n.t("TinyPNG"),
+            name: "TinyPNG",
             keyword: "tinypng",
-            toolDescription: L10n.t("TinyPNG Compress Images"),
+            toolDescription: "TinyPNG Compress Images",
             systemImage: "photo",
             category: .media,
             inputKind: .filePath,
@@ -371,9 +371,9 @@ public enum BuiltinTools {
         ToolRegistry.register(ToolDescriptor(
             identifier: "qrcode",
             kind: .qrCode,
-            name: L10n.t("QR Code"),
+            name: "QR Code",
             keyword: "qrcode",
-            toolDescription: L10n.t("Generate QR Code from text or URL"),
+            toolDescription: "Generate QR Code from text or URL",
             systemImage: "qrcode",
             category: .media,
             placeholder: "输入要编码的文本或链接",

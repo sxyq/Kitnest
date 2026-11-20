@@ -54,6 +54,7 @@ final class ShortcutSettingsDraft: SettingsEditableDraft {
 }
 
 public struct ShortcutSettingsPane: View {
+    @ObservedObject private var language = LanguageManager.shared
     private let targetID: String?
     private let groups: [(title: String, ids: [String])] = [
         ("面板与搜索", ["openFrset", "commandPalette", "openAndSearch"]),
@@ -68,6 +69,7 @@ public struct ShortcutSettingsPane: View {
     public init(targetID: String? = nil) { self.targetID = targetID }
 
     public var body: some View {
+        let _ = language.overrideDisplayLanguage
         SettingsDraftEditor(id: "shortcuts", makeDraft: { ShortcutSettingsDraft() }) { draft in
             VStack(alignment: .leading, spacing: 16) {
                 ForEach(groups.indices, id: \.self) { index in
@@ -120,8 +122,11 @@ public struct ShortcutSettingsPane: View {
     private func shortcutRow(_ id: String, title: String? = nil, draft: ShortcutSettingsDraft) -> some View {
         let entry = draft.entries.first { $0.id == id }!
         let value = draft.values[id]!
+        let rowTitle = title ?? (id.hasPrefix("tool.")
+            ? ToolRegistry.tool(id: String(id.dropFirst(5)))?.name ?? entry.title
+            : entry.title)
         return HStack(spacing: 8) {
-            Text(title ?? entry.title)
+            Text(rowTitle)
                 .frame(minWidth: 90, maxWidth: .infinity, alignment: .leading)
             Picker("触发方式", selection: Binding(
                 get: { draft.values[id]!.trigger },
@@ -152,7 +157,7 @@ public struct ShortcutSettingsPane: View {
                 Text("未绑定").foregroundStyle(.secondary).frame(width: 130)
             }
             Button("清除") { draft.clear(id) }
-            Button("默认") { draft.restoreDefault(id) }.help("恢复「\(entry.title)」默认快捷键")
+            Button("默认") { draft.restoreDefault(id) }.help("恢复「\(rowTitle)」默认快捷键")
         }
         .id(id)
     }

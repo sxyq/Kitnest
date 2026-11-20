@@ -23,7 +23,10 @@ final class StartupSettingsDraft: SettingsEditableDraft {
             } catch { return "开机启动未应用：\(error.localizedDescription)" }
             Preferences.shared.launchAtLogin = launchAtLogin
         }
-        if language != savedLanguage { LanguageManager.shared.apply(language) }
+        if language != savedLanguage {
+            LanguageManager.shared.apply(language)
+            language = LanguageManager.shared.overrideDisplayLanguage
+        }
         guard UserDefaults.standard.synchronize() else { return "启动与语言设置写入磁盘失败，调整已保留" }
         savedLaunchAtLogin = launchAtLogin; savedLanguage = language
         objectWillChange.send()
@@ -522,6 +525,8 @@ struct TagManagementSheet: View {
     // @Stored 替代 @State：本机工具链缺 SwiftUIMacros 插件（见 Core/Runtime/StateCompat.swift）
     @Stored private var newTagName = ""
     @Stored private var isAdding = false
+    @Stored private var editingTagID: String?
+    @Stored private var editingTagName = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -539,8 +544,26 @@ struct TagManagementSheet: View {
                         Circle()
                             .fill(Color(hex: tag.colorHex) ?? .gray)
                             .frame(width: 10, height: 10)
-                        Text(tag.name)
+                        if editingTagID == tag.id {
+                            TextField("标签名称", text: $editingTagName)
+                                .textFieldStyle(.roundedBorder)
+                                .onSubmit { saveRename(id: tag.id) }
+                            Button("保存") { saveRename(id: tag.id) }
+                                .controlSize(.small)
+                        } else {
+                            Text(tag.name)
+                        }
                         Spacer()
+                        if editingTagID != tag.id {
+                            Button {
+                                editingTagID = tag.id
+                                editingTagName = tag.name
+                            } label: {
+                                Image(systemName: "pencil")
+                            }
+                            .buttonStyle(.plain)
+                            .help("重命名标签")
+                        }
                         Button {
                             store.delete(id: tag.id)
                         } label: {
@@ -580,7 +603,6 @@ struct TagManagementSheet: View {
             .padding(16)
         }
         .frame(width: 480, height: 360)
-        .onAppear { store.refresh() }
         .onReceive(NotificationCenter.default.publisher(for: LanguageManager.languageDidChange)) { _ in
             l10nVersion &+= 1
         }
@@ -592,6 +614,15 @@ struct TagManagementSheet: View {
         store.create(name: name)
         newTagName = ""
         isAdding = false
+    }
+
+    private func saveRename(id: String) {
+        guard store.rename(id: id, name: editingTagName) else {
+            Toast.show("标签名称无效或已存在", icon: "exclamationmark.triangle", isWarning: true)
+            return
+        }
+        editingTagID = nil
+        editingTagName = ""
     }
 }
 

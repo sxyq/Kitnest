@@ -119,10 +119,6 @@ public final class Preferences: ObservableObject {
         get { value(Keys.launchAtLogin, default: false) }
         set { set(Keys.launchAtLogin, newValue) }
     }
-    public var menuBarIconsVisible: Bool {
-        get { value(Keys.menuBarIconsVisible, default: true) }
-        set { set(Keys.menuBarIconsVisible, newValue) }
-    }
     public var calendarShowLunar: Bool {
         get { value(Keys.calendarShowLunar, default: true) }
         set { set(Keys.calendarShowLunar, newValue) }
@@ -134,10 +130,3 @@ public final class Preferences: ObservableObject {
     }
 }
 
-/// 简单开关集合（各模块直接用 Preferences.shared 即可；此处提供 SwiftUI 便捷绑定）
-public extension Preferences {
-    func binding<T>(_ key: String, default fallback: T) -> Binding<T> {
-        Binding(get: { self.value(key, default: fallback) },
-                set: { self.set(key, $0) })
-    }
-}

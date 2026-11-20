@@ -61,7 +61,7 @@ struct IslandToolboxContent: View {
 
     private var preview: Bool { previewOnly || controller.previewOnly || isSettingsPreview }
     private var tint: Color { controller.configuration.color(for: .tools) }
-    private var pages: [IslandPage] { IslandPage.allCases.filter { $0 != .home && $0 != .tools } }
+    private var pages: [IslandPage] { IslandPage.allCases.filter { $0 != .home && $0 != .tools && $0 != .custom } }
 
     init(controller: IslandController, previewOnly: Bool, selectedTool: Binding<String?>,
          onFileDialog: ((Bool) -> Void)? = nil) {
@@ -125,7 +125,7 @@ struct IslandToolboxContent: View {
                 .font(.system(size: Theme.TextSize.small))
                 .onSubmit {
                     if let tool = visible.first { selectedTool = tool.id }
-                    else if let page = visiblePages.first { controller.page = page }
+                    else if let page = visiblePages.first { controller.selectPage(page) }
                 }
             Picker("分类", selection: $controller.toolCategory) {
                 Text("全部工具").tag(Optional<ToolCategory>.none)
@@ -138,7 +138,7 @@ struct IslandToolboxContent: View {
                     Text("功能目录").font(.system(size: Theme.TextSize.caption)).foregroundStyle(.secondary)
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Theme.Space.xs) {
                         ForEach(visiblePages) { page in
-                            Button { controller.page = page } label: {
+                            Button { controller.selectPage(page) } label: {
                                 Text(page.title).font(.system(size: Theme.TextSize.caption)).lineLimit(1)
                                     .frame(maxWidth: .infinity).padding(.vertical, Theme.Space.sm)
                                     .background(Theme.rowHoverFill, in: RoundedRectangle(cornerRadius: Theme.Radius.chip))

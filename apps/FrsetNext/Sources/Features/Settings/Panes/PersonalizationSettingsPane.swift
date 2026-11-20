@@ -947,6 +947,7 @@ struct AppearancePreviewBlock: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.settingsPreviewViewport) private var viewport
     @Stored private var toastReplay = 0
     @Stored private var openReplay = 0
     @Stored private var revealed = true
@@ -1017,8 +1018,7 @@ struct AppearancePreviewBlock: View {
                 GeometryReader { geo in
                     Color.clear.preference(key: AppearancePreviewVisibilityKey.self,
                         value: geo.frame(in: .named("settingsPreviewViewport")).intersects(
-                            CGRect(x: 0, y: 66, width: 940 - Theme.settingsSidebarWidth,
-                                   height: SettingsRootView.probeHeight - 98)))
+                            viewport))
                 }
             }
             Text(caption).font(.system(size: 11)).foregroundStyle(.secondary)

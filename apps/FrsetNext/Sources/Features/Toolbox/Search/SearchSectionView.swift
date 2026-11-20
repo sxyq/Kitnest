@@ -89,42 +89,38 @@ public enum SearchHookRegistry {
 
 public enum ToolboxSearchSource {
     public static func register() {
-        SearchHookRegistry.register { query in
-            // 原版占位符「搜索或输入 / 使用工具」：输入 / 即进入命令模式。
-            // v172：不再只用工具名，统一走 SlashCommandCatalog——
-            // 每行显示 `/token`，并认原版命令名（/apollo、/tinyimg、/time…）。
-            if query.hasPrefix("/") {
-                let token = String(query.dropFirst())
-                let commands = await MainActor.run { SlashCommandCatalog.match(token) }
-                return commands.map { cmd in
-                    SearchResultItem(id: "slash-\(cmd.id)",
-                                     title: cmd.title,
-                                     subtitle: cmd.subtitle,
-                                     icon: cmd.systemImage,
-                                     match: nil,
-                                     action: cmd.run)
+        SearchHookRegistry.register { await search($0) }
+    }
+
+    static func search(_ query: String) async -> [SearchResultItem] {
+        // 工具文字按当前语言读取；搜索源由并发任务组调用，L10n 缓存只在主线程访问。
+        if query.hasPrefix("/") {
+            let token = String(query.dropFirst())
+            return await MainActor.run {
+                SlashCommandCatalog.match(token).map { cmd in
+                    SearchResultItem(id: "slash-\(cmd.id)", title: cmd.title,
+                                     subtitle: cmd.subtitle, icon: cmd.systemImage,
+                                     match: nil, action: cmd.run)
                 }
             }
-            let keyword = query
-            return ToolRegistry.enabledTools.compactMap { tool in
-                // v60 模糊匹配：工具名命中带高亮；名称未命中再看关键字/描述/分类
-                let nameMatch = FuzzyMatcher.match(keyword, in: tool.name)
-                let haystack = [tool.name, tool.identifier, tool.keyword, tool.toolDescription, tool.category.title].joined(separator: " ")
-                guard nameMatch != nil || FuzzyMatcher.isMatch(keyword, in: haystack) else { return nil }
-                return Self.item(for: tool, match: nameMatch)
+        }
+        let tools = await MainActor.run {
+            ToolRegistry.enabledTools.map {
+                ($0.identifier, $0.keyword, $0.name, $0.toolDescription, $0.category.title, $0.systemImage)
+            }
+        }
+        return tools.compactMap { id, keyword, name, description, category, icon in
+            let nameMatch = FuzzyMatcher.match(query, in: name)
+            let haystack = [name, id, keyword, description, category].joined(separator: " ")
+            guard nameMatch != nil || FuzzyMatcher.isMatch(query, in: haystack) else { return nil }
+            return SearchResultItem(id: "tool-\(id)", title: name,
+                                    subtitle: "工具箱 · \(category)", icon: icon,
+                                    match: nameMatch) {
+                ToolboxUIState.shared.open(id)
             }
         }
     }
 
-    private static func item(for tool: ToolDescriptor, match: FuzzyMatch? = nil) -> SearchResultItem {
-        SearchResultItem(id: "tool-\(tool.identifier)",
-                         title: tool.name,
-                         subtitle: "工具箱 · \(tool.category.title)",
-                         icon: tool.systemImage,
-                         match: match) {
-            ToolboxUIState.shared.open(tool.identifier)
-        }
-    }
 }
 
 // MARK: 本地文件检索（v60：FSearch 式模糊引擎）
@@ -519,6 +515,7 @@ public struct SearchSectionView: View {
     @Stored private var fileResults: [FuzzyFileResult] = []
     @Stored private var isSearching = false
     @Stored private var generation = 0
+    @Stored private var toolLanguageGeneration = 0
     @Stored private var webGeneration = 0
     @Stored private var feedbackGeneration: Int?
     @Stored private var hasSearched = false
@@ -560,6 +557,7 @@ public struct SearchSectionView: View {
     private let draftWeb: Binding<Bool>?
     private let draftClipboard: Binding<Bool>?
     private let draftFiles: Binding<Bool>?
+    private let initialCategory: SearchCategory?
 
     // 分类开关（分类头部眼睛按钮与设置页共用同一批键）
     @AppStorage(Preferences.Keys.searchCategoryWeb) private var savedShowWeb = true
@@ -577,6 +575,14 @@ public struct SearchSectionView: View {
         service = .shared
         draftQuery = nil
         draftWeb = nil; draftClipboard = nil; draftFiles = nil
+        initialCategory = nil
+    }
+
+    init(islandCategory: IslandSearchCategory) {
+        service = .shared
+        draftQuery = nil
+        draftWeb = nil; draftClipboard = nil; draftFiles = nil
+        initialCategory = SearchCategory(rawValue: islandCategory.rawValue)
     }
 
     init(draft: SearchDisplayDraft, query: Binding<String>) {
@@ -585,6 +591,7 @@ public struct SearchSectionView: View {
         draftWeb = Binding(get: { draft.showWeb }, set: { draft.showWeb = $0 })
         draftClipboard = Binding(get: { draft.showClipboard }, set: { draft.showClipboard = $0 })
         draftFiles = Binding(get: { draft.showFiles }, set: { draft.showFiles = $0 })
+        initialCategory = nil
     }
 
     public var body: some View {
@@ -617,6 +624,7 @@ public struct SearchSectionView: View {
         }
         .onChange(of: query) { _ in
             if isSettingsPreview { previewFeedback = nil }
+            toolLanguageGeneration += 1
             scheduleSearch()
         }
         // v50：文件类型筛选变化 → 重跑文件检索（仅关键词非空时）
@@ -639,6 +647,17 @@ public struct SearchSectionView: View {
                 searchFieldFocused = true
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: LanguageManager.languageDidChange)) { _ in
+            guard !isSettingsPreview, !trimmedQuery.isEmpty else { return }
+            toolLanguageGeneration += 1
+            let current = toolLanguageGeneration
+            let text = trimmedQuery
+            Task { @MainActor in
+                let results = await ToolboxSearchSource.search(text)
+                guard toolLanguageGeneration == current else { return }
+                toolResults = results
+            }
+        }
         .onReceive(FileNameIndex.shared.$state) { value in
             if !isSettingsPreview { fileIndexState = value }
         }
@@ -652,6 +671,7 @@ public struct SearchSectionView: View {
             }
         }
         .onAppear {
+            if let initialCategory { selectedCategory = initialCategory }
             if isSettingsPreview {
                 if draftQuery == nil { query = settingsPreviewClipboardQuery }
                 scheduleSearch()
@@ -1905,6 +1925,7 @@ public struct SearchSectionView: View {
             return
         }
         isSearching = true
+        let languageVersion = toolLanguageGeneration
         Task {
             try? await Task.sleep(nanoseconds: 250_000_000)
             guard !Task.isCancelled, current == generation else { return }
@@ -1920,7 +1941,7 @@ public struct SearchSectionView: View {
             guard !Task.isCancelled, current == generation else { return }
             await MainActor.run {
                 guard !Task.isCancelled, current == generation else { return }
-                toolResults = items
+                if languageVersion == toolLanguageGeneration { toolResults = items }
                 fileResults = files
                 previewQuery = trimmed          // 预览随防抖提交的词更新（不逐键刷网页）
                 hasSearched = true

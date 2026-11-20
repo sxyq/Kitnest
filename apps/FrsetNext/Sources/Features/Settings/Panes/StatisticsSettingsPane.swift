@@ -300,7 +300,10 @@ struct StatisticsSettingsPane: View {
             if value != AppBootstrap.shortcutSettingsValue(for: entry.id) { shortcuts[entry.id] = value }
         }
         if !shortcuts.isEmpty, let reason = AppBootstrap.applyShortcuts(shortcuts) { return reason }
-        applyPreferences(incoming.filter { !["shortcuts.bindings", "shortcuts.doubleTap", "toolbox.toolShortcuts"].contains($0.key) })
+        applyPreferences(incoming.filter {
+            !["shortcuts.bindings", "shortcuts.doubleTap", "toolbox.toolShortcuts",
+              Preferences.Keys.launchAtLogin, "language"].contains($0.key)
+        })
         guard defaults.synchronize() else { return "配置写入磁盘失败" }
         if incoming["showSystemStatus"] != nil || incoming[Preferences.Keys.panelTransferDock] != nil {
             TransferDockPref.migrateLegacyFeatureFlag()

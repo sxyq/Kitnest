@@ -39,9 +39,11 @@ struct IslandSurface<Content: View>: View {
         HStack(spacing: Theme.Space.md) {
             Image(systemName: "square.3.layers.3d").foregroundStyle(.secondary)
             Text("Kitnest").fontWeight(.medium)
-            Text(controller.page.title).font(.system(size: Theme.TextSize.caption)).foregroundStyle(.secondary)
+            Text(controller.configuration.pageTitle(controller.page)).font(.system(size: Theme.TextSize.caption)).foregroundStyle(.secondary)
             if !IslandPage.tabs.contains(controller.page) {
-                Button(action: controller.goBack) { Label(controller.returnPage.title, systemImage: "chevron.left").padding(.horizontal, 6) }
+                Button(action: controller.goBack) {
+                    Label(controller.configuration.pageTitle(controller.returnPage), systemImage: "chevron.left").padding(.horizontal, 6)
+                }
                     .buttonStyle(IslandButtonStyle()).font(.system(size: Theme.TextSize.caption))
             }
             Spacer()
@@ -57,9 +59,15 @@ struct IslandSurface<Content: View>: View {
                 Button("取消", action: controller.cancelLayoutEditing).buttonStyle(IslandButtonStyle())
                 Button("完成", action: controller.finishLayoutEditing).buttonStyle(IslandButtonStyle())
             } else {
-                Button(action: controller.beginLayoutEditing) {
-                    Label("编辑布局", systemImage: "square.and.pencil")
-                }.buttonStyle(IslandButtonStyle())
+                Button {
+                    if controller.previewOnly {
+                        controller.beginLayoutEditing()
+                    } else {
+                        controller.performOutside { ServiceLocator.settings?.open(pane: "island.canvas") }
+                    }
+                } label: {
+                    Label("编辑组件", systemImage: "square.and.pencil")
+                }.buttonStyle(IslandButtonStyle(help: "在独立设置窗口编辑组件"))
             }
             Button {
                 if controller.previewOnly { controller.feedback = "完整主面板入口预览" }
@@ -83,22 +91,29 @@ struct IslandSurface<Content: View>: View {
         HStack(spacing: 8) {
             Text(controller.feedback).font(.system(size: Theme.TextSize.caption)).foregroundStyle(.secondary).lineLimit(1)
             Spacer(minLength: 0)
-            Button { controller.turnPage(-1) } label: { Image(systemName: "chevron.left").frame(width: 24, height: 22) }
+                Button {
+                    if (controller.page == .home || controller.page == .custom) && controller.componentPageCount > 1 { controller.turnComponentPage(-1) }
+                    else { controller.turnPage(-1) }
+                } label: { Image(systemName: "chevron.left").frame(width: 24, height: 22) }
                 .buttonStyle(IslandButtonStyle()).accessibilityLabel("上一页")
-            Text(controller.page == .home && controller.componentPageCount > 1
+            Text((controller.page == .home || controller.page == .custom) && controller.componentPageCount > 1
                  ? "组件 \(controller.componentPage + 1) / \(controller.componentPageCount)"
-                 : IslandPage.tabs.firstIndex(of: controller.page).map { "入口 \($0 + 1) / \(IslandPage.tabs.count)" } ?? "详情")
+                 : controller.configuration.visiblePages.firstIndex(of: controller.page)
+                    .map { "页面 \($0 + 1) / \(controller.configuration.visiblePages.count)" } ?? "详情")
                 .font(.system(size: Theme.TextSize.caption)).monospacedDigit().foregroundStyle(.secondary)
-            Button { controller.turnPage(1) } label: { Image(systemName: "chevron.right").frame(width: 24, height: 22) }
+                Button {
+                    if (controller.page == .home || controller.page == .custom) && controller.componentPageCount > 1 { controller.turnComponentPage(1) }
+                    else { controller.turnPage(1) }
+                } label: { Image(systemName: "chevron.right").frame(width: 24, height: 22) }
                 .buttonStyle(IslandButtonStyle()).accessibilityLabel("下一页")
         }.frame(height: 20)
     }
 
     private var tabs: some View {
         HStack(spacing: Theme.Space.xs) {
-            ForEach(IslandPage.tabs) { page in
-                Button { if controller.page != page { controller.page = page } } label: {
-                    Text(page.title).frame(maxWidth: .infinity).frame(height: 28)
+            ForEach(controller.configuration.visiblePages) { page in
+                Button { if controller.page != page { controller.selectPage(page) } } label: {
+                    Text(controller.configuration.pageTitle(page)).frame(maxWidth: .infinity).frame(height: 28)
                         .foregroundStyle((IslandPage.tabs.contains(controller.page) ? controller.page : controller.returnPage) == page ? .primary : .secondary)
                         .background {
                             if (IslandPage.tabs.contains(controller.page) ? controller.page : controller.returnPage) == page {
@@ -112,7 +127,7 @@ struct IslandSurface<Content: View>: View {
             }
         }.font(.system(size: Theme.TextSize.small, weight: .medium))
             .disabled(controller.editingLayout)
-            .animation(reduceMotion ? nil : Theme.Motion.page, value: controller.page)
+        .animation(reduceMotion ? nil : Theme.Motion.page, value: controller.page)
     }
 }
 
@@ -296,18 +311,22 @@ private struct IslandCollapsedView: View {
     @ObservedObject var controller: IslandController
     var body: some View {
         let items = controller.peekOrder.filter { controller.visiblePeeks.contains($0) }
-        let leftCount = (items.count + 1) / 2
-        let sideWidth = CGFloat(leftCount) * (controller.peeksShowValues ? 72 : 38)
+        let placement = controller.activeDisplayID.flatMap { controller.configuration.peekPlacements[$0] } ?? .both
+        let leftItems = placement == .left ? items : placement == .both ? Array(items.prefix((items.count + 1) / 2)) : []
+        let rightItems = placement == .right ? items : placement == .both ? Array(items.dropFirst((items.count + 1) / 2)) : []
+        let unitWidth: CGFloat = controller.peeksShowValues ? 72 : 38
+        let leftWidth = CGFloat(leftItems.count) * unitWidth
+        let rightWidth = CGFloat(rightItems.count) * unitWidth
         HStack(spacing: 0) {
             HStack(spacing: 0) {
-                ForEach(Array(items.prefix(leftCount))) { peek in button(peek) }
-            }.frame(width: sideWidth, alignment: .trailing)
+                ForEach(leftItems) { peek in button(peek) }
+            }.frame(width: leftWidth, alignment: .trailing)
             Button { controller.expand(takeFocus: true) } label: {
                 Color.clear.frame(width: controller.notchWidth, height: controller.notchHeight).contentShape(Rectangle())
             }.buttonStyle(.plain).accessibilityLabel("展开刘海")
             HStack(spacing: 0) {
-                ForEach(Array(items.dropFirst(leftCount))) { peek in button(peek) }
-            }.frame(width: sideWidth, alignment: .leading)
+                ForEach(rightItems) { peek in button(peek) }
+            }.frame(width: rightWidth, alignment: .leading)
         }.frame(height: controller.notchHeight).foregroundStyle(.white).environment(\.colorScheme, .dark)
     }
     private func button(_ peek: IslandPeek) -> some View {

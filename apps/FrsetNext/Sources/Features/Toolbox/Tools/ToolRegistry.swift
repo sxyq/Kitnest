@@ -72,13 +72,16 @@ public struct ToolDescriptor: Identifiable {
     public let identifier: String
     /// 统计归属（写入 tool_invocations.kind 与 daily_stats.tool_count）
     public var kind: ToolKind { execution!.kind }
-    public let name: String
+    private let nameKey: String
+    public var name: String { L10n.t(nameKey) }
     public let keyword: String
-    public let toolDescription: String
+    private let descriptionKey: String
+    public var toolDescription: String { L10n.t(descriptionKey) }
     public let systemImage: String
     public let category: ToolCategory
     public let inputKind: ToolInputKind
-    public let placeholder: String
+    private let placeholderKey: String
+    public var placeholder: String { L10n.t(placeholderKey) }
     public let options: [ToolOption]
     /// 执行函数：(输入, 选项) -> 结果
     public var execute: (String, [String: String]) async -> ToolOutput { execution!.run }
@@ -99,21 +102,21 @@ public struct ToolDescriptor: Identifiable {
                 placeholder: String = "",
                 options: [ToolOption] = [],
                 execute: @escaping (String, [String: String]) async -> ToolOutput) {
-        self.identifier = identifier; self.name = name
+        self.identifier = identifier; self.nameKey = name
         self.keyword = keyword ?? identifier
-        self.toolDescription = toolDescription
+        self.descriptionKey = toolDescription
         self.systemImage = systemImage; self.category = category
-        self.inputKind = inputKind; self.placeholder = placeholder
+        self.inputKind = inputKind; self.placeholderKey = placeholder
         self.options = options; self.execution = (kind, execute); self.build = nil
     }
 
     public init(identifier: String, name: String, keyword: String? = nil,
                 toolDescription: String = "", systemImage: String, category: ToolCategory,
                 build: @escaping () -> AnyView) {
-        self.identifier = identifier; self.name = name
-        self.keyword = keyword ?? identifier; self.toolDescription = toolDescription
+        self.identifier = identifier; self.nameKey = name
+        self.keyword = keyword ?? identifier; self.descriptionKey = toolDescription
         self.systemImage = systemImage; self.category = category
-        self.inputKind = .text; self.placeholder = ""; self.options = []
+        self.inputKind = .text; self.placeholderKey = ""; self.options = []
         self.execution = nil; self.build = build
     }
 

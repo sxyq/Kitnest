@@ -154,6 +154,9 @@ struct PanelRootView: View {
             if isSettingsPreview { return }
             selectedClipboardItem = note.object as? ClipboardItem
         }
+        .onReceive(NotificationCenter.default.publisher(for: TagStore.manageRequestedNotification)) { note in
+            if !isSettingsPreview, note.object as? String == "panel" { isShowingTagSheet = true }
+        }
         // v197（用户「从一个点扩散成一个面，从哪来回哪去」）：开合动画整体挪到
         // 窗口内容层（Core/WindowReveal）——只有窗口层的 transform 才能连玻璃一起
         // 从菜单栏图标处展开/收回；SwiftUI 侧不再叠 scale/offset/opacity，
@@ -680,6 +683,27 @@ struct PanelRootView: View {
             .fixedSize()
             .help("分类筛选")
             .accessibilityLabel("分类筛选")
+
+            Button {
+                if isSettingsPreview { previewFilter = previewFilter == .favorite ? .all : .favorite }
+                else { ClipboardManager.shared.filter = ClipboardManager.shared.filter == .favorite ? .all : .favorite }
+            } label: {
+                Image(systemName: (isSettingsPreview ? previewFilter : ClipboardManager.shared.filter) == .favorite
+                      ? "star.fill" : "star")
+                    .font(.scaledSystem(size: 14, scale: personalization.fontScale))
+                    .frame(width: 22, height: 26)
+                    .foregroundStyle((isSettingsPreview ? previewFilter : ClipboardManager.shared.filter) == .favorite
+                                     ? theme.accent : Color.secondary)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .help("查看收藏")
+            .accessibilityLabel("查看收藏")
+
+            ClipboardTagFilterMenu(selectedTagID: Binding(
+                get: { isSettingsPreview ? nil : ClipboardManager.shared.tagFilterID },
+                set: { if !isSettingsPreview { ClipboardManager.shared.tagFilterID = $0 } }
+            ))
 
             toolbarIcon("tag", help: "标签") {
                 if isSettingsPreview { previewFeedback = "标签入口演示" }

@@ -2,17 +2,14 @@ import SwiftUI
 
 /// 一级目录只控制展开；页面、搜索及旧链接共用二级归属。
 enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
-    case general, haptics, appearance, shortcuts, panel, island, menuBar, clipboard, transfer, capture, searchAI, tools, monitor, data
+    case general, haptics, appearance, entryInteraction, clipboard, transfer, capture, searchAI, tools, monitor, data
     var id: String { rawValue }
     var title: String {
         switch self {
         case .general: return "常规"
         case .haptics: return "触觉反馈"
         case .appearance: return "主题外观"
-        case .shortcuts: return "快捷键"
-        case .panel: return "主面板"
-        case .island: return "刘海工作台"
-        case .menuBar: return "菜单栏"
+        case .entryInteraction: return "入口与交互"
         case .clipboard: return "剪贴板"
         case .transfer: return "文件与传输"
         case .capture: return "截图与录屏"
@@ -27,10 +24,7 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
         case .general: return "gearshape"
         case .haptics: return "hand.tap"
         case .appearance: return "paintpalette"
-        case .shortcuts: return "command"
-        case .panel: return "macwindow"
-        case .island: return "rectangle.tophalf.inset.filled"
-        case .menuBar: return "menubar.rectangle"
+        case .entryInteraction: return "rectangle.3.group"
         case .clipboard: return "doc.on.clipboard"
         case .transfer: return "arrow.left.arrow.right.square"
         case .capture: return "camera.viewfinder"
@@ -45,11 +39,10 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
         case .general: return [.generalStart, .generalNotifications, .permissions]
         case .haptics: return [.haptics]
         case .appearance: return [.generalPersonal, .appearanceText, .generalWindows]
-        case .shortcuts: return [.shortcuts]
-        case .panel: return [.generalPanel, .panelBackground]
-        case .island: return [.island, .islandPeeks, .islandCanvas, .islandMaterial]
-        case .menuBar: return [.generalMenuBar, .menuBarArrangement, .monitorWidgets]
-        case .clipboard: return [.clipboardCapture, .clipboardHistory, .clipboardAppearance, .clipboardFloating]
+        case .entryInteraction: return [.generalPanel, .panelBackground, .generalMenuBar, .menuBarArrangement,
+                                        .monitorWidgets, .shortcuts, .island, .islandPeeks, .islandCanvas,
+                                        .islandMaterial, .clipboardFloating]
+        case .clipboard: return [.clipboardCapture, .clipboardHistory, .clipboardAppearance]
         case .transfer: return [.transferLocal, .transferScan, .transferCloud, .transferCast, .archive]
         case .capture: return [.capture(.capture), .ocr, .watermark, .captureActions, .capture(.pin), .capture(.curtain), .capture(.recording), .capture(.workflow)]
         case .searchAI: return [.search, .ai]

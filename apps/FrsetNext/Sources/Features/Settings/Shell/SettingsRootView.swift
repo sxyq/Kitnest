@@ -1,6 +1,17 @@
 import AppKit
 import SwiftUI
 
+private struct SettingsPreviewViewportKey: EnvironmentKey {
+    static let defaultValue = CGRect.zero
+}
+
+extension EnvironmentValues {
+    var settingsPreviewViewport: CGRect {
+        get { self[SettingsPreviewViewportKey.self] }
+        set { self[SettingsPreviewViewportKey.self] = newValue }
+    }
+}
+
 // MARK: - 设置窗口根视图（v41：左侧大侧边栏 + 内容区）
 //
 // 用户 2026-10-18 指定：
@@ -9,18 +20,10 @@ import SwiftUI
 //      （10 个设置页归类成 6 个二级标签），第二项「性能监测」= 模块二级目录；
 //   ③ 配色以性能监测页为准（MonitorColors.user 作选中色 + 玻璃卡片感）。
 //
-// 布局纪律（2026-10-16 实证，勿改）：根视图必须固定 .frame(...)。SwiftUI App
-// lifecycle 下 NSHostingView 会把根视图 fitting size 折成窗口尺寸请求；高度自由的
-// 根视图会令窗口被反复请求撑到内容自然高，触发无限 Update Constraints 循环 →
-// NSGenericException。各页内部滚动由 ScrollView 承担。
+// 窗口容器拥有尺寸；根视图填满宿主并由各页 ScrollView 承担纵向溢出。
 
 struct SettingsRootView: View {
 
-    /// 与 SettingsWindowController 保持一致的窗口高度（默认 620，排障时可拉高）
-    static let probeHeight: CGFloat = {
-        let value: Double = Preferences.shared.value("probe.settingsHeight", default: 720.0)
-        return min(max(CGFloat(value), 720), 1040)
-    }()
     @ObservedObject var state: SettingsUIState
     @ObservedObject private var editingSession: SettingsEditingSession
     @ObservedObject private var appearance = AppearanceState.shared
@@ -28,6 +31,7 @@ struct SettingsRootView: View {
     /// 「无效」的主观感受主要来自设置窗自身无反馈）
     @ObservedObject private var personalization = Personalization.shared
     @Environment(\.colorScheme) private var colorScheme
+    @Stored private var previewViewport = CGRect.zero
 
     init(state: SettingsUIState) {
         self.state = state
@@ -67,18 +71,22 @@ struct SettingsRootView: View {
             .coordinateSpace(name: "settingsPreviewViewport")
             // v260：横向溢出裁在内容区内，不再回压兄弟视图
             .clipped()
+            .background(GeometryReader { proxy in
+                let bounds = proxy.frame(in: .named("settingsPreviewViewport"))
+                let contentViewport = CGRect(x: bounds.minX, y: bounds.minY + 66,
+                                              width: bounds.width, height: max(0, bounds.height - 66))
+                Color.clear
+                    .onAppear { previewViewport = contentViewport }
+                    .onChange(of: proxy.size) { _ in previewViewport = contentViewport }
+            })
             }
         }
-        // 根视图尺寸必须等于窗口 contentRect（940×720）：NSHostingView 的 fitting size
-        // 会被当作窗口内容尺寸请求——设大 32 会让窗口被撑到 684（2026-10-18 实测）。
-        // fullSizeContentView 下 contentView 已含标题栏区域，620 正好铺满。
-        // v263：排障探针 `probe.settingsHeight` 与 SettingsWindowController 用同一个值，
-        // 拉高窗口时根视图同步变高，否则 SwiftUI 的固定 620 会把窗口又拽回去。
-        .frame(width: 940, height: Self.probeHeight)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .foregroundStyle(appearance.isMidnight ? MidnightTheme.textColor : Color.primary)
         // 强调色 + Midnight 统一主题入口（个性化改色即生效）
         .frsetThemeChrome()
         .environmentObject(editingSession)
+        .environment(\.settingsPreviewViewport, previewViewport)
         .environment(\.settingsTargetField, state.detailPaneID)
         // v84：侧边栏切换面包屑（卡死时日志可见「切到哪一页后卡住」）
         .onChange(of: state.selection) { newValue in

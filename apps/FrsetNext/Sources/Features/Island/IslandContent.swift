@@ -15,16 +15,26 @@ struct IslandRootView: View {
     @Stored private var fileDialogOpen = false
     @Stored private var records: [IslandRecentRow] = []
     @Stored private var homeMonitorVisible = false
+    @Stored private var isManagingTags = false
 
     private var preview: Bool { controller.previewOnly || isSettingsPreview }
     private var selectedRecord: String? { controller.selectedRecord }
     private var recentRecordsVisible: Bool {
-        let pageShowsRecords = controller.page == .home || controller.page == .clipboard
+        let pageShowsRecords = controller.page == .home || controller.page == .custom || controller.page == .clipboard
             || (controller.page == .transfer && !transferToolsVisible)
         return pageShowsRecords && (preview || controller.expanded)
     }
     private var monitoringVisible: Bool {
-        controller.contentVisible && (controller.page == .monitor || (controller.page == .home && homeMonitorVisible))
+        controller.contentVisible && (controller.page == .monitor
+            || ((controller.page == .home || controller.page == .custom) && homeMonitorVisible))
+    }
+    private var pageRecords: [IslandRecentRow] {
+        guard controller.page == .clipboard else { return records }
+        return Array(records.filter { record in
+            (!controller.showingClipboardFavoritesOnly || record.clipboard?.isFavorite == true)
+                && (controller.clipboardTagID.map { record.clipboard?.tagIDs.contains($0) == true } ?? true)
+        }
+            .prefix(max(1, controller.configuration.clipboardRecentLimit)))
     }
 
     var body: some View {
@@ -33,7 +43,8 @@ struct IslandRootView: View {
                 pageContent(controller.page)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .islandGlowClip()
-                    .transition(.opacity)
+                    .transition(.asymmetric(insertion: .move(edge: .trailing).combined(with: .opacity),
+                                            removal: .move(edge: .leading).combined(with: .opacity)))
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
@@ -49,7 +60,10 @@ struct IslandRootView: View {
             updateMonitoring()
             if !visible { controller.releaseRecordScroll() }
         }
-        .onChange(of: controller.page) { _ in controller.releaseRecordScroll(); reloadRecords(); updateMonitoring() }
+        .onChange(of: controller.page) { _ in controller.releaseRecordScroll(); reloadRecords(dataChanged: true); updateMonitoring() }
+        .onChange(of: [controller.configuration.clipboardRecentLimit,
+                       controller.showingClipboardFavoritesOnly ? 1 : 0]) { _ in reloadRecords(dataChanged: true) }
+        .onChange(of: controller.clipboardTagID) { _ in reloadRecords(dataChanged: true) }
         .onChange(of: transferToolsVisible) { _ in
             controller.releaseRecordScroll()
             reloadRecords()
@@ -66,9 +80,16 @@ struct IslandRootView: View {
         .onReceive(NotificationCenter.default.publisher(for: ClipboardManager.itemsDidChangeNotification)) { _ in
             if !preview { reloadRecords(dataChanged: true) }
         }
+        .onReceive(NotificationCenter.default.publisher(for: TagStore.didChangeNotification)) { note in
+            if !preview { applyTagChange(note) }
+        }
         .onReceive(NotificationCenter.default.publisher(for: .localTransferDidChange)) { _ in
             if !preview { reloadRecords(dataChanged: true) }
         }
+        .onReceive(NotificationCenter.default.publisher(for: TagStore.manageRequestedNotification)) { note in
+            if !preview, note.object as? String == "island" { isManagingTags = true }
+        }
+        .sheet(isPresented: $isManagingTags) { TagManagementSheet() }
         .task(id: recordsRevision) { await loadRecords() }
     }
 
@@ -76,10 +97,33 @@ struct IslandRootView: View {
         if !preview { MonitorSampler.shared.setIslandActive(monitoringVisible) }
     }
 
+    private func applyTagChange(_ note: Notification) {
+        guard let info = note.userInfo else { reloadRecords(dataChanged: true); return }
+        if info["mappingReplaced"] as? Bool == true { reloadRecords(dataChanged: true); return }
+        let tagID = info["tagID"] as? String
+        if info["removed"] as? Bool == true, controller.clipboardTagID == tagID {
+            controller.clipboardTagID = nil
+        }
+        let keys = Set(info["keys"] as? [String] ?? [])
+        guard !keys.isEmpty else { return }
+        if controller.page == .clipboard, controller.clipboardTagID == tagID {
+            reloadRecords(dataChanged: true)
+            return
+        }
+        records = records.map { row in
+            guard var item = row.clipboard, keys.contains(item.dedupeKey) else { return row }
+            item.tagIDs = TagStore.shared.tagIDs(forDedupeKey: item.dedupeKey)
+            var updated = row
+            updated.clipboard = item
+            return updated
+        }
+    }
+
     @ViewBuilder private func pageContent(_ page: IslandPage) -> some View {
         switch page {
         case .home: home
         case .clipboard: recordsPage
+        case .custom: custom
         case .transfer:
             VStack(spacing: 8) {
                 Picker("中转站与传输", selection: $transferToolsVisible) {
@@ -106,7 +150,15 @@ struct IslandRootView: View {
             widget(item, size: size) { widgetContent(item, size: size) }
         }
         .overlay {
-            if controller.configuration.hiddenWidgets.count == IslandWidget.allCases.count {
+            if controller.page == .custom && controller.configuration.customWidgetOrder.isEmpty {
+                VStack(spacing: 8) {
+                    Text("我的空间还没有组件")
+                    Button("在设置中添加组件") {
+                        if preview { controller.beginLayoutEditing() }
+                        else { controller.performOutside { ServiceLocator.settings?.open(pane: "island.canvas") } }
+                    }.buttonStyle(IslandButtonStyle())
+                }
+            } else if controller.page == .home && controller.configuration.hiddenWidgets.count == IslandWidget.allCases.count {
                 VStack(spacing: 8) {
                     Text("首页组件已全部隐藏").font(.system(size: 13))
                     Button("查看全部功能") { controller.page = .tools }.buttonStyle(IslandButtonStyle())
@@ -114,6 +166,8 @@ struct IslandRootView: View {
             }
         }
     }
+
+    private var custom: some View { home }
 
     @ViewBuilder private func widgetContent(_ item: IslandWidget, size: IslandWidgetSize) -> some View {
         switch item {
@@ -185,26 +239,56 @@ struct IslandRootView: View {
                     }
             }.buttonStyle(IslandButtonStyle(showsFocus: false)).accessibilityLabel(record.title).help("单击预览 · 双击复制")
                 .accessibilityAddTraits(record.id == selectedRecord ? .isSelected : [])
-            if record.id == selectedRecord {
-                Image(systemName: "checkmark").font(.system(size: 9)).foregroundStyle(.secondary)
+                .contextMenu {
+                    if let item = record.clipboard {
+                        ClipboardRowMenuContent(item: item, managementSource: "island",
+                            onPreview: { select(record) },
+                            onPaste: { ClipboardManager.shared.copy(item, autoPaste: true) })
+                    }
+                }
+            if let item = record.clipboard, !preview {
+                Button { ClipboardManager.shared.toggleFavorite(item) } label: {
+                    Image(systemName: item.isFavorite ? "star.fill" : "star")
+                        .foregroundStyle(item.isFavorite ? Theme.accent : Color.secondary)
+                }.buttonStyle(.plain).help(item.isFavorite ? "取消收藏" : "收藏")
             }
         }.frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private var recordsPage: some View {
-        VStack(spacing: 8) {
+        let visibleRecords = pageRecords
+        return VStack(spacing: 8) {
             HStack {
                 Text(controller.page == .transfer ? "中转站" : "剪贴板与中转").fontWeight(.medium)
                 Spacer()
-                Text(preview ? "设置预览" : "\(records.count) 项近期内容 · 可拖入文件")
+                Text(preview ? "设置预览" : "\(visibleRecords.count) 项近期内容 · 可拖入文件")
                     .foregroundStyle(.secondary)
             }.font(.system(size: 11))
-            if controller.page != .transfer { recordEntrances }
+            if controller.page != .transfer {
+                HStack(spacing: 8) {
+                    recordEntrances
+                    if controller.page == .clipboard {
+                        Button {
+                            controller.showingClipboardFavoritesOnly.toggle()
+                        } label: {
+                            Label(controller.showingClipboardFavoritesOnly ? "收藏中" : "全部",
+                                  systemImage: controller.showingClipboardFavoritesOnly ? "star.fill" : "star")
+                        }.buttonStyle(IslandButtonStyle())
+                        Picker("按标签筛选", selection: $controller.clipboardTagID) {
+                            Text("全部标签").tag(String?.none)
+                            ForEach(TagStore.shared.tags) { tag in Text(tag.name).tag(Optional(tag.id)) }
+                        }.labelsHidden().frame(maxWidth: 135)
+                        Button("管理标签") { NotificationCenter.default.post(name: TagStore.manageRequestedNotification, object: "island") }
+                            .buttonStyle(IslandButtonStyle())
+                    }
+                }
+            }
             HStack(spacing: 10) {
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 4) {
-                        ForEach(records) { record in
+                        ForEach(visibleRecords) { record in
+                            HStack(spacing: 6) {
                             Button { select(record) } label: {
                                 record.frame(maxWidth: .infinity, alignment: .leading)
                                     .background {
@@ -217,11 +301,19 @@ struct IslandRootView: View {
                                             onDraggingChanged: draggingChanged,
                                             onMove: { moveSelection($0, proxy: proxy) }, onCopy: copySelectedRecord,
                                             onDoubleClick: { select(record); copy(record) },
-                                            tracksScroll: record.id == records.first?.id) { select(record) }
+                                            tracksScroll: record.id == visibleRecords.first?.id) { select(record) }
                                     }
                             }.buttonStyle(IslandButtonStyle(showsFocus: false))
-                                .help("点击或空格预览 · 双击复制 · 文件可拖出")
+                                .help("点击或空格在右侧预览 · 双击复制 · 文件可拖出")
                                 .accessibilityAddTraits(selectedRecord == record.id ? .isSelected : [])
+                                .contextMenu {
+                                    if let item = record.clipboard {
+                                        ClipboardRowMenuContent(item: item, managementSource: "island",
+                                            onPreview: { select(record) },
+                                            onPaste: { ClipboardManager.shared.copy(item, autoPaste: true) })
+                                    }
+                                }
+                            }
                                 .id(record.id)
                         }
                     }
@@ -240,7 +332,7 @@ struct IslandRootView: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            if let record = records.first(where: { $0.id == selectedRecord }) {
+            if let record = visibleRecords.first(where: { $0.id == selectedRecord }) {
                 Group {
                     if preview { sampleDetail(record) }
                     else {
@@ -252,8 +344,9 @@ struct IslandRootView: View {
                     .glassCard(radius: IslandLayout.cardRadius, fill: IslandLayout.cardFill, stroke: IslandLayout.cardStroke)
             }
             }
-            if records.isEmpty {
-                Text("暂无内容，可拖入文件或文件夹")
+            if visibleRecords.isEmpty {
+                Text(controller.showingClipboardFavoritesOnly && controller.page == .clipboard
+                     ? "暂无收藏" : "暂无内容，可拖入文件或文件夹")
                     .font(.system(size: 12)).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
@@ -297,11 +390,12 @@ struct IslandRootView: View {
 
     private func select(_ record: IslandRecentRow, openPage: Bool = false) {
         controller.selectedRecord = record.id
-        if openPage { controller.page = .clipboard }
+        if openPage { controller.selectPage(.clipboard) }
         recordListFocused = true
     }
 
     private func moveSelection(_ step: Int, proxy: ScrollViewProxy) {
+        let records = pageRecords
         guard !records.isEmpty else { return }
         let index = records.firstIndex(where: { $0.id == selectedRecord }) ?? (step > 0 ? -1 : records.count)
         let next = min(max(index + step, 0), records.count - 1)
@@ -310,6 +404,7 @@ struct IslandRootView: View {
     }
 
     private func copySelectedRecord() {
+        let records = pageRecords
         let coordinator = MainPanelPreviewPopoverCoordinator.shared
         let active = controller.panel.flatMap { coordinator.hasPreview(from: $0) ? coordinator.activeItemID : nil }
         if let record = records.first(where: { $0.previewItem.id == active })
@@ -352,10 +447,15 @@ struct IslandRootView: View {
                                 date: SettingsPreviewSamples.date.addingTimeInterval(Double(index) * -120), sample: sample)
             }
         } else {
-            let transfers = LocalTransferStore.shared.items
+            let hasClipboardFilter = controller.page == .clipboard
+                && (controller.showingClipboardFavoritesOnly || controller.clipboardTagID != nil)
+            let transfers = hasClipboardFilter ? [] : LocalTransferStore.shared.items
+            let query = ClipboardQuery(filter: controller.page == .clipboard && controller.showingClipboardFavoritesOnly
+                ? .favorite : .all, search: "", tagID: controller.page == .clipboard ? controller.clipboardTagID : nil,
+                limit: controller.page == .clipboard ? max(1, controller.configuration.clipboardRecentLimit) : ClipboardRepository.defaultPageSize)
             let work = Task.detached(priority: .userInitiated) { () -> [IslandRecentRow] in
                 if Task.isCancelled { return [] }
-                let clipboard = ClipboardRepository.shared.fetch(ClipboardQuery())
+                let clipboard = ClipboardRepository.shared.fetch(query)
                 var joined: [String: IslandRecentRow] = [:]
                 var aliases: [String: String] = [:]
                 for transfer in transfers {
@@ -408,8 +508,9 @@ struct IslandRootView: View {
         guard !Task.isCancelled, recordsRevision == revision, !recordDragging else { return }
         records = updatedRecords
         recordsNeedReload = false
-        if !updatedRecords.contains(where: { $0.id == selectedRecord }) {
-            controller.selectedRecord = updatedRecords.first?.id
+        let visibleRecords = pageRecords
+        if !visibleRecords.contains(where: { $0.id == selectedRecord }) {
+            controller.selectedRecord = visibleRecords.first?.id
         }
     }
 

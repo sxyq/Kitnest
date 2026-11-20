@@ -84,7 +84,8 @@ struct IslandWidgetGrid<Content: View>: View {
         let columns = controller.layoutColumns, rows = controller.layoutRows
         var occupied: [Set<Int>] = [[]]
         var result: [IslandWidgetPlacement] = []
-        let order = configuration.widgetOrder.filter { !configuration.hiddenWidgets.contains($0) }
+        var order = configuration.widgetOrder.filter { !configuration.hiddenWidgets.contains($0) }
+        if controller.page == .home { order = Array(order.prefix(max(1, configuration.commonWidgetLimit))) }
         for item in (active.map { [$0] } ?? []) + order.filter({ $0 != active }) {
             let requested = configuration.requestedSize(for: item)
             let size = IslandWidgetSize.allCases.filter { $0.columns <= columns && $0.rows <= rows &&
@@ -204,7 +205,10 @@ struct IslandWidgetGrid<Content: View>: View {
     }
 
     private var temporaryLayout: Bool {
-        controller.layoutColumns < controller.layoutConfiguration.columns || controller.layoutRows < controller.layoutConfiguration.rows
+        let configuration = controller.layoutConfiguration
+        let columns = controller.page == .custom ? configuration.customColumns : configuration.columns
+        let rows = controller.page == .custom ? configuration.customRows : configuration.rows
+        return controller.layoutColumns < columns || controller.layoutRows < rows
     }
 }
 

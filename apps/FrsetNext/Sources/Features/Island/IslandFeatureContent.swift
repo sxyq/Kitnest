@@ -27,7 +27,7 @@ struct IslandFeatureContent: View {
     @ViewBuilder private var fullContent: some View {
         switch page {
         case .search:
-            ScrollView { SearchSectionView().padding(8) }
+            ScrollView { SearchSectionView(islandCategory: controller.configuration.searchCategory).padding(8) }
         case .capture:
             IslandCaptureContent(controller: controller, previewOnly: preview)
         case .recording:
@@ -70,7 +70,7 @@ struct IslandFeatureContent: View {
                     else { controller.performOutside { CaptureModule.capture(page == .capture ? .area : .ocr) } }
                 }.buttonStyle(IslandButtonStyle()).font(.system(size: 11))
                 if size != .small {
-                    Button("更多") { controller.page = page }.buttonStyle(IslandButtonStyle()).font(.system(size: 11))
+                    Button("更多") { controller.selectPage(page) }.buttonStyle(IslandButtonStyle()).font(.system(size: 11))
                 }
             }
         default:
@@ -90,7 +90,7 @@ struct IslandFeatureContent: View {
     }
 
     private var entryButton: some View {
-        Button("打开") { controller.page = page }.font(.system(size: 11)).buttonStyle(IslandButtonStyle())
+        Button("打开") { controller.selectPage(page) }.font(.system(size: 11)).buttonStyle(IslandButtonStyle())
     }
 
     private var summary: String {

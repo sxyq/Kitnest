@@ -1,19 +1,20 @@
 import AppKit
 import SwiftUI
 
-enum IslandPage: String, CaseIterable, Identifiable {
-    case home, clipboard, monitor, media, calendar, tools, search, capture, recording, ocr, transfer, cast, ai, statistics, archive, downloads
+enum IslandPage: String, Codable, CaseIterable, Identifiable {
+    case home, clipboard, search, custom, monitor, media, calendar, tools, capture, recording, ocr, transfer, cast, ai, statistics, archive, downloads
     var id: String { rawValue }
-    static let tabs: [Self] = [.home, .clipboard, .monitor, .tools]
+    static let tabs: [Self] = [.home, .clipboard, .search, .custom]
     var title: String {
         switch self {
-        case .home: return "总览"
-        case .clipboard: return "剪贴板与中转"
+        case .home: return "常用"
+        case .clipboard: return "剪贴板"
+        case .search: return "搜索"
+        case .custom: return "我的空间"
         case .monitor: return "监测"
         case .media: return "媒体"
         case .calendar: return "日历"
         case .tools: return "全部功能"
-        case .search: return "全局搜索"
         case .capture: return "截图与标注"
         case .recording: return "录屏"
         case .ocr: return "识别与翻译"
@@ -23,6 +24,63 @@ enum IslandPage: String, CaseIterable, Identifiable {
         case .statistics: return "使用统计"
         case .archive: return "压缩与解压"
         case .downloads: return "网盘与下载"
+        }
+    }
+}
+
+enum IslandOpeningPageMode: String, Codable, CaseIterable, Identifiable {
+    case fixed, remember
+    var id: String { rawValue }
+    var title: String { self == .fixed ? "固定指定页" : "记忆上次页面" }
+}
+
+enum IslandHotspot: String, Codable, CaseIterable, Identifiable {
+    case left, center, right
+    var id: String { rawValue }
+    var title: String { self == .left ? "顶部左侧" : self == .right ? "顶部右侧" : "顶部中央" }
+}
+
+enum IslandPeekPlacement: String, Codable, CaseIterable, Identifiable {
+    case both, left, right, hidden
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .both: return "左右两侧"
+        case .left: return "仅左侧"
+        case .right: return "仅右侧"
+        case .hidden: return "隐藏常态数据"
+        }
+    }
+}
+
+enum IslandEntryVisibility: String, Codable, CaseIterable, Identifiable {
+    case hidden, event, always
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .hidden: return "仅热区唤出"
+        case .event: return "悬停时显示"
+        case .always: return "常驻显示"
+        }
+    }
+}
+
+enum IslandEntryTrigger: String, Codable, CaseIterable, Identifiable {
+    case hoverAndClick, clickOnly
+    var id: String { rawValue }
+    var title: String { self == .hoverAndClick ? "悬停或点击" : "仅点击" }
+}
+
+enum IslandSearchCategory: String, Codable, CaseIterable, Identifiable {
+    case all, web, clipboard, files, tools
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .all: return "全部"
+        case .web: return "网页"
+        case .clipboard: return "剪贴板"
+        case .files: return "文件"
+        case .tools: return "工具"
         }
     }
 }
@@ -63,11 +121,15 @@ struct IslandConfiguration: Codable, Equatable {
     var gridRows: Int? = nil
     var columns: Int { gridColumns ?? 4 }
     var rows: Int { gridRows ?? 2 }
+    var customGridColumns: Int? = nil
+    var customGridRows: Int? = nil
+    var customColumns: Int { customGridColumns ?? columns }
+    var customRows: Int { customGridRows ?? rows }
     var minimumWidth: CGFloat { CGFloat(columns) * 144 + CGFloat(columns - 1) * 8 + IslandLayout.horizontalInset * 2 }
     var minimumHeight: CGFloat { CGFloat(rows) * 112 + CGFloat(rows - 1) * 8 + 176 }
     var hoverEnabled = true
-    var hoverDelay = 0.10
-    var collapseDelay = 0.18
+    var hoverDelay = 0.18
+    var collapseDelay = 0.30
     var usesGlass = true
     var material: IslandMaterial? = nil
     var effectiveMaterial: IslandMaterial { material ?? (usesGlass ? .liquidGlass : .solid) }
@@ -77,20 +139,51 @@ struct IslandConfiguration: Codable, Equatable {
     var peeksShowValues = true
     var peeksQuickActions = true
     var peekOrder = IslandPeek.allCases
-    var widgetOrder = IslandWidget.allCases
-    var hiddenWidgets = Set<IslandWidget>([.search, .capture, .recording, .ocr, .transfer,
-                                          .cast, .ai, .statistics, .archive, .downloads])
+    var widgetOrder = [IslandWidget.capture, .clipboard, .search, .monitor]
+        + IslandWidget.allCases.filter { ![.capture, .clipboard, .search, .monitor].contains($0) }
+    var hiddenWidgets = Set(IslandWidget.allCases).subtracting([.capture, .clipboard, .search, .monitor])
     var widgetSizes: [String: IslandWidgetSize] = [:]
     var widgetPositions: [String: IslandWidgetPosition]? = nil
     var widgetColors: [String: String] = [:]
     var metricOrder = IslandMetric.allCases
     var metricColors: [String: String] = [:]
+    var pageOrder = IslandPage.tabs
+    var hiddenPages = Set<IslandPage>()
+    var openingPageMode: IslandOpeningPageMode = .fixed
+    var fixedPage: IslandPage = .home
+    var lastPageByDisplay: [String: IslandPage] = [:]
+    var customPageName = "我的空间"
+    var customWidgetOrder: [IslandWidget] = []
+    var customWidgetSizes: [String: IslandWidgetSize] = [:]
+    var customWidgetPositions: [String: IslandWidgetPosition] = [:]
+    var commonWidgetLimit = 3
+    var clipboardRecentLimit = 4
+    var clipboardFavoritesOnly = false
+    var searchCategory: IslandSearchCategory = .all
+    var hotspots: [String: IslandHotspot] = [:]
+    var peekPlacements: [String: IslandPeekPlacement] = [:]
+    var hotspotWidths: [String: Int] = [:]
+    var entryVisibilities: [String: IslandEntryVisibility] = [:]
+    var entryTriggers: [String: IslandEntryTrigger] = [:]
+
+    var visiblePages: [IslandPage] {
+        let ordered = pageOrder.filter { IslandPage.tabs.contains($0) }
+            + IslandPage.tabs.filter { !pageOrder.contains($0) }
+        let visible = ordered.filter { !hiddenPages.contains($0) }
+        return visible.isEmpty ? [.home] : visible
+    }
+    func pageTitle(_ page: IslandPage) -> String { page == .custom ? customPageName : page.title }
 
     private enum CodingKeys: String, CodingKey {
         case enabled, displayScope, selectedDisplayIDs, width, height, gridColumns, gridRows
+        case customGridColumns, customGridRows
         case hoverEnabled, hoverDelay, collapseDelay, usesGlass, material, opacity, glowEnabled
         case visiblePeeks, peeksShowValues, peeksQuickActions, peekOrder, widgetOrder, hiddenWidgets
         case widgetSizes, widgetPositions, widgetColors, metricOrder, metricColors
+        case pageOrder, hiddenPages, openingPageMode, fixedPage, lastPageByDisplay, customPageName
+        case customWidgetOrder, customWidgetSizes, customWidgetPositions, commonWidgetLimit
+        case clipboardRecentLimit, clipboardFavoritesOnly, searchCategory, hotspots, peekPlacements
+        case hotspotWidths, entryVisibilities, entryTriggers
     }
 
     init() {}
@@ -106,6 +199,8 @@ struct IslandConfiguration: Codable, Equatable {
         height = try values.decodeIfPresent(CGFloat.self, forKey: .height) ?? height
         gridColumns = try values.decodeIfPresent(Int.self, forKey: .gridColumns)
         gridRows = try values.decodeIfPresent(Int.self, forKey: .gridRows)
+        customGridColumns = try values.decodeIfPresent(Int.self, forKey: .customGridColumns)
+        customGridRows = try values.decodeIfPresent(Int.self, forKey: .customGridRows)
         hoverEnabled = try values.decodeIfPresent(Bool.self, forKey: .hoverEnabled) ?? hoverEnabled
         hoverDelay = try values.decodeIfPresent(Double.self, forKey: .hoverDelay) ?? hoverDelay
         collapseDelay = try values.decodeIfPresent(Double.self, forKey: .collapseDelay) ?? collapseDelay
@@ -124,6 +219,25 @@ struct IslandConfiguration: Codable, Equatable {
         widgetColors = try values.decodeIfPresent([String: String].self, forKey: .widgetColors) ?? widgetColors
         metricOrder = try values.decodeIfPresent([IslandMetric].self, forKey: .metricOrder) ?? metricOrder
         metricColors = try values.decodeIfPresent([String: String].self, forKey: .metricColors) ?? metricColors
+        pageOrder = try values.decodeIfPresent([IslandPage].self, forKey: .pageOrder) ?? pageOrder
+        hiddenPages = try values.decodeIfPresent(Set<IslandPage>.self, forKey: .hiddenPages) ?? hiddenPages
+        openingPageMode = try values.decodeIfPresent(IslandOpeningPageMode.self, forKey: .openingPageMode) ?? openingPageMode
+        fixedPage = try values.decodeIfPresent(IslandPage.self, forKey: .fixedPage) ?? fixedPage
+        lastPageByDisplay = try values.decodeIfPresent([String: IslandPage].self, forKey: .lastPageByDisplay) ?? lastPageByDisplay
+        customPageName = try values.decodeIfPresent(String.self, forKey: .customPageName) ?? customPageName
+        customWidgetOrder = try values.decodeIfPresent([IslandWidget].self, forKey: .customWidgetOrder) ?? customWidgetOrder
+        customWidgetSizes = try values.decodeIfPresent([String: IslandWidgetSize].self, forKey: .customWidgetSizes) ?? customWidgetSizes
+        customWidgetPositions = try values.decodeIfPresent([String: IslandWidgetPosition].self, forKey: .customWidgetPositions) ?? customWidgetPositions
+        commonWidgetLimit = try values.decodeIfPresent(Int.self, forKey: .commonWidgetLimit)
+            ?? min(4, max(1, widgetOrder.filter { !hiddenWidgets.contains($0) }.count))
+        clipboardRecentLimit = try values.decodeIfPresent(Int.self, forKey: .clipboardRecentLimit) ?? clipboardRecentLimit
+        clipboardFavoritesOnly = try values.decodeIfPresent(Bool.self, forKey: .clipboardFavoritesOnly) ?? clipboardFavoritesOnly
+        searchCategory = try values.decodeIfPresent(IslandSearchCategory.self, forKey: .searchCategory) ?? searchCategory
+        hotspots = try values.decodeIfPresent([String: IslandHotspot].self, forKey: .hotspots) ?? hotspots
+        peekPlacements = try values.decodeIfPresent([String: IslandPeekPlacement].self, forKey: .peekPlacements) ?? peekPlacements
+        hotspotWidths = try values.decodeIfPresent([String: Int].self, forKey: .hotspotWidths) ?? hotspotWidths
+        entryVisibilities = try values.decodeIfPresent([String: IslandEntryVisibility].self, forKey: .entryVisibilities) ?? entryVisibilities
+        entryTriggers = try values.decodeIfPresent([String: IslandEntryTrigger].self, forKey: .entryTriggers) ?? entryTriggers
     }
 
     /// 返回保存的行 × 列档位；画布适配只影响 size(for:) 的显示结果。
@@ -146,6 +260,11 @@ struct IslandConfiguration: Codable, Equatable {
         do {
             var value = try JSONDecoder().decode(Self.self, from: data)
             value.widgetOrder += IslandWidget.allCases.filter { !value.widgetOrder.contains($0) }
+            value.customWidgetOrder = value.customWidgetOrder.filter { IslandWidget.allCases.contains($0) }
+            value.pageOrder = IslandPage.tabs.filter { value.pageOrder.contains($0) }
+                + IslandPage.tabs.filter { !value.pageOrder.contains($0) }
+            if value.hiddenPages.count >= IslandPage.tabs.count { value.hiddenPages.remove(.home) }
+            if !value.visiblePages.contains(value.fixedPage) { value.fixedPage = value.visiblePages[0] }
             return value
         }
         catch { Log.warn("Island", "配置读取失败：\(error.localizedDescription)"); return Self() }

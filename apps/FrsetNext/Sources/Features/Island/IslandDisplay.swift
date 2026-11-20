@@ -13,18 +13,26 @@ struct IslandDisplay: Identifiable {
     var hasNotch: Bool {
         screen.safeAreaInsets.top > 0 && screen.auxiliaryTopLeftArea != nil && screen.auxiliaryTopRightArea != nil
     }
-    var entrySize: CGSize {
+    var entrySize: CGSize { entrySize(hotspotWidth: 210) }
+    func entrySize(hotspotWidth: Int) -> CGSize {
         if hasNotch, let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
             return CGSize(width: right.minX - left.maxX, height: screen.safeAreaInsets.top)
         }
-        return CGSize(width: 180, height: 28)
+        return CGSize(width: CGFloat(hotspotWidth), height: 28)
     }
-    var entryFrame: CGRect {
-        let size = entrySize
+    var entryFrame: CGRect { entryFrame(hotspot: .center, width: 210) }
+    func entryFrame(hotspot: IslandHotspot, width: Int = 210) -> CGRect {
+        let size = entrySize(hotspotWidth: width)
         let centerX: CGFloat
         if hasNotch, let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
             centerX = (left.maxX + right.minX) / 2
-        } else { centerX = frame.midX }
+        } else {
+            switch hotspot {
+            case .left: centerX = frame.minX + size.width / 2 + 20
+            case .center: centerX = frame.midX
+            case .right: centerX = frame.maxX - size.width / 2 - 20
+            }
+        }
         return CGRect(x: centerX - size.width / 2, y: frame.maxY - size.height,
                       width: size.width, height: size.height)
     }

@@ -16,8 +16,11 @@ final class IslandController: NSObject, ObservableObject {
     @Published private(set) var showingContent = false
     @Published var page = IslandPage.home {
         didSet {
-            if IslandPage.tabs.contains(oldValue) { returnPage = oldValue }
-            if IslandPage.tabs.contains(page) { returnPage = page }
+            if configuration.visiblePages.contains(oldValue) { returnPage = oldValue }
+            if configuration.visiblePages.contains(page) {
+                returnPage = page
+                rememberPage(page)
+            }
         }
     }
     private(set) var returnPage = IslandPage.home
@@ -27,6 +30,8 @@ final class IslandController: NSObject, ObservableObject {
     @Published var selectedTool: String?
     @Published var toolQuery = ""
     @Published var toolCategory: ToolCategory?
+    @Published var clipboardTagID: String?
+    @Published var showingClipboardFavoritesOnly: Bool
     @Published var previewVisible = true
     @Published var selectedMetric = IslandMetric.cpu
     @Published var selectedDate = Date.now
@@ -72,6 +77,7 @@ final class IslandController: NSObject, ObservableObject {
 
     init(configuration: IslandConfiguration = .load(), previewOnly: Bool = false) {
         self.configuration = configuration
+        self.showingClipboardFavoritesOnly = configuration.clipboardFavoritesOnly
         self.previewOnly = previewOnly
         self.displays = IslandDisplay.enabled(for: configuration)
         super.init()
@@ -95,6 +101,20 @@ final class IslandController: NSObject, ObservableObject {
             value.widgetOrder = draft.widgetOrder
             value.hiddenWidgets = draft.hiddenWidgets
         }
+        if page == .custom {
+            value.widgetOrder = configuration.customWidgetOrder
+                + IslandWidget.allCases.filter { !configuration.customWidgetOrder.contains($0) }
+            value.hiddenWidgets = Set(IslandWidget.allCases).subtracting(configuration.customWidgetOrder)
+            value.widgetSizes = configuration.customWidgetSizes
+            value.widgetPositions = configuration.customWidgetPositions
+            if let draft = layoutDraft {
+                value.widgetOrder = draft.customWidgetOrder
+                    + IslandWidget.allCases.filter { !draft.customWidgetOrder.contains($0) }
+                value.hiddenWidgets = Set(IslandWidget.allCases).subtracting(draft.customWidgetOrder)
+                value.widgetSizes = draft.customWidgetSizes
+                value.widgetPositions = draft.customWidgetPositions
+            }
+        }
         return value
     }
     var metricOrder: [IslandMetric] {
@@ -112,12 +132,18 @@ final class IslandController: NSObject, ObservableObject {
     }
     var effectiveWidth: CGFloat { min(max(configuration.width, configuration.minimumWidth), displayScreen.frame.width - 40) }
     var effectiveHeight: CGFloat { min(max(configuration.height, configuration.minimumHeight), displayScreen.frame.height - 40) }
-    var layoutColumns: Int { min(configuration.columns, max(1, Int((effectiveWidth - IslandLayout.horizontalInset * 2 + 8) / 152))) }
-    var layoutRows: Int { min(configuration.rows, max(1, Int((effectiveHeight - 176 + 8) / 120))) }
+    var layoutColumns: Int {
+        min(page == .custom ? configuration.customColumns : configuration.columns,
+            max(1, Int((effectiveWidth - IslandLayout.horizontalInset * 2 + 8) / 152)))
+    }
+    var layoutRows: Int {
+        min(page == .custom ? configuration.customRows : configuration.rows,
+            max(1, Int((effectiveHeight - 176 + 8) / 120)))
+    }
 
     func surfaceAnimation(reduceMotion: Bool) -> Animation? {
         if previewOnly && !previewVisible { return nil }
-        return reduceMotion ? .easeOut(duration: 0.12) : .interactiveSpring(response: expanded ? 0.32 : 0.26, dampingFraction: expanded ? 0.94 : 1, blendDuration: 0)
+        return reduceMotion ? .easeOut(duration: 0.12) : .interactiveSpring(response: expanded ? 0.46 : 0.28, dampingFraction: expanded ? 0.94 : 1, blendDuration: 0)
     }
 
     private var hidesCollapsedSurface: Bool {
@@ -126,11 +152,24 @@ final class IslandController: NSObject, ObservableObject {
 
     @discardableResult
     func apply(_ configuration: IslandConfiguration) -> String? {
+        var configuration = configuration
+        if configuration.hiddenPages.count >= IslandPage.tabs.count { configuration.hiddenPages.remove(.home) }
+        if !configuration.visiblePages.contains(configuration.fixedPage) {
+            configuration.fixedPage = configuration.visiblePages[0]
+        }
+        configuration.lastPageByDisplay = configuration.lastPageByDisplay.mapValues {
+            configuration.visiblePages.contains($0) ? $0 : configuration.visiblePages[0]
+        }
         if !previewOnly {
             do { try configuration.persist() }
             catch { return "刘海设置保存失败：\(error.localizedDescription)" }
         }
+        let favoritesDefaultChanged = self.configuration.clipboardFavoritesOnly != configuration.clipboardFavoritesOnly
         self.configuration = configuration
+        if favoritesDefaultChanged {
+            showingClipboardFavoritesOnly = configuration.clipboardFavoritesOnly
+        }
+        if !configuration.visiblePages.contains(page) { page = configuration.visiblePages[0] }
         if !previewOnly {
             if configuration.enabled { start() } else { stop() }
         }
@@ -142,17 +181,27 @@ final class IslandController: NSObject, ObservableObject {
             MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .programmatic)
         }
         layoutDraft = configuration
-        page = .home
         beginInteraction()
         feedback = "拖动组件调整位置 · 右下角调整尺寸"
     }
 
     func updateLayout(_ value: IslandConfiguration) {
-        layoutDraft = value
+        var draft = layoutDraft ?? configuration
+        if page == .custom {
+            draft.customWidgetOrder = value.widgetOrder.filter { !value.hiddenWidgets.contains($0) }
+            draft.customWidgetSizes = value.widgetSizes
+            draft.customWidgetPositions = value.widgetPositions ?? [:]
+        } else {
+            draft.widgetOrder = value.widgetOrder
+            draft.widgetSizes = value.widgetSizes
+            draft.widgetPositions = value.widgetPositions
+            draft.hiddenWidgets = value.hiddenWidgets
+        }
+        layoutDraft = draft
     }
 
     func finishLayoutEditing() {
-        let next = layoutConfiguration
+        let next = layoutDraft ?? configuration
         if let reason = apply(next) { feedback = reason; HapticFeedback.perform(.operationFailed); return }
         layoutDraft = nil
         layoutDidChange?(next)
@@ -189,18 +238,50 @@ final class IslandController: NSObject, ObservableObject {
     }
 
     var collapsedWidth: CGFloat {
-        notchWidth + CGFloat((visiblePeeks.count + 1) / 2) * 2 * (peeksShowValues ? 72 : 38)
+        let placement = activeDisplayID.flatMap { configuration.peekPlacements[$0] } ?? .both
+        let left = placement == .left ? visiblePeeks.count : placement == .both ? (visiblePeeks.count + 1) / 2 : 0
+        let right = placement == .right ? visiblePeeks.count : placement == .both ? visiblePeeks.count / 2 : 0
+        return notchWidth + CGFloat(left + right) * (peeksShowValues ? 72 : 38)
     }
 
     func turnPage(_ step: Int) {
-        if page == .home, componentPageCount > 1 {
-            componentPage = min(max(componentPage + step, 0), componentPageCount - 1)
-            return
-        }
         if editingLayout { return }
-        let pages = IslandPage.tabs
-        let index = pages.firstIndex(of: page) ?? pages.firstIndex(of: returnPage)!
-        page = pages[(index + step + pages.count) % pages.count]
+        let pages = configuration.visiblePages
+        let index = pages.firstIndex(of: page) ?? pages.firstIndex(of: returnPage) ?? 0
+        selectPage(pages[(index + step + pages.count) % pages.count])
+    }
+
+    func turnComponentPage(_ step: Int) {
+        componentPage = min(max(componentPage + step, 0), max(0, componentPageCount - 1))
+    }
+
+    func selectPage(_ requested: IslandPage, remember: Bool = true) {
+        let page = configuration.visiblePages.contains(requested) ? requested : (configuration.visiblePages.first ?? .home)
+        self.page = page
+        returnPage = page
+        if remember { rememberPage(page) }
+    }
+
+    private func rememberPage(_ page: IslandPage) {
+        guard !previewOnly, configuration.openingPageMode == .remember,
+              IslandPage.tabs.contains(page),
+              let activeDisplayID, configuration.lastPageByDisplay[activeDisplayID] != page else { return }
+        var next = configuration
+        next.lastPageByDisplay[activeDisplayID] = page
+        do {
+            try next.persist()
+            configuration = next
+        } catch {
+            feedback = "页面记忆保存失败：\(error.localizedDescription)"
+        }
+    }
+
+    private func applyOpeningPage() {
+        let pages = configuration.visiblePages
+        let candidate = configuration.openingPageMode == .fixed
+            ? configuration.fixedPage
+            : configuration.lastPageByDisplay[activeDisplayID ?? ""] ?? pages.first ?? .home
+        selectPage(pages.contains(candidate) ? candidate : (pages.first ?? .home), remember: false)
     }
 
     func setComponentPageCount(_ count: Int) {
@@ -208,7 +289,7 @@ final class IslandController: NSObject, ObservableObject {
         if componentPage >= count { componentPage = count - 1 }
     }
 
-    func goBack() { page = returnPage }
+    func goBack() { selectPage(returnPage) }
 
     func resumeAfterOutside() { open() }
 
@@ -277,11 +358,11 @@ final class IslandController: NSObject, ObservableObject {
                     }
                 }
             case .calendar: copyDate()
-            case .monitor: page = .monitor; expand(takeFocus: true)
+            case .monitor: page = .monitor; expand(takeFocus: true, useOpeningPage: false)
             }
         } else {
             page = peek.page
-            expand(takeFocus: true)
+            expand(takeFocus: true, useOpeningPage: false)
         }
     }
 
@@ -400,8 +481,13 @@ final class IslandController: NSObject, ObservableObject {
                 entry.contentView = IslandEntryView(hasNotch: display.hasNotch) { [weak self] in self?.activateDisplay(display.id) }
                 entries[display.id] = entry
             }
-            entries[display.id]?.setFrame(display.entryFrame, display: true)
-            let revealed = display.hasNotch || revealedEntryID == display.id
+            let visibility = configuration.entryVisibilities[display.id] ?? (display.hasNotch ? .always : .event)
+            let width = configuration.hotspotWidths[display.id] ?? 210
+            entries[display.id]?.setFrame(display.entryFrame(hotspot: configuration.hotspots[display.id] ?? .center,
+                                                              width: width), display: true)
+            let revealed = visibility != .hidden && (display.hasNotch || visibility == .always ||
+                (visibility == .event && revealedEntryID == display.id)
+            )
             entries[display.id]?.contentView?.isHidden = !revealed
             entries[display.id]?.ignoresMouseEvents = !revealed
             let visible = display.hasNotch ? display.id != activeDisplayID
@@ -414,7 +500,6 @@ final class IslandController: NSObject, ObservableObject {
     private func activateDisplay(_ id: String) {
         guard let display = displays.first(where: { $0.id == id }) else { return }
         let hasPreview = panel.map { MainPanelPreviewPopoverCoordinator.shared.hasPreview(from: $0) } ?? false
-        if !contentVisible && !display.hasNotch { page = .search }
         move(to: display)
         openedExplicitly = true
         expand(takeFocus: !hasPreview)
@@ -452,7 +537,11 @@ final class IslandController: NSObject, ObservableObject {
         if let left = screen.auxiliaryTopLeftArea, let right = screen.auxiliaryTopRightArea {
             centerX = (left.maxX + right.minX) / 2
         } else {
-            centerX = screen.frame.midX
+            switch configuration.hotspots[activeDisplayID ?? ""] ?? .center {
+            case .left: centerX = screen.visibleFrame.minX + (effectiveWidth + 40) / 2
+            case .center: centerX = screen.frame.midX
+            case .right: centerX = screen.visibleFrame.maxX - (effectiveWidth + 40) / 2
+            }
         }
         // 舞台保留当前动画所需范围，缩小时不提前裁掉正在收缩的外壳。
         let size = collapsed ? CGSize(width: collapsedWidth, height: notchHeight) :
@@ -472,17 +561,20 @@ final class IslandController: NSObject, ObservableObject {
 
     private func updateNotchMetrics() {
         let screen = displayScreen
-        let size = IslandDisplay(screen: screen)?.entrySize ?? CGSize(width: 180, height: 28)
+        let requestedWidth = configuration.hotspotWidths[activeDisplayID ?? ""] ?? 210
+        let size = IslandDisplay(screen: screen)?.entrySize(hotspotWidth: requestedWidth)
+            ?? CGSize(width: CGFloat(requestedWidth), height: 28)
         let width = size.width, height = size.height
         if notchWidth != width { notchWidth = width }
         if notchHeight != height { notchHeight = height }
     }
 
-    func expand(takeFocus: Bool = false) {
+    func expand(takeFocus: Bool = false, useOpeningPage: Bool = true) {
         hoverWork?.cancel()
         hoverWork = nil
         openedExplicitly = openedExplicitly || takeFocus
         if !expanded {
+            if useOpeningPage { applyOpeningPage() }
             if !previewOnly { selection = AppBootstrap.readSelection() }
             refreshClipboard()
             showingContent = true
@@ -554,6 +646,9 @@ final class IslandController: NSObject, ObservableObject {
             NotificationCenter.default.addObserver(forName: NSText.didEndEditingNotification, object: nil, queue: .main) { [weak self] note in
                 guard let self, (note.object as? NSView)?.window === self.panel else { return }
                 DispatchQueue.main.async { self.endInteraction() }
+            },
+            NotificationCenter.default.addObserver(forName: LanguageManager.languageDidChange, object: nil, queue: .main) { [weak self] _ in
+                self?.objectWillChange.send()
             }
         ]
         if let token = NSEvent.addGlobalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged, .leftMouseUp]) { [weak self] event in
@@ -561,8 +656,7 @@ final class IslandController: NSObject, ObservableObject {
             else { self?.updatePointer(pointerMoved: true) }
         } { monitors.append(token) }
         if let token = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-            if let self, let target = self.entry(at: NSEvent.mouseLocation),
-               target.hasNotch || self.revealedEntryID == target.id {
+            if let self, let target = self.entry(at: NSEvent.mouseLocation) {
                 self.activateDisplay(target.id); return
             }
             self?.updatePointer(at: event.locationInWindow, pointerMoved: true)
@@ -570,9 +664,10 @@ final class IslandController: NSObject, ObservableObject {
         } { monitors.append(token) }
         if let token = NSEvent.addLocalMonitorForEvents(matching: [.mouseMoved, .leftMouseDragged, .leftMouseDown, .rightMouseDown, .leftMouseUp, .scrollWheel]) { [weak self] event in
             guard let self else { return event }
-            if event.type == .leftMouseDown, let target = self.entry(at: NSEvent.mouseLocation),
-               target.hasNotch || self.revealedEntryID == target.id {
-                self.activateDisplay(target.id); return nil
+            if event.type == .leftMouseDown, let target = self.entry(at: NSEvent.mouseLocation) {
+                self.activateDisplay(target.id)
+                if target.hasNotch || self.revealedEntryID == target.id { return nil }
+                return event
             }
             if event.type == .leftMouseUp { self.endInteraction() }
             self.updatePointer(at: event.window?.convertPoint(toScreen: event.locationInWindow), pointerMoved: true)
@@ -584,12 +679,15 @@ final class IslandController: NSObject, ObservableObject {
                 NotificationCenter.default.post(name: .islandGlowShouldHide, object: event.window)
             }
             if event.type == .scrollWheel, event.window === self.panel, self.expanded,
-               self.page == .home, self.componentPageCount > 1, !self.interacting, event.hasPreciseScrollingDeltas {
+               !self.interacting, !self.editingText, event.hasPreciseScrollingDeltas {
                 if event.phase.contains(.began) { self.horizontalScroll = 0; self.didSwipe = false }
                 if abs(event.scrollingDeltaX) > abs(event.scrollingDeltaY), event.momentumPhase.isEmpty {
                     self.horizontalScroll += event.scrollingDeltaX
                     if !self.didSwipe, abs(self.horizontalScroll) > 36 {
-                        self.turnPage(self.horizontalScroll < 0 ? 1 : -1)
+                        let step = self.horizontalScroll < 0 ? 1 : -1
+                        if (self.page == .home || self.page == .custom) && self.componentPageCount > 1 {
+                            self.turnComponentPage(step)
+                        } else { self.turnPage(step) }
                         self.didSwipe = true
                     }
                     if event.phase.isEmpty { self.horizontalScroll = 0; self.didSwipe = false }
@@ -613,15 +711,27 @@ final class IslandController: NSObject, ObservableObject {
             entryHoverID = hoverID
             if let target, !target.hasNotch,
                !(target.id == activeDisplayID && contentVisible) {
-                let work = DispatchWorkItem { [weak self] in
-                    guard let self, self.entryHoverID == target.id else { return }
-                    self.entryHoverWork = nil
-                    self.revealedEntryID = target.id
-                    self.refreshEntries()
-                    self.updatePointer(pointerMoved: true)
+                let clickOnly = configuration.entryTriggers[target.id] == .clickOnly || !configuration.hoverEnabled
+                if !clickOnly {
+                    let work = DispatchWorkItem { [weak self] in
+                        guard let self, self.entryHoverID == target.id else { return }
+                        self.entryHoverWork = nil
+                        self.move(to: target)
+                        self.expand()
+                    }
+                    entryHoverWork = work
+                    DispatchQueue.main.asyncAfter(deadline: .now() + configuration.hoverDelay, execute: work)
+                } else if (configuration.entryVisibilities[target.id] ?? .event) == .event,
+                          revealedEntryID != target.id {
+                    let work = DispatchWorkItem { [weak self] in
+                        guard let self, self.entryHoverID == target.id else { return }
+                        self.entryHoverWork = nil
+                        self.revealedEntryID = target.id
+                        self.refreshEntries()
+                    }
+                    entryHoverWork = work
+                    DispatchQueue.main.asyncAfter(deadline: .now() + configuration.hoverDelay, execute: work)
                 }
-                entryHoverWork = work
-                DispatchQueue.main.asyncAfter(deadline: .now() + configuration.hoverDelay, execute: work)
             } else if target == nil, revealedEntryID != nil {
                 let work = DispatchWorkItem { [weak self] in
                     self?.entryHoverWork = nil
@@ -654,7 +764,7 @@ final class IslandController: NSObject, ObservableObject {
         hoverWork?.cancel()
         hoverWork = nil
         if !hoverInside && pointerMoved { hoverArmed = true }
-        if hoverInside, displayScreen.safeAreaInsets.top > 0, !expanded, hoverArmed, configuration.hoverEnabled, pointerMoved {
+        if hoverInside, !expanded, hoverArmed, configuration.hoverEnabled, pointerMoved {
             let work = DispatchWorkItem { [weak self] in self?.expand() }
             hoverWork = work
             DispatchQueue.main.asyncAfter(deadline: .now() + configuration.hoverDelay, execute: work)
@@ -672,7 +782,11 @@ final class IslandController: NSObject, ObservableObject {
     }
 
     private func entry(at point: NSPoint) -> IslandDisplay? {
-        displays.first { $0.entryFrame.contains(point) }
+        displays.first {
+            guard configuration.entryVisibilities[$0.id] != .hidden else { return false }
+            return $0.entryFrame(hotspot: configuration.hotspots[$0.id] ?? .center,
+                                 width: configuration.hotspotWidths[$0.id] ?? 210).contains(point)
+        }
     }
 
     func containsEntry(at point: NSPoint) -> Bool { entry(at: point) != nil }
@@ -739,11 +853,12 @@ final class IslandPanel: NSPanel {
             IslandController.shared.turnPage(event.keyCode == 123 ? -1 : 1)
             return true
         }
+        let visiblePages = IslandController.shared.configuration.visiblePages
         if event.modifierFlags.contains(.command), let key = event.charactersIgnoringModifiers,
-           let index = Int(key), (1...IslandPage.allCases.count).contains(index) {
+           let index = Int(key), (1...visiblePages.count).contains(index) {
             if IslandController.shared.editingLayout { return true }
-            IslandController.shared.page = IslandPage.allCases[index - 1]
-            IslandController.shared.expand(takeFocus: true)
+            IslandController.shared.selectPage(visiblePages[index - 1])
+            IslandController.shared.expand(takeFocus: true, useOpeningPage: false)
             return true
         }
         return super.performKeyEquivalent(with: event)

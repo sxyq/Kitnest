@@ -56,8 +56,10 @@ final class ToolCollectionSettingsDraft: SettingsEditableDraft {
 
 private struct ToolCollectionSettingsContent: View {
     @ObservedObject var draft: ToolCollectionSettingsDraft
+    @ObservedObject private var language = LanguageManager.shared
     @Environment(\.settingsTargetField) private var targetField
     var body: some View {
+        let _ = language.overrideDisplayLanguage
         SettingsSection("工具集合") {
             SettingsGroupBox {
                 ForEach(ToolRegistry.all) { tool in
