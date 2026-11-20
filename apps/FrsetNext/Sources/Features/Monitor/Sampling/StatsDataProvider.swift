@@ -278,11 +278,12 @@ public final class StatsDataProvider {
                 snap.gpuTiler = gpuPtr[2]
             }
         }
-        let nameBuf = UnsafeMutablePointer<CChar>.allocate(capacity: 128)
-        defer { nameBuf.deallocate() }
-        if snap.gpuModel.isEmpty, frset_gpu_model(nameBuf, 128) == 0 {
-            // 型号是静态信息，只取一次；此前每帧 String(cString:) 重建
-            snap.gpuModel = String(cString: nameBuf)
+        if snap.gpuModel.isEmpty {
+            let nameBuf = UnsafeMutablePointer<CChar>.allocate(capacity: 128)
+            defer { nameBuf.deallocate() }
+            if frset_gpu_model(nameBuf, 128) == 0 {
+                snap.gpuModel = String(cString: nameBuf)
+            }
         }
 
         mark("gpu")
@@ -653,9 +654,7 @@ public final class StatsDataProvider {
         //   直接按原始值排：1.5s 刷新时 0.1% / 1MB 级噪声会让行序反复跳动（点不中想展开的行）；
         //   纯分桶再按名称：0% 与 1% 会在桶边界交错，看起来像没排序。
         //   现在同桶内保持上一轮相对次序，只有指标实质变化才换位（既稳定又不会明显乱序）。
-        orderLock.lock()
         let previous = lastOrders[kind] ?? [:]
-        orderLock.unlock()
         var ordered = groups.map { (key: $0.key, acc: $0.value) }
         ordered.sort { a, b in
             let ra = rank(a.acc), rb = rank(b.acc)
@@ -668,9 +667,7 @@ public final class StatsDataProvider {
         }
         var snapshot: [String: Int] = [:]
         for (index, entry) in ordered.enumerated() { snapshot[entry.key] = index }
-        orderLock.lock()
         lastOrders[kind] = snapshot
-        orderLock.unlock()
         var result: [StatsProcItem] = []
         result.reserveCapacity(Swift.min(max, ordered.count))
         for entry in ordered.prefix(max) {
@@ -694,9 +691,8 @@ public final class StatsDataProvider {
         return result
     }
 
-    /// 上一轮组序（按 kind 分开存：CPU/内存/磁盘/网络 各自独立，互不冲掉对方次序）
+    /// 各指标的上一轮组序；与进程缓冲共用 procBufferLock。
     private static var lastOrders: [Int: [String: Int]] = [:]
-    private static let orderLock = NSLock()
 
     // v129（内存）：frset_proc_t 输出缓冲静态复用（512×612B≈313KB，见 readProcList）
     private static let procBuffer = UnsafeMutablePointer<frset_proc_t>.allocate(capacity: 512)
