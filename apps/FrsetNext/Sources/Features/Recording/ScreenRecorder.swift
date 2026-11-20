@@ -80,9 +80,6 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
     // MARK: 写盘
 
     func prepareWriter() throws {
-        try? FileManager.default.createDirectory(at: outputURL.deletingLastPathComponent(),
-                                                 withIntermediateDirectories: true)
-        try? FileManager.default.removeItem(at: outputURL)
         let w = Int(max(2, videoSize.width.rounded()))
         let h = Int(max(2, videoSize.height.rounded()))
         let bitrate = min(24_000_000, max(4_000_000, Int(Double(w * h) * 0.12)))
@@ -97,6 +94,8 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
             ],
         ]
         do {
+            try FileManager.default.createDirectory(at: outputURL.deletingLastPathComponent(),
+                                                    withIntermediateDirectories: true)
             let writer = try AVAssetWriter(outputURL: outputURL, fileType: .mp4)
             let input = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
             input.expectsMediaDataInRealTime = true
@@ -417,12 +416,12 @@ public final class ScreenRecorder: ObservableObject {
                                              regionOrigin: setup.regionOrigin,
                                              pixelScale: setup.pixelScale,
                                              outputURL: url)
-            try pipeline.prepareWriter()
             let stream = SCStream(filter: setup.filter, configuration: setup.config, delegate: pipeline)
             try stream.addStreamOutput(pipeline, type: .screen, sampleHandlerQueue: setup.queue)
             if options.audio == .system {
                 try stream.addStreamOutput(pipeline, type: .audio, sampleHandlerQueue: setup.queue)
             }
+            try pipeline.prepareWriter()
             self.pipeline = pipeline
             self.stream = stream
             pipeline.onStopped = { [weak self, weak pipeline] error in
@@ -657,7 +656,6 @@ public final class ScreenRecorder: ObservableObject {
 
     private func uniqueOutputURL() -> URL {
         let dir = RecordingOptions.saveDirectory
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let fmt = DateFormatter()
         fmt.locale = Locale(identifier: "en_US_POSIX")
         fmt.dateFormat = "yyyy-MM-dd-HHmmss"
