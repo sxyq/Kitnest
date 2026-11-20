@@ -1732,13 +1732,13 @@ Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,re
 Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognizeAndTranslate,func,1429,KEEP,"CaptureActionChain.swift:82,100 调用"
 Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognizeShowing,func,1441,KEEP,CaptureActionChain.swift:79 调用
 Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognize,func,1446,KEEP,"ScreenshotManager.swift:962,968,980 调用"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,copyOCRText,func,1493,KEEP,CaptureSectionView.swift:141 调用
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,autoDetectQR,func,1513,KEEP,"ScreenshotManager.swift:625,762,784 调用"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,saveStitchedResult,func,1530,KEEP,CaptureSectionView.swift:231 调用
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,pin,func,1553,KEEP,"CaptureSectionView.swift:242,244 调用"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureLongScreenshot,func,1561,KEEP,AppBootstrap:372 / CaptureModule:187
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,annotate,func,1568,KEEP,"CaptureSectionView.swift:197,251 调用"
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,annotateLatest,func,1574,KEEP,CaptureModule:188 / CaptureSectionView:250
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,copyOCRText,func,1493,KEEP,2026-11-20：截图区、刘海以及静默识别将现有文字写入系统剪贴板并反馈；不再广播已由 recognize 提交的识别事件
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,autoDetectQR,func,1512,KEEP,"ScreenshotManager.swift:625,762,784 调用"
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,saveStitchedResult,func,1529,KEEP,CaptureSectionView.swift:231 调用
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,pin,func,1552,KEEP,"CaptureSectionView.swift:242,244 调用"
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureLongScreenshot,func,1560,KEEP,AppBootstrap:372 / CaptureModule:187
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,annotate,func,1567,KEEP,"CaptureSectionView.swift:197,251 调用"
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,annotateLatest,func,1573,KEEP,CaptureModule:188 / CaptureSectionView:250
 Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,DeleteKeyMonitor,init,init,14,KEEP,2026-11-19：每个截图覆盖层创建；本地键盘/右键监视器弱捕获视图并消费onCancel返回true的事件，防窗口失焦漏Esc
 Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,DeleteKeyMonitor,deinit,deinit,22,KEEP,2026-11-19：监视器所有者销毁时移除NSEvent本地监视器token，避免延续到下一次截图
 Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotMagnifierView,draw,func,39,KEEP,2026-11-19：AppKit按dirtyRect绘制覆写；清底后裁切快照采样区，夹十字准线并留边空白
@@ -2446,7 +2446,7 @@ Monitor,Features/Monitor/Memory/ProcessMemoryInspector.swift,ProcessMemoryInspec
 Monitor,Features/Monitor/Sampling/MonitorHistory.swift,MonitorHistoryBuffer,init,init,10,KEEP,2026-11-20：MonitorSampler 为12条固定序列和动态温度序列创建60点环形缓冲，预分配同样数量的元素
 Monitor,Features/Monitor/Sampling/MonitorHistory.swift,MonitorHistoryBuffer,append,func,15,KEEP,2026-11-20：采样器为每条时间序列写入同一帧，回绕后覆盖最早元素；新发现的温度序列先补历史缺值以对齐时间轴
 Monitor,Features/Monitor/Sampling/MonitorHistory.swift,MonitorHistoryBuffer,values,func,22,KEEP,2026-11-20：MonitorSampler 把环形历史按时间顺序复制到调用方的复用数组；未满只复制前缀，满环按写入位置分为两段
-Monitor,Features/Monitor/Sampling/MonitorModule.swift,MonitorModule,start,func,8,KEEP,AppBootstrap.swift:26 register → startAll:34 协议派发
+Monitor,Features/Monitor/Sampling/MonitorModule.swift,MonitorModule,start,func,8,KEEP,2026-11-20：AppBootstrap 模块启动时依次启动采样器、按双开关应用后台流量定时器并注册设置与菜单栏监测
 Monitor,Features/Monitor/Sampling/MonitorPreferences.swift,MonitorPreferences,keyEnabled,func,78,KEEP,isModuleEnabled:143、setModuleEnabled:147、resetToDefaults:161
 Monitor,Features/Monitor/Sampling/MonitorPreferences.swift,MonitorPreferences,isModuleEnabled,func,142,KEEP,StatusBarController:197、MonitorSampler:152、SettingsPane:118
 Monitor,Features/Monitor/Sampling/MonitorPreferences.swift,MonitorPreferences,setModuleEnabled,func,146,KEEP,StatusBarController:197、MonitorSettingsPane:119
@@ -2470,58 +2470,56 @@ Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,delta,func,4
 Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,rate,func,413,KEEP,2026-11-20：网络及磁盘共同把字节差换成速率；有效时长下转 UInt64，与上层显示统一使用字节每秒
 Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,clamp,func,420,KEEP,2026-11-20：CPU、内存压力和电池利用率使用共同的0至1范围，避免非有限值进入显示
 Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,uint64Value,func,425,KEEP,2026-11-20：从 IOKit Statistics 中读取读写累计字节，并桥接 NSNumber 或 UInt64；缺值为零
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,History,init,init,40,KEEP,2026-11-20：为空时发布初始历史，构建两份快照缓存及清空历史后的空快照；图表按字段读取
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setIslandActive,func,68,KEEP,2026-11-20：IslandContent 仅正式监测组件可见时更新此位，离开关闭；变化后重排定时并在进入时立即请求一帧
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setPanelActive,func,75,KEEP,2026-11-20：MonitorPopoutWindow 显示标记可见，面板收起和关闭清除此位；不改变主面板状态
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setHomePanelActive,func,86,KEEP,2026-11-20：PanelController 的性能页与主面板退出分别设置进入和离开，不改变监测独立窗状态
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setSettingsActive,func,93,KEEP,2026-11-20：SettingsWindowController 按遮挡通知报告监测设置页可见，StatusBarController 退出时清除此位
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,init,init,118,KEEP,2026-11-20：shared 唯一构造，在主队列接收监测偏好变化，按保存值重新安排采样
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,deinit,deinit,130,KEEP,2026-11-20：释放时移除偏好通知观察者并取消尚未执行的定时采样项
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,start,func,137,KEEP,2026-11-20：MonitorModule 启动时调用；已有定时任务即返回，否则先应用偏好，再复用立即刷新
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,stop,func,145,KEEP,2026-11-20：总开关关闭时取消并清除排队任务，暂停 C 层连通性与进程统计，并在主队列更新运行状态
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,refresh,func,159,KEEP,2026-11-20：启动和四种正式界面进入时调用；在采样队列读已保存总开关，开启时才直接采样一帧
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,applyPreferences,func,169,KEEP,2026-11-20：偏好变化与可见性变化共用；更新温度条件，总开关关闭时停止，否则按可见状态选择设定间隔或至少5秒
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,scheduleNext,func,189,KEEP,2026-11-20：取消旧定时任务，在采样队列延时执行；执行前读取总开关，采样后按当前界面可见性安排下一帧
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,sampleOnce,func,214,KEEP,2026-11-20：优先使用有效 C 快照，补深层指标及时间轴；轮换同一组历史缓冲，在 MonitorExtra 的锁内合并峰值，主队列发布当前值与历史
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,resetHistory,func,350,KEEP,2026-11-20：监测设置的清空按钮调用，锁内重置环形缓冲与两份快照，重置补充指标后发布空历史
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,init,init,74,KEEP,私有 init，shared:39
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,startBackgroundUpdates,func,90,KEEP,MonitorModule.swift:14 常驻启动
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,stopBackgroundUpdates,func,104,KEEP,applyKeepAlivePreference:114
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,applyKeepAlivePreference,func,110,KEEP,MonitorSettingsPane.swift:140 开关回调
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,backgroundTick,func,118,KEEP,start:94 立即一帧 + 定时器:96
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,ingestApps,func,133,KEEP,backgroundTick:122、StatsDataProvider.swift:444
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,ingestNIC,func,172,KEEP,backgroundTick:126、NetworkPulse.swift:73
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,snapshot,func,201,KEEP,MonitorDetailView.swift:630
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,reset,func,237,KEEP,MonitorSettingsPane.swift:191
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,resetLocked,func,244,KEEP,ingestApps:138、ingestNIC:176、reset:239
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,prune,func,255,KEEP,ingestApps:168、ingestNIC:184、snapshot:204
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,trimApps,func,283,KEEP,ingestApps:166 超 200 项时
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,sanitize,func,289,KEEP,ingestApps:150-151、ingestNIC:182-183
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowIcon,icon,func,304,KEEP,MonitorDetailView.swift:542
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,History,init,init,36,KEEP,2026-11-20：为空时发布初始历史，构建两份快照缓存及清空历史后的空快照；图表按字段读取
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setIslandActive,func,64,KEEP,2026-11-20：IslandContent 仅正式监测组件可见时更新此位，离开关闭；变化后重排定时并在进入时立即请求一帧
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setPanelActive,func,71,KEEP,2026-11-20：MonitorPopoutWindow 显示标记可见，面板收起和关闭清除此位；不改变主面板状态
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setHomePanelActive,func,82,KEEP,2026-11-20：PanelController 的性能页与主面板退出分别设置进入和离开，不改变监测独立窗状态
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setSettingsActive,func,89,KEEP,2026-11-20：SettingsWindowController 按遮挡通知报告监测设置页可见，StatusBarController 退出时清除此位
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,init,init,114,KEEP,2026-11-20：shared 唯一构造；主队列接收保存、导入及恢复默认的原偏好通知，同时重排监测采样和后台流量定时器
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,deinit,deinit,127,KEEP,2026-11-20：释放时移除偏好通知观察者并取消尚未执行的定时采样项
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,start,func,134,KEEP,2026-11-20：MonitorModule 启动时调用；已有定时任务即返回，否则先应用偏好，再复用立即刷新
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,stop,func,142,KEEP,2026-11-20：总开关关闭时取消并清除排队任务，暂停 C 层连通性与进程统计，并在主队列更新运行状态
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,refresh,func,156,KEEP,2026-11-20：启动和四种正式界面进入时调用；在采样队列读已保存总开关，开启时才直接采样一帧
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,applyPreferences,func,166,KEEP,2026-11-20：偏好变化与可见性变化共用；更新温度条件，总开关关闭时停止，否则按可见状态选择设定间隔或至少5秒
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,scheduleNext,func,186,KEEP,2026-11-20：取消旧定时任务，在采样队列延时执行；执行前读取总开关，采样后按当前界面可见性安排下一帧
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,sampleOnce,func,211,KEEP,2026-11-20：优先使用有效 C 快照，补深层指标及时间轴；轮换同一组历史缓冲，在 MonitorExtra 的锁内合并峰值，主队列发布当前值与历史
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,resetHistory,func,346,KEEP,2026-11-20：监测设置的清空按钮调用，锁内重置环形缓冲与两份快照，重置补充指标后发布空历史
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,init,init,74,KEEP,2026-11-20：shared 唯一构造，从空应用及网卡历史开始；启动由 MonitorModule 决定
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,applyKeepAlivePreference,func,90,KEEP,2026-11-20：MonitorModule 启动和 MonitorSampler 原偏好观察者共用；两个开关均开启时首采并启用 5 秒定时器，任一关闭时取消
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,backgroundTick,func,107,KEEP,2026-11-20：由首拍及定时器执行，读取既有 nettop 缓存与有效 C 网卡快照，分别交两个累计入口
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,ingestApps,func,122,KEEP,2026-11-20：后台定时器与 StatsDataProvider 将应用速率按采样间隔换算字节，按现有时间和总量判重，更新应用元数据及历史
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,ingestNIC,func,161,KEEP,2026-11-20：NetworkPulse 及后台定时器输入整机上下行速率，间隔不足 0.4 秒跳过，整机总量供未归属流量计算
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,snapshot,func,190,KEEP,2026-11-20：正式监测网络页读取；锁内裁剪并取得快照，锁外累计并按总字节排序，保留实际覆盖时长
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,reset,func,226,KEEP,2026-11-20：设置页清空正式监测历史时加锁进入 resetLocked
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,resetLocked,func,233,KEEP,2026-11-20：手动清空及应用或网卡采样间断超过 120 秒时清除历史和计时状态
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,prune,func,244,KEEP,2026-11-20：读写历史共用 600 秒截止；网卡移除旧读数，应用部分过期裁去前段、全部过期移除项目
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,trimApps,func,257,KEEP,2026-11-20：应用数超过 200 时按窗口累计字节排序并保留前 120 个，限制常驻历史
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,sanitize,func,263,KEEP,2026-11-20：应用与网卡共用，把非有限、非正及超上限的速率转成零
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowIcon,icon,func,278,KEEP,2026-11-20：正式流量图根据可执行路径取得图标；按路径缓存最多 64 项，设置预设预览不访问图标
 Monitor,Features/Monitor/Sampling/NetworkPulse.swift,NetworkPulse,activate,func,43,KEEP,MonitorDetailView.swift:636 onAppear
 Monitor,Features/Monitor/Sampling/NetworkPulse.swift,NetworkPulse,deactivate,func,57,KEEP,MonitorDetailView.swift:637 onDisappear
 Monitor,Features/Monitor/Sampling/NetworkPulse.swift,NetworkPulse,sample,func,64,KEEP,activate:47 首帧 + 定时器:49
 Monitor,Features/Monitor/Sampling/NetworkPulse.swift,NetworkPulse,append,func,77,KEEP,sample:69-70
 Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsProcItem,init,init,37,KEEP,readProcList:677、684 构造聚合行
 Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsSnapshot,init,init,170,KEEP,storage 初值 StatsDataProvider.swift:180
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,init,init,217,KEEP,私有 init，shared:174
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,refresh,func,235,KEEP,MonitorSampler.swift:199 每 tick 调用
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,readProcList,func,565,KEEP,442、531-533、NetworkFlowTracker.swift:121
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,appBundlePath,func,707,KEEP,readProcList:598、BatteryEnergy.swift:121
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,appDisplayName,func,717,KEEP,readProcList:613、BatteryEnergy.swift:124
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,readFans,func,738,KEEP,refresh:523
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,primaryInterfaceName,func,765,KEEP,refresh:451
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,genericSensorName,func,778,KEEP,refresh:483 未收录键回落名
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,railFamilyName,func,790,KEEP,refresh:480、sensorDisplayName:807
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,sensorDisplayName,func,803,KEEP,MonitorWidgetsPane.swift:212
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,voltage,func,827,KEEP,MonitorDetailView.swift:1176
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,amperage,func,832,KEEP,MonitorDetailView.swift:1177
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,watts,func,837,KEEP,MonitorDetailView.swift:1178
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,wattHours,func,842,KEEP,MonitorDetailView.swift:1179
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,rpm,func,847,KEEP,MonitorDetailView:1021、StatsModulePanels:1258
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,ms,func,852,KEEP,MonitorDetailView:723/724、StatsModulePanels:1016/1017
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,capacity,func,857,KEEP,BatteryPanel.swift:221、224
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,remaining,func,862,KEEP,BatteryPanel.swift:100 预计剩余时间
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,init,init,216,KEEP,私有 init，shared:174
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,refresh,func,234,KEEP,2026-11-20：MonitorSampler 采样队列按可见性分档读取深层数据；GPU 型号已有缓存时不再分配缓冲；连通历史两份复用数组共用写入
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,readProcList,func,554,KEEP,2026-11-20：监测定时刷新与网络常驻共用进程缓冲；按宿主路径聚合、分桶排序，只物化前 8 组；排行次序在原采样缓冲锁内读写
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,appBundlePath,func,691,KEEP,readProcList:598、BatteryEnergy.swift:121
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,appDisplayName,func,701,KEEP,readProcList:613、BatteryEnergy.swift:124
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,readFans,func,722,KEEP,refresh:523
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,primaryInterfaceName,func,749,KEEP,refresh:451
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,genericSensorName,func,762,KEEP,refresh:483 未收录键回落名
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,railFamilyName,func,774,KEEP,refresh:480、sensorDisplayName:807
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,sensorDisplayName,func,787,KEEP,MonitorWidgetsPane.swift:212
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,voltage,func,811,KEEP,MonitorDetailView.swift:1176
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,amperage,func,816,KEEP,MonitorDetailView.swift:1177
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,watts,func,821,KEEP,MonitorDetailView.swift:1178
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,wattHours,func,826,KEEP,MonitorDetailView.swift:1179
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,rpm,func,831,KEEP,MonitorDetailView:1021、StatsModulePanels:1258
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,ms,func,836,KEEP,MonitorDetailView:723/724、StatsModulePanels:1016/1017
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,capacity,func,841,KEEP,BatteryPanel.swift:221、224
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,remaining,func,846,KEEP,BatteryPanel.swift:100 预计剩余时间
 Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,module,func,20,KEEP,openMonitor:266
 Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,start,func,39,KEEP,MonitorModule.swift:32；开关观察者:178 重启
 Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,stop,func,160,KEEP,MonitorModule.swift:51；开关观察者:181 立即停
@@ -2796,9 +2794,9 @@ Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowCon
 Monitor,Features/Monitor/Window/MonitorSettingsPane.swift,Values,saved,func,14,KEEP,读取正式监测总开关、刷新间隔、模块显隐、温度、网络常驻和分流数量，作为设置草稿初值。
 Monitor,Features/Monitor/Window/MonitorSettingsPane.swift,MonitorSettingsState,init,init,35,KEEP,同文件:16 默认参构造；SettingsRootView:132
 Monitor,Features/Monitor/Window/MonitorSettingsPane.swift,MonitorSettingsState,save,func,37,KEEP,仅应用本页相对已保存值发生变化的字段；刷新间隔沿用菜单栏同步入口，未改字段保留其他页面的配置。
-Monitor,Features/Monitor/Window/MonitorSettingsPane.swift,MonitorSettingsState,discard,func,63,KEEP,重新读取已保存监测配置，取消只改变草稿和预览。
-Monitor,Features/Monitor/Window/MonitorSettingsPane.swift,MonitorSettingsState,restoreDefaults,func,64,KEEP,默认值先进入监测草稿，保存前不影响正式采样与模块显隐。
-Monitor,Features/Monitor/Window/MonitorSettingsPane.swift,MonitorSettingsPane,init,init,69,KEEP,SettingsRootView.swift:132、MonitorModule:21
+Monitor,Features/Monitor/Window/MonitorSettingsPane.swift,MonitorSettingsState,discard,func,62,KEEP,重新读取已保存监测配置，取消只改变草稿和预览。
+Monitor,Features/Monitor/Window/MonitorSettingsPane.swift,MonitorSettingsState,restoreDefaults,func,63,KEEP,默认值先进入监测草稿，保存前不影响正式采样与模块显隐。
+Monitor,Features/Monitor/Window/MonitorSettingsPane.swift,MonitorSettingsPane,init,init,68,KEEP,SettingsRootView.swift:132、MonitorModule:21
 Onboarding,Features/Onboarding/PermissionCenter.swift,PermissionCenter,init,init,150,KEEP,shared 单例 :142 调用（init 内 refreshAll:153）
 Onboarding,Features/Onboarding/PermissionCenter.swift,PermissionCenter,status,func,156,KEEP,PermissionGuideView:25；内部 237/245/251/260
 Onboarding,Features/Onboarding/PermissionCenter.swift,PermissionCenter,refreshAll,func,161,KEEP,WelcomeView:80/83、PermissionGuideView:40/46
@@ -3149,33 +3147,33 @@ Recording,Features/Recording/RecordingSettingsPane.swift,RecordingSettingsConten
 Recording,Features/Recording/RecordingSettingsPane.swift,RecordingSettingsContent,addExcludedApp,func,370,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；应用选择器从 /Applications 多选 .app，把各 Bundle 的唯一标识去重追加到 draft.values.excluded，保存前不改 RecordingOptions
 Recording,Features/Recording/RecordingSettingsPane.swift,RecordingSettingsContent,removeExcluded,func,387,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；从 draft.values.excluded 移除指定 bundleID，排除行为在统一保存后才应用
 Recording,Features/Recording/RecordingSettingsPane.swift,RecordingSettingsContent,chooseDirectory,func,391,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；录屏目录选择器选文件夹后直接更新 savePath 和 RecordingOptions.saveDirectory；目录设置继续独立生效
-Recording,Features/Recording/ScreenRecorder.swift,-,init,init,70,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；RecordingPipeline构造保存本次options、视频像素尺寸、区域原点、缩放与输出URL；ScreenRecorder私有构造供shared管理唯一当前会话
-Recording,Features/Recording/ScreenRecorder.swift,-,prepareWriter,func,82,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；start创建mp4 H.264实时视频轨，按像素量限制码率4…24Mbps，合成适配器用BGRA；选音源时建48kHz双声道128kbps AAC轨，startWriting失败传具体原因
-Recording,Features/Recording/ScreenRecorder.swift,-,setPaused,func,140,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；ScreenRecorder.pause/resume将paused变更交管线串行queue，视频和所选音频回调据此丢弃暂停帧
-Recording,Features/Recording/ScreenRecorder.swift,-,finish,func,145,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；stop或取消启动在管线queue停止摄像头/麦克风，标记轨完成并等待AVAssetWriter.finishWriting，成功返回本次URL，失败日志并返回nil
-Recording,Features/Recording/ScreenRecorder.swift,-,startCamera,func,169,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；本次cameraEnabled时按配置设备或系统默认摄像头建AVCaptureSession.high，BGRA帧交cameraQueue回调，不可用返回false供录制提示
-Recording,Features/Recording/ScreenRecorder.swift,-,startMicrophone,func,195,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；本次音源microphone才建默认音频AVCaptureSession，delegate在audioQueue供写入AAC轨；启动失败返回false供上层提示
-Recording,Features/Recording/ScreenRecorder.swift,-,stopDevices,func,216,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；管线finish停止并释放cameraSession与micSession，屏幕流另由ScreenRecorder停止
-Recording,Features/Recording/ScreenRecorder.swift,-,stream,func,225,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；SCStreamOutput按screen/audio分派handleVideo/handleAudio；SCStreamDelegate错误回调记录中断并交onStopped，由当前管线身份匹配后正式stop
-Recording,Features/Recording/ScreenRecorder.swift,-,stream,func,237,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；SCStreamOutput按screen/audio分派handleVideo/handleAudio；SCStreamDelegate错误回调记录中断并交onStopped，由当前管线身份匹配后正式stop
-Recording,Features/Recording/ScreenRecorder.swift,-,handleVideo,func,245,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；首个有效视频PTS开启writer会话，暂停丢帧；无摄像头/键鼠叠加时直接append原缓冲，否则取像素池、实际输入与摄像头交正式Compositor再按原PTS写盘
-Recording,Features/Recording/ScreenRecorder.swift,-,currentCameraBuffer,func,286,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；handleVideo合成前cameraLock内读取latestCamera，摄像头delegate用同一锁发布帧
-Recording,Features/Recording/ScreenRecorder.swift,-,handleAudio,func,293,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；屏幕流音频仅本次system音源且audioInput可写、非暂停时append，不混入麦克风路径
-Recording,Features/Recording/ScreenRecorder.swift,-,captureOutput,func,300,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；AVCapture视频回调锁内更新latestCamera；麦克风回调仅microphone音源且可写、非暂停时append同一音频轨
-Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,init,init,341,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；RecordingPipeline构造保存本次options、视频像素尺寸、区域原点、缩放与输出URL；ScreenRecorder私有构造供shared管理唯一当前会话
-Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,startDisplayRecording,func,346,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；主面板、快捷键及toggle入口读取鼠标所在显示器id和.current配置，在Task调用统一start
-Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,startRegionRecording,func,352,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；主面板及快捷键复用RecordingRegionPicker，确认实际全局矩形后按当前显示器和偏好调用统一start
-Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,start,func,364,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；唯一录制入口取得本次屏幕/所选设备授权并报告不可用叠加，makeStream与prepareWriter后接屏幕及可选系统音轨，启动设备和SCStream成功才置recording、计时并显示HUD；失败收尾当前管线
-Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,pause,func,489,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；recording态设置管线paused，累加有效计时并清startedAt，停timer、置paused和刷新HUD
-Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,resume,func,499,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；paused态恢复管线写入、startedAt和recording态，重开timer并刷新HUD
-Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,togglePause,func,508,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；HUD、面板与刘海暂停入口只按recording/paused选择pause或resume
-Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,stop,func,514,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；设置finishing后停止timer/HUD/输入采集；准备中标取消，其余停SCStream并等待管线finish，成功显示实际文件并开编辑器，中断仍保留已写视频及原因
-Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,startTimer,func,557,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；start/resume先停旧timer再每200ms发布accumulated加本段时间，刷新同一HUD
-Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,stopTimer,func,568,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；暂停、停止及重开计时共用invalidate并清唯一timer
-Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,makeStream,func,584,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；从SCShareableContent选目标显示器并排除配置App，将AppKit区域换CG及显示器本地points；按实际缩放、fps、光标、BGRA和可选系统音频建SCStreamConfiguration，返回同一流队列及尺寸原点
-Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,currentDisplayID,func,651,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；整屏及区域入口按NSEvent鼠标所在NSScreen用ScreenSnapshot.displayID取得实际显示器id
-Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,uniqueOutputURL,func,658,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；start在RecordingOptions.saveDirectory按日期时分秒生成Recording文件名，存在时递增-2、-3后缀，不覆盖录制原片
-Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,toggleRecording,func,682,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；设置页、状态栏和快捷键共用入口，当前state.isActive则Task等待stop，否则startDisplayRecording
+Recording,Features/Recording/ScreenRecorder.swift,-,init,init,69,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；RecordingPipeline构造保存本次options、视频像素尺寸、区域原点、缩放与输出URL；ScreenRecorder私有构造供shared管理唯一当前会话
+Recording,Features/Recording/ScreenRecorder.swift,-,prepareWriter,func,81,KEEP,2026-11-20：注册采集输出后创建保存目录及 H.264 视频与可选 AAC 音轨；保留原目标文件，目录或写入器失败沿录制错误返回
+Recording,Features/Recording/ScreenRecorder.swift,-,setPaused,func,138,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；ScreenRecorder.pause/resume将paused变更交管线串行queue，视频和所选音频回调据此丢弃暂停帧
+Recording,Features/Recording/ScreenRecorder.swift,-,finish,func,143,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；stop或取消启动在管线queue停止摄像头/麦克风，标记轨完成并等待AVAssetWriter.finishWriting，成功返回本次URL，失败日志并返回nil
+Recording,Features/Recording/ScreenRecorder.swift,-,startCamera,func,166,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；本次cameraEnabled时按配置设备或系统默认摄像头建AVCaptureSession.high，BGRA帧交cameraQueue回调，不可用返回false供录制提示
+Recording,Features/Recording/ScreenRecorder.swift,-,startMicrophone,func,192,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；本次音源microphone才建默认音频AVCaptureSession，delegate在audioQueue供写入AAC轨；启动失败返回false供上层提示
+Recording,Features/Recording/ScreenRecorder.swift,-,stopDevices,func,213,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；管线finish停止并释放cameraSession与micSession，屏幕流另由ScreenRecorder停止
+Recording,Features/Recording/ScreenRecorder.swift,-,stream,func,222,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；SCStreamOutput按screen/audio分派handleVideo/handleAudio；SCStreamDelegate错误回调记录中断并交onStopped，由当前管线身份匹配后正式stop
+Recording,Features/Recording/ScreenRecorder.swift,-,stream,func,234,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；SCStreamOutput按screen/audio分派handleVideo/handleAudio；SCStreamDelegate错误回调记录中断并交onStopped，由当前管线身份匹配后正式stop
+Recording,Features/Recording/ScreenRecorder.swift,-,handleVideo,func,241,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；首个有效视频PTS开启writer会话，暂停丢帧；无摄像头/键鼠叠加时直接append原缓冲，否则取像素池、实际输入与摄像头交正式Compositor再按原PTS写盘
+Recording,Features/Recording/ScreenRecorder.swift,-,currentCameraBuffer,func,282,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；handleVideo合成前cameraLock内读取latestCamera，摄像头delegate用同一锁发布帧
+Recording,Features/Recording/ScreenRecorder.swift,-,handleAudio,func,289,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；屏幕流音频仅本次system音源且audioInput可写、非暂停时append，不混入麦克风路径
+Recording,Features/Recording/ScreenRecorder.swift,-,captureOutput,func,296,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；AVCapture视频回调锁内更新latestCamera；麦克风回调仅microphone音源且可写、非暂停时append同一音频轨
+Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,init,init,337,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；RecordingPipeline构造保存本次options、视频像素尺寸、区域原点、缩放与输出URL；ScreenRecorder私有构造供shared管理唯一当前会话
+Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,startDisplayRecording,func,342,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；主面板、快捷键及toggle入口读取鼠标所在显示器id和.current配置，在Task调用统一start
+Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,startRegionRecording,func,348,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；主面板及快捷键复用RecordingRegionPicker，确认实际全局矩形后按当前显示器和偏好调用统一start
+Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,start,func,360,KEEP,2026-11-20：单一开始入口取得屏幕与所选设备权限，注册屏幕及可选音频输出后才准备写入器；设备和屏幕流启动后进入录制并显示控制条
+Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,pause,func,485,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；recording态设置管线paused，累加有效计时并清startedAt，停timer、置paused和刷新HUD
+Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,resume,func,495,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；paused态恢复管线写入、startedAt和recording态，重开timer并刷新HUD
+Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,togglePause,func,504,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；HUD、面板与刘海暂停入口只按recording/paused选择pause或resume
+Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,stop,func,510,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；设置finishing后停止timer/HUD/输入采集；准备中标取消，其余停SCStream并等待管线finish，成功显示实际文件并开编辑器，中断仍保留已写视频及原因
+Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,startTimer,func,553,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；start/resume先停旧timer再每200ms发布accumulated加本段时间，刷新同一HUD
+Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,stopTimer,func,564,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；暂停、停止及重开计时共用invalidate并清唯一timer
+Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,makeStream,func,580,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；从SCShareableContent选目标显示器并排除配置App，将AppKit区域换CG及显示器本地points；按实际缩放、fps、光标、BGRA和可选系统音频建SCStreamConfiguration，返回同一流队列及尺寸原点
+Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,currentDisplayID,func,647,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；整屏及区域入口按NSEvent鼠标所在NSScreen用ScreenSnapshot.displayID取得实际显示器id
+Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,uniqueOutputURL,func,654,KEEP,2026-11-20：start 按秒选候选录屏文件名，存在时递增 -2、-3；不修改目录或已有文件
+Recording,Features/Recording/ScreenRecorder.swift,ScreenRecorder,toggleRecording,func,677,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；设置页、状态栏和快捷键共用入口，当前state.isActive则Task等待stop，否则startDisplayRecording
 Settings,Features/Settings/Panes/AppearanceManager.swift,AppearanceManager,init,init,33,KEEP,shared 单例初始化 AppearanceManager.swift:24；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/AppearanceManager.swift,AppearanceManager,apply,func,39,KEEP,SettingsPanes.swift:141 外观卡 action 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/AppearanceManager.swift,AppearanceManager,applyCurrent,func,53,KEEP,SettingsModule.swift:35 启动时调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
@@ -3326,13 +3324,13 @@ Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettings
 Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,chooseImportFile,func,224,KEEP,2026-11-17：配置页导入按钮打开NSOpenPanel；后台读文件解码并验证格式及支持版本；主线程写pendingImport或错误；确认按钮随后调用performImport；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,performImport,func,248,KEEP,2026-11-17：确认弹窗调用；过滤菜单部件键且只写变化值再重载引擎；偏好交applyImportedPreferences；任一原入口失败显示原因；成功计数并提示忽略键；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,applyImportedPreferences,func,271,KEEP,2026-11-17：performImport唯一调用；过滤白名单及相同值；启动设置和热键复用各自保存入口；其余偏好落盘并通知现有外观刘海浮窗AI监测传输等消费点；失败返回原原因；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,isMenuBarConfigurationKey,func,477,KEEP,2026-11-17：菜单部件导入过滤与导出过滤共用；接受正式排列键和各FSBar模块前缀及Power拆分键；避免导入运行采样字段；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,exportableMenuBarConfiguration,func,484,KEEP,2026-11-17：performExport调用；合并默认配置和实际快照；填独立采样间隔并派生Widgets_order及跑猫开关；仅导出正式配置键并编码为PreferenceValue；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,exportablePreferences,func,497,KEEP,2026-11-17：performExport调用；读取白名单落盘值并覆盖现有服务的有效设置；快捷键和刘海及截图比例按正式结构编码；凭据和剪贴板历史未加入白名单；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,applyPreferences,func,613,KEEP,2026-11-17：applyImportedPreferences调用；只写白名单键；null删除该键；返回排序后的忽略键；同一白名单集合由静态值复用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,defaultExportFileName,func,637,KEEP,2026-11-17：performExport保存面板默认名；传入日期经dayStamp生成Kitnest配置文件名及frsetconfig扩展名；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,dayStamp,func,658,KEEP,2026-11-17：defaultExportFileName调用；复用静态DateFormatter生成yyyyMMdd-HHmmss本地时间；仅用于配置导出文件名；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,iso8601Now,func,663,KEEP,2026-11-17：performExport生成exportedAt；复用静态DateFormatter按yyyy-MM-dd及带时区时间输出；未用于统计查询；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,isMenuBarConfigurationKey,func,476,KEEP,2026-11-17：菜单部件导入过滤与导出过滤共用；接受正式排列键和各FSBar模块前缀及Power拆分键；避免导入运行采样字段；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,exportableMenuBarConfiguration,func,483,KEEP,2026-11-17：performExport调用；合并默认配置和实际快照；填独立采样间隔并派生Widgets_order及跑猫开关；仅导出正式配置键并编码为PreferenceValue；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,exportablePreferences,func,496,KEEP,2026-11-17：performExport调用；读取白名单落盘值并覆盖现有服务的有效设置；快捷键和刘海及截图比例按正式结构编码；凭据和剪贴板历史未加入白名单；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,applyPreferences,func,612,KEEP,2026-11-17：applyImportedPreferences调用；只写白名单键；null删除该键；返回排序后的忽略键；同一白名单集合由静态值复用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,defaultExportFileName,func,636,KEEP,2026-11-17：performExport保存面板默认名；传入日期经dayStamp生成Kitnest配置文件名及frsetconfig扩展名；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,dayStamp,func,657,KEEP,2026-11-17：defaultExportFileName调用；复用静态DateFormatter生成yyyyMMdd-HHmmss本地时间；仅用于配置导出文件名；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,iso8601Now,func,662,KEEP,2026-11-17：performExport生成exportedAt；复用静态DateFormatter按yyyy-MM-dd及带时区时间输出；未用于统计查询；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/WidgetSettingsSelfTest.swift,WidgetSettingsSelfTest,runIfRequested,func,46,KEEP,StatsBarEngine.swift:72 启动时调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/WidgetSettingsSelfTest.swift,WidgetSettingsSelfTest,run,func,55,KEEP,本文件:49 延时 5s 进入；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/WidgetSettingsSelfTest.swift,WidgetSettingsSelfTest,testLayout,func,75,KEEP,本文件:65 主流程调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
