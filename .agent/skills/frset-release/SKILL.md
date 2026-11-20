@@ -20,7 +20,7 @@ Kitnest（原名 FrsetNext，macOS 菜单栏工具）每次更改的固定收尾
 
 3. **git 提交**（格式必须含需求与文件）：
    ```bash
-   git -C /Users/sunyiyang/Desktop/Project/frset-rebuild add -A apps/FrsetNext/Sources apps/FrsetNext/Resources docs .workbuddy/skills
+   git -C /Users/sunyiyang/Desktop/Project/frset-rebuild add -A apps/FrsetNext/Sources apps/FrsetNext/Resources docs .agent/skills
    git -C /Users/sunyiyang/Desktop/Project/frset-rebuild commit -q -m "<type>(<scope>): <结论>
 
    需求（日期 用户原话）：「……」
