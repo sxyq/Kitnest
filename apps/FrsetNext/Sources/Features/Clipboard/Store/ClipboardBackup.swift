@@ -598,8 +598,7 @@ enum ClipboardBackup {
                                      ClipboardRepository.bindings(item))
                     try database.run("DELETE FROM clipboard_item_tags WHERE item_dedupe_key=?", [.text(item.dedupeKey)])
                     for tagID in item.tagIDs {
-                        let time = manifest.links.first { $0.itemDedupeKey == item.dedupeKey && importedTagIDs[$0.tagID] == tagID }?.createdAt
-                            ?? local.links.first { $0.itemDedupeKey == item.dedupeKey && $0.tagID == tagID }?.createdAt ?? Date()
+                        let time = manifest.links.first { $0.itemDedupeKey == item.dedupeKey && importedTagIDs[$0.tagID] == tagID }!.createdAt
                         try database.run("INSERT INTO clipboard_item_tags(item_dedupe_key,tag_id,created_at) VALUES(?,?,?)",
                                          [.text(item.dedupeKey), .text(tagID), .real(time.timeIntervalSince1970)])
                     }
