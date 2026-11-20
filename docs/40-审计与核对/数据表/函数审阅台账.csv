@@ -1813,12 +1813,12 @@ Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipDe
 Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipDeskStore,persistSplitRatio,func,421,KEEP,:494 SplitDivider onCommit
 Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipDeskStore,moveSelection,func,427,KEEP,Window:418-431 方向键
 Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipboardDeskView,init,init,496,KEEP,Window:216 构建根视图
-Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipboardDeskView,columnItems,func,847,KEEP,gridContent按实际栏宽以150pt计算可容纳列数，最多使用卡片档位列数、至少1列；columnItems按传入列数对原下标取模分列，保留固定条目顺序
-Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipboardDeskView,card,func,855,KEEP,网格条目复用FloatingClipCard并连接选择、悬停、拖放及操作回调；图片在GeometryReader得到的本列宽高内scaledToFit，高度为minHeight-34，模拟文件用PDF类型图标，正式文件按真实路径取图标
-Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipboardDeskView,dragProvider,func,1002,KEEP,:603/:616 onDrag 提供者
-Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipPreview,func,func,1039,KEEP,FloatingClipboardDeskView.previewPane 内以 equatable 渲染；按 sessionID 判断模型等价并将正文交给 PreviewPopoverContentView
-Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipCard,textBody,func,1174,KEEP,:831 文本卡片调用
-Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipCard,placeholder,func,1279,KEEP,:848 图片占位调用
+Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipboardDeskView,columnItems,func,855,KEEP,gridContent按实际栏宽以150pt计算可容纳列数，最多使用卡片档位列数、至少1列；columnItems按传入列数对原下标取模分列，保留固定条目顺序
+Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipboardDeskView,card,func,863,KEEP,网格条目复用FloatingClipCard并连接选择、悬停、拖放及操作回调；图片在GeometryReader得到的本列宽高内scaledToFit，高度为minHeight-34，模拟文件用PDF类型图标，正式文件按真实路径取图标
+Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipboardDeskView,dragProvider,func,1010,KEEP,:603/:616 onDrag 提供者
+Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipPreview,func,func,1047,KEEP,FloatingClipboardDeskView.previewPane 内以 equatable 渲染；按 sessionID 判断模型等价并将正文交给 PreviewPopoverContentView
+Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipCard,textBody,func,1182,KEEP,:831 文本卡片调用
+Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipCard,placeholder,func,1287,KEEP,:848 图片占位调用
 Clipboard,Features/Clipboard/Floating/FloatingClipboardWindow.swift,FloatingClipboardPinState,init,init,19,KEEP,单例 :10 初始化
 Clipboard,Features/Clipboard/Floating/FloatingClipboardWindow.swift,FloatingClipboardPinState,migrateLayoutIfNeeded,func,45,KEEP,:211 初始化时迁移旧版式
 Clipboard,Features/Clipboard/Floating/FloatingClipboardWindow.swift,FloatingClipboardPinState,save,func,69,KEEP,:340/:345 窗口移动/缩放回写
@@ -1895,54 +1895,54 @@ Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageSto
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,image,func,262,KEEP,2026-11-17：剪贴板行显示调用；按相对路径查80张和16MiB的NSCache；未命中读盘后按图像尺寸记成本；原图回退路径仍需后续结合实际UI阅读
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,fileExtension,func,274,KEEP,2026-11-17：store调用；按PNG JPEG GIF RIFF头选择已支持的原图扩展名；其他已有图片数据用tiff路径
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardStorageUsageProvider,exceeds,func,310,KEEP,2026-11-17：容量prune循环调用；先SQL总量再按需枚举五类目录；等价于既有max数据库磁盘口径超限判定
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardFilterKind,matches,func,89,KEEP,2026-11-20：设置预览及悬浮列表按12种分类判断；文件媒体用已存位集，代码交正式文本分类器，正式列表另走SQL查询。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,init,init,184,KEEP,2026-11-20：shared构造时注册主队列标签通知，闭包弱持Manager并调用applyTagChange。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,deinit,deinit,190,KEEP,2026-11-20：删除init注册的标签通知观察者；通知回调弱持有manager，析构不操作用户数据
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,pauseRecording,func,223,KEEP,2026-11-20：菜单栏、主面板与快捷键入口撤销旧到期Timer，设置期限、更新剩余分钟并发送状态通知。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,resumeRecording,func,237,KEEP,2026-11-20：菜单、快捷键与到期处理恢复记录，原属性didSet清理期限和计时器，按参数决定提示。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,refreshPauseDeadline,func,242,KEEP,2026-11-20：暂停、唤醒及轮询共用，按向上取整分钟刷新，到期复用resumeRecording且不重复提示。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,start,func,251,KEEP,2026-11-20：ClipboardModule启动时读取当前计数、安装common模式轮询、刷新标签和列表并启动两个清理器；Module重复启动清理器可删。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,schedulePoll,func,265,KEEP,2026-11-20：启动与速率切换共用，先使原Timer失效，再在主RunLoop common模式注册弱持有闭包。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,pollTick,func,274,KEEP,2026-11-20：原Timer刷新暂停期限并按burstUntil在2秒空闲与0.5秒突发之间切换；ingest已同步重建突发Timer，变量与实际计时器一致。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,poll,func,286,KEEP,2026-11-21：Timer与既有重试入口共用，双读变更计数、处理暂停和自写内容；读失败时由一次性Timer直接补读，避免相同计数提前返回。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleRetry,func,319,KEEP,2026-11-21：changeCount双读不一致时一次性Timer仍重跑poll；读取失败路径强制补读一次并更新最新changeCount，避免跳过或重复捕获；补读失败不续排。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,ingest,func,340,KEEP,2026-11-21：原入口保留并委托readAndIngest一次，继续用于poll捕获与内部显式读取调用。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,readAndIngest,func,344,KEEP,2026-11-21：由poll及公开ingest入口调用一次；粘贴板读取失败时仅初次调用安排强制poll补读，补读禁止续排，成功后的忽略规则和入库沿原实现
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,writeToDatabase,func,369,KEEP,2026-11-21：串行队列去重、四类附件落盘及正式插入；原图写失败停止建空图片记录，已写附件INSERT失败时移除本次原图、缩略图、RTF与长文，再沿原去重置顶处理。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleReloadCoalesced,func,487,KEEP,2026-11-20：捕获与重复置顶在锁内合并为一次主队列刷新；reset:true会丢已加载多页范围，可复用现有reset:false。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,updateFirstItemScrolledOut,func,503,KEEP,2026-11-20：表格滚动回调仅在顶部状态变化时发布属性与通知。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,makeQuery,func,511,KEEP,2026-11-20：reload与loadMore共用当前搜索、分类和标签，查询上限沿用800条。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,reload,func,520,KEEP,2026-11-20：串行查询并按generation在主队列发布最新结果；调用前读取筛选分页并设置加载状态，两个清理器和工具回流存在后台直接入口，待迁回主线程。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,applyTagChange,func,550,KEEP,2026-11-20：init的main队列观察者调用；整体替换重查，删除当前标签清筛选；按通知keys更新tagIDs，当前筛选或正在加载时复用reload
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,loadMoreIfNeeded,func,571,KEEP,2026-11-20：尾行出现且尚未达800条时累计页数查询，主队列按generation发布并结束加载。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,recentItems,func,601,KEEP,2026-11-20：悬浮及最近记录窗口请求独立于主列表筛选的最近项，原队列查询后主线程交付。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,fullText,func,613,KEEP,2026-11-20：预览及编辑按原规则读内联、文本附件和RTF；单项与多项历史复制均提供onReadFailure，正文附件不可读时返回实际失败而非截短预览。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,ocrText,func,627,KEEP,2026-11-20：AppBootstrap注入OCR读取provider，按dedupeKey读取现有识别存储，不重复识别。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,clearCurrentPasteboard,func,633,KEEP,2026-11-20：主面板和悬浮窗菜单仅清系统剪贴板并同步自写计数，保留数据库历史。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,copy,func,645,KEEP,2026-11-20：单项历史复制先严格读取完整正文、图片/RTF和完整文件列表，读取失败在清空系统剪贴板前返回；成功保持原类型、自写标记和可选自动粘贴。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,copy,func,709,KEEP,2026-11-20：主表回车和最近记录窗多选复制；单个媒体转原入口，混合媒体提示，逐条严格读全文后合并。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,copyText,func,730,KEEP,2026-11-20：OCR、工具及内容动作的正式文本复制入口；写入失败返回原因，成功统一finishCopy。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,copyFiles,func,742,KEEP,2026-11-20：中转、压缩和刘海文件复制写URL后立即回读正式入库，再完成复制；私有图片原路径引用只存正文的问题待处理。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,copyImageFile,func,753,KEEP,2026-11-20：图片菜单确认原图路径可读后复用copyFiles；新文件历史未登记共享私有附件引用，原图片删除可破坏该记录，待处理。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,finishCopy,func,760,KEEP,2026-11-20：成功复制共用自写token、有效期及变更计数，统一记录事件、提示和主动复制触觉。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,delete,func,791,KEEP,2026-11-20：确认后原队列正式删除，失败报告原因，成功才移除可见项、通知共享预览及其他窗口。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,clearUnsavedHistory,func,816,KEEP,2026-11-20：设置入口统计后确认，再查询并删除未存且未收藏历史，保留标签，逐项报告失败与回收字节。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,reviewBackupExport,func,866,KEEP,2026-11-20：设置备份表单传入完成回调，复用ClipboardBackup.reviewExport和Manager原队列，直接返回Operation。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,exportBackup,func,870,KEEP,2026-11-20：备份表单传目标、密码和缺失记录清单至ClipboardBackup.export，不另建持久化路径。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,prepareBackupRestore,func,875,KEEP,2026-11-20：恢复表单将源文件、密码、回调及原队列交prepareRestore，返回同一取消对象。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,restoreBackup,func,880,KEEP,2026-11-20：确认恢复仅在成功时失效OCR索引、刷新标签通知、关闭预览和清选择，再把原Result回给表单。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,saveContent,func,894,KEEP,2026-11-21：编辑窗与预览共用；正文/别名在单条UPDATE中写入，新文本及RTF先落到独立路径，SQL成功后移除旧附件，失败只回收暂存文件；安装版界面回调待实测。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,toggleFavorite,func,955,KEEP,2026-11-20：主面板和表格收藏动作读数据库当前值取反，成功通知窗口，收藏筛选重查，普通列表原位更新。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,setNote,func,980,KEEP,2026-11-20：已存动作异步写库，失败提示；取消当前已存过滤项时重查，其余只更新对应模型。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,ingestToolOutput,func,999,KEEP,2026-11-20：工具、AI、翻译和摘要回流保留原同步存储返回，列表刷新改派主线程；串行持久化归并及主线程文件IO仍留后续处理。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,insert,func,1041,KEEP,2026-11-20：截图、文本及主动复制回读共用，非空结果沿原串行队列交writeToDatabase，可替代重复persist。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,insertImage,func,1047,KEEP,2026-11-20：AppBootstrap截图完成调用，以现有Reader构造图片结果后复用insert。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,insertText,func,1053,KEEP,2026-11-20：OCR和取色完成调用，保留来源及副标题，经Reader正式文本结果复用insert。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,auxiliaryBytes,func,1061,KEEP,2026-11-20：saveContent计算图片、缩略图和RTF实际文件字节，不重算待替换正文。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleAutoStage,func,1069,KEEP,2026-11-20：新文件及重复文件捕获在主线程发布URL通知，AppBootstrap按中转启用和自动暂存开关消费。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleOCR,func,1079,KEEP,2026-11-20：成功存图按偏好异步识别，完成回到原队列确认条目仍存在再写OCR与统计；空结果保留图片。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,pasteToFrontmostApplication,func,1103,KEEP,2026-11-20：主动复制自动粘贴分支先取辅助功能权限，生成Cmd+V按下及抬起事件，成功文案明确为已发送粘贴。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,presentAccessibilityGuide,func,1130,KEEP,2026-11-20：自动粘贴权限失败本次启动首回显示引导、系统设置及暂不开启，后续走已有提示入口。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardFilterKind,matches,func,94,KEEP,2026-11-20：设置预览及悬浮列表按12种分类判断；文件媒体用已存位集，代码交正式文本分类器，正式列表另走SQL查询。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,init,init,189,KEEP,2026-11-20：shared构造时注册主队列标签通知，闭包弱持Manager并调用applyTagChange。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,deinit,deinit,195,KEEP,2026-11-20：删除init注册的标签通知观察者；通知回调弱持有manager，析构不操作用户数据
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,pauseRecording,func,228,KEEP,2026-11-20：菜单栏、主面板与快捷键入口撤销旧到期Timer，设置期限、更新剩余分钟并发送状态通知。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,resumeRecording,func,242,KEEP,2026-11-20：菜单、快捷键与到期处理恢复记录，原属性didSet清理期限和计时器，按参数决定提示。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,refreshPauseDeadline,func,247,KEEP,2026-11-20：暂停、唤醒及轮询共用，按向上取整分钟刷新，到期复用resumeRecording且不重复提示。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,start,func,256,KEEP,2026-11-20：ClipboardModule启动时读取当前计数、安装common模式轮询、刷新标签和列表并启动两个清理器；Module重复启动清理器可删。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,schedulePoll,func,270,KEEP,2026-11-20：启动与速率切换共用，先使原Timer失效，再在主RunLoop common模式注册弱持有闭包。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,pollTick,func,279,KEEP,2026-11-20：原Timer刷新暂停期限并按burstUntil在2秒空闲与0.5秒突发之间切换；ingest已同步重建突发Timer，变量与实际计时器一致。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,poll,func,291,KEEP,2026-11-21：Timer与既有重试入口共用，双读变更计数、处理暂停和自写内容；读失败时由一次性Timer直接补读，避免相同计数提前返回。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleRetry,func,324,KEEP,2026-11-21：changeCount双读不一致时一次性Timer仍重跑poll；读取失败路径强制补读一次并更新最新changeCount，避免跳过或重复捕获；补读失败不续排。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,ingest,func,345,KEEP,2026-11-21：原入口保留并委托readAndIngest一次，继续用于poll捕获与内部显式读取调用。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,readAndIngest,func,349,KEEP,2026-11-21：由poll及公开ingest入口调用一次；粘贴板读取失败时仅初次调用安排强制poll补读，补读禁止续排，成功后的忽略规则和入库沿原实现
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,writeToDatabase,func,374,KEEP,2026-11-21：串行队列去重、四类附件落盘及正式插入；原图写失败停止建空图片记录，已写附件INSERT失败时移除本次原图、缩略图、RTF与长文，再沿原去重置顶处理。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleReloadCoalesced,func,492,KEEP,2026-11-20：捕获与重复置顶在锁内合并为一次主队列刷新；reset:true会丢已加载多页范围，可复用现有reset:false。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,updateFirstItemScrolledOut,func,508,KEEP,2026-11-20：表格滚动回调仅在顶部状态变化时发布属性与通知。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,makeQuery,func,516,KEEP,2026-11-20：reload与loadMore共用当前搜索、分类和标签，查询上限沿用800条。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,reload,func,525,KEEP,2026-11-20：串行查询并按generation在主队列发布最新结果；调用前读取筛选分页并设置加载状态，两个清理器和工具回流存在后台直接入口，待迁回主线程。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,applyTagChange,func,555,KEEP,2026-11-20：init的main队列观察者调用；整体替换重查，删除当前标签清筛选；按通知keys更新tagIDs，当前筛选或正在加载时复用reload
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,loadMoreIfNeeded,func,576,KEEP,2026-11-20：尾行出现且尚未达800条时累计页数查询，主队列按generation发布并结束加载。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,recentItems,func,606,KEEP,2026-11-20：悬浮及最近记录窗口请求独立于主列表筛选的最近项，原队列查询后主线程交付。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,fullText,func,618,KEEP,2026-11-20：预览及编辑按原规则读内联、文本附件和RTF；单项与多项历史复制均提供onReadFailure，正文附件不可读时返回实际失败而非截短预览。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,ocrText,func,632,KEEP,2026-11-20：AppBootstrap注入OCR读取provider，按dedupeKey读取现有识别存储，不重复识别。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,clearCurrentPasteboard,func,638,KEEP,2026-11-20：主面板和悬浮窗菜单仅清系统剪贴板并同步自写计数，保留数据库历史。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,copy,func,650,KEEP,2026-11-20：单项历史复制先严格读取完整正文、图片/RTF和完整文件列表，读取失败在清空系统剪贴板前返回；成功保持原类型、自写标记和可选自动粘贴。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,copy,func,714,KEEP,2026-11-20：主表回车和最近记录窗多选复制；单个媒体转原入口，混合媒体提示，逐条严格读全文后合并。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,copyText,func,735,KEEP,2026-11-20：OCR、工具及内容动作的正式文本复制入口；写入失败返回原因，成功统一finishCopy。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,copyFiles,func,747,KEEP,2026-11-20：中转、压缩和刘海文件复制写URL后立即回读正式入库，再完成复制；私有图片原路径引用只存正文的问题待处理。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,copyImageFile,func,758,KEEP,2026-11-20：图片菜单确认原图路径可读后复用copyFiles；新文件历史未登记共享私有附件引用，原图片删除可破坏该记录，待处理。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,finishCopy,func,765,KEEP,2026-11-20：成功复制共用自写token、有效期及变更计数，统一记录事件、提示和主动复制触觉。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,delete,func,796,KEEP,2026-11-20：确认后原队列正式删除，失败报告原因，成功才移除可见项、通知共享预览及其他窗口。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,clearUnsavedHistory,func,821,KEEP,2026-11-20：设置入口统计后确认，再查询并删除未存且未收藏历史，保留标签，逐项报告失败与回收字节。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,reviewBackupExport,func,871,KEEP,2026-11-20：设置备份表单传入完成回调，复用ClipboardBackup.reviewExport和Manager原队列，直接返回Operation。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,exportBackup,func,875,KEEP,2026-11-20：备份表单传目标、密码和缺失记录清单至ClipboardBackup.export，不另建持久化路径。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,prepareBackupRestore,func,880,KEEP,2026-11-20：恢复表单将源文件、密码、回调及原队列交prepareRestore，返回同一取消对象。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,restoreBackup,func,885,KEEP,2026-11-20：确认恢复仅在成功时失效OCR索引、刷新标签通知、关闭预览和清选择，再把原Result回给表单。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,saveContent,func,899,KEEP,2026-11-21：编辑窗与预览共用；正文/别名在单条UPDATE中写入，新文本及RTF先落到独立路径，SQL成功后移除旧附件，失败只回收暂存文件；安装版界面回调待实测。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,toggleFavorite,func,960,KEEP,2026-11-20：主面板和表格收藏动作读数据库当前值取反，成功通知窗口，收藏筛选重查，普通列表原位更新。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,setNote,func,985,KEEP,2026-11-20：已存动作异步写库，失败提示；取消当前已存过滤项时重查，其余只更新对应模型。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,ingestToolOutput,func,1004,KEEP,2026-11-20：工具、AI、翻译和摘要回流保留原同步存储返回，列表刷新改派主线程；串行持久化归并及主线程文件IO仍留后续处理。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,insert,func,1046,KEEP,2026-11-20：截图、文本及主动复制回读共用，非空结果沿原串行队列交writeToDatabase，可替代重复persist。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,insertImage,func,1052,KEEP,2026-11-20：AppBootstrap截图完成调用，以现有Reader构造图片结果后复用insert。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,insertText,func,1058,KEEP,2026-11-20：OCR和取色完成调用，保留来源及副标题，经Reader正式文本结果复用insert。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,auxiliaryBytes,func,1066,KEEP,2026-11-20：saveContent计算图片、缩略图和RTF实际文件字节，不重算待替换正文。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleAutoStage,func,1074,KEEP,2026-11-20：新文件及重复文件捕获在主线程发布URL通知，AppBootstrap按中转启用和自动暂存开关消费。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleOCR,func,1084,KEEP,2026-11-20：成功存图按偏好异步识别，完成回到原队列确认条目仍存在再写OCR与统计；空结果保留图片。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,pasteToFrontmostApplication,func,1108,KEEP,2026-11-20：主动复制自动粘贴分支先取辅助功能权限，生成Cmd+V按下及抬起事件，成功文案明确为已发送粘贴。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,presentAccessibilityGuide,func,1135,KEEP,2026-11-20：自动粘贴权限失败本次启动首回显示引导、系统设置及暂不开启，后续走已有提示入口。
 Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardReadResult,init,init,22,KEEP,2026-11-17：各读取分支及imageResult和textResult构造；统一携带正文图片RTF文件URL来源和去重输入；isEmpty由ingest与insert消费
 Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,init,init,64,KEEP,2026-11-17：ClipboardManager持有唯一默认general读取器；可注入的NSPasteboard为原有构造参数；本轮未新建读取器或轮询服务
 Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,read,func,70,KEEP,2026-11-17：Manager读取及文件复制回读调用；Finder继续文件优先；微信容器jpg附带TIFF的实际许可错误已复现，沿原QQ条件加入微信容器单图并优先读取图片数据
