@@ -124,8 +124,7 @@ Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,rowHover,func,114,KEEP,"
 Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,requestKeyboardPreview,func,119,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardTableHostView:847 空格预览
 Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,cancelKeyboardPreview,func,122,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardTableHostView:635 取消预览
 Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,prepareForPanelAppear,func,124,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardSectionView.swift:36
-Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,setPreviewOrder,func,126,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardTableHostView.swift:679
-Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,notifyItemRemoved,func,128,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardTableHostView:1002 / ClipboardSectionView:96
+Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,notifyItemRemoved,func,126,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardTableHostView:1002 / ClipboardSectionView:96
 Core,Core/Runtime/RenderProbe.swift,RenderProbe,install,func,34,KEEP,2026-11-20：AppBootstrap初始化调用；仅环境显式启用且尚无定时器时建立5秒主循环定时器，默认无周期采样
 Core,Core/Runtime/RenderProbe.swift,RenderProbe,snapshotAll,func,45,KEEP,2026-11-20：5秒定时器及面板切页共用；启用后异步到主线程读取面板句柄并枚举设置及监测预览统计窗口
 Core,Core/Runtime/RenderProbe.swift,RenderProbe,snapshot,func,54,KEEP,2026-11-20：面板设置监测和新手窗口的显示与关闭事件调用；仅启用且有窗口时排主线程读取，不创建窗口
@@ -2122,23 +2121,23 @@ Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableVi
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableView,func,647,KEEP,2026-11-20：didAdd仅末3行附近请求loadMoreIfNeeded，Manager继续确认最后条目并去重在途分页
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableViewSelectionDidChange,func,656,KEEP,2026-11-20：原生选择或reload显式刷新时更新可见行高亮并广播当前条目；键盘导航才更新范围锚点和取消未决键盘预览
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,reloadTable,func,684,KEEP,2026-11-20：实际内容变化时按条目ID恢复选择、范围锚点和非顶部视口，更新预览顺序；有效行用整数Range判断，不为全表构造Set
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,clipboardBoundsDidChange,func,740,KEEP,2026-11-20：makeNSView注册的原生selector，非锚定滚动才调用feedTopTracker，避免新条目置顶恢复视口时误报顶部
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,feedTopTracker,func,748,KEEP,2026-11-20：bounds通知使用第0行矩形而非首可见行喂迟滞；空表传nil复位，避免滚动状态恒0
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleMouseMoved,func,761,KEEP,2026-11-20：bind恢复抑制后按鼠标行查条目，同条目短路；更新高亮并按既有外观开关向预览服务发rowHover
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleMouseExited,func,789,KEEP,2026-11-20：bind及表格停用共用离开闭包，统一交clearHoverHighlight处理
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,clearHoverHighlight,func,793,KEEP,2026-11-20：滚轮、换行、移出和多选共用，清宿主及ID高亮，仍存在的前一条目向预览服务发rowHover(false)
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,rowView,func,808,KEEP,2026-11-20：空格预览和悬停按已知行号从弱侧表取得实际宿主；forItemID线性查找已删除，复用时旧key按宿主身份移除
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handlePlainMouseDown,func,820,KEEP,2026-11-20：viewFor设置的按下闭包，普通点击统一选中和记录范围锚点，修饰点击保留多选，最后把firstResponder交回表格
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,anchorProvider,func,838,KEEP,2026-11-20：空格预览弱捕获行宿主，真正呈现时只对仍在窗口中的视图取window坐标
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleDoubleClick,func,845,KEEP,2026-11-20：viewFor双击闭包关闭预览并调用owner.onCopy，删除只控制首次日志的一次性偏好及辅助函数
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleSpaceKey,func,851,KEEP,2026-11-20：bind的空格入口验证当前选中项后向预览服务请求延时键盘预览，沿原弱行视图锚点提供器
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleModifierClick,func,863,KEEP,2026-11-20：viewFor的Cmd/Shift回调交表格多选后抑制悬停并清当前高亮，不触发复制
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleReturnKey,func,870,KEEP,2026-11-20：多选使用Manager批量复制并展示返回原因，单选走owner.onCopy，两种路径均关闭预览
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,symbol,func,907,KEEP,2026-11-20：原生右键菜单图标与标签共用32项NSCache，命中复用图像，未命中才创建SF Symbol
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,presentMenu,func,915,KEEP,2026-11-20：viewFor右键闭包实际入口，按当前条目和选中集合构建复制、粘贴、预览、内容动作、标签及删除菜单；删除直接走Manager
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,menuAction,func,1007,KEEP,2026-11-20：原生菜单及标签的target/action入口，从representedObject取得BlockMenuItemAction并执行run
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,BlockMenuItemAction,init,init,1015,KEEP,2026-11-20：原生菜单项、标签及管理标签动作持有的闭包载体，保存传入动作
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,BlockMenuItemAction,run,func,1016,KEEP,2026-11-20：menuAction唯一执行出口，运行保存的Swift闭包，连接原生target/action
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,clipboardBoundsDidChange,func,737,KEEP,2026-11-20：makeNSView注册的原生selector，非锚定滚动才调用feedTopTracker，避免新条目置顶恢复视口时误报顶部
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,feedTopTracker,func,745,KEEP,2026-11-20：bounds通知使用第0行矩形而非首可见行喂迟滞；空表传nil复位，避免滚动状态恒0
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleMouseMoved,func,758,KEEP,2026-11-20：bind恢复抑制后按鼠标行查条目，同条目短路；更新高亮并按既有外观开关向预览服务发rowHover
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleMouseExited,func,786,KEEP,2026-11-20：bind及表格停用共用离开闭包，统一交clearHoverHighlight处理
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,clearHoverHighlight,func,790,KEEP,2026-11-20：滚轮、换行、移出和多选共用，清宿主及ID高亮，仍存在的前一条目向预览服务发rowHover(false)
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,rowView,func,805,KEEP,2026-11-20：空格预览和悬停按已知行号从弱侧表取得实际宿主；forItemID线性查找已删除，复用时旧key按宿主身份移除
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handlePlainMouseDown,func,817,KEEP,2026-11-20：viewFor设置的按下闭包，普通点击统一选中和记录范围锚点，修饰点击保留多选，最后把firstResponder交回表格
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,anchorProvider,func,835,KEEP,2026-11-20：空格预览弱捕获行宿主，真正呈现时只对仍在窗口中的视图取window坐标
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleDoubleClick,func,842,KEEP,2026-11-20：viewFor双击闭包关闭预览并调用owner.onCopy，删除只控制首次日志的一次性偏好及辅助函数
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleSpaceKey,func,848,KEEP,2026-11-20：bind的空格入口验证当前选中项后向预览服务请求延时键盘预览，沿原弱行视图锚点提供器
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleModifierClick,func,860,KEEP,2026-11-20：viewFor的Cmd/Shift回调交表格多选后抑制悬停并清当前高亮，不触发复制
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleReturnKey,func,867,KEEP,2026-11-20：多选使用Manager批量复制并展示返回原因，单选走owner.onCopy，两种路径均关闭预览
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,symbol,func,904,KEEP,2026-11-20：原生右键菜单图标与标签共用32项NSCache，命中复用图像，未命中才创建SF Symbol
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,presentMenu,func,912,KEEP,2026-11-20：viewFor右键闭包实际入口，按当前条目和选中集合构建复制、粘贴、预览、内容动作、标签及删除菜单；删除直接走Manager
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,menuAction,func,1004,KEEP,2026-11-20：原生菜单及标签的target/action入口，从representedObject取得BlockMenuItemAction并执行run
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,BlockMenuItemAction,init,init,1012,KEEP,2026-11-20：原生菜单项、标签及管理标签动作持有的闭包载体，保存传入动作
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,BlockMenuItemAction,run,func,1013,KEEP,2026-11-20：menuAction唯一执行出口，运行保存的Swift闭包，连接原生target/action
 Clipboard,Features/Clipboard/UI/LargeTextPreviewView.swift,AttributedTextView,init,init,32,KEEP,保存传入富文本及showsTableGrid开关，默认true保留Markdown表格网格；WordInlineContent传false，使Word预览不额外绘制Markdown网格
 Clipboard,Features/Clipboard/UI/LargeTextPreviewView.swift,AttributedTextView,makeNSView,func,37,KEEP,构造只读可选择的PreviewTextView及纵向NSScrollView，传入showsTableGrid、富文本和随视图宽度折行设置，再按网格开关建立单元格矩形缓存
 Clipboard,Features/Clipboard/UI/LargeTextPreviewView.swift,AttributedTextView,updateNSView,func,59,KEEP,SwiftUI更新时传递showsTableGrid；仅富文本内容不同才替换textStorage并刷新表格矩形缓存，保持现有滚动宿主
@@ -2873,11 +2872,11 @@ Onboarding,Features/Onboarding/WhatsNew.swift,WhatsNewWindow,performClose,func,2
 Onboarding,Features/Onboarding/WhatsNew.swift,WhatsNewWindow,performKeyEquivalent,func,224,KEEP,NSWindow override；AppKit Esc 键派发到该方法
 Onboarding,Features/Onboarding/WhatsNew.swift,WhatsNewView,section,func,275,KEEP,WhatsNewView.body:247 ForEach 调用
 Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLink,init,init,52,KEEP,2026-11-20：detect和App深链构造URL、provider与分享页标记，消费者为链接条、提示和下载中心；外部分离提取码目前未保留，留后续处理
-Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,provider,func,102,KEEP,2026-11-20：检测器、下载器与App共用主机识别；精确域名表和123通配后缀，当前根域后缀未限定点边界，可误认相似域，待处理
-Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,isSharePage,func,118,KEEP,2026-11-20：detect与App分类后供提示、中心和下载分流；当前/share及主机share.字符串包含过宽，会把同前缀文件归分享页，待处理
-Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,normalized,func,133,KEEP,2026-11-20：detect的标准URL分支调用；目前所有受支持主机HTTP均升级HTTPS，显式签名HTTP也改写，需只为裸域名补协议
-Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,detect,func,160,KEEP,2026-11-20：剪贴板提示、首页、预览及刘海共用，静态检测器及正则；当前全量matches后找首条，裸域名左边界缺失，外部分离提取码未保存，待处理
-Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,recentLink,func,191,KEEP,2026-11-20：首页链接条及布局动画扫描最多20条，按类型检测content/title；长正文仅前4000字符且同首页重复求值，留后续处理
+Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,provider,func,97,KEEP,2026-11-20：检测器、下载器与App共用主机识别；精确域名表和123通配后缀，当前根域后缀未限定点边界，可误认相似域，待处理
+Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,isSharePage,func,113,KEEP,2026-11-20：detect与App分类后供提示、中心和下载分流；当前/share及主机share.字符串包含过宽，会把同前缀文件归分享页，待处理
+Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,normalized,func,128,KEEP,2026-11-20：detect的标准URL分支调用；目前所有受支持主机HTTP均升级HTTPS，显式签名HTTP也改写，需只为裸域名补协议
+Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,detect,func,155,KEEP,2026-11-20：剪贴板提示、首页、预览及刘海共用，静态检测器及正则；当前全量matches后找首条，裸域名左边界缺失，外部分离提取码未保存，待处理
+Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,recentLink,func,186,KEEP,2026-11-20：首页链接条及布局动画扫描最多20条，按类型检测content/title；长正文仅前4000字符且同首页重复求值，留后续处理
 Panel,Features/Panel/CloudLink/CloudLinkBar.swift,CloudLinkBar,init,init,25,KEEP,PanelRootView.swift:719 构造 CloudLinkBar()
 Panel,Features/Panel/CloudLink/CloudLinkBar.swift,CloudLinkBar,detectionKey,func,28,KEEP,PanelRootView.swift:733 作 .animation(value:)
 Panel,Features/Panel/CloudLink/CloudLinkBar.swift,CloudLinkBar,bar,func,61,KEEP,本文件 body :40 调用
@@ -2982,8 +2981,7 @@ Panel,Features/Panel/Presentation/PanelPreviewPresenterAdapter.swift,PanelPrevie
 Panel,Features/Panel/Presentation/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,requestKeyboardPreview,func,44,KEEP,协议方法；ClipboardTableHostView:847
 Panel,Features/Panel/Presentation/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,cancelKeyboardPreview,func,51,KEEP,协议方法；ClipboardTableHostView:635
 Panel,Features/Panel/Presentation/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,prepareForPanelAppear,func,56,KEEP,协议方法；ClipboardSectionView:36
-Panel,Features/Panel/Presentation/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,setPreviewOrder,func,61,KEEP,协议方法；ClipboardTableHostView:679
-Panel,Features/Panel/Presentation/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,notifyItemRemoved,func,66,KEEP,协议方法；ClipboardSectionView:96、ClipboardTableHostView:1002
+Panel,Features/Panel/Presentation/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,notifyItemRemoved,func,61,KEEP,协议方法；ClipboardSectionView:96、ClipboardTableHostView:1002
 Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,isSegmentOn,func,91,KEEP,enabledPages :62 过滤调用
 Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,normalizeSegmentSelection,func,111,KEEP,onAppear :229 与 5 处 onChange :144-152
 Panel,Features/Panel/Presentation/PanelRootView.swift,AnchorArrow,path,func,341,KEEP,Shape 协议要求（SwiftUI 绘制调用）
@@ -3013,38 +3011,37 @@ Panel,Features/Panel/Preview/DocumentInlinePreview.swift,WordDocumentStore,resto
 Panel,Features/Panel/Preview/DocumentInlinePreview.swift,InlineQuickLookView,makeNSView,func,209,KEEP,为非Word文档构造compact样式QLPreviewView，关闭自动播放和随窗口关闭设置，指定URL为previewItem；Word正文另由AttributedTextView显示
 Panel,Features/Panel/Preview/DocumentInlinePreview.swift,InlineQuickLookView,updateNSView,func,217,KEEP,SwiftUI更新QuickLook宿主时仅在URL不同才替换previewItem，由系统异步加载新文档，不再调用refreshPreviewItem
 Panel,Features/Panel/Preview/DocumentInlinePreview.swift,InlineQuickLookView,dismantleNSView,func,224,KEEP,SwiftUI拆除内联QuickLook宿主时调用QLPreviewView.close释放预览内容
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverSlot,init,init,44,KEEP,2026-11-20：呈现入口创建统一窗口槽位；关闭和编辑回调弱持有槽位，开始编辑调用cancelHoverClose，保留当前编辑状态
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,hasPreview,func,142,KEEP,2026-11-20：刘海跨屏、收起与活动记录选择检查来源窗口身份和槽位状态，可选核对鼠标是否在预览窗内
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,movePreview,func,148,KEEP,2026-11-20：IslandController.move移动来源时调用；固定窗不跟随，普通预览取消待关闭后只移动原窗口并限制到可见区域，不重建模型
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,init,init,159,KEEP,2026-11-20：shared唯一构造，private override沿NSObject初始化链，所有入口共用同一协调器
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,present,func,173,KEEP,2026-11-20：源视图或屏幕锚点决定可见区并创建requestedSession；落盘长文先携content前缀出窗，全文交内容视图后台读；文件模型后台读取且仅当前会话结果呈现；换项复用slot；键盘提示仅交showsHint
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,presentFile,func,268,KEEP,2026-11-20：FileHoverPreviewController.showNow构造路径身份的内存ClipboardItem，传屏幕锚点或鼠标位置，不写剪贴板数据库
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,dismiss,func,283,KEEP,2026-11-20：适配器、复制、切页、面板收起与点外共用；保留固定窗自动关闭豁免；当前未取消尚待触发的hover/keyboard任务且closing时提前执行新completion，后续须集中改
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,rowHover,func,311,KEEP,2026-11-20：主列表经适配器进入和离开，消费来源偏好、固定及抑制状态，沿原可配置开启延迟和意图阈值呈现；离开取消开启并安排关闭，关闭入口尚需撤销待开启任务
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,prepareForPanelAppear,func,354,KEEP,2026-11-20：PanelController.show及Section.onAppear经适配器共用，解除移动抑制并清hover任务；尚未取消旧键盘任务，留后续处理
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,requestKeyboardPreview,func,363,KEEP,2026-11-20：主列表空格经适配器进入，替换前次任务后按默认0.30秒延迟呈现；当前取有效锚点及确认呈现前已消费提示，失败也记键盘事件，留后续处理
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,cancelKeyboardPreview,func,384,KEEP,2026-11-20：选择移动、新键盘请求、present及适配器取消共用，取消并清空原WorkItem，不关闭当前窗口
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,popoverHoverChanged,func,393,KEEP,2026-11-20：预览根视图onHover回调，进入取消待关闭，离开且有未固定预览时安排关闭，复用同一槽位
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,installOutsideClickMonitor,func,418,KEEP,2026-11-20：呈现后只装一组本地/全局点击监听；固定、预览内部及刘海入口放行，列表左键交原宿主，其余进入统一dismiss
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,removeOutsideClickMonitor,func,452,KEEP,2026-11-20：dismiss移除并清空本地和全局点击token，关闭过程中不再响应点外输入
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,installEscapeMonitor,func,460,KEEP,2026-11-20：呈现后只装一个本地键盘监听；仅可见、已呈现、非编辑状态消费Esc，固定窗只接受本窗Esc
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,removeEscapeMonitor,func,473,KEEP,2026-11-20：窗口实际关闭清理调用，移除并清空原键盘token
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,setPreviewOrder,func,480,DEAD_CANDIDATE,2026-11-20：列表每次刷新构造全量ID数组，经协议和适配器只写私有previewOrder；所有正式源码无读取，整条无消费链可删除
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,notifyItemRemoved,func,490,KEEP,2026-11-20：Manager单条及批量删除经适配器调用，删除当前活动项以itemRemoved关闭，固定状态也响应删除；未开启任务的撤销仍须纳入关闭处理
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,rememberMarkdownScroll,func,499,KEEP,2026-11-20：PreviewPopoverContentView滚动回调按dedupeKey保存MarkdownScrollState，与恢复入口同一键
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,markdownScrollState,func,504,KEEP,2026-11-20：文本视图创建时按dedupeKey读保存的scrollOffset，未记录返回nil供原默认位置
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,track,func,513,KEEP,2026-11-20：呈现、键盘和关闭共用，组装动作、区域及可选模型来源/类型/session，发可选sink及debug日志；键盘事件当前缺成功条件，留后续处理
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,resolveAnchor,func,528,KEEP,2026-11-20：present优先用传入NSView转换窗口坐标；无视图时取key/main window.contentView，缺有效窗返回nil，不创建窗口
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,cancelHoverWorkItems,func,540,KEEP,2026-11-20：present、面板出现及固定自动关闭豁免共用，取消并清空开启和关闭两个WorkItem
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,cancelHoverClose,func,548,KEEP,2026-11-20：开始编辑、刘海移动、文件悬停和归档条目切换共用，只取消关闭任务，不重建或关闭当前窗口
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,scheduleHoverClose,func,553,KEEP,2026-11-20：行/预览离开及文件悬停收回共用，只保留一个关闭任务；核对itemID、编辑、固定、悬停及真实鼠标位置，在窗口内则重新等候
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,closeSlot,func,584,KEEP,2026-11-20：dismiss唯一入口，保存原因和closing状态后交原控制器closeAnimated；控制器现有session身份避免旧动画关闭已复用窗口
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,handlePreviewWindowDidClose,func,600,KEEP,2026-11-20：Slot实际关闭回调只处理当前槽位，释放来源及活动条目，结束Esc监听、启动移动抑制并运行积累completion；两个只复位无读取的字段可删
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,beginHoverSuppression,func,621,KEEP,2026-11-20：窗口实际关闭后设置抑制，只装一个本地鼠标移动或拖动监听，避免静止指针立即重开
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,endHoverSuppression,func,631,KEEP,2026-11-20：面板出现和鼠标移动回调解除抑制并移除token，原事件继续传递
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,View,onPreviewPopoverHoverChanged,func,664,KEEP,2026-11-20：ClipboardPreviewWindow根内容挂载，保留公开悬停回调入口；内部仅供无人读取环境值的包装可精简
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,PreviewPopoverHoverChangedModifier,init,init,671,KEEP,2026-11-20：View扩展构造修饰器，仅保存原action，无独立资源或任务
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,PreviewPopoverHoverChangedModifier,body,func,672,KEEP,2026-11-20：ViewModifier把内容交Probe，Probe的inside仅写入无人读取的环境值；可直接使用content.onHover(perform: action)
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverSlot,init,init,43,KEEP,2026-11-20：呈现入口创建统一窗口槽位；关闭和编辑回调弱持有槽位，开始编辑调用cancelHoverClose，保留当前编辑状态
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,hasPreview,func,131,KEEP,2026-11-20：刘海跨屏、收起与活动记录选择检查来源窗口身份和槽位状态，可选核对鼠标是否在预览窗内
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,movePreview,func,137,KEEP,2026-11-20：IslandController.move移动来源时调用；固定窗不跟随，普通预览取消待关闭后只移动原窗口并限制到可见区域，不重建模型
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,init,init,148,KEEP,2026-11-20：shared唯一构造，private override沿NSObject初始化链，所有入口共用同一协调器
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,present,func,162,KEEP,2026-11-20：源视图或屏幕锚点决定可见区并创建requestedSession；落盘长文先携content前缀出窗，全文交内容视图后台读；文件模型后台读取且仅当前会话结果呈现；换项复用slot；键盘提示仅交showsHint
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,presentFile,func,256,KEEP,2026-11-20：FileHoverPreviewController.showNow构造路径身份的内存ClipboardItem，传屏幕锚点或鼠标位置，不写剪贴板数据库
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,dismiss,func,271,KEEP,2026-11-20：适配器、复制、切页、面板收起与点外共用；保留固定窗自动关闭豁免；当前未取消尚待触发的hover/keyboard任务且closing时提前执行新completion，后续须集中改
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,rowHover,func,299,KEEP,2026-11-20：主列表经适配器进入和离开，消费来源偏好、固定及抑制状态，沿原可配置开启延迟和意图阈值呈现；离开取消开启并安排关闭，关闭入口尚需撤销待开启任务
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,prepareForPanelAppear,func,342,KEEP,2026-11-20：PanelController.show及Section.onAppear经适配器共用，解除移动抑制并清hover任务；尚未取消旧键盘任务，留后续处理
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,requestKeyboardPreview,func,351,KEEP,2026-11-20：主列表空格经适配器进入，替换前次任务后按默认0.30秒延迟呈现；当前取有效锚点及确认呈现前已消费提示，失败也记键盘事件，留后续处理
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,cancelKeyboardPreview,func,372,KEEP,2026-11-20：选择移动、新键盘请求、present及适配器取消共用，取消并清空原WorkItem，不关闭当前窗口
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,popoverHoverChanged,func,381,KEEP,2026-11-20：预览根视图onHover回调，进入取消待关闭，离开且有未固定预览时安排关闭，复用同一槽位
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,installOutsideClickMonitor,func,406,KEEP,2026-11-20：呈现后只装一组本地/全局点击监听；固定、预览内部及刘海入口放行，列表左键交原宿主，其余进入统一dismiss
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,removeOutsideClickMonitor,func,440,KEEP,2026-11-20：dismiss移除并清空本地和全局点击token，关闭过程中不再响应点外输入
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,installEscapeMonitor,func,448,KEEP,2026-11-20：呈现后只装一个本地键盘监听；仅可见、已呈现、非编辑状态消费Esc，固定窗只接受本窗Esc
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,removeEscapeMonitor,func,461,KEEP,2026-11-20：窗口实际关闭清理调用，移除并清空原键盘token
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,notifyItemRemoved,func,467,KEEP,2026-11-20：Manager单条及批量删除经适配器调用，删除当前活动项以itemRemoved关闭，固定状态也响应删除；未开启任务的撤销仍须纳入关闭处理
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,rememberMarkdownScroll,func,476,KEEP,2026-11-20：PreviewPopoverContentView滚动回调按dedupeKey保存MarkdownScrollState，与恢复入口同一键
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,markdownScrollState,func,481,KEEP,2026-11-20：文本视图创建时按dedupeKey读保存的scrollOffset，未记录返回nil供原默认位置
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,track,func,490,KEEP,2026-11-20：呈现、键盘和关闭共用，组装动作、区域及可选模型来源/类型/session，发可选sink及debug日志；键盘事件当前缺成功条件，留后续处理
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,resolveAnchor,func,505,KEEP,2026-11-20：present优先用传入NSView转换窗口坐标；无视图时取key/main window.contentView，缺有效窗返回nil，不创建窗口
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,cancelHoverWorkItems,func,517,KEEP,2026-11-20：present、面板出现及固定自动关闭豁免共用，取消并清空开启和关闭两个WorkItem
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,cancelHoverClose,func,525,KEEP,2026-11-20：开始编辑、刘海移动、文件悬停和归档条目切换共用，只取消关闭任务，不重建或关闭当前窗口
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,scheduleHoverClose,func,530,KEEP,2026-11-20：行/预览离开及文件悬停收回共用，只保留一个关闭任务；核对itemID、编辑、固定、悬停及真实鼠标位置，在窗口内则重新等候
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,closeSlot,func,561,KEEP,2026-11-20：dismiss唯一入口，保存原因和closing状态后交原控制器closeAnimated；控制器现有session身份避免旧动画关闭已复用窗口
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,handlePreviewWindowDidClose,func,577,KEEP,2026-11-20：Slot实际关闭回调只处理当前槽位，释放来源及活动条目，结束Esc监听、启动移动抑制并运行积累completion；两个只复位无读取的字段可删
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,beginHoverSuppression,func,596,KEEP,2026-11-20：窗口实际关闭后设置抑制，只装一个本地鼠标移动或拖动监听，避免静止指针立即重开
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,endHoverSuppression,func,606,KEEP,2026-11-20：面板出现和鼠标移动回调解除抑制并移除token，原事件继续传递
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,View,onPreviewPopoverHoverChanged,func,639,KEEP,2026-11-20：ClipboardPreviewWindow根内容挂载，保留公开悬停回调入口；内部仅供无人读取环境值的包装可精简
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,PreviewPopoverHoverChangedModifier,init,init,646,KEEP,2026-11-20：View扩展构造修饰器，仅保存原action，无独立资源或任务
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,PreviewPopoverHoverChangedModifier,body,func,647,KEEP,2026-11-20：ViewModifier把内容交Probe，Probe的inside仅写入无人读取的环境值；可直接使用content.onHover(perform: action)
 Panel,Features/Panel/Preview/MermaidRenderer.swift,MermaidRenderer,image,func,62,KEEP,PreviewMarkdownRenderer.swift:475 渲染 mermaid 代码块
 Panel,Features/Panel/Preview/MermaidRenderer.swift,MermaidRenderer,parse,func,88,KEEP,image :68 调用
 Panel,Features/Panel/Preview/MermaidRenderer.swift,MermaidRenderer,splitStatements,func,145,KEEP,parse :131 调用

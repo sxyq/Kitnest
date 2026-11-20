@@ -122,8 +122,6 @@ public protocol PanelPreviewPresenting: AnyObject {
     func cancelKeyboardPreview()
     /// 面板即将出现：清抑制与未决 WorkItem
     func prepareForPanelAppear()
-    /// 刷新预览导航顺序表
-    func setPreviewOrder(_ ids: [String])
     /// 锚条目被删除 → 同步关闭预览
     func notifyItemRemoved(itemID: String)
 }
