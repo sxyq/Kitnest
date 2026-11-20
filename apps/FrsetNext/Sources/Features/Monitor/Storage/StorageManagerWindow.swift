@@ -931,7 +931,7 @@ struct StorageManagerRootView: View {
             Text("扫描根路径：\(store.snapshot?.rootPath ?? "")；分类合计 = 已索引 \(StorageFormat.bytes(store.snapshot?.totalBytes ?? 0))")
                 .font(.system(size: 11)).foregroundStyle(.secondary)
             ScrollView {
-                VStack(alignment: .leading, spacing: 3) {
+                LazyVStack(alignment: .leading, spacing: 3) {
                     Text("各路径字节只计入本分类；嵌套分类已从上级路径中扣除。分类总量为各路径字节之和。")
                     if let paths = category.pathBytes {
                         if paths.isEmpty { Text("本次索引没有此类占用") }

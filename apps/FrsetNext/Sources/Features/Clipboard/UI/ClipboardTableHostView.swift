@@ -726,7 +726,7 @@ public struct ClipboardTableHostView: NSViewRepresentable {
             // 只裁掉「行号越界」与「视图已被回收」两类条目：前者是条目删除后的残留，
             // 后者由 weak 引用自然变 nil（残留条目只会查得 nil，不会给出错误视图），
             // 一并清掉可避免字典无限增长——这正是整体 removeAll() 原本的唯一收益。
-            let validRows = Set(0..<table.numberOfRows)
+            let validRows = 0..<table.numberOfRows
             rowViewsByRow = rowViewsByRow.filter { validRows.contains($0.key) && $0.value.view != nil }
             hoveredRowView = nil
             // hoveredItemID 必须与 hoveredRowView 同步清空：若只清视图而保留 ID，

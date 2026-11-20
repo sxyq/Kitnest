@@ -2120,7 +2120,7 @@ Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableVi
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableView,func,656,KEEP,表格委托回调 rowViewForRow，返回 ClipboardRowChromeView
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableView,func,662,KEEP,表格委托回调 didAdd:forRow，尾行触发分页
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableViewSelectionDidChange,func,671,KEEP,表格委托回调；:622 post .clipboardSelectionChanged
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,reloadTable,func,699,KEEP,本文件:506 reloadTableIfNeeded 调用
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,reloadTable,func,699,KEEP,2026-11-20：实际内容变化时按条目ID恢复选择、范围锚点和非顶部视口，更新预览顺序；有效行用整数Range判断，不为全表构造Set
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,clipboardBoundsDidChange,func,755,KEEP,@objc + #selector(本文件:468)，boundsDidChange 通知派发
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,feedTopTracker,func,763,KEEP,本文件:686 滚动通知内调用
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleMouseMoved,func,776,KEEP,本文件:543 table.onMouseMoved 闭包
@@ -2624,7 +2624,7 @@ Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootVi
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,candidateControls,func,551,KEEP,2026-11-20：全选按候选路径集合；已选数量和大小先去父子重复；删除先存pendingTrash再开确认，提示词按钮只开附属页
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,leftPane,func,636,KEEP,2026-11-20：根布局沿地图轮廓采样，LazyVStack只建可见候选行，按画布坐标计算行宽；点击只改变selectedPaths
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,candidateWidth,func,675,KEEP,2026-11-20：leftPane逐行以中心水平线与轮廓边求交，取最左交点作候选右界，未交返回0，调用处限制最终宽非负
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,categoryDetail,func,922,KEEP,2026-11-20：rightPane显示分类字节、扫描根、精确pathBytes和coverageHelp；普通VStack一次创建全部明细，留下一批按可见区域构建
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,categoryDetail,func,922,KEEP,2026-11-20：rightPane显示分类字节、扫描根、pathBytes与覆盖范围说明；ScrollView内用LazyVStack按可见区域构建全部明细，仍保留文本选择和缺失明细提示
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,refreshedNavigationNode,func,964,KEEP,2026-11-20：indexRevision更新时实际路径查新树，disk-files按父ownSize更新；展示分组递归剔除消失成员并重算字节、排序和数量
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigate,func,985,KEEP,2026-11-20：深链、根按钮、面包屑和图块共用；下钻重建路径前缀，回祖先保留前进记录；未退出分类模式留下一批处理
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigateHistory,func,993,KEEP,2026-11-20：手势、Esc、前后按钮和地图返回共用，只将历史游标移动到已存在索引，不重建目录树
