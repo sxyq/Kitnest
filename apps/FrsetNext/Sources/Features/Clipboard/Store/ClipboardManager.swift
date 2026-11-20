@@ -21,6 +21,11 @@ public extension Preferences.Keys {
 public enum ClipboardFilterKind: String, CaseIterable, Identifiable, Sendable {
     case all, text, image, link, file, pdf, media, code, color, generated, note, favorite
 
+    /// 内容分类与收藏分组分开呈现；收藏仍保留为独立查询条件。
+    public static var contentCases: [ClipboardFilterKind] {
+        allCases.filter { $0 != .favorite }
+    }
+
     public var id: String { rawValue }
 
     /// UI 文案（TODO(specs/18 L10n)：原作标签在 Localizable 资源、不在二进制切片内；

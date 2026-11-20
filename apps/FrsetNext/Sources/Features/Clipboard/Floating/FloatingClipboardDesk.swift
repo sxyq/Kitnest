@@ -605,7 +605,7 @@ public struct FloatingClipboardDeskView: View {
     private var categoryBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
         HStack(spacing: 12) {
-            ForEach(ClipboardFilterKind.allCases) { kind in
+            ForEach(ClipboardFilterKind.contentCases) { kind in
                 Button {
                     store.kind = kind
                     searchFocused = true
@@ -629,16 +629,24 @@ public struct FloatingClipboardDeskView: View {
                 .fixedSize()
                 .help("剪贴板操作")
             }
+            Rectangle()
+                .fill(Color.secondary.opacity(0.24))
+                .frame(width: 1, height: 14)
             Button {
                 store.kind = store.kind == .favorite ? .all : .favorite
                 searchFocused = true
             } label: {
-                Image(systemName: store.kind == .favorite ? "star.fill" : "star")
-                    .font(.scaledSystem(size: 11, scale: appearance.fontScale))
-                    .foregroundStyle(store.kind == .favorite ? appearance.accent : Color.secondary)
+                HStack(spacing: 4) {
+                    Image(systemName: store.kind == .favorite ? "star.fill" : "star")
+                    Text("收藏")
+                }
+                .font(.scaledSystem(size: 12, weight: store.kind == .favorite ? .semibold : .regular,
+                                    scale: appearance.fontScale))
+                .foregroundStyle(store.kind == .favorite ? appearance.accent : Color.secondary)
             }
             .buttonStyle(.plain)
-            .help("筛选收藏")
+            .help("只显示收藏条目")
+            .accessibilityLabel("收藏")
             Button {
                 if isSettingsPreview { return }
                 showsTags.toggle()

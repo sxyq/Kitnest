@@ -656,7 +656,7 @@ struct PanelRootView: View {
             }
 
             Menu {
-                ForEach(ClipboardFilterKind.allCases) { kind in
+                ForEach(ClipboardFilterKind.contentCases) { kind in
                     Button {
                         if isSettingsPreview { previewFilter = kind }
                         else { ClipboardManager.shared.filter = kind }
