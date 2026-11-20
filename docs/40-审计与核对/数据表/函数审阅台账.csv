@@ -2923,7 +2923,7 @@ Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,LinkPageResolver,resolv
 Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,LinkPageResolver,webView,func,427,KEEP,2026-11-20：WebKit完成代理回调；可选脚本先执行，完成后沿原1.2秒延迟调用extractLinks；脚本失败交finish
 Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,LinkPageResolver,webView,func,446,KEEP,2026-11-20：WebKit加载失败代理回调；将原localizedDescription交统一finish并释放WebView，保留提交前和提交后的两个协议入口
 Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,LinkPageResolver,webView,func,450,KEEP,2026-11-20：WebKit加载失败代理回调；将原localizedDescription交统一finish并释放WebView，保留提交前和提交后的两个协议入口
-Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,LinkPageResolver,extractLinks,func,454,KEEP,2026-11-20：页面加载及可选脚本完成后调用；从页面提取候选，成功经finish同步Cookie；HTML正则会截断tar.gz及签名参数，留后续改动
+Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,LinkPageResolver,extractLinks,func,454,KEEP,页面加载及可选脚本完成后调用；从链接与HTML提取候选，文件扩展名需处于URL边界且允许tar.gz和完整查询/片段；成功经finish同步Cookie
 Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,LinkPageResolver,syncCookiesFrom,func,487,KEEP,2026-11-20：解析成功finish调用；将原白名单域Cookie交共享存储后回调；当前根域及139、189、UC范围缺漏留后续处理
 Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,LinkPageResolver,finish,func,502,KEEP,2026-11-20：超时、WebKit失败及候选提取完成共用；先取消超时、取出清空completion再停网页解除代理，成功等待Cookie同步后只调用原回调一次
 Panel,Features/Panel/CloudLink/CloudLinkPrompt.swift,CloudLinkPromptController,init,init,24,KEEP,static shared :16 单例构造（private init）

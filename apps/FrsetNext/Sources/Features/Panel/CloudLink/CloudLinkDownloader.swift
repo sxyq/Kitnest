@@ -463,7 +463,7 @@ final class LinkPageResolver: NSObject, WKNavigationDelegate {
             } catch (e) {}
           });
           const html = document.documentElement.innerHTML;
-          const re = /https?:\\/\\/[^"'\\\\\\s<>]+?\\.(?:zip|rar|7z|tar|gz|dmg|pkg|iso|mp4|mkv|mov|avi|mp3|flac|wav|pdf|epub|docx?|xlsx?|pptx?|png|jpe?g|gif|webp|apk|exe|txt|md|json)(?:\\?[^"'\\\\\\s<>]*)?/gi;
+          const re = /https?:\\/\\/[^"'\\\\\\s<>]+?\\.(?:tar\\.gz|zip|rar|7z|tar|gz|dmg|pkg|iso|mp4|mkv|mov|avi|mp3|flac|wav|pdf|epub|docx?|xlsx?|pptx?|png|jpe?g|gif|webp|apk|exe|txt|md|json)(?:[?#][^"'\\\\\\s<>]*)?(?=$|["'\\\\\\s<>])/gi;
           (html.match(re) || []).forEach(u => found.add(u.replace(/&amp;/g, '&')));
           return Array.from(found).slice(0, 12);
         })()
