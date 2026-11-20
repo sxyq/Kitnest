@@ -1909,7 +1909,7 @@ Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,sched
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,ingest,func,345,KEEP,2026-11-21：原入口保留并委托readAndIngest一次，继续用于poll捕获与内部显式读取调用。
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,readAndIngest,func,349,KEEP,2026-11-21：由poll及公开ingest入口调用一次；粘贴板读取失败时仅初次调用安排强制poll补读，补读禁止续排，成功后的忽略规则和入库沿原实现
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,writeToDatabase,func,374,KEEP,2026-11-21：串行队列去重、四类附件落盘及正式插入；原图写失败停止建空图片记录，已写附件INSERT失败时移除本次原图、缩略图、RTF与长文，再沿原去重置顶处理。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleReloadCoalesced,func,492,KEEP,2026-11-20：捕获与重复置顶在锁内合并为一次主队列刷新；reset:true会丢已加载多页范围，可复用现有reset:false。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleReloadCoalesced,func,492,KEEP,2026-11-21：新捕获和重复置顶仍合并主线程刷新；改用reload(reset:false)按当前页数重查，避免刷新将已浏览列表重置第一页；安装版重新构建通过。
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,updateFirstItemScrolledOut,func,508,KEEP,2026-11-20：表格滚动回调仅在顶部状态变化时发布属性与通知。
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,makeQuery,func,516,KEEP,2026-11-20：reload与loadMore共用当前搜索、分类和标签，查询上限沿用800条。
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,reload,func,525,KEEP,2026-11-20：串行查询并按generation在主队列发布最新结果；调用前读取筛选分页并设置加载状态，两个清理器和工具回流存在后台直接入口，待迁回主线程。

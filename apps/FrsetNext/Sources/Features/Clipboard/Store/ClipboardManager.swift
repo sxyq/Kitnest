@@ -500,7 +500,7 @@ public final class ClipboardManager: ObservableObject {
             self.reloadGate.lock()
             self.reloadPending = false
             self.reloadGate.unlock()
-            self.reload(reset: true)
+            self.reload(reset: false)
         }
     }
 
