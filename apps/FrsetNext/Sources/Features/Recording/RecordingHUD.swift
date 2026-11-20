@@ -110,7 +110,6 @@ final class RecordingHUDController {
 
     @objc private func togglePause() {
         ScreenRecorder.shared.togglePause()
-        refresh()
     }
 
     @objc private func stopRecording() {
