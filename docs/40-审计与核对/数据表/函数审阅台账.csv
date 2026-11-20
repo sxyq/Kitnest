@@ -1146,24 +1146,24 @@ Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,i
 Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,pixelSize,func,267,KEEP,2026-11-19：record后台调用；CGImageSource只读首帧属性拿像素宽高，不解码整图，失败返回0×0
 Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,makeThumbnail,func,276,KEEP,2026-11-19：record后台调用；ImageProcessor读图、按240最长边缩放、PNG写独立thumb-ID文件，失败返回空路径
 Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,notifyChange,func,289,KEEP,2026-11-19：record/updateOCR/delete调用；主线程发布didChange通知供HistoryVM.reload
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryVM,init,init,29,KEEP,2026-11-19：CaptureHistoryView默认参数与WindowController共享VM构造；立即reload并订阅历史变化通知
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryVM,reload,func,36,KEEP,2026-11-19：init、onAppear、搜索提交、模式变化、刷新按钮及通知调用；同步读取CaptureHistoryStore结果赋items
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryVM,clearOnDismiss,func,41,KEEP,2026-11-19：HistoryWindowController.dismiss调用；清搜索、模式和列表内存状态
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryVM,delete,func,47,KEEP,2026-11-19：单元格删除菜单调用；异步交store删除并立即移除本地同ID项
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryVM,continueAnnotate,func,53,KEEP,2026-11-19：单元格双击/菜单调用；把历史URL与annotation_state交标注控制器恢复
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryVM,copy,func,57,KEEP,2026-11-19：单元格复制菜单调用；读原图转CGImage，复用ScreenshotManager剪贴板链，失败给Toast
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryVM,revealInFinder,func,66,KEEP,2026-11-19：单元格Finder菜单调用；存在时激活Finder选中文件，不存在只提示
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryView,init,init,83,KEEP,2026-11-19：HistoryWindowController装配NSHostingView调用；默认构造CaptureHistoryVM并以ObservedObject注入
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryView,cell,func,165,KEEP,2026-11-19：body对items逐项调用；展示缓存缩略、模式/尺寸/时间/OCR，并接双击继续标注及右键操作
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryView,thumbnail,func,231,KEEP,2026-11-19：cell缩略区域调用；按item ID缓存，优先历史thumb其次存在的原图，异步回主线程写缓存
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryView,modeTitle,func,239,KEEP,2026-11-19：cell展示模式调用；优先CaptureMode枚举标题，未知空值回截图或原始标签
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryWindowController,init,init,255,KEEP,2026-11-19：shared唯一构造；保留窗口、VM及global/local两类外点监听引用
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryWindowController,show,func,258,KEEP,2026-11-19：历史按钮及CaptureDeepLink调用；已有窗口前置刷新并重装监听，否则构造620×420窗口、装Chrome并激活
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryWindowController,installOutsideMonitors,func,285,KEEP,2026-11-19：show调用；global监听其他App鼠标，local监听本App外点和Esc，回调统一dismiss
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryWindowController,removeOutsideMonitors,func,307,KEEP,2026-11-19：show/dismiss/windowWillClose共用；移除两类NSEvent monitor并清引用
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryWindowController,dismiss,func,315,KEEP,2026-11-19：外点/Esc回调调用；移除监听、orderOut并清窗口引用和搜索状态
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryWindowController,windowWillClose,func,322,KEEP,2026-11-19：NSWindowDelegate关闭回调；仅本窗口关闭时移监听并清控制器引用
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureDeepLink,handle,func,336,KEEP,2026-11-19：FrsetNextApp URL分流调用；消费frsetnext/kitnest capture主机的history/region/window/delayed/probe/ocr动作，未知回历史窗
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryVM,init,init,30,KEEP,2026-11-19：CaptureHistoryView默认参数与WindowController共享VM构造；立即reload并订阅历史变化通知
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryVM,reload,func,37,KEEP,2026-11-19：init、onAppear、搜索提交、模式变化、刷新按钮及通知调用；同步读取CaptureHistoryStore结果赋items
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryVM,clearOnDismiss,func,42,KEEP,2026-11-19：HistoryWindowController.dismiss调用；清搜索、模式和列表内存状态
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryVM,delete,func,48,KEEP,2026-11-19：单元格删除菜单调用；异步交store删除并立即移除本地同ID项
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryVM,continueAnnotate,func,54,KEEP,2026-11-19：单元格双击/菜单调用；把历史URL与annotation_state交标注控制器恢复
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryVM,copy,func,58,KEEP,2026-11-19：单元格复制菜单调用；读原图转CGImage，复用ScreenshotManager剪贴板链，失败给Toast
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryVM,revealInFinder,func,67,KEEP,2026-11-19：单元格Finder菜单调用；存在时激活Finder选中文件，不存在只提示
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryView,init,init,82,KEEP,2026-11-19：HistoryWindowController装配NSHostingView调用；默认构造CaptureHistoryVM并以ObservedObject注入
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryView,cell,func,164,KEEP,2026-11-19：body对items逐项调用；展示缓存缩略、模式/尺寸/时间/OCR，并接双击继续标注及右键操作
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryView,modeTitle,func,218,KEEP,2026-11-19：cell展示模式调用；优先CaptureMode枚举标题，未知空值回截图或原始标签
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryThumbnail,loadThumbnail,func,249,KEEP,CaptureHistoryThumbnail.task调用；后台ImageIO读取并生成最长边240像素图像，任务完成且未取消时在原单元格状态中显示，缺图沿占位图呈现
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryWindowController,init,init,280,KEEP,2026-11-19：shared唯一构造；保留窗口、VM及global/local两类外点监听引用
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryWindowController,show,func,283,KEEP,2026-11-19：历史按钮及CaptureDeepLink调用；已有窗口前置刷新并重装监听，否则构造620×420窗口、装Chrome并激活
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryWindowController,installOutsideMonitors,func,310,KEEP,2026-11-19：show调用；global监听其他App鼠标，local监听本App外点和Esc，回调统一dismiss
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryWindowController,removeOutsideMonitors,func,332,KEEP,2026-11-19：show/dismiss/windowWillClose共用；移除两类NSEvent monitor并清引用
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryWindowController,dismiss,func,340,KEEP,2026-11-19：外点/Esc回调调用；移除监听、orderOut并清窗口引用和搜索状态
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryWindowController,windowWillClose,func,347,KEEP,2026-11-19：NSWindowDelegate关闭回调；仅本窗口关闭时移监听并清控制器引用
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureDeepLink,handle,func,361,KEEP,2026-11-19：FrsetNextApp URL分流调用；消费frsetnext/kitnest capture主机的history/region/window/delayed/probe/ocr动作，未知回历史窗
 Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCaptureStream,start,func,25,KEEP,2026-11-19：startSession建立会话后调用；先stop旧监视器，再注册全局滚轮、Esc与本地Return/Esc监视器，回调弱持有session
 Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCaptureStream,stop,func,62,KEEP,2026-11-19：start重入及Coordinator收尾调用；移除三类NSEvent监视器并清空session引用
 Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCaptureStream,deinit,deinit,72,KEEP,2026-11-19：stream为Coordinator单例属性；ARC析构时再移除监视器

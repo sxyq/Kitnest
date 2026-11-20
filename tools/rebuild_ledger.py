@@ -102,6 +102,10 @@ EVIDENCE = {
         "JSONTableView.body调用；同一JSONDocument与列键直接返回已构造行，文档或列键变化时重建，缓存不发布界面状态",
     ("Features/Panel/Inspector/JSONInspectorView.swift", "discardRows"):
         "JSONInspectorView切离表格模式调用；释放缓存行、文档引用和列键，不触发表格或其他视图更新",
+    ("Features/Capture/History/CaptureHistoryView.swift", "loadThumbnail"):
+        "CaptureHistoryThumbnail.task调用；后台ImageIO读取并生成最长边240像素图像，任务完成且未取消时在原单元格状态中显示，缺图沿占位图呈现",
+    ("Features/Toolbox/Tools/MediaTools.swift", "compress"):
+        "BuiltinTools注册的async执行闭包调用；由ToolRegistry.run与ToolDescriptor.execute沿非MainActor async链执行，压缩流程无需再移出主线程",
     ("Features/Panel/Inspector/JSONInspectorView.swift", "makeRowValues"):
         "2026-11-17：JSONTableView.body每轮调用一次；只消费传入行与列完成原搜索多列筛选和排序；行数页数及500行分页共用此结果",
     ("Features/Panel/Inspector/JSONInspectorView.swift", "header"):

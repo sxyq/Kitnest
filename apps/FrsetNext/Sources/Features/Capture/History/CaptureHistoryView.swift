@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import ImageIO
 
 // v130（SnowShot 对齐）②：截图历史视图
 //
@@ -76,8 +77,6 @@ final class CaptureHistoryVM: ObservableObject {
 
 struct CaptureHistoryView: View {
     @ObservedObject private var vm: CaptureHistoryVM
-    /// 缩略图缓存（path → NSImage）
-    // v130：@State 宏在本工程不可用（SwiftUIMacros 缺失），用 @Stored 兼容层
     @Stored private var thumbCache: [String: NSImage] = [:]
 
     init(vm: CaptureHistoryVM = CaptureHistoryVM()) {
@@ -164,27 +163,15 @@ struct CaptureHistoryView: View {
 
     private func cell(_ item: CaptureHistoryItem) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            GeometryReader { geometry in
-                ZStack {
-                    if let img = thumbnail(item) {
-                        Image(nsImage: img)
-                            .resizable()
-                            .aspectRatio(contentMode: .fill)
-                    } else {
-                        Rectangle()
-                            .fill(Theme.cardFill)
-                        Image(systemName: "photo")
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .frame(width: geometry.size.width, height: 88)
+            CaptureHistoryThumbnail(url: item.thumbnailURL ?? (item.path.isEmpty ? nil : item.url),
+                                    cachedImage: thumbCache[item.id]) { image in
+                thumbCache[item.id] = image
             }
-            .frame(height: 88)
-            .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
-                    .stroke(Theme.separator, lineWidth: 0.5)
-            )
+                .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
+                        .stroke(Theme.separator, lineWidth: 0.5)
+                )
 
             Text(item.url.lastPathComponent)
                 .font(.system(size: 11))
@@ -228,16 +215,54 @@ struct CaptureHistoryView: View {
         }
     }
 
-    private func thumbnail(_ item: CaptureHistoryItem) -> NSImage? {
-        if let cached = thumbCache[item.id] { return cached }
-        guard let url = item.thumbnailURL ?? (FileManager.default.fileExists(atPath: item.path) ? item.url : nil),
-              let img = NSImage(contentsOf: url) else { return nil }
-        DispatchQueue.main.async { thumbCache[item.id] = img }
-        return img
-    }
-
     private func modeTitle(_ raw: String) -> String {
         CaptureMode(rawValue: raw)?.title ?? (raw.isEmpty ? "截图" : raw)
+    }
+}
+
+private struct CaptureHistoryThumbnail: View {
+    let url: URL?
+    let cachedImage: NSImage?
+    let onLoaded: (NSImage) -> Void
+
+    var body: some View {
+        GeometryReader { geometry in
+            ZStack {
+                if let image = cachedImage {
+                    Image(nsImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                } else {
+                    Rectangle()
+                        .fill(Theme.cardFill)
+                    Image(systemName: "photo")
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(width: geometry.size.width, height: 88)
+        }
+        .frame(height: 88)
+        .task(id: url) { await loadThumbnail() }
+    }
+
+    @MainActor
+    private func loadThumbnail() async {
+        guard cachedImage == nil else { return }
+        guard let url else { return }
+        let loaded = await Task.detached(priority: .utility) {
+            () -> CGImage? in
+            guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+            let options: [CFString: Any] = [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceShouldCacheImmediately: true,
+                kCGImageSourceThumbnailMaxPixelSize: 240
+            ]
+            return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+        }.value
+        guard !Task.isCancelled, let loaded else { return }
+        onLoaded(NSImage(cgImage: loaded,
+                         size: NSSize(width: loaded.width, height: loaded.height)))
     }
 }
 
