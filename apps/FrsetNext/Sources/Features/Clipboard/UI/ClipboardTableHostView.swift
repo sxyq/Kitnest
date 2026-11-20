@@ -385,12 +385,6 @@ final class ClipboardTableView: NSTableView {
             }
             if characters == "\r" { onReturnKey?(); return }
         }
-        // 诊断（临时）：键盘入口打状态。handleSpaceKey/handleReturnKey 的入口日志
-        // 只在本函数真正分派过去后才才会执行；若这里完全没有日志 → 说明本表格
-        // 不是 first responder（焦点被搜索框等抢占），keyDown 压根没被调用。
-        // ⚠️ 诊断点，非行为变更，不计入对照差异。
-        Log.info("clipboard", "keyDown[\(characters)] selectedRow=\(selectedRow) "
-            + "firstResponder=\(String(describing: window?.firstResponder))")
         switch characters {
         case " ":
             if selectedRow >= 0 { onSpaceKey?(); return }
@@ -886,17 +880,9 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         }
 
         private func handleSpaceKey() {
-            // 诊断（临时）：入口打全量状态，一次区分三道门哪个挂了
-            // ⚠️ 诊断点，非行为变更，不计入对照差异。注意不能引用下方才声明的 item，
-            //    故此处按行号安全取 id。
-            let row = table?.selectedRow ?? -1
-            let rowID = owner.manager.items.indices.contains(row) ? owner.manager.items[row].id : "<none>"
-            Log.info("clipboard", "space → selectedRow=\(row) "
-                + "firstResponder=\(String(describing: table?.window?.firstResponder)) "
-                + "rowView=\(rowView(forItemID: rowID) != nil)")
             guard let table, table.selectedRow >= 0, table.selectedRow < owner.manager.items.count else { return }
             let item = owner.manager.items[table.selectedRow]
-            let view = rowView(forItemID: item.id)
+            let view = rowView(at: table.selectedRow)
             ServiceLocator.panelPreview?.requestKeyboardPreview(item: item,
                                                                 anchorRectProvider: anchorProvider(for: view))
         }
@@ -913,11 +899,6 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         }
 
         private func handleReturnKey() {
-            // 诊断（临时）：↩ 只依赖 selectedRow + first responder（不依赖锚点），
-            // 是二分判据的干净探针——与space 的 rowView= 值对比即可定位失败层。
-            let row = table?.selectedRow ?? -1
-            Log.info("clipboard", "return → selectedRow=\(row) "
-                + "firstResponder=\(String(describing: table?.window?.firstResponder))")
             guard let table, table.selectedRow >= 0, table.selectedRow < owner.manager.items.count else { return }
             // 多选批量复制（原版「已复制 %d 项」）：⌘/⇧ 点击 ≥2 条后按 ↩ 一次性写入剪贴板
             if table.selectedRowIndexes.count > 1 {
@@ -935,10 +916,6 @@ public struct ClipboardTableHostView: NSViewRepresentable {
             owner.onCopy(item)
         }
 
-        private func rowView(forItemID itemID: String) -> NSView? {
-            guard let row = owner.manager.items.firstIndex(where: { $0.id == itemID }) else { return nil }
-            return rowView(at: row)
-        }
     }
 }
 
