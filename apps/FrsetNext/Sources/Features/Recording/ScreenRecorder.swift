@@ -56,8 +56,8 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
     private var sessionStarted = false
     private var paused = false
 
-    private let ciContext = CIContext(options: [.cacheIntermediates: false])
-    private let colorSpace = CGColorSpace(name: CGColorSpace.sRGB)
+    private lazy var ciContext = CIContext(options: [.cacheIntermediates: false])
+    private lazy var colorSpace = CGColorSpace(name: CGColorSpace.sRGB)
 
     private var cameraSession: AVCaptureSession?
     private var micSession: AVCaptureSession?
@@ -102,14 +102,16 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
                 throw RecordingError.writerFailed("无法添加视频轨")
             }
             writer.add(input)
-            let adaptor = AVAssetWriterInputPixelBufferAdaptor(
-                assetWriterInput: input,
-                sourcePixelBufferAttributes: [
-                    kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
-                    kCVPixelBufferWidthKey as String: w,
-                    kCVPixelBufferHeightKey as String: h,
-                    kCVPixelBufferIOSurfacePropertiesKey as String: [:],
-                ])
+            if options.cameraEnabled || options.showKeys || options.showClicks {
+                adaptor = AVAssetWriterInputPixelBufferAdaptor(
+                    assetWriterInput: input,
+                    sourcePixelBufferAttributes: [
+                        kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+                        kCVPixelBufferWidthKey as String: w,
+                        kCVPixelBufferHeightKey as String: h,
+                        kCVPixelBufferIOSurfacePropertiesKey as String: [:],
+                    ])
+            }
             if options.audio != .none {
                 let audioSettings: [String: Any] = [
                     AVFormatIDKey: kAudioFormatMPEG4AAC,
@@ -126,7 +128,6 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
             }
             self.writer = writer
             self.videoInput = input
-            self.adaptor = adaptor
             Log.info("Recording", "写入器就绪：\(w)×\(h) @\(options.fps)fps 码率 \(bitrate / 1000)kbps 音频=\(options.audio.rawValue)")
         } catch let error as RecordingError {
             throw error
