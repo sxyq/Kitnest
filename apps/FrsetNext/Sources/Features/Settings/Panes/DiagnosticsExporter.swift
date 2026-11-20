@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import Darwin
 
 // MARK: - 诊断包导出（设置 → 关于 → 导出）
 //
@@ -46,19 +47,24 @@ public enum DiagnosticsExporter {
 
     private static func writeBundle(to dest: URL) throws {
         let fm = FileManager.default
-        let staging = fm.temporaryDirectory
+        let directory = try fm.url(for: .itemReplacementDirectory, in: .userDomainMask,
+                                   appropriateFor: dest, create: true)
+        defer { try? fm.removeItem(at: directory) }
+        let staging = directory
             .appendingPathComponent("frset-diag-\(UUID().uuidString)", isDirectory: true)
         try fm.createDirectory(at: staging, withIntermediateDirectories: true)
-        defer { try? fm.removeItem(at: staging) }
 
-        // ③ 日志：整目录拷贝（logs/*.log）
+        // ②③ 每份日志只读一次，原文与性能摘录使用同一份内容。
+        var perf = "time,level,tag,message\n"
         let logsDir = LogArchive.shared.directory
-        if let files = try? fm.contentsOfDirectory(at: logsDir,
-                                                  includingPropertiesForKeys: nil) {
-            let out = staging.appendingPathComponent("logs", isDirectory: true)
-            try fm.createDirectory(at: out, withIntermediateDirectories: true)
-            for file in files where file.pathExtension == "log" {
-                try? fm.copyItem(at: file, to: out.appendingPathComponent(file.lastPathComponent))
+        let files = try fm.contentsOfDirectory(at: logsDir, includingPropertiesForKeys: nil)
+        let out = staging.appendingPathComponent("logs", isDirectory: true)
+        try fm.createDirectory(at: out, withIntermediateDirectories: true)
+        for file in files where file.pathExtension == "log" {
+            let data = try Data(contentsOf: file)
+            try data.write(to: out.appendingPathComponent(file.lastPathComponent))
+            for line in performanceLines(in: String(decoding: data, as: UTF8.self)) {
+                perf += line + "\n"
             }
         }
 
@@ -70,11 +76,6 @@ public enum DiagnosticsExporter {
         try usage.write(to: staging.appendingPathComponent("usage.csv"),
                         atomically: true, encoding: .utf8)
 
-        // ② 性能开销记录：从日志抽「慢/卡顿/重绘」告警行
-        var perf = "time,level,tag,message\n"
-        for line in performanceLines() {
-            perf += line + "\n"
-        }
         try perf.write(to: staging.appendingPathComponent("performance.csv"),
                        atomically: true, encoding: .utf8)
 
@@ -82,17 +83,20 @@ public enum DiagnosticsExporter {
         try systemSnapshot().write(to: staging.appendingPathComponent("system.txt"),
                                    atomically: true, encoding: .utf8)
 
-        // 压成 zip（系统 ditto 保结构，不引第三方）
-        if fm.fileExists(atPath: dest.path) { try fm.removeItem(at: dest) }
+        // 与现有凭据写入相同：同卷完成后原子替换，失败保留原目标。
+        let archive = directory.appendingPathComponent("diagnostics.zip")
         let zip = Process()
         zip.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
         zip.arguments = ["-c", "-k", "--sequesterRsrc", "--keepParent",
-                         staging.path, dest.path]
+                         staging.path, archive.path]
         try zip.run()
         zip.waitUntilExit()
         guard zip.terminationStatus == 0 else {
             throw NSError(domain: "Kitnest.Diagnostics", code: 1,
                           userInfo: [NSLocalizedDescriptionKey: "打包失败（ditto \(zip.terminationStatus)）"])
+        }
+        guard rename(archive.path, dest.path) == 0 else {
+            throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno))
         }
     }
 
@@ -106,32 +110,25 @@ public enum DiagnosticsExporter {
     // MARK: ② 性能行抽取
 
     /// 日志里的性能相关行（卡顿/慢操作/重绘告警），CSV 转义后返回
-    private static func performanceLines() -> [String] {
-        let keywords = ["WARN", "卡顿", "hang", "stall", "重绘", "耗时", "slow", "热"]
+    private static func performanceLines(in text: String) -> [String] {
+        let keywords = ["WARN", "[HANG]", "卡顿", "hang", "stall", "重绘", "耗时", "slow", "热"]
         var out: [String] = []
-        let fm = FileManager.default
-        let logsDir = LogArchive.shared.directory
-        guard let files = try? fm.contentsOfDirectory(at: logsDir,
-                                                     includingPropertiesForKeys: [.contentModificationDateKey])
-        else { return out }
-        for file in files where file.pathExtension == "log" {
-            guard let text = try? String(contentsOf: file, encoding: .utf8) else { continue }
-            for raw in text.split(separator: "\n", omittingEmptySubsequences: true) {
-                let line = String(raw)
-                guard keywords.contains(where: { line.contains($0) }) else { continue }
-                out.append(csvLine(line))
-            }
+        for raw in text.split(separator: "\n", omittingEmptySubsequences: true) {
+            let line = String(raw)
+            guard keywords.contains(where: { line.contains($0) }) else { continue }
+            out.append(csvLine(line))
         }
         return out
     }
+
+    private static let lineRegex = try? NSRegularExpression(
+        pattern: "^\\[([0-9:.]+)\\]\\[([A-Z]+)\\]\\[([^\\]]+)\\]\\s?(.*)$")
 
     /// 整行按「time,level,tag,message」尽力拆分；拆不动就整体进 message 列
     private static func csvLine(_ line: String) -> String {
         // 形如 [19:17:35.710][INFO][Ports] scan n=58
         var time = "", level = "", tag = "", message = line
-        let pattern = "^\\[([0-9:.]+)\\]\\[([A-Z]+)\\]\\[([^\\]]+)\\]\\s?(.*)$"
-        if let regex = try? NSRegularExpression(pattern: pattern),
-           let match = regex.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)) {
+        if let match = lineRegex?.firstMatch(in: line, range: NSRange(line.startIndex..., in: line)) {
             func part(_ i: Int) -> String {
                 let r = match.range(at: i)
                 guard r.location != NSNotFound, let swift = Range(r, in: line) else { return "" }

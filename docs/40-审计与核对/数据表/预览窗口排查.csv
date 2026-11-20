@@ -110,7 +110,7 @@ P-014,附属表单,Panel,Features/Panel/Presentation/PanelRootView.swift; Featur
 F-018,系统保存面板,Recording,Features/Recording/RecordingEditorWindow.swift,188 · func exportMovie(),录屏剪辑导出,系统面板决定,AppKit 文件面板；选择文件/目录规则见入口,确认或取消结束文件选择；原入口处理结果,2026-11-19,待实测,已登记,
 F-019,系统打开面板,Recording,Features/Recording/RecordingSettingsPane.swift,371 · func addExcludedApp(),录屏排除应用列表选择,系统面板决定,AppKit 文件面板；选择文件/目录规则见入口,确认或取消结束文件选择；原入口处理结果,2026-11-19,待实测,已登记,
 F-020,系统打开面板,Recording,Features/Recording/RecordingSettingsPane.swift,392 · func chooseDirectory(),录屏默认保存目录,系统面板决定,AppKit 文件面板；选择文件/目录规则见入口,确认或取消结束文件选择；原入口处理结果,2026-11-19,待实测,已登记,
-F-021,系统保存面板,Settings,Features/Settings/Panes/DiagnosticsExporter.swift,17 · func export(),使用记录导出位置,系统面板决定,AppKit 文件面板；选择文件/目录规则见入口,确认或取消结束文件选择；原入口处理结果,2026-11-19,待实测,已登记,
+F-021,系统保存面板,Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter.export() / writeBundle(to:),使用记录导出位置,系统面板决定,AppKit 文件面板；后台在目标同卷生成ZIP,取消不创建临时资料；压缩成功后原子替换目标；失败保留原文件并提示,2026-11-20,待实测：系统辅助访问已拒绝；已读实际日志并确认旧导出遗漏162条HANG；保存及替换待安装版操作,已登记,共用原设置两个导出按钮；清理由同一临时目录defer执行
 F-022,系统打开面板,Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,752 · func pickBackgroundImage(),个性化背景图片选择,系统面板决定,AppKit 文件面板；选择文件/目录规则见入口,确认或取消结束文件选择；原入口处理结果,2026-11-19,待实测,已登记,
 A-022,提示/确认对话框,Settings,Features/Settings/Panes/SearchSettingsPane.swift,332 · deleteConfirmBinding,删除搜索引擎确认,系统按内容决定,confirmationDialog；提示文字/按钮/输入项由入口设置,由提示按钮或绑定状态结束；结果交原入口处理,2026-11-19,待实测,已登记,
 A-023,提示/确认对话框,Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,142 · importConfirmBinding,导入配置确认,系统按内容决定,confirmationDialog；提示文字/按钮/输入项由入口设置,由提示按钮或绑定状态结束；结果交原入口处理,2026-11-19,待实测,已登记,

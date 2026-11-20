@@ -79,17 +79,17 @@ Core,Core/Runtime/L10n.swift,L10n,lprojBundle,func,38,KEEP,2026-11-19：已逐�
 Core,Core/Runtime/L10n.swift,L10n,invalidateCache,func,47,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；LanguageManager.apply:130 调用
 Core,Core/Runtime/L10n.swift,LanguageManager,init,init,106,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；static shared:61 构造
 Core,Core/Runtime/L10n.swift,LanguageManager,apply,func,126,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；SettingsPanes.swift:431 语言下拉
-Core,Core/Runtime/LogArchive.swift,LogArchive,init,init,49,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；static shared:23；建目录+旧日志清理
-Core,Core/Runtime/LogArchive.swift,LogArchive,start,func,62,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；AppBootstrap.swift:19 调用
-Core,Core/Runtime/LogArchive.swift,LogArchive,stop,func,121,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；FrsetNextApp.swift:100 退出调用
-Core,Core/Runtime/LogArchive.swift,LogArchive,append,func,139,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；Support.swift:20 Log.write 唯一落点
-Core,Core/Runtime/LogArchive.swift,LogArchive,pushBreadcrumb,func,144,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；Support.swift:29 Log.breadcrumb
-Core,Core/Runtime/LogArchive.swift,LogArchive,checkHang,func,154,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；看门狗 timer 派发 :92
-Core,Core/Runtime/LogArchive.swift,LogArchive,appendStatus,func,199,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；60s 状态 timer 派发 :102
-Core,Core/Runtime/LogArchive.swift,LogArchive,footprintMB,func,208,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；checkHang:183 / appendStatus:200
-Core,Core/Runtime/LogArchive.swift,LogArchive,threadCount,func,220,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；appendStatus:201 调用
-Core,Core/Runtime/LogArchive.swift,LogArchive,appendRaw,func,248,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；本文件 117/140/149/185 等落盘点
-Core,Core/Runtime/LogArchive.swift,LogArchive,cleanupOldLogs,func,282,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；init:56 / 6h 清理 timer:112
+Core,Core/Runtime/LogArchive.swift,LogArchive,init,init,49,KEEP,2026-11-20：shared首次访问时沿AppDirectories.sub建立正式或开发日志目录并清旧日志；删除重复建目录调用
+Core,Core/Runtime/LogArchive.swift,LogArchive,start,func,61,KEEP,2026-11-20：AppBootstrap启动归档；主循环观察者更新心跳，后台2秒判停顿、60秒记资源及6小时清旧日志；10秒启动预热保留
+Core,Core/Runtime/LogArchive.swift,LogArchive,stop,func,120,KEEP,2026-11-20：AppDelegate退出时取消三项计时器并移除主循环观察者；在文件锁内关闭句柄及清引用，恢复未启动状态
+Core,Core/Runtime/LogArchive.swift,LogArchive,append,func,138,KEEP,2026-11-20：Log.write统一落点；保留调用线程同步追加语义，沿appendRaw文件锁串行写盘
+Core,Core/Runtime/LogArchive.swift,LogArchive,pushBreadcrumb,func,143,KEEP,2026-11-20：Log.breadcrumb在界面关键动作调用；心跳锁内保留末20项，解锁后写DEBUG日志，停顿时引用末5项
+Core,Core/Runtime/LogArchive.swift,LogArchive,checkHang,func,153,KEEP,2026-11-20：2秒后台定时调用；取心跳与操作快照，超过2秒记HANG且持续每5秒最多一条，恢复记累计时长；正常路径不写盘
+Core,Core/Runtime/LogArchive.swift,LogArchive,appendStatus,func,198,KEEP,2026-11-20：60秒后台回调读取当前进程内存线程和系统运行时长，统一以STATUS标签追加到当天日志
+Core,Core/Runtime/LogArchive.swift,LogArchive,footprintMB,func,207,KEEP,2026-11-20：停顿日志和周期状态共用proc_pid_rusage当前进程物理内存读取，沿原失败返回0
+Core,Core/Runtime/LogArchive.swift,LogArchive,threadCount,func,219,KEEP,2026-11-20：周期状态通过proc_pidinfo读取当前进程线程数，读取失败沿原返回0
+Core,Core/Runtime/LogArchive.swift,LogArchive,appendRaw,func,247,KEEP,2026-11-20：全部日志共用缓存日期格式及文件锁；按天切句柄，一次seek取末尾大小后写入，超过4MiB丢DEBUG；删除第二次seek
+Core,Core/Runtime/LogArchive.swift,LogArchive,cleanupOldLogs,func,280,KEEP,2026-11-20：初始化及6小时定时清理超过3天的log文件；只有实际取得修改日期后才比较，删除日期读取失败即视为最早时间的路径
 Core,Core/Runtime/Personalization.swift,Personalization,init,init,149,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；private init；shared:87 唯一构造
 Core,Core/Runtime/Personalization.swift,Personalization,makeDraft,func,154,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；AppearanceSettingsDraft 初始化与 discard 调用：创建 persistsChanges=false 的 Personalization，再经 copyValues 复制当前外观；草稿属性变更只发布到预览，不写偏好
 Core,Core/Runtime/Personalization.swift,DraftField,init,init,166,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；Personalization.init 仅在 persistsChanges=true 时装载偏好；DraftField.init 将可写键路径与偏好键配成 copy/matches 闭包，供模块草稿只应用并比较自己拥有的字段
@@ -129,12 +129,12 @@ Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,cancelKeyboardPreview,fu
 Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,prepareForPanelAppear,func,130,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardSectionView.swift:36
 Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,setPreviewOrder,func,132,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardTableHostView.swift:679
 Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,notifyItemRemoved,func,134,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardTableHostView:1002 / ClipboardSectionView:96
-Core,Core/Runtime/RenderProbe.swift,RenderProbe,install,func,34,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；AppBootstrap.swift:40 调用
-Core,Core/Runtime/RenderProbe.swift,RenderProbe,snapshotAll,func,45,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；install timer:37 / PanelRootView:136
-Core,Core/Runtime/RenderProbe.swift,RenderProbe,snapshot,func,54,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；PanelController:252 等 12 处事件入口
-Core,Core/Runtime/RenderProbe.swift,RenderProbe,dumpNamedWindows,func,64,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；snapshotAll:49 调用
-Core,Core/Runtime/RenderProbe.swift,RenderProbe,dumpWindow,func,80,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；snapshotAll:48 调用
-Core,Core/Runtime/RenderProbe.swift,RenderProbe,emit,func,85,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；dumpNamedWindows:76 / dumpWindow:82
+Core,Core/Runtime/RenderProbe.swift,RenderProbe,install,func,34,KEEP,2026-11-20：AppBootstrap初始化调用；仅环境显式启用且尚无定时器时建立5秒主循环定时器，默认无周期采样
+Core,Core/Runtime/RenderProbe.swift,RenderProbe,snapshotAll,func,45,KEEP,2026-11-20：5秒定时器及面板切页共用；启用后异步到主线程读取面板句柄并枚举设置及监测预览统计窗口
+Core,Core/Runtime/RenderProbe.swift,RenderProbe,snapshot,func,54,KEEP,2026-11-20：面板设置监测和新手窗口的显示与关闭事件调用；仅启用且有窗口时排主线程读取，不创建窗口
+Core,Core/Runtime/RenderProbe.swift,RenderProbe,dumpNamedWindows,func,64,KEEP,2026-11-20：snapshotAll遍历应用窗口；按设置窗口类型及监测预览检视统计标题选取，各自交emit记录
+Core,Core/Runtime/RenderProbe.swift,RenderProbe,dumpWindow,func,80,KEEP,2026-11-20：snapshotAll仅在面板已存在时取其只读句柄窗口并交emit；保留同一正式PanelController
+Core,Core/Runtime/RenderProbe.swift,RenderProbe,emit,func,85,KEEP,2026-11-20：两个快照入口共用；读取窗口和内容层可见性尺寸并记录异常，正常相同行不重复写；异常后缀按三项实际标记匹配，删除将竖线当普通字符的失效查找
 Core,Core/Runtime/StateCompat.swift,StoredBox,init,init,17,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；Stored.init:25 构造
 Core,Core/Runtime/StateCompat.swift,Stored,init,init,24,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；@Stored 属性包装器，50+ 文件使用
 Core,Core/Runtime/TransientWindows.swift,TransientWindowCenter,init,init,37,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；static shared:19
@@ -168,8 +168,8 @@ Core,Core/UI/AppearanceTheme.swift,View,frsetThemeChrome,func,192,KEEP,2026-11-1
 Core,Core/UI/AppearanceTheme.swift,ThemeChromeModifier,init,init,204,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；frsetThemeChrome:176 构造
 Core,Core/UI/AppearanceTheme.swift,ThemeChromeModifier,body,func,206,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ViewModifier 协议，SwiftUI 运行时派发
 Core,Core/UI/ContinuousCorner.swift,NSBezierPath,continuousRoundedRect,func,20,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ScreenshotOverlay:453,477,491 等 8 处"
-Core,Core/UI/FlowLayout.swift,FlowHStack,sizeThatFits,func,13,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；Layout 协议；MonitorDetailView:97 使用 FlowHStack
-Core,Core/UI/FlowLayout.swift,FlowHStack,placeSubviews,func,30,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；Layout 协议；remove_dead.py KEEP 名单
+Core,Core/UI/FlowLayout.swift,FlowHStack,sizeThatFits,func,13,KEEP,2026-11-20：监测模块按钮权限标签和部件形态复选项共用Layout测量；按建议宽逐项取固有尺寸及累计换行高度，无限定宽时返回实际行宽
+Core,Core/UI/FlowLayout.swift,FlowHStack,placeSubviews,func,30,KEEP,2026-11-20：SwiftUI排列回调按实际bounds重测并从左上逐行放置；当前三处均为少量按钮或标签，保留框架测量与放置两个阶段
 Core,Core/UI/LiquidGlass.swift,LiquidGlass,makeView,func,77,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；LiquidGlassBackground:129 / UnifiedGlassBackingView:259
 Core,Core/UI/LiquidGlass.swift,LiquidGlass,reapplyStyle,func,84,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；LiquidGlassBackground.updateNSView:144
 Core,Core/UI/LiquidGlass.swift,LiquidGlassBackground,makeNSView,func,102,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSViewRepresentable 协议，SwiftUI 派发
@@ -204,17 +204,17 @@ Core,Core/UI/OfficialWindowChrome.swift,NSWindow,applyOfficialChrome,func,76,KEE
 Core,Core/UI/OfficialWindowChrome.swift,NSWindow,applyOfficialBackground,func,104,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；窗口设为透明底色，由统一玻璃容器提供可见背景
 Core,Core/UI/OfficialWindowChrome.swift,NSWindow,setOfficialContent,func,114,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；替换 NSView/NSViewController 内容后重挂统一玻璃底，避免底层仍附着在旧 contentView
 Core,Core/UI/OfficialWindowChrome.swift,NSWindow,setOfficialContent,func,120,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；替换 NSView/NSViewController 内容后重挂统一玻璃底，避免底层仍附着在旧 contentView
-Core,Core/UI/PointingHandCursor.swift,PointingHandCursor,init,init,20,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；pointingHandCursor:74 构造
-Core,Core/UI/PointingHandCursor.swift,PointingHandCursor,body,func,22,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ViewModifier 协议，SwiftUI 运行时派发
-Core,Core/UI/PointingHandCursor.swift,PointingHandCursorRegionBackground,makeNSView,func,29,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSViewRepresentable 协议，SwiftUI 派发
-Core,Core/UI/PointingHandCursor.swift,PointingHandCursorRegionBackground,updateNSView,func,36,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSViewRepresentable 协议，SwiftUI 派发
-Core,Core/UI/PointingHandCursor.swift,CursorRegionNSView,resetCursorRects,func,42,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSView override，系统光标区管理
-Core,Core/UI/PointingHandCursor.swift,CursorRegionNSView,updateTrackingAreas,func,46,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSView override，注册 cursorUpdate 跟踪区
-Core,Core/UI/PointingHandCursor.swift,CursorRegionNSView,cursorUpdate,func,56,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSView override，.cursorUpdate 跟踪选项
-Core,Core/UI/PointingHandCursor.swift,CursorRegionNSView,mouseEntered,func,60,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSView override，.mouseEnteredAndExited
-Core,Core/UI/PointingHandCursor.swift,CursorRegionNSView,mouseExited,func,64,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSView override，.mouseEnteredAndExited
-Core,Core/UI/PointingHandCursor.swift,CursorRegionNSView,hitTest,func,68,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSView override，恒 nil 不挡点击
-Core,Core/UI/PointingHandCursor.swift,View,pointingHandCursor,func,73,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；CalendarSectionView:101,115,126,146"
+Core,Core/UI/PointingHandCursor.swift,PointingHandCursor,init,init,20,KEEP,2026-11-20：View.pointingHandCursor构造无配置修饰器，日历的翻周回今天折叠和日期格共五处消费
+Core,Core/UI/PointingHandCursor.swift,PointingHandCursor,body,func,22,KEEP,2026-11-20：SwiftUI修饰器为原内容挂背景光标区域，背景不替代实际按钮及日期格点击
+Core,Core/UI/PointingHandCursor.swift,PointingHandCursorRegionBackground,makeNSView,func,29,KEEP,2026-11-20：SwiftUI创建原生CursorRegionNSView并交宿主布局，视图不转换自动尺寸约束
+Core,Core/UI/PointingHandCursor.swift,PointingHandCursorRegionBackground,updateNSView,func,36,KEEP,2026-11-20：NSViewRepresentable必需更新回调；无可变配置需要传入，空实现保留
+Core,Core/UI/PointingHandCursor.swift,CursorRegionNSView,resetCursorRects,func,42,KEEP,2026-11-20：AppKit重建光标区域时以当前bounds声明手型，由系统管理关键窗口的指针
+Core,Core/UI/PointingHandCursor.swift,CursorRegionNSView,updateTrackingAreas,func,46,KEEP,2026-11-20：AppKit布局及窗口变化回调先删除旧跟踪区再添加唯一可见区域，保留activeAlways以支持非关键面板
+Core,Core/UI/PointingHandCursor.swift,CursorRegionNSView,cursorUpdate,func,56,KEEP,2026-11-20：跟踪区cursorUpdate事件直接设置手型，无游标栈状态
+Core,Core/UI/PointingHandCursor.swift,CursorRegionNSView,mouseEntered,func,60,KEEP,2026-11-20：跟踪区进入事件直接设置手型，非关键窗口同样响应
+Core,Core/UI/PointingHandCursor.swift,CursorRegionNSView,mouseExited,func,64,KEEP,2026-11-20：跟踪区退出事件直接恢复箭头，与进入和光标更新共用原生指针机制
+Core,Core/UI/PointingHandCursor.swift,CursorRegionNSView,hitTest,func,68,KEEP,2026-11-20：AppKit命中回调恒返回nil，仅展示光标区域，点击交给实际SwiftUI控件
+Core,Core/UI/PointingHandCursor.swift,View,pointingHandCursor,func,73,KEEP,2026-11-20：日历上一周回今天下一周折叠按钮及日期格共用修饰器，正式日历和设置预览沿同一视图实现
 Core,Core/UI/RoundCloseButton.swift,NSWindow,restoreStandardTrafficLights,func,31,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；applyOfficialChrome:54 调用
 Core,Core/UI/Support.swift,Log,write,func,16,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；debug/info/warn/error:22-25 唯一落点
 Core,Core/UI/Support.swift,Log,debug,func,22,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardManager:237,255 等"
@@ -3188,15 +3188,15 @@ Settings,Features/Settings/Panes/CurtainSettingsPane.swift,CurtainPreview,update
 Settings,Features/Settings/Panes/CurtainSettingsPane.swift,CurtainPreview,dismantleNSView,func,316,KEEP,图帘大场景卸载时调用 stop，取消自动收起、移开收起及示范任务，停止卡片摆动；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/CurtainSettingsPane.swift,CurtainRopeThumb,makeNSView,func,321,KEEP,CurtainPreview 创建承载正式画布的 CurtainPreviewScene；CurtainRopeThumb 创建正式 CurtainRopeView 展示样式，两者不建立图帘窗口；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/CurtainSettingsPane.swift,CurtainRopeThumb,updateNSView,func,322,KEEP,CurtainPreview 向场景传 Values 和辅助功能状态；CurtainRopeThumb 更新 rope style 并清除 geometry，使绳线按正式绘制路径刷新；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,export,func,16,KEEP,SettingsPanes.swift:498 关于页按钮；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,writeBundle,func,47,KEEP,本文件:28 后台队列调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,usageRows,func,101,KEEP,本文件:67 写 usage.csv；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,performanceLines,func,109,KEEP,本文件:75 写 performance.csv；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,csvLine,func,129,KEEP,本文件:122 性能行转 CSV；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,csvEscape,func,145,KEEP,本文件:142 map 转义；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,systemSnapshot,func,154,KEEP,本文件:82 写 system.txt；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,stamp,func,177,KEEP,本文件:19 保存面板文件名；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/DiagnosticsExporter.swift,AnalyticsEvent,recordNow,func,186,KEEP,本文件:32 导出成功埋点；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,export,func,17,KEEP,2026-11-20：数据帮助与关于页按钮共用NSSavePanel；取消直接返回，确认后后台写包，成功才提示并记录统计及定位文件，失败沿原提示
+Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,writeBundle,func,48,KEEP,2026-11-20：后台在目标同卷生成资料与ZIP；每份日志一次读取同时写原文和摘录，所有读写失败抛给export；ditto成功后rename原子替换目标，defer清自建目录
+Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,usageRows,func,105,KEEP,2026-11-20：writeBundle直接消费StatisticsManager.exportAll返回的日期事件数量，保留原全量统计及CSV列序
+Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,performanceLines,func,113,KEEP,2026-11-20：writeBundle传入本次已读日志正文；保留WARN慢操作等既有词并加入归档器实际大写HANG标签，命中行交csvLine编码
+Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,csvLine,func,128,KEEP,2026-11-20：性能行复用唯一已编译正则拆时间级别标签正文，格式不匹配时保留原整行正文，再共用四列CSV转义
+Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,csvEscape,func,142,KEEP,2026-11-20：csvLine四列共用，含逗号双引号或换行时按CSV规则包引号并加倍内部双引号
+Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,systemSnapshot,func,151,KEEP,2026-11-20：writeBundle保存应用与系统版本物理内存运行时长生成时间，进程rusage成功时追加内存及累计CPU时间，不读取凭据
+Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,stamp,func,174,KEEP,2026-11-20：保存面板建议文件名使用本地yyyyMMdd-HHmm时间；只在用户发起导出时创建格式器
+Settings,Features/Settings/Panes/DiagnosticsExporter.swift,AnalyticsEvent,recordNow,func,183,KEEP,2026-11-20：诊断包写入和替换成功后回主线程记录原settingsExportSuccess事件，失败及取消不计成功
 Settings,Features/Settings/Panes/HapticSettingsPane.swift,HapticSettingsDraft,init,init,16,KEEP,独立触觉设置草稿读取正式配置为当前值和保存快照，复用原设置编辑会话；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/HapticSettingsPane.swift,HapticSettingsDraft,save,func,24,KEEP,编码成功后更新触觉保存快照，失败返回具体原因并保留草稿；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/HapticSettingsPane.swift,HapticSettingsDraft,discard,func,32,KEEP,取消仅将本页草稿恢复已保存强度和场景开关；2026-11-19人工复核：保留，源码与调用/系统入口已核阅

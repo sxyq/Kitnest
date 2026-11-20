@@ -105,7 +105,8 @@ public enum RenderProbe {
                 Log.info("RenderProbe", line)
             }
         } else {
-            Log.info("RenderProbe", line + (flags.joined(separator: ",").contains("alpha0|cvZero|noSubviews") ? "  <<<< 异常" : ""))
+            let abnormal = flags.contains { $0 == "alpha0" || $0 == "cvZero" || $0 == "noSubviews" }
+            Log.info("RenderProbe", line + (abnormal ? "  <<<< 异常" : ""))
         }
     }
 }
