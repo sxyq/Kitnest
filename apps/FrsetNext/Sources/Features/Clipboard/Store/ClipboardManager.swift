@@ -798,7 +798,7 @@ public final class ClipboardManager: ObservableObject {
                 DispatchQueue.main.async {
                     let alert = NSAlert()
                     alert.messageText = "清除历史，保留已存项目"
-                    alert.informativeText = "将删除 \(pending) 条历史，保留 \(saved) 条已存项目及全部标签。仅回收 Kitnest 私有附件，保留外部原文件。"
+                    alert.informativeText = "将删除 \(pending) 条历史，保留 \(saved) 条已存或收藏的项目及全部标签。仅回收 Kitnest 私有附件，保留外部原文件。"
                     alert.addButton(withTitle: "删除历史")
                     alert.addButton(withTitle: "取消")
                     alert.alertStyle = .warning

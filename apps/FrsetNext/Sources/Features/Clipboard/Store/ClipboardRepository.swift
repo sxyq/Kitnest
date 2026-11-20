@@ -263,7 +263,7 @@ public final class ClipboardRepository: @unchecked Sendable {
         }
     }
 
-    /// 收藏状态沿用 is_note，确保已存记录继续豁免历史清理并兼容备份。
+    /// 已存状态沿用 is_note，与收藏标记分别保留。
     @discardableResult
     public func updateNote(dedupeKey: String, isNote: Bool) -> Bool {
         do {
@@ -349,11 +349,11 @@ public final class ClipboardRepository: @unchecked Sendable {
     }
 
     public func unsavedHistory() throws -> [ClipboardItem] {
-        try db.query("SELECT \(Self.columns) FROM clipboard_items WHERE is_note = 0", transform: Self.makeItem)
+        try db.query("SELECT \(Self.columns) FROM clipboard_items WHERE is_note = 0 AND is_favorite = 0", transform: Self.makeItem)
     }
 
     public func savedCount() throws -> Int {
-        Int(try db.scalarInt("SELECT COUNT(*) FROM clipboard_items WHERE is_note = 1"))
+        Int(try db.scalarInt("SELECT COUNT(*) FROM clipboard_items WHERE is_note = 1 OR is_favorite = 1"))
     }
 
     // MARK: 清理辅助（双调度器共用）
@@ -361,14 +361,14 @@ public final class ClipboardRepository: @unchecked Sendable {
     /// 早于 cutoff 的条目（时间保留期用）
     public func rowsOlderThan(_ cutoff: Date, limit: Int = 200) -> [ClipboardItem] {
         (try? db.query(
-            "SELECT \(Self.columns) FROM clipboard_items WHERE timestamp < ? ORDER BY timestamp ASC LIMIT ?",
+            "SELECT \(Self.columns) FROM clipboard_items WHERE timestamp < ? AND is_note = 0 AND is_favorite = 0 ORDER BY timestamp ASC LIMIT ?",
             [.real(cutoff.timeIntervalSince1970), .int(Int64(limit))], transform: Self.makeItem)) ?? []
     }
 
     /// 最旧的若干条（容量超限用）
     public func oldestRows(limit: Int = 200) -> [ClipboardItem] {
         (try? db.query(
-            "SELECT \(Self.columns) FROM clipboard_items ORDER BY timestamp ASC LIMIT ?",
+            "SELECT \(Self.columns) FROM clipboard_items WHERE is_note = 0 AND is_favorite = 0 ORDER BY timestamp ASC LIMIT ?",
             [.int(Int64(limit))], transform: Self.makeItem)) ?? []
     }
 

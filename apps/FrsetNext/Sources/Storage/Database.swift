@@ -308,8 +308,10 @@ public final class DatabaseManager {
         """)
 
         if !(try clipboard.query("PRAGMA table_info(clipboard_items)")).contains(where: { $0.string("name") == "is_favorite" }) {
-            try clipboard.exec("ALTER TABLE clipboard_items ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0")
-            try clipboard.exec("UPDATE clipboard_items SET is_favorite = is_note WHERE is_note = 1")
+            try clipboard.transaction { db in
+                try db.exec("ALTER TABLE clipboard_items ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0")
+                try db.exec("UPDATE clipboard_items SET is_favorite = 1 WHERE is_note = 1")
+            }
         }
         try clipboard.exec("CREATE INDEX IF NOT EXISTS idx_items_favorite ON clipboard_items(is_favorite, timestamp DESC)")
 
