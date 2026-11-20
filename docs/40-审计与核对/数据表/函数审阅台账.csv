@@ -2571,7 +2571,7 @@ Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskNode,init,init,43,KEEP,2026
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskNode,init,init,61,KEEP,2026-11-20：scan、pruned、分类合成节点及图形消费的目录模型；显式init保存字段，Decoder入口为旧缓存缺少isAggregate及foldedCategorySummary保留缺省值
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexSnapshot,init,init,101,KEEP,2026-11-20：scan构造快照，decodeSnapshot通过Decoder恢复；保留scope、根、原统计和可选schema及分类、排除路径字段，不自动扫描
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexSnapshot,init,init,132,KEEP,2026-11-20：scan构造快照，decodeSnapshot通过Decoder恢复；保留scope、根、原统计和可选schema及分类、排除路径字段，不自动扫描
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexSnapshot,recomputeDataCategories,func,148,KEEP,2026-11-20：缓存解码、扫描及删除后按保留树summarize重算分类，失败保留目录并写分类缺失说明；扫描已持有summary但仍二次遍历，留性能改动
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexSnapshot,recomputeDataCategories,func,148,KEEP,2026-11-20：缓存正常载入与删除裁剪后按保留树summarize重算分类，失败保留目录并写具体缺失说明；扫描当前仍二次遍历，性能支线另改
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskDataKind,match,func,173,KEEP,2026-11-20：summarize与walk按目录名及限定父路径识别互斥类别，节点重载只转交路径名称；父类别只在命中新类别时切换
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskDataKind,match,func,177,KEEP,2026-11-20：summarize与walk按目录名及限定父路径识别互斥类别，节点重载只转交路径名称；父类别只在命中新类别时切换
 Monitor,Features/Monitor/Storage/DiskIndex.swift,Accumulator,init,init,234,KEEP,2026-11-20：walk及summarize构造空分类累加器，随后按kind和来源路径累计所需字节，不预建额外树
@@ -2581,58 +2581,59 @@ Monitor,Features/Monitor/Storage/DiskIndex.swift,Accumulator,merge,func,247,KEEP
 Monitor,Features/Monitor/Storage/DiskIndex.swift,Accumulator,categories,func,262,KEEP,2026-11-20：根与折叠汇总输出所有类别，按字节及路径排序明细；directories仅编码无读取方，仍重复生成路径去重结果，留精简
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskDataCategory,summarize,func,287,KEEP,2026-11-20：recomputeDataCategories调用，递归互斥分类并恢复折叠summary；缺折叠明细或总量不一致返回具体错误，不推测分类
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,cancel,func,441,KEEP,2026-11-20：cancelScan调用，以原NSLock写取消标记供walk与scan读取，实际目录句柄由walk的defer关闭
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,scan,func,444,KEEP,2026-11-20：rescan交专用queue扫描，walk返回根和完整summary；当前重遍历可见树生成分类，取消后main队列completion(nil)，保留真实节点及时间日志
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,physicalSize,func,491,KEEP,2026-11-20：walk的普通文件与DT_UNKNOWN分支调用；当前零st_blocks会退回st_size，稀疏文件零分配仍被算逻辑大小，留后续处理
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,retainFile,func,507,KEEP,2026-11-20：walk对普通文件调用，原100MB门槛和60项最大候选保持降序，只保留本层大文件用于可见树
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,walk,func,521,KEEP,2026-11-20：scan唯一根入口后递归，opendir/readdir/lstat不跟随链接；按原排除路径深度和节点数收尾，最大60项外目录以分类小计折叠，每万项main队列发进度
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,cacheURL,func,689,KEEP,2026-11-20：两范围读写和清缓存共用，以scope.rawValue组成原index文件名；实际内容为二进制plist并保留旧JSON读取
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,init,init,694,KEEP,2026-11-20：shared构造唯一DiskIndexStore，原缓存路径、串行queue及发布属性由该实例持有，窗口出现才加载
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,loadIfNeeded,func,700,KEEP,2026-11-20：存储窗口出现时调用，loaded仅允许首次后台读缓存；不自动扫描，后续范围切换沿reloadFromCache
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,reloadFromCache,func,706,KEEP,2026-11-20：loadIfNeeded及窗口scope变化调用；原队列解码并main发布，autoScanIfMissing实际均false；尚缺请求身份，切换范围或清缓存时旧载入可再次发布
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,decodeSnapshot,func,728,KEEP,2026-11-20：后台reload调用，先读schema拒绝明确过期结构，再试plist及旧JSON；成功重算分类并保留旧折叠明细缺失提示
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,rescan,func,750,KEEP,2026-11-20：存储窗口扫描按钮调用，创建scanner并发布进度及快照；当前旧completion无身份比较，会覆盖取消后新扫描状态，留后续处理
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,cancelScan,func,776,KEEP,2026-11-20：窗口Esc和取消按钮调用；向scanner发取消并立即清界面状态，尚未撤销旧回调身份，留后续处理且不新增等待
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,persist,func,782,KEEP,2026-11-20：扫描及删除main回调调用，在原串行queue将指定scope快照编码plist并原子写盘；删除连续回调的旧整树写入存在覆盖风险，留后续处理
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,persistRecords,func,793,KEEP,2026-11-20：trash交付后保存当前记录副本，原queue中JSON编码和原子写盘，不持有窗口或新增服务
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,clearCache,func,803,KEEP,2026-11-20：存储设置清缓存调用，清snapshot并原queue删两个范围文件；进行中的旧缓存载入仍可能恢复内存显示，留后续处理
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,invalidateCandidates,func,836,KEEP,2026-11-20：snapshot.didSet调用，清候选数组与scannedAt标记，indexRevision由原观察器递增供窗口导航及图形刷新
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,candidates,func,842,KEEP,2026-11-20：窗口候选列表调用，复用同scannedAt缓存；递归排除临时路径和.app子树，命中父候选后不再收子项，按大小排序
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,trash,func,878,KEEP,2026-11-20：窗口performTrash调用，仅对实际索引且非合成路径移至系统废纸篓；后台当前捕获原snapshot生成整树，连续删除会重新发布旧节点，留后续处理
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,findNode,func,927,KEEP,2026-11-20：窗口查找和trash确认对象及计数调用，按实际路径和disk-folded前缀沿相关子树递归，不搜索无关路径
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,independentPaths,func,939,KEEP,2026-11-20：窗口选择、分类directories及trash共用，Set去重后沿父路径排除已含在所选父目录下的子项，避免重复删除计数
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,pruned,func,953,KEEP,2026-11-20：trash删除后重建保留树，移除目标子项并重算父节点和排序；当前也遍历无关分支，留性能精简
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,bytes,func,967,KEEP,2026-11-20：存储窗口与堆块尺寸说明调用，系统十进制ByteCountFormatter格式；负值仅呈现0
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,shortBytes,func,970,KEEP,2026-11-20：存储窗口和堆块紧凑标签调用，沿Finder十进制1000换算GB/MB/KB，显示一位小数或整数KB
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,date,func,977,KEEP,2026-11-20：窗口扫描时间与清理记录调用，系统日期时间样式不参与文件或索引状态变更
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,63,KEEP,私有 init，shared:63
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,78,KEEP,NSWindowController 的 NSCoding 必需构造器，编译期强制
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,show,func,80,KEEP,FrsetNextApp.swift:356 深链、MonitorDetailView:959
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageSwipeRegion,makeNSView,func,106,KEEP,创建只负责图形区域双指导航的 AppKit 视图，将方向传回现有根视图
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageSwipeRegion,updateNSView,func,110,KEEP,同步 SwiftUI 最新导航回调到现有手势视图，不重建事件监听器
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,init,init,126,KEEP,手势视图初始化保存导航回调；窗口控制器与 coder 初始化沿用现有原生窗口约定
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,init,init,131,KEEP,手势视图初始化保存导航回调；窗口控制器与 coder 初始化沿用现有原生窗口约定
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,hitTest,func,133,KEEP,手势背景视图不承接点击，让前景的目录块保持原有命中与点击行为
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,viewDidMoveToWindow,func,135,KEEP,视图进入窗口后挂载滚动事件监听，离开原窗口时移除旧监听
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,installSwipeMonitor,func,144,KEEP,只在异形图区域累计真实触控板横向滚动，42pt 后按实际手指方向执行一次左退右进
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,deinit,deinit,182,KEEP,图形手势视图销毁时移除 AppKit 本地事件监听，释放该区域的滚动处理
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,refreshDiskSpace,func,254,KEEP,首开、快照变化、清理后及应用回到前台时读取可用空间、数据卷已用字节和完全磁盘访问状态；视图刷新复用展示值
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,statusLine,func,285,KEEP,「已索引 X / 整盘已用 Y」+ 节点数 + 截断提示，把覆盖率摊开给用户看
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,openFullDiskAccessSettings,func,315,KEEP,跳系统设置「完全磁盘访问权限」页，引导补全 TCC 保护目录
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,header,func,466,KEEP,按窗口宽度将统计说明放在弧线外的左上区域，保留右上方扫描、记录与设置操作
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,toolbarButton,func,534,KEEP,340/342/343
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,candidateControls,func,552,KEEP,复用真实候选数量、全选、已选字节、Agent提示词及废纸篓入口，与右侧目录操作区按实际控件高度决定正文上界
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,leftPane,func,637,KEEP,在连续弧线外展示全部真实清理记录，顶部保留选择与清理操作，列表独立滚动填满左侧区域
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,candidateWidth,func,676,KEEP,从同一存储图轮廓求记录所在高度的可用宽度，使行内容跟随弧线缩窄而不被曲边截断
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,categoryDetail,func,923,KEEP,右区系统数据分类详情显示本次扫描根、类别字节、独立目录与coverageHelp，说明折叠及子分类扣除范围，不自动加入清理推荐
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,refreshedNavigationNode,func,965,KEEP,索引变化刷新访问历史与详情，真实路径取新snapshot节点，disk-files聚合按父ownSize更新，其余聚合递归保留现存孩子并重算大小与折叠数量
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigate,func,986,KEEP,进入目录或点击面包屑时记录实际访问路径，并删除游标之后的旧前进记录
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigateHistory,func,994,KEEP,按访问历史游标向前或向后一步，供按钮、快捷键及双指手势共用
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,topDirectories,func,1003,KEEP,buildAgentPrompt:721
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,buildAgentPrompt,func,1018,KEEP,copyAgentPrompt:745、agentSheet:773
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,copyAgentPrompt,func,1070,KEEP,agentSheet 复制按钮:795
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,selectedBytesForPending,func,1251,KEEP,确认框文案:284
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,performTrash,func,1257,KEEP,alert 确定按钮:282
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageCandidateRow,displayPath,func,1282,KEEP,StorageCandidateRow 显示当前用户目录的短路径，唯一实现从根视图迁入候选行，悬停只更新当前行
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,scan,func,444,KEEP,2026-11-20：rescan交原串行queue，walk返回根与完整summary；取消及完成在worker交付，进度回main；当前分类二次汇总留性能支线处理
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,physicalSize,func,491,KEEP,2026-11-20：walk对普通文件与DT_UNKNOWN分支统一取st_blocks×512，零分配返回0；本地扫描根不把稀疏文件逻辑长度记成磁盘占用
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,retainFile,func,505,KEEP,2026-11-20：walk对普通文件调用，原100MB门槛和60项最大候选保持降序，只保留本层大文件用于可见树
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,walk,func,519,KEEP,2026-11-20：scan唯一根入口后递归，opendir/readdir/lstat不跟随链接；按原排除路径深度和节点数收尾，最大60项外目录以分类小计折叠，每万项main队列发进度
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,cacheURL,func,695,KEEP,2026-11-20：两范围读写和清缓存共用，以scope.rawValue组成原index文件名；实际内容为二进制plist并保留旧JSON读取
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,init,init,700,KEEP,2026-11-20：shared构造唯一DiskIndexStore，原缓存路径、串行queue及发布属性由该实例持有，窗口出现才加载
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,loadIfNeeded,func,706,KEEP,2026-11-20：存储窗口首次出现才读取清理记录，随后同串行队列读取范围缓存；loaded避免切换范围反复读旧记录覆盖新删除记录，不自动扫描
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,reloadFromCache,func,718,KEEP,2026-11-20：首次加载与scope.didSet调用，捕获请求scope与indexRevision；后台解码后仅在同范围、同版本且未扫描时发布，切范围和清缓存递增版本淘汰旧载入
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,decodeSnapshot,func,739,KEEP,2026-11-20：在原worker队列先读schema，再兼容plist与旧JSON；正常载入重算分类，删除处理另一范围缓存时按参数跳过首次汇总，裁剪后只重算一次
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,rescan,func,761,KEEP,2026-11-20：窗口扫描按钮与原storage深链创建scanner；进度、完成按对象身份确认当前扫描，worker先落盘再排主线程发布，取消后的旧回调不清除新扫描
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,cancelScan,func,794,KEEP,2026-11-20：窗口取消、Esc、切范围及清缓存共用；NSLock写取消后立即清scanner身份和进度，允许新扫描入原队列，无旧完成覆盖新状态
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,persist,func,801,KEEP,2026-11-20：扫描完成及trash在原worker内直接调用，以二进制plist原子写指定URL并传播错误，不在main再次排旧整树写盘
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,persistRecords,func,807,KEEP,2026-11-20：trash交付后保存当前记录副本，原queue中JSON编码和原子写盘，不持有窗口或新增服务
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,clearCache,func,817,KEEP,2026-11-20：存储设置调用，先撤销scanner再清snapshot递增indexRevision，原队列删两范围缓存；迟到的缓存及扫描回调不能恢复显示
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,invalidateCandidates,func,851,KEEP,2026-11-20：snapshot.didSet调用，清候选数组与scannedAt标记，indexRevision由原观察器递增供窗口导航及图形刷新
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,candidates,func,857,KEEP,2026-11-20：窗口候选列表调用，复用同scannedAt缓存；递归排除临时路径和.app子树，命中父候选后不再收子项，按大小排序
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,trash,func,893,KEEP,2026-11-20：窗口performTrash只移动索引中的真实路径至废纸篓；同串行队列在文件移动后取最新快照，统一裁剪内存与home/fullDisk缓存，缺失折叠明细则失效；发布核对revision，连续删除不恢复旧节点
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,removing,func,960,KEEP,2026-11-20：trash更新内存与两个范围缓存共用；按路径分隔判断交集，无交集沿用，根被移走或折叠导致目标节点缺失时失效该范围，其余仅裁剪已删除路径并重算总量与分类
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,findNode,func,979,KEEP,2026-11-20：窗口查找和trash确认对象及计数调用，按实际路径和disk-folded前缀沿相关子树递归，不搜索无关路径
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,independentPaths,func,991,KEEP,2026-11-20：窗口选择、分类directories及trash共用，Set去重后沿父路径排除已含在所选父目录下的子项，避免重复删除计数
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,pruned,func,1005,KEEP,2026-11-20：trash删除后重建保留树，移除目标子项并重算父节点和排序；当前也遍历无关分支，留性能精简
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,bytes,func,1019,KEEP,2026-11-20：存储窗口与堆块尺寸说明调用，系统十进制ByteCountFormatter格式；负值仅呈现0
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,shortBytes,func,1022,KEEP,2026-11-20：存储窗口和堆块紧凑标签调用，沿Finder十进制1000换算GB/MB/KB，显示一位小数或整数KB
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,date,func,1029,KEEP,2026-11-20：存储扫描日期与清理记录标签调用；按MM-dd HH:mm格式呈现本地时间，不改变索引状态
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,63,KEEP,2026-11-20：shared唯一程序化构造1080×720窗口、最小860×560，关闭保留窗口；原生所需coder入口拒绝归档构造，正式入口为私有init
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,78,KEEP,2026-11-20：shared唯一程序化构造1080×720窗口、最小860×560，关闭保留窗口；原生所需coder入口拒绝归档构造，正式入口为私有init
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,show,func,80,KEEP,2026-11-20：监测详情按钮与storage深链共用，激活已有窗口；按参数触发扫描或延迟发下钻/提示词通知；分类模式下navigate未退出分类，留下一批处理
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageSwipeRegion,makeNSView,func,106,KEEP,2026-11-20：根视图嵌入背景手势区时创建SwipeView，传入共用navigateHistory闭包，不创建业务存储
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageSwipeRegion,updateNSView,func,110,KEEP,2026-11-20：Representable刷新只更新enabled和导航闭包，保留既有NSView及事件监听器
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,init,init,126,KEEP,2026-11-20：makeNSView通过init(onNavigate:)保存导航并零frame创建，实际尺寸交SwiftUI；所需coder构造无归档入口
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,init,init,131,KEEP,2026-11-20：makeNSView通过init(onNavigate:)保存导航并零frame创建，实际尺寸交SwiftUI；所需coder构造无归档入口
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,hitTest,func,133,KEEP,2026-11-20：AppKit命中恒返回nil，滚动监听在本地事件监视器处理，前景按钮继续接收点击
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,viewDidMoveToWindow,func,135,KEEP,2026-11-20：AppKit移窗回调先移除旧事件token，仅在新window非空时装一次监听
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,installSwipeMonitor,func,144,KEEP,2026-11-20：只处理同一可见窗口精确非惯性滚动，按手势起点命中地图并固定归属；横向达42pt且超过纵向1.2倍后只导航一次，闭包弱持有视图
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,deinit,deinit,182,KEEP,2026-11-20：视图释放移除尚存NSEvent monitor，与移窗移除共同结束事件生命周期
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,refreshDiskSpace,func,254,KEEP,2026-11-20：出现、应用激活和indexRevision变化时读取可用空间、完全磁盘访问状态及数据卷f_bfree已用量，展示复用保存值
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,statusLine,func,285,KEEP,2026-11-20：header消费快照范围、扫描日期、节点数与字节，截断时列maxNodes上限；本地日期格式沿StorageFormat
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,openFullDiskAccessSettings,func,315,KEEP,2026-11-20：页头与存储设置去授权按钮共用固定系统设置URL，通过NSWorkspace打开完全磁盘访问页面
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,header,func,465,KEEP,2026-11-20：根body传实际宽度，展示候选总量、扫描状态、权限提示和整盘可用空间，左统计区用width×0.44−20布局
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,toolbarButton,func,533,KEEP,2026-11-20：mapControls的扫描、工作记录和设置按钮共用样式，图标标题及action由调用方提供
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,candidateControls,func,551,KEEP,2026-11-20：全选按候选路径集合；已选数量和大小先去父子重复；删除先存pendingTrash再开确认，提示词按钮只开附属页
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,leftPane,func,636,KEEP,2026-11-20：根布局沿地图轮廓采样，LazyVStack只建可见候选行，按画布坐标计算行宽；点击只改变selectedPaths
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,candidateWidth,func,675,KEEP,2026-11-20：leftPane逐行以中心水平线与轮廓边求交，取最左交点作候选右界，未交返回0，调用处限制最终宽非负
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,categoryDetail,func,922,KEEP,2026-11-20：rightPane显示分类字节、扫描根、精确pathBytes和coverageHelp；普通VStack一次创建全部明细，留下一批按可见区域构建
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,refreshedNavigationNode,func,964,KEEP,2026-11-20：indexRevision更新时实际路径查新树，disk-files按父ownSize更新；展示分组递归剔除消失成员并重算字节、排序和数量
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigate,func,985,KEEP,2026-11-20：深链、根按钮、面包屑和图块共用；下钻重建路径前缀，回祖先保留前进记录；未退出分类模式留下一批处理
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigateHistory,func,993,KEEP,2026-11-20：手势、Esc、前后按钮和地图返回共用，只将历史游标移动到已存在索引，不重建目录树
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,topDirectories,func,1002,KEEP,2026-11-20：buildAgentPrompt唯一调用，局部visit遍历已保留树前4层的正大小目录，按字节降序取默认12项，父子可同时列出
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,buildAgentPrompt,func,1017,KEEP,2026-11-20：附属页预览和复制共用当前快照、候选与目录Top；不执行删除；目前把缓存说成刚扫描、所有跳过说成不可读，且generic参数无选择入口，留下一批精简
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,copyAgentPrompt,func,1069,KEEP,2026-11-20：附属页按钮复用生成函数，将正文写系统剪贴板并关闭提示词页；agentKind目前只有generic初值
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,selectedBytesForPending,func,1250,KEEP,2026-11-20：删除确认框先去掉pendingTrash内已被父路径覆盖的项，再从当前快照合计真实节点字节，不操作文件
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,performTrash,func,1256,KEEP,2026-11-20：确认删除取出并清空pendingTrash，非空才交store.trash；按回传成功数、字节和lastError显示结果
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageCandidateRow,displayPath,func,1281,KEEP,2026-11-20：候选行只把当前home本身或home/后代缩写为~，其他路径原样显示，不误缩写同名前缀
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskVoronoiLayout,make,func,42,KEEP,DiskLayoutCache.tiles:133
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskVoronoiLayout,inradius,func,125,KEEP,DiskVoronoiLayout.make 在布局时计算标签质心到各边的最小距离，供标签档位和宽度复用；悬停不再求内切圆半径
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskLayoutCache,tiles,func,147,KEEP,StorageTreemap.body:171
