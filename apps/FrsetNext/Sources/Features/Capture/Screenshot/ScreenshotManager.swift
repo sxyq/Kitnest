@@ -1499,7 +1499,6 @@ public final class ScreenshotManager: ObservableObject {
             Toast.show(statusMessage!, icon: "exclamationmark.triangle", isWarning: true)
             return
         }
-        CaptureEventBus.onTextRecognized?(ocrText)
         statusMessage = "识别结果已复制"
     }
 
