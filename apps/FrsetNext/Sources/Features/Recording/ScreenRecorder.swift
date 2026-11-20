@@ -16,17 +16,13 @@ import ScreenCaptureKit
 //   · 合成只画小画布（键帽条 / 点击环），不做全画布绘制——4K 全画布一帧 33MB。
 
 public enum RecordingError: LocalizedError {
-    case permissionDenied
     case noDisplay
     case writerFailed(String)
-    case streamFailed(String)
 
     public var errorDescription: String? {
         switch self {
-        case .permissionDenied: return "没有屏幕录制权限，无法录屏"
         case .noDisplay:        return "找不到可录制的显示器"
         case .writerFailed(let m): return "写入失败：\(m)"
-        case .streamFailed(let m): return "录制中断：\(m)"
         }
     }
 }
@@ -326,7 +322,6 @@ public final class ScreenRecorder: ObservableObject {
 
     @Published public private(set) var state: State = .idle
     @Published public private(set) var elapsed: TimeInterval = 0
-    @Published public private(set) var outputURL: URL?
     @Published public private(set) var errorText: String?
     @Published public private(set) var unavailableFeatures: [String] = []
 
@@ -447,7 +442,6 @@ public final class ScreenRecorder: ObservableObject {
                 state = .idle
                 return
             }
-            outputURL = url
 
             startedAt = Date()
             accumulated = 0
@@ -537,7 +531,6 @@ public final class ScreenRecorder: ObservableObject {
             HapticFeedback.perform(.operationFailed)
             return nil
         }
-        outputURL = file
         let seconds = max(1, Int(elapsed.rounded()))
         if let errorText {
             Toast.show("\(errorText)；已保存中断前视频", icon: "exclamationmark.triangle", isWarning: true)
