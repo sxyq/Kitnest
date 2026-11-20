@@ -46,7 +46,7 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
     private let pixelScale: CGFloat
 
     private let queue = DispatchQueue(label: "kitnest.recording.pipeline")
-    private let audioQueue = DispatchQueue(label: "kitnest.recording.audio")
+    private let sampleQueue: DispatchQueue
     private let cameraQueue = DispatchQueue(label: "kitnest.recording.camera")
 
     private var writer: AVAssetWriter?
@@ -67,12 +67,13 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
     var onStopped: ((Error) -> Void)?
 
     init(options: RecordingOptions, videoSize: CGSize, regionOrigin: CGPoint,
-         pixelScale: CGFloat, outputURL: URL) {
+         pixelScale: CGFloat, outputURL: URL, sampleQueue: DispatchQueue) {
         self.options = options
         self.videoSize = videoSize
         self.regionOrigin = regionOrigin
         self.pixelScale = pixelScale
         self.outputURL = outputURL
+        self.sampleQueue = sampleQueue
         super.init()
     }
 
@@ -136,7 +137,7 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
     }
 
     func setPaused(_ value: Bool) {
-        queue.async { self.paused = value }
+        sampleQueue.async { self.paused = value }
     }
 
     /// 收尾：标记结束 → 等 finishWriting → 返回文件
@@ -144,18 +145,22 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
         await withCheckedContinuation { continuation in
             queue.async {
                 self.stopDevices()
-                guard let writer = self.writer, writer.status == .writing else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-                self.videoInput?.markAsFinished()
-                self.audioInput?.markAsFinished()
-                writer.finishWriting {
-                    let ok = writer.status == .completed
-                    if !ok {
-                        Log.error("Recording", "finishWriting 失败：\(writer.error?.localizedDescription ?? "?")")
+                // 设备已停止，再等同一写盘队列内的在途音视频回调执行完。
+                self.sampleQueue.async {
+                    guard let writer = self.writer, writer.status == .writing else {
+                        continuation.resume(returning: nil)
+                        return
                     }
-                    continuation.resume(returning: ok ? self.outputURL : nil)
+                    self.writer = nil
+                    self.videoInput?.markAsFinished()
+                    self.audioInput?.markAsFinished()
+                    writer.finishWriting {
+                        let ok = writer.status == .completed
+                        if !ok {
+                            Log.error("Recording", "finishWriting 失败：\(writer.error?.localizedDescription ?? "?")")
+                        }
+                        continuation.resume(returning: ok ? self.outputURL : nil)
+                    }
                 }
             }
         }
@@ -201,7 +206,7 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
         }
         session.addInput(input)
         let output = AVCaptureAudioDataOutput()
-        output.setSampleBufferDelegate(self, queue: audioQueue)
+        output.setSampleBufferDelegate(self, queue: sampleQueue)
         guard session.canAddOutput(output) else { return false }
         session.addOutput(output)
         session.commitConfiguration()
@@ -287,9 +292,8 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
     // MARK: 音频
 
     private func handleAudio(_ sampleBuffer: CMSampleBuffer) {
-        guard options.audio == .system, let audioInput,
+        guard sessionStarted, !paused, let writer, writer.status == .writing, let audioInput,
               audioInput.isReadyForMoreMediaData else { return }
-        if paused { return }
         audioInput.append(sampleBuffer)
     }
 
@@ -303,10 +307,7 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
             return
         }
         // 麦克风
-        guard options.audio == .microphone, let audioInput,
-              audioInput.isReadyForMoreMediaData else { return }
-        if paused { return }
-        audioInput.append(sampleBuffer)
+        if options.audio == .microphone { handleAudio(sampleBuffer) }
     }
 }
 
@@ -412,7 +413,8 @@ public final class ScreenRecorder: ObservableObject {
                                              videoSize: setup.videoSize,
                                              regionOrigin: setup.regionOrigin,
                                              pixelScale: setup.pixelScale,
-                                             outputURL: url)
+                                             outputURL: url,
+                                             sampleQueue: setup.queue)
             let stream = SCStream(filter: setup.filter, configuration: setup.config, delegate: pipeline)
             try stream.addStreamOutput(pipeline, type: .screen, sampleHandlerQueue: setup.queue)
             if options.audio == .system {
