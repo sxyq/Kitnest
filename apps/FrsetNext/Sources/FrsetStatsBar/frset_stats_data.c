@@ -9,7 +9,6 @@
 #include <mach/mach.h>
 #include <sys/sysctl.h>
 #include <sys/mount.h>
-#include <signal.h>          // v84：frset_kill_bundle 的 kill/SIGTERM/SIGKILL
 #include <unistd.h>          // v84：getpid
 #include <pthread.h>         // v86：frset_net_top 后台采样线程
 #include <time.h>            // v86：clock_gettime（nettop 差分）
@@ -722,114 +721,6 @@ int frset_proc_top(int kind, frset_proc_t *out, int max) {
     /* v128：pids 缓冲已在扫描分支内释放（缓存命中时根本没有 pids） */
     return m;
 }
-
-// ============ v84：进程按 App 归类（移植自注入版 v30 / WonderBox 口径） ============
-//   路径 → bundle：找第一个 ".app/" 子串，取到 ".app" 为止（如
-//   /Applications/Google Chrome.app/Contents/Frameworks/.../Helper → "….app"）。
-//   无 .app 的进程（CLI/系统守护进程）以完整可执行路径为键保持独立成行。
-//   归类意义：Chrome 的 N 个渲染进程只占一行、可整组退出；图标取宿主 App。
-
-static int frset_bundle_of(const char *path, char *out, size_t n) {
-    if (!path || !path[0]) return 0;
-    const char *p = strstr(path, ".app/");
-    if (!p) return 0;
-    size_t len = (size_t)(p - path) + 4;   // 含 ".app"
-    if (len == 0 || len >= n) return 0;
-    memcpy(out, path, len);
-    out[len] = 0;
-    return 1;
-}
-
-int frset_proc_grouped(int kind, frset_proc_grp_t *out, int max) {
-    if (!out || max <= 0) return 0;
-    static frset_proc_t tmp[256];
-    int n = frset_proc_top(kind, tmp, 256);
-    if (n <= 0) return 0;
-
-    static frset_proc_grp_t grps[256];
-    static int taken[256];
-    int ng = 0;
-    for (int i = 0; i < n; i++) {
-        char bundle[512] = {0};
-        int hasBundle = frset_bundle_of(tmp[i].path, bundle, sizeof(bundle));
-        const char *key = hasBundle ? bundle : tmp[i].path;
-        if (!key[0]) key = tmp[i].name;
-        // 查已有组
-        int gi = -1;
-        for (int j = 0; j < ng; j++) {
-            if (strcmp(grps[j].bundle, key) == 0) { gi = j; break; }
-        }
-        if (gi < 0) {
-            if (ng >= 256) continue;
-            gi = ng++;
-            memset(&grps[gi], 0, sizeof(grps[gi]));
-            snprintf(grps[gi].bundle, sizeof(grps[gi].bundle), "%s", key);
-            if (hasBundle) {
-                const char *slash = strrchr(key, '/');
-                const char *base = slash ? slash + 1 : key;
-                size_t bl = strlen(base);
-                if (bl > 4 && strcmp(base + bl - 4, ".app") == 0) bl -= 4;
-                if (bl >= sizeof(grps[gi].name)) bl = sizeof(grps[gi].name) - 1;
-                memcpy(grps[gi].name, base, bl);
-                grps[gi].name[bl] = 0;
-                snprintf(grps[gi].icon_path, sizeof(grps[gi].icon_path), "%s", key);
-            } else {
-                snprintf(grps[gi].name, sizeof(grps[gi].name), "%s", tmp[i].name);
-                snprintf(grps[gi].icon_path, sizeof(grps[gi].icon_path), "%s", tmp[i].path);
-            }
-        }
-        grps[gi].cpu += tmp[i].cpu;
-        grps[gi].mem += tmp[i].mem;
-        grps[gi].disk_r += tmp[i].disk_r;
-        grps[gi].disk_w += tmp[i].disk_w;
-        grps[gi].procCount++;
-        if (grps[gi].pidCount < 64) grps[gi].pids[grps[gi].pidCount++] = tmp[i].pid;
-    }
-
-    memset(taken, 0, sizeof(taken));
-    int m = (max < ng) ? max : ng;
-    for (int i = 0; i < m; i++) {
-        int best = -1;
-        for (int j = 0; j < ng; j++) {
-            if (taken[j]) continue;
-            if (best < 0) { best = j; continue; }
-            double sj = (kind == 1) ? grps[j].mem : ((kind == 2) ? (grps[j].disk_r + grps[j].disk_w) : grps[j].cpu);
-            double sb = (kind == 1) ? grps[best].mem : ((kind == 2) ? (grps[best].disk_r + grps[best].disk_w) : grps[best].cpu);
-            if (sj > sb) best = j;
-        }
-        if (best < 0) { m = i; break; }
-        out[i] = grps[best];
-        taken[best] = 1;
-    }
-    return m;
-}
-
-int frset_kill_bundle(const char *bundle, int force) {
-    if (!bundle || !bundle[0]) return 0;
-    int me = getpid();
-    int n = proc_listallpids(NULL, 0);
-    if (n <= 0) return 0;
-    int cap = n + 64;
-    pid_t *pids = malloc(sizeof(pid_t) * (size_t)cap);
-    if (!pids) return 0;
-    n = proc_listallpids(pids, (int)(sizeof(pid_t) * (size_t)cap));
-    if (n <= 0) { free(pids); return 0; }
-    size_t blen = strlen(bundle);
-    int killed = 0;
-    for (int i = 0; i < n; i++) {
-        pid_t pid = pids[i];
-        if (pid <= 0 || pid == me) continue;   // 跳过自身（防「退出 Frset 面板自爆」）
-        char pbuf[4096] = {0};
-        if (proc_pidpath(pid, pbuf, sizeof(pbuf)) <= 0) continue;
-        int match = (strcmp(pbuf, bundle) == 0) ||
-                    (strncmp(pbuf, bundle, blen) == 0 && pbuf[blen] == '/');
-        if (!match) continue;
-        if (kill(pid, force ? SIGKILL : SIGTERM) == 0) killed++;
-    }
-    free(pids);
-    return killed;
-}
-
 
 int frset_gpu_usage(double *device, double *renderer, double *tiler) {
     // 输出先清零：某些芯片/系统版本缺个别键（如 Tiler Utilization %），

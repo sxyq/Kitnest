@@ -542,7 +542,7 @@ public final class StatsDataProvider {
     /// 并把 C 层取样上限放宽到 64——否则带多个 Helper 的 App（Chrome/Edge）会被截断，
     /// 展开后看不到真正的「大头」子进程。UI 侧只展示前 N 组。
     /// v86（用户反馈「图标没有正确展现 / 归类不准」）：改成**按可执行路径的 .app bundle 归类**，
-    /// 与注入版 frset_proc_grouped 同一口径——不再按进程名猜 App。
+    /// 复用 appBundlePath 读取宿主应用目录，不再按进程名猜 App。
     ///   · 归类键 = `/Applications/X.app`（Chrome 的 N 个 Helper/Renderer 自动归一行）
     ///   · 图标路径 = 同一个 bundle 路径 → NSWorkspace 直接取宿主 App 图标（不再靠名字匹配表）
     ///   · 无 .app 的守护进程/CLI = 按可执行路径独立成行，图标取该可执行文件图标
@@ -686,7 +686,7 @@ public final class StatsDataProvider {
     private static let procBuffer = UnsafeMutablePointer<frset_proc_t>.allocate(capacity: 512)
     private static let procBufferLock = NSLock()
 
-    /// 可执行路径 → 宿主 `.app` 路径（与 C 层 frset_bundle_of 同规则：截到第一个 ".app" 为止）。
+    /// 可执行路径 → 宿主 `.app` 路径，截到第一个 ".app" 为止。
     /// 例：`/Applications/Google Chrome.app/Contents/Frameworks/…/Helper` → `/Applications/Google Chrome.app`
     static func appBundlePath(_ path: String) -> String? {
         guard let range = path.range(of: ".app/") else { return nil }
