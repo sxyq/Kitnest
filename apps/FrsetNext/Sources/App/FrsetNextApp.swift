@@ -174,10 +174,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
             switch url.host {
             case "island":
-                if let value = comps?.queryItems?.first(where: { $0.name == "page" })?.value,
-                   let page = IslandPage(rawValue: value), IslandController.shared.page != page { IslandController.shared.page = page }
+                let requestedPage = comps?.queryItems?.first(where: { $0.name == "page" })?.value
+                    .flatMap(IslandPage.init(rawValue:))
                 if comps?.queryItems?.first(where: { $0.name == "action" })?.value == "collapse" {
+                    if let requestedPage { IslandController.shared.selectDeepLinkPage(requestedPage) }
                     IslandController.shared.collapse()
+                } else if let requestedPage {
+                    IslandController.shared.open(page: requestedPage)
                 } else { IslandController.shared.open() }
             case "settings":
                 let pane = comps?

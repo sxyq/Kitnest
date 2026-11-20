@@ -54,6 +54,10 @@ EVIDENCE = {
         "2026-11-20：AppDelegate完成原归档退出确认后调用；无待更新时返回原结果，取消清本次目录，允许才启动等待原PID退出的替换程序；启动失败取消退出并提示",
     ("Features/Island/IslandController.swift", "rememberPage"):
         "2026-11-20：主线草稿页面变化与selectPage共用；正式记忆模式且当前屏幕页面发生变化时写入lastPageByDisplay，持久化成功再发布配置，失败显示原提示",
+    ("Features/Island/IslandController.swift", "selectDeepLinkPage"):
+        "2026-11-21：kitnest://island?page=...使用；任务页沿原selectPage策略更新，功能详情页仅切换当前显示页，不覆盖固定或记忆页配置",
+    ("Features/Island/IslandController.swift", "openIsland"):
+        "2026-11-21：公开open()与open(page:)共用；未指定目标时应用固定/记忆展开策略，深链指定目标时保留该页并展开，不再被默认页策略覆盖",
     ("Features/Island/IslandDisplay.swift", "entrySize"):
         "2026-11-20：主线草稿入口尺寸属性与entryFrame共用；真实刘海读左右安全区间距和顶部安全高度，普通屏沿配置宽度及28pt高度",
     ("Features/Island/IslandDisplay.swift", "entryFrame"):

@@ -599,6 +599,26 @@ public struct SearchSectionView: View {
             searchField
             if isSettingsPreview { previewStatus }
 
+            if initialCategory != nil, trimmedQuery.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("搜索整个 Kitnest", systemImage: "magnifyingglass")
+                        .font(.system(size: 12, weight: .medium))
+                    Text("输入关键词搜索已启用的来源；输入 / 浏览可用命令。")
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
+                    Button {
+                        query = "/"
+                        searchFieldFocused = true
+                    } label: {
+                        Label("浏览快捷命令", systemImage: "command")
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .buttonStyle(IslandButtonStyle())
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .glassCard(radius: Theme.Radius.control)
+            }
+
             // v60：空查询不再保留 112pt 原版建议位留白（用户反馈留白过多）——
             // 搜索框下直接接日历卡（homePage 已有 12pt 常规间隔）；
             // 输入后结果区按内容高度动态向下展开，清空即收回。

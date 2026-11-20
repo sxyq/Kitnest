@@ -262,6 +262,11 @@ final class IslandController: NSObject, ObservableObject {
         if remember { rememberPage(page) }
     }
 
+    func selectDeepLinkPage(_ requested: IslandPage) {
+        if IslandPage.tabs.contains(requested) { selectPage(requested) }
+        else { page = requested }
+    }
+
     private func rememberPage(_ page: IslandPage) {
         guard !previewOnly, configuration.openingPageMode == .remember,
               IslandPage.tabs.contains(page),
@@ -405,6 +410,14 @@ final class IslandController: NSObject, ObservableObject {
     }
 
     @objc func open() {
+        openIsland(page: nil)
+    }
+
+    func open(page: IslandPage) {
+        openIsland(page: page)
+    }
+
+    private func openIsland(page requestedPage: IslandPage?) {
         if !previewOnly {
             guard configuration.enabled else { ServiceLocator.settings?.open(pane: "island"); return }
             show()
@@ -412,7 +425,8 @@ final class IslandController: NSObject, ObservableObject {
                 move(to: target)
             }
         }
-        expand(takeFocus: true)
+        if let requestedPage { selectDeepLinkPage(requestedPage) }
+        expand(takeFocus: true, useOpeningPage: requestedPage == nil)
     }
 
     private func show() {
