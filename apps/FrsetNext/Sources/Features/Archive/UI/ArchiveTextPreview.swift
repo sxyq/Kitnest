@@ -170,10 +170,7 @@ struct ArchiveTextPreview: View {
         case .json:
             JSONInspectorView(text: draft)
         case .code:
-            PreviewTextViewRepresentable(
-                attributedText: PreviewMarkdownRenderer.renderCodeBody(draft),
-                monospaced: true,
-                showsLineNumbers: true)
+            ArchiveCodePreviewBody(code: draft)
         case .plain:
             PreviewTextViewRepresentable(attributedText: plainAttributed(draft))
         }
@@ -194,5 +191,32 @@ struct ArchiveTextPreview: View {
             .foregroundColor: NSColor.labelColor,
             .paragraphStyle: style,
         ])
+    }
+}
+
+private struct ArchiveCodePreviewBody: View {
+    let code: String
+    @Stored private var rendered: NSAttributedString? = nil
+
+    var body: some View {
+        Group {
+            if let rendered {
+                PreviewTextViewRepresentable(attributedText: rendered,
+                                             monospaced: true,
+                                             showsLineNumbers: true)
+            } else {
+                ProgressView("正在排版…").controlSize(.small)
+            }
+        }
+        .task(id: code) { await loadCode() }
+    }
+
+    private func loadCode() async {
+        rendered = nil
+        let result = await Task.detached(priority: .userInitiated) {
+            PreviewMarkdownRenderer.renderCodeBody(code)
+        }.value
+        guard !Task.isCancelled else { return }
+        rendered = result
     }
 }

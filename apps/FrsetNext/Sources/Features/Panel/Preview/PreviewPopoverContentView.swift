@@ -331,7 +331,7 @@ struct MarkdownFilePreviewBody: View {
     let restoreKey: String
     /// v181：窄容器（归档窗口右栏）关掉左侧目录，把宽度让给正文
     var showsTOC: Bool = true
-    @Stored private var rendered: NSAttributedString
+    @Stored private var rendered: NSAttributedString? = nil
     @Stored private var headings: [MarkdownHeading] = []
     @Stored private var sourceSegments: [(rendered: NSRange, source: NSRange)] = []
     @Stored private var scrollRequest: Int? = nil
@@ -341,22 +341,35 @@ struct MarkdownFilePreviewBody: View {
         self.text = text
         self.restoreKey = restoreKey
         self.showsTOC = showsTOC
-        let parsed = PreviewMarkdownRenderer.renderBody(text)
-        self._rendered = Stored(wrappedValue: parsed.body)
-        self._headings = Stored(wrappedValue: parsed.headings)
-        self._sourceSegments = Stored(wrappedValue: parsed.segments)
     }
 
     var body: some View {
-        MarkdownPreviewBody(
-            text: text,
-            scrollRestoreKey: restoreKey,
-            rendered: rendered,
-            headings: headings,
-            sourceSegments: sourceSegments,
-            scrollRequest: $scrollRequest,
-            activeHeading: $activeHeading,
-            showsTOC: showsTOC)
+        Group {
+            if let rendered {
+                MarkdownPreviewBody(
+                    text: text,
+                    scrollRestoreKey: restoreKey,
+                    rendered: rendered,
+                    headings: headings,
+                    sourceSegments: sourceSegments,
+                    scrollRequest: $scrollRequest,
+                    activeHeading: $activeHeading,
+                    showsTOC: showsTOC)
+            } else {
+                PreviewLoadingIndicator(delay: MainPanelPreviewPopoverCoordinator.shared.previewLoadingIndicatorDelay)
+                    .frame(maxWidth: .infinity, minHeight: MainPanelPreviewPopoverCoordinator.shared.textPreviewLoadingMinHeight)
+            }
+        }
+        .task(id: text) {
+            rendered = nil
+            let parsed = await Task.detached(priority: .userInitiated) {
+                PreviewMarkdownRenderer.renderBody(text)
+            }.value
+            guard !Task.isCancelled else { return }
+            rendered = parsed.body
+            headings = parsed.headings
+            sourceSegments = parsed.segments
+        }
     }
 }
 
@@ -454,13 +467,6 @@ struct PreviewMarkdownTextView: View {
         self.model = model
     }
 
-    /// 正文 + 标题锚点 + 渲染↔源映射（目录由左侧栏渲染；⌘C 复制回源用）
-    static func render(_ text: String) -> (body: NSAttributedString,
-                                           headings: [MarkdownHeading],
-                                           segments: [(rendered: NSRange, source: NSRange)]) {
-        PreviewMarkdownRenderer.renderBody(text)
-    }
-
     var body: some View {
         Group {
             if let rendered {
@@ -478,7 +484,9 @@ struct PreviewMarkdownTextView: View {
         }
         .task(id: model.sessionID) {
             let text = model.inlineText
-            let parsed = await Task.detached(priority: .userInitiated) { Self.render(text) }.value
+            let parsed = await Task.detached(priority: .userInitiated) {
+                PreviewMarkdownRenderer.renderBody(text)
+            }.value
             guard !Task.isCancelled else { return }
             rendered = parsed.body
             headings = parsed.headings

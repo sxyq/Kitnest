@@ -102,6 +102,8 @@ EVIDENCE = {
         "JSONTableView.body调用；同一JSONDocument与列键直接返回已构造行，文档或列键变化时重建，缓存不发布界面状态",
     ("Features/Panel/Inspector/JSONInspectorView.swift", "discardRows"):
         "JSONInspectorView切离表格模式调用；释放缓存行、文档引用和列键，不触发表格或其他视图更新",
+    ("Features/Archive/UI/ArchiveTextPreview.swift", "loadCode"):
+        "ArchiveCodePreviewBody.task调用；在后台按当前代码草稿生成原语法着色与行号排版，草稿变化时丢弃旧结果并复用原PreviewTextViewRepresentable",
     ("Features/Capture/History/CaptureHistoryView.swift", "loadThumbnail"):
         "CaptureHistoryThumbnail.task调用；后台ImageIO读取并生成最长边240像素图像，任务完成且未取消时在原单元格状态中显示，缺图沿占位图呈现",
     ("Features/Capture/Screenshot/ScreenshotManager.swift", "loadThumbnail"):
