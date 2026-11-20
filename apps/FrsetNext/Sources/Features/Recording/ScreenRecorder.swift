@@ -540,7 +540,7 @@ public final class ScreenRecorder: ObservableObject {
             Toast.show("录制完成 · \(seconds / 60):\(String(format: "%02d", seconds % 60))", icon: "checkmark.circle.fill")
         }
         // 录制完成 → 打开编辑器（用户可直接裁剪 / 导出）
-        RecordingEditorController.shared.open(url: file)
+        await RecordingEditorController.shared.open(url: file)
         return file
     }
 
