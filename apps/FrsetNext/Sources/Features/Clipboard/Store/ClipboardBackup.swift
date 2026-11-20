@@ -449,7 +449,8 @@ enum ClipboardBackup {
             }
             guard let previous = current[item.dedupeKey] else { added += 1; continue }
             var reasons: [String] = []
-            if item.isNote != previous.isNote { reasons.append("笔记标记不同") }
+            if item.isNote != previous.isNote { reasons.append("已存状态不同") }
+            if item.isFavorite != previous.isFavorite { reasons.append("收藏状态不同") }
             if item.title != previous.title || item.aliasTitle != previous.aliasTitle { reasons.append("标题不同") }
             if Set(item.tagIDs.compactMap { incomingTags[$0] }) != Set(previous.tagIDs.compactMap { localTags[$0] }) {
                 reasons.append("标签不同")
@@ -695,7 +696,7 @@ enum ClipboardBackup {
     }
 
     private static func counts(_ manifest: Manifest) -> String {
-        "条目 \(manifest.items.count) · 笔记 \(manifest.items.filter(\.isNote).count) · 附件 \(manifest.attachments.count)"
+        "条目 \(manifest.items.count) · 收藏 \(manifest.items.filter(\.isNote).count) · 附件 \(manifest.attachments.count)"
     }
 
     private static func temporaryDirectory() throws -> URL {

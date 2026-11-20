@@ -236,6 +236,7 @@ public final class DatabaseManager {
             thumbnail_path TEXT,
             is_generated_by_tool INTEGER DEFAULT 0,
             is_note INTEGER DEFAULT 0,
+            is_favorite INTEGER NOT NULL DEFAULT 0,
             source_tool_analytics_id TEXT,
             source_tool_keyword TEXT,
             text_path TEXT,
@@ -305,6 +306,12 @@ public final class DatabaseManager {
             created_at REAL NOT NULL
         );
         """)
+
+        if !(try clipboard.query("PRAGMA table_info(clipboard_items)")).contains(where: { $0.string("name") == "is_favorite" }) {
+            try clipboard.exec("ALTER TABLE clipboard_items ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0")
+            try clipboard.exec("UPDATE clipboard_items SET is_favorite = is_note WHERE is_note = 1")
+        }
+        try clipboard.exec("CREATE INDEX IF NOT EXISTS idx_items_favorite ON clipboard_items(is_favorite, timestamp DESC)")
 
         if !(try clipboard.query("PRAGMA table_info(clipboard_items)")).contains(where: { $0.string("name") == "file_categories" }) {
             try clipboard.transaction { db in

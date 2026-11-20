@@ -853,7 +853,6 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         /// 一次性交互提示（specs/14 §3.7：提示文案 cstring `0xb43d70` "双击条目可复制" /
         /// `0xb43da0` "单击条目可预览"）。⚠️ 原作对应的 defaults 键名未探明（specs/14 §7），
         /// 此处按工程既有键名风格自拟，语义为「该提示已消费」。
-        private static let singleClickPreviewHintKey = "hasSeenClipboardSingleClickPreviewHint"
         private static let doubleClickCopyHintKey = "hasSeenClipboardDoubleClickCopyHint"
 
         /// 首次触发时消费一次性提示键，返回是否需要展示
@@ -872,22 +871,8 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         }
 
         private func handleSingleClick(_ item: ClipboardItem) {
-            // 工具条操作目标 = 最后点击项（单击走预览路径不产生标准选中，
-            // 2026-10-18：编辑/上传按钮据此启用）
+            // 单击只选中条目；预览由悬停触发。
             NotificationCenter.default.post(name: .clipboardSelectionChanged, object: item)
-            // 单击与悬停共用当前预览窗；换条目由呈现入口连续调整尺寸。
-            if consumeOneTimeHint(Self.singleClickPreviewHintKey) {
-                Toast.show("单击条目打开预览窗", icon: "eye")
-            }
-            // v182（用户：「不要点开后常驻、带两个叉的框」）：
-            // 单击改走与 hover 同一条轻量预览路径（无标题栏、移出即关）。
-            // 常驻窗（.persistent）不再从这里产生。
-            let row = rowView(forItemID: item.id)
-            _ = ServiceLocator.panelPreview?.presentPreview(
-                for: item,
-                anchorRectInWindow: row.map { $0.convert($0.bounds, to: nil) },
-                anchorView: row,
-                isFloatingSource: false)
         }
 
         private func handleDoubleClick(_ item: ClipboardItem) {
@@ -1000,6 +985,12 @@ public final class ClipboardNativeMenuPresenter: NSObject {
         }
 
         addItem("复制", systemImage: "doc.on.doc") { manager.copy(item) }
+        addItem("粘贴", systemImage: "return.left") { manager.copy(item, autoPaste: true) }
+        addItem("预览", systemImage: "eye") {
+            _ = ServiceLocator.panelPreview?.presentPreview(
+                for: item, anchorRectInWindow: view.convert(view.bounds, to: nil),
+                anchorView: view, isFloatingSource: false)
+        }
         for action in ClipboardContentActions.items(for: item) {
             addItem(action.title, systemImage: action.systemImage, action.action)
         }
@@ -1020,7 +1011,10 @@ public final class ClipboardNativeMenuPresenter: NSObject {
         }
         addItem("编辑", systemImage: "pencil") { ClipboardItemEditWindowRecord.open(for: item) }
         addItem("重命名", systemImage: "character.cursor.ibeam") { ClipboardItemEditWindowRecord.open(for: item) }
-        addItem(item.isNote ? "取消笔记标记" : "标记为笔记", systemImage: "note.text") {
+        addItem(item.isFavorite ? "取消收藏" : "收藏", systemImage: item.isFavorite ? "star.fill" : "star") {
+            manager.toggleFavorite(item)
+        }
+        addItem(item.isNote ? "取消已存" : "标记为已存", systemImage: item.isNote ? "bookmark.fill" : "bookmark") {
             manager.setNote(item, isNote: !item.isNote)
         }
         addItem("AI 摘要", systemImage: "sparkles", enabled: canSummarize) {
@@ -1044,14 +1038,19 @@ public final class ClipboardNativeMenuPresenter: NSObject {
             empty.isEnabled = false
             tagMenu.addItem(empty)
         }
+        tagMenu.addItem(.separator())
+        let manageTags = NSMenuItem(title: "管理标签…", action: #selector(menuAction(_:)), keyEquivalent: "")
+        manageTags.target = self
+        manageTags.representedObject = BlockMenuItemAction {
+            NotificationCenter.default.post(name: TagStore.manageRequestedNotification, object: "panel")
+        }
+        tagMenu.addItem(manageTags)
         let tagRoot = NSMenuItem(title: "标签", action: nil, keyEquivalent: "")
         tagRoot.submenu = tagMenu
         menu.addItem(tagRoot)
 
         menu.addItem(.separator())
         addItem("删除", systemImage: "trash") {
-            // 条目删除 → 预览协调器同步关闭锚定预览（specs/12 F10 itemRemoved）
-            ServiceLocator.panelPreview?.notifyItemRemoved(itemID: item.id)
             manager.delete(item)
         }
 

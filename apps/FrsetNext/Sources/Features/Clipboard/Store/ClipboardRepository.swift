@@ -7,6 +7,7 @@ public struct ClipboardQuery {
     public var type: ClipboardItemType? = nil
     /// 仅笔记条目（is_note=1，05 号规格 B6：笔记走同一张表）
     public var noteOnly: Bool = false
+    public var favoriteOnly: Bool = false
     /// 仅工具回流条目（is_generated_by_tool=1，05 号规格 B10）
     public var toolGeneratedOnly: Bool = false
     /// 工具回流来源关键词（过滤项 .color → "colorpicker"；specs/14 §6，证据不足取来源映射）
@@ -25,6 +26,7 @@ public struct ClipboardQuery {
     public init(search: String = "",
                 type: ClipboardItemType? = nil,
                 noteOnly: Bool = false,
+                favoriteOnly: Bool = false,
                 toolGeneratedOnly: Bool = false,
                 generatedSourceKeyword: String? = nil,
                 codeLikeOnly: Bool = false,
@@ -36,6 +38,7 @@ public struct ClipboardQuery {
         self.search = search
         self.type = type
         self.noteOnly = noteOnly
+        self.favoriteOnly = favoriteOnly
         self.toolGeneratedOnly = toolGeneratedOnly
         self.generatedSourceKeyword = generatedSourceKeyword
         self.codeLikeOnly = codeLikeOnly
@@ -44,6 +47,18 @@ public struct ClipboardQuery {
         self.tagID = tagID
         self.limit = limit
         self.offset = offset
+    }
+
+    public init(filter: ClipboardFilterKind, search: String, tagID: String?,
+                limit: Int = ClipboardRepository.defaultPageSize, offset: Int = 0) {
+        let mapping = filter.queryMapping
+        self.init(search: search.trimmingCharacters(in: .whitespacesAndNewlines),
+                  type: mapping.type, noteOnly: mapping.noteOnly, favoriteOnly: filter == .favorite,
+                  toolGeneratedOnly: mapping.toolGeneratedOnly,
+                  generatedSourceKeyword: mapping.generatedSourceKeyword,
+                  codeLikeOnly: mapping.codeLikeOnly, urlLikeOnly: filter == .link,
+                  fileCategoryMask: mapping.fileCategoryMask, tagID: tagID,
+                  limit: limit, offset: offset)
     }
 }
 
@@ -61,7 +76,7 @@ public final class ClipboardRepository: @unchecked Sendable {
 
     static let columns = """
         id, type, content, title, subtitle, timestamp, source_app, image_path, thumbnail_path,
-        is_generated_by_tool, is_note, source_tool_analytics_id, source_tool_keyword, text_path,
+        is_generated_by_tool, is_note, is_favorite, source_tool_analytics_id, source_tool_keyword, text_path,
         rich_text_path, full_text_char_count, full_text_line_count, source_input, file_icon_key,
         image_dimension_unit, payload_key, storage_bytes, dedupe_key, alias_title, file_categories
         """
@@ -72,6 +87,7 @@ public final class ClipboardRepository: @unchecked Sendable {
             values.append(.text(type.rawValue))
         }
         if query.noteOnly { clauses.append("is_note = 1") }
+        if query.favoriteOnly { clauses.append("is_favorite = 1") }
         if query.fileCategoryMask != 0 {
             clauses.append("(file_categories & ?) != 0")
             values.append(.int(Int64(query.fileCategoryMask)))
@@ -183,10 +199,10 @@ public final class ClipboardRepository: @unchecked Sendable {
         let sql = """
             INSERT INTO clipboard_items (
                 id, type, content, title, subtitle, timestamp, source_app, image_path, thumbnail_path,
-                is_generated_by_tool, is_note, source_tool_analytics_id, source_tool_keyword, text_path,
+                is_generated_by_tool, is_note, is_favorite, source_tool_analytics_id, source_tool_keyword, text_path,
                 rich_text_path, full_text_char_count, full_text_line_count, source_input, file_icon_key,
                 image_dimension_unit, payload_key, storage_bytes, dedupe_key, alias_title, file_categories
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """
         do {
             try db.run(sql, Self.bindings(item))
@@ -247,10 +263,29 @@ public final class ClipboardRepository: @unchecked Sendable {
         }
     }
 
-    /// 切换条目的笔记标记。
-    public func updateNote(dedupeKey: String, isNote: Bool) {
-        try? db.run("UPDATE clipboard_items SET is_note = ? WHERE dedupe_key = ?",
-                    [.int(isNote ? 1 : 0), .text(dedupeKey)])
+    /// 收藏状态沿用 is_note，确保已存记录继续豁免历史清理并兼容备份。
+    @discardableResult
+    public func updateNote(dedupeKey: String, isNote: Bool) -> Bool {
+        do {
+            try db.run("UPDATE clipboard_items SET is_note = ? WHERE dedupe_key = ?",
+                        [.int(isNote ? 1 : 0), .text(dedupeKey)])
+            return true
+        } catch {
+            Log.error("clipboard", "已存状态保存失败: \(error)")
+            return false
+        }
+    }
+
+    @discardableResult
+    public func updateFavorite(dedupeKey: String, isFavorite: Bool) -> Bool {
+        do {
+            try db.run("UPDATE clipboard_items SET is_favorite = ? WHERE dedupe_key = ?",
+                       [.int(isFavorite ? 1 : 0), .text(dedupeKey)])
+            return true
+        } catch {
+            Log.error("clipboard", "收藏状态保存失败: \(error)")
+            return false
+        }
     }
 
     // MARK: 删
@@ -372,6 +407,7 @@ public final class ClipboardRepository: @unchecked Sendable {
             dedupeKey: row.string("dedupe_key") ?? "",
             aliasTitle: row.string("alias_title"),
             tagIDs: [],
+            isFavorite: row.bool("is_favorite"),
             fileCategories: Int(row.int("file_categories"))
         )
     }
@@ -391,6 +427,7 @@ public final class ClipboardRepository: @unchecked Sendable {
             optionalText(item.thumbnailPath),
             .int(item.isGeneratedByTool ? 1 : 0),
             .int(item.isNote ? 1 : 0),
+            .int(item.isFavorite ? 1 : 0),
             optionalText(item.sourceToolAnalyticsId),
             optionalText(item.sourceToolKeyword),
             optionalText(item.textPath),

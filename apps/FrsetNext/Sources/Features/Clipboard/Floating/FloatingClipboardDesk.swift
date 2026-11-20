@@ -6,7 +6,7 @@ import UniformTypeIdentifiers
 //
 // 参照（用户 2026-11-03 指定，要求"一模一样"）：
 //   · 无标题栏的大圆角浮窗，**搜索常驻顶部**，打开即可打字（不用先点搜索框）
-//   · 一行分类：全部 / 文本 / 图片 / 链接 / 文件 / 代码 / 颜色 / 工具 / 笔记
+//   · 一行分类：全部 / 文本 / 图片 / 链接 / 文件 / 代码 / 颜色 / 工具 / 已存
 //   · 双列瀑布卡片，卡片没有标题行，内容直接铺满
 //   · 左下角来源 App 图标，右下角相对时间
 //   · 粘完即走（面板立刻消失，焦点回到原 App）
@@ -171,6 +171,7 @@ public final class FloatingClipDeskStore: ObservableObject {
     }()
     private let queue = DispatchQueue(label: "frset.clipdesk.query", qos: .userInitiated)
     private var observer: NSObjectProtocol?
+    private var tagObserver: NSObjectProtocol?
     private var previewSource: [ClipboardItem] = []
     private var previewContents: [String: PreviewPopoverContentModel] = [:]
 
@@ -193,6 +194,9 @@ public final class FloatingClipDeskStore: ObservableObject {
                 guard FloatingClipboardPinState.shared.isVisible else { return }
                 self?.reload(debounce: true)
             }
+        tagObserver = NotificationCenter.default.addObserver(
+            forName: TagStore.didChangeNotification, object: nil, queue: .main
+        ) { [weak self] note in self?.applyTagChange(note) }
     }
 
     deinit {
@@ -200,6 +204,7 @@ public final class FloatingClipDeskStore: ObservableObject {
         queryWork?.cancel()
         previewTask?.cancel()
         if let observer { NotificationCenter.default.removeObserver(observer) }
+        if let tagObserver { NotificationCenter.default.removeObserver(tagObserver) }
     }
 
     // MARK: 查询
@@ -238,20 +243,10 @@ public final class FloatingClipDeskStore: ObservableObject {
     private func fetch(append: Bool = false) {
         let kind = self.kind
         let search = self.search.trimmingCharacters(in: .whitespacesAndNewlines)
-        let mapping = kind.queryMapping
-        var query = ClipboardQuery()
-        query.type = mapping.type
-        query.noteOnly = mapping.noteOnly
-        query.toolGeneratedOnly = mapping.toolGeneratedOnly
-        query.generatedSourceKeyword = mapping.generatedSourceKeyword
-        query.codeLikeOnly = mapping.codeLikeOnly
-        query.fileCategoryMask = mapping.fileCategoryMask
-        query.urlLikeOnly = (kind == .link)   // v202：链接分类兼容历史 text 条目
-        query.search = search
-        query.tagID = tagFilterID
+        let query = ClipboardQuery(filter: kind, search: search, tagID: tagFilterID,
+                                   limit: append ? 120 : max(120, items.count),
+                                   offset: append ? items.count : 0)
         let queryChanged = kind != loadedKind || search != loadedSearch || tagFilterID != loadedTagFilterID
-        query.limit = append || queryChanged ? 120 : max(120, items.count)
-        query.offset = append ? items.count : 0
         queryStateLock.lock()
         let generation = queryGeneration
         queryStateLock.unlock()
@@ -298,6 +293,33 @@ public final class FloatingClipDeskStore: ObservableObject {
         return generation == queryGeneration
     }
 
+    private func applyTagChange(_ note: Notification) {
+        guard !settingsPreview, let info = note.userInfo else { return }
+        if info["mappingReplaced"] as? Bool == true {
+            if FloatingClipboardPinState.shared.isVisible { reload(debounce: true) }
+            return
+        }
+        let tagID = info["tagID"] as? String
+        if info["removed"] as? Bool == true, tagFilterID == tagID {
+            tagFilterID = nil
+            return
+        }
+        guard FloatingClipboardPinState.shared.isVisible else { return }
+        let keys = Set(info["keys"] as? [String] ?? [])
+        if !keys.isEmpty {
+            var updated = items
+            for index in updated.indices where keys.contains(updated[index].dedupeKey) {
+                updated[index].tagIDs = TagStore.shared.tagIDs(forDedupeKey: updated[index].dedupeKey)
+            }
+            if updated != items { items = updated }
+        }
+        if tagFilterID == tagID || isLoading {
+            reload(debounce: false)
+        } else if keys.contains(selectedItem?.dedupeKey ?? "") {
+            rebuildPreviewModel()
+        }
+    }
+
     // MARK: 操作
 
     public func loadMoreIfNeeded(_ item: ClipboardItem) {
@@ -322,7 +344,6 @@ public final class FloatingClipDeskStore: ObservableObject {
     public func delete(_ item: ClipboardItem) {
         if settingsPreview { previewSource.removeAll { $0.id == item.id }; reload(); return }
         ClipboardManager.shared.delete(item)
-        reload(debounce: true)
     }
 
     // MARK: 右侧预览栏（v193）
@@ -462,12 +483,14 @@ public struct FloatingClipboardDeskView: View {
     @Environment(\.settingsPreviewClipboardSelection) private var previewSelection
 
     @ObservedObject private var store: FloatingClipDeskStore
+    @ObservedObject private var tagStore = TagStore.shared
     /// v203：玻璃四滑块（通透度/磨砂/卡片亮度/描边）要即拖即生效——
     /// 根视图自己观察个性化；只靠 frsetThemeChrome 时子树不保证重绘。
     @ObservedObject private var personalization: Personalization
     @ObservedObject private var appearanceState = AppearanceState.shared
     @Environment(\.settingsPreviewIsMidnight) private var previewIsMidnight
     @Stored private var showsTags = false
+    @Stored private var isManagingTags = false
     @FocusState private var searchFocused: Bool
 
     public init(store: FloatingClipDeskStore = .shared,
@@ -508,6 +531,10 @@ public struct FloatingClipboardDeskView: View {
         )
         .tint(appearance.accent)
         .environment(\.settingsPreviewPersonalization, personalization)
+        .sheet(isPresented: $isManagingTags) { TagManagementSheet() }
+        .onReceive(NotificationCenter.default.publisher(for: TagStore.manageRequestedNotification)) { note in
+            if !isSettingsPreview, note.object as? String == "floating" { isManagingTags = true }
+        }
         .onAppear {
             if isSettingsPreview {
                 store.setPreviewItems(previewItems)
@@ -603,9 +630,18 @@ public struct FloatingClipboardDeskView: View {
                 .help("剪贴板操作")
             }
             Button {
+                store.kind = store.kind == .favorite ? .all : .favorite
+                searchFocused = true
+            } label: {
+                Image(systemName: store.kind == .favorite ? "star.fill" : "star")
+                    .font(.scaledSystem(size: 11, scale: appearance.fontScale))
+                    .foregroundStyle(store.kind == .favorite ? appearance.accent : Color.secondary)
+            }
+            .buttonStyle(.plain)
+            .help("筛选收藏")
+            Button {
                 if isSettingsPreview { return }
                 showsTags.toggle()
-                if showsTags { TagStore.shared.refresh() }
             } label: {
                 Image(systemName: store.tagFilterID == nil ? "tag" : "tag.fill")
                     .font(.scaledSystem(size: 11, scale: appearance.fontScale))
@@ -641,7 +677,7 @@ public struct FloatingClipboardDeskView: View {
                 }
             }
             Divider()
-            if TagStore.shared.tags.isEmpty {
+            if tagStore.tags.isEmpty {
                 Text("还没有标签")
                     .font(.scaledSystem(size: 11, scale: appearance.fontScale))
                     .foregroundStyle(.secondary)
@@ -649,7 +685,7 @@ public struct FloatingClipboardDeskView: View {
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 2) {
-                        ForEach(TagStore.shared.tags) { tag in
+                        ForEach(tagStore.tags) { tag in
                             Button {
                                 store.tagFilterID = (store.tagFilterID == tag.id) ? nil : tag.id
                                 showsTags = false
@@ -677,6 +713,13 @@ public struct FloatingClipboardDeskView: View {
                 }
                 .frame(maxHeight: 220)
             }
+            Divider()
+            Button("管理标签…") {
+                showsTags = false
+                NotificationCenter.default.post(name: TagStore.manageRequestedNotification, object: "floating")
+            }
+            .font(.scaledSystem(size: 11, scale: appearance.fontScale))
+            .buttonStyle(.plain)
         }
         .padding(10)
         .frame(width: 200)
@@ -817,7 +860,12 @@ public struct FloatingClipboardDeskView: View {
             .onTapGesture(count: 2) { store.paste(item) }
             .onTapGesture { store.select(item) }
             .onHover { if $0 && store.hoverPreviewEnabled { store.select(item, hovering: true) } }
-            .contextMenu { if !isSettingsPreview { ClipboardRowMenuContent(item: item) } }
+            .contextMenu {
+                if !isSettingsPreview {
+                    ClipboardRowMenuContent(item: item, managementSource: "floating",
+                                            onPreview: { store.select(item) }, onPaste: { store.paste(item) })
+                }
+            }
             .focusable()
             .accessibilityLabel(item.displayTitle)
             .accessibilityAddTraits(index == store.selectedIndex ? .isSelected : [])
@@ -840,7 +888,12 @@ public struct FloatingClipboardDeskView: View {
                             .onTapGesture(count: 2) { store.paste(item) }
                             .onTapGesture { store.select(item) }
                             .onHover { if $0 && store.hoverPreviewEnabled { store.select(item, hovering: true) } }
-                            .contextMenu { if !isSettingsPreview { ClipboardRowMenuContent(item: item) } }
+                            .contextMenu {
+                                if !isSettingsPreview {
+                                    ClipboardRowMenuContent(item: item, managementSource: "floating",
+                                                            onPreview: { store.select(item) }, onPaste: { store.paste(item) })
+                                }
+                            }
                             .focusable()
                             .accessibilityLabel(item.displayTitle)
                             .onDrag { dragProvider(for: item) }
@@ -1156,12 +1209,11 @@ private struct FloatingClipCard: View {
                 Image(nsImage: icon)
                     .resizable()
                     .frame(width: 12, height: 12)
-            } else if item.isNote {
-                Image(systemName: "note.text")
-                    .font(.scaledSystem(size: 9, scale: appearance.fontScale))
-                    .foregroundStyle(.tertiary)
             }
+            if !item.tagIDs.isEmpty { ClipboardTagBadges(item: item) }
+            if item.isNote { Image(systemName: "bookmark.fill").font(.system(size: 9)).foregroundStyle(.secondary).help("已存") }
             Spacer(minLength: 2)
+            if !isSettingsPreview { ClipboardFavoriteButton(item: item) }
             Text(item.timestamp.relativeText)
                 .font(.scaledSystem(size: 9, scale: appearance.fontScale))
                 .foregroundStyle(.tertiary)
@@ -1240,6 +1292,7 @@ private struct FloatingClipCard: View {
 // MARK: - 列表行
 
 private struct FloatingClipListRow: View {
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
     let item: ClipboardItem
     let isSelected: Bool
     @ObservedObject var personalization: Personalization
@@ -1267,6 +1320,9 @@ private struct FloatingClipListRow: View {
                     .foregroundStyle(.tertiary)
             }
             Spacer(minLength: 0)
+            if !item.tagIDs.isEmpty { ClipboardTagBadges(item: item) }
+            if item.isNote { Image(systemName: "bookmark.fill").font(.system(size: 9)).foregroundStyle(.secondary).help("已存") }
+            if !isSettingsPreview { ClipboardFavoriteButton(item: item) }
             if personalization.showSourceBadge, let app = item.sourceApp, !app.isEmpty,
                let icon = ClipboardAppIconCache.icon(forAppName: app) {
                 Image(nsImage: icon)

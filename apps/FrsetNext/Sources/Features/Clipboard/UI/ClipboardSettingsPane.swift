@@ -131,7 +131,6 @@ public struct ClipboardSettingsPane: View {
         }
         .onAppear {
             if section == .history {
-                tagStore.refresh()
                 usageBytes = ClipboardStorageUsageProvider.shared.totalBytes
             }
         }
@@ -197,7 +196,7 @@ public struct ClipboardSettingsPane: View {
                     .controlSize(.small)
                 }
                 SettingsDivider()
-                SettingsRow(title: "清除历史，保留已存项目", subtitle: "删除全部未存历史；保留笔记、标签、文件中转及原文件。即时操作。") {
+                SettingsRow(title: "清除历史，保留已存项目", subtitle: "删除全部未收藏历史；保留收藏项目、标签、文件中转及原文件。即时操作。") {
                     Button(clearingHistory ? "正在清理…" : "清除历史…") {
                         clearingHistory = true
                         ClipboardManager.shared.clearUnsavedHistory {
@@ -209,7 +208,7 @@ public struct ClipboardSettingsPane: View {
                     .disabled(clearingHistory)
                 }
                 SettingsDivider()
-                SettingsRow(title: "密码加密备份", subtitle: "备份剪贴板、笔记、标签与完整附件；外部文件仅保存路径。密码不保存。") {
+                SettingsRow(title: "密码加密备份", subtitle: "备份剪贴板、收藏项目、标签与完整附件；外部文件仅保存路径。密码不保存。") {
                     HStack(spacing: 8) {
                         Button("加密备份…") {
                             let panel = NSSavePanel()
@@ -443,7 +442,7 @@ private struct ClipboardBackupSheet: View {
                     Text("替换剪贴板资料").tag(true)
                 }.pickerStyle(.segmented)
                 if replace {
-                    Text("替换全部剪贴板历史、笔记和标签，保留 AI 对话及其他模块资料。")
+                    Text("替换全部剪贴板历史、收藏项目和标签，保留 AI 对话及其他模块资料。")
                         .font(.system(size: 12)).foregroundStyle(.secondary)
                 } else {
                     Picker("冲突记录（含本机缺失附件）", selection: $useBackupConflicts) {
