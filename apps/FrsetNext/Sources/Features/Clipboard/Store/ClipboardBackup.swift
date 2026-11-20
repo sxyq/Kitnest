@@ -109,9 +109,9 @@ enum ClipboardBackup {
 
     private static let folders: Set<String> = ["images", "thumbnails", "texts", "rich_texts", "ocr"]
     private static let pathColumns = ["image_path", "thumbnail_path", "text_path", "rich_text_path"]
-    private static var columns: [String] {
+    private static let columns: [String] = {
         ClipboardRepository.columns.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-    }
+    }()
 
     static func reviewExport(queue: DispatchQueue,
                              completion: @escaping (Result<[MissingRecord], Error>) -> Void) -> Operation {
@@ -326,8 +326,8 @@ enum ClipboardBackup {
     }
 
     private static func readSnapshot(_ database: SQLiteDatabase) throws -> Manifest {
-        var items = try database.query("SELECT \(ClipboardRepository.columns) FROM clipboard_items").map(ClipboardRepository.makeItem)
-        let tags = try database.query("SELECT id, name, color_hex, created_at, updated_at FROM tags").map {
+        var items = try database.query("SELECT \(ClipboardRepository.columns) FROM clipboard_items", transform: ClipboardRepository.makeItem)
+        let tags = try database.query("SELECT id, name, color_hex, created_at, updated_at FROM tags") {
             Tag(id: $0.string("id")!, name: $0.string("name")!, colorHex: $0.string("color_hex")!,
                 createdAt: Date(timeIntervalSince1970: $0.real("created_at")),
                 updatedAt: Date(timeIntervalSince1970: $0.real("updated_at")))
@@ -335,7 +335,7 @@ enum ClipboardBackup {
         let links = try database.query("""
             SELECT item_dedupe_key, tag_id, created_at FROM clipboard_item_tags
             WHERE item_dedupe_key IN (SELECT dedupe_key FROM clipboard_items)
-            """).map {
+            """) {
                 Link(itemDedupeKey: $0.string("item_dedupe_key")!, tagID: $0.string("tag_id")!,
                      createdAt: Date(timeIntervalSince1970: $0.real("created_at")))
             }
@@ -497,7 +497,6 @@ enum ClipboardBackup {
         let analysis = try analyze(manifest, in: session.directory, local: local, operation: operation)
         let current = Dictionary(uniqueKeysWithValues: local.items.map { ($0.dedupeKey, $0) })
         var selected: [ClipboardItem] = []
-        var kept: [ClipboardItem] = replace ? [] : local.items
         var replaced = 0, keptConflicts = 0
         for item in manifest.items {
             try operation.checkCancellation()
@@ -507,10 +506,11 @@ enum ClipboardBackup {
                     continue
                 }
                 replaced += 1
-                kept.removeAll { $0.dedupeKey == item.dedupeKey }
             }
             selected.append(item)
         }
+        let restoredKeys = Set(selected.map(\.dedupeKey))
+        let kept = replace ? [] : local.items.filter { !restoredKeys.contains($0.dedupeKey) }
         let fm = FileManager.default
         let base = ClipboardFileStore.baseURL.resolvingSymlinksInPath()
         let stage = base.appendingPathComponent(".kitnest-restore-\(UUID().uuidString)", isDirectory: true)
@@ -532,11 +532,11 @@ enum ClipboardBackup {
             }
         }
         var finalItems: [ClipboardItem] = []
-        var restoredKeys = Set<String>()
         do {
+            let declaredAttachments = Set(manifest.attachments.map(\.path))
             let paths = Set(selected.flatMap(attachmentPaths)).union(selected.compactMap { item -> String? in
                 let path = ClipboardOCRTextStorage.relativePath(dedupeKey: item.dedupeKey)
-                return manifest.attachments.contains(where: { $0.path == path }) ? path : nil
+                return declaredAttachments.contains(path) ? path : nil
             })
             for path in paths.sorted() {
                 try operation.checkCancellation()
@@ -564,7 +564,6 @@ enum ClipboardBackup {
                 imported.append(restored)
             }
             finalItems = kept + imported
-            restoredKeys = Set(imported.map(\.dedupeKey))
             try database.transaction { database in
                 for file in staged {
                     try operation.checkCancellation()
