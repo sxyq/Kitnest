@@ -120,6 +120,7 @@ public final class MonitorSampler: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             self?.applyPreferences()
+            NetworkFlowTracker.shared.applyKeepAlivePreference()
         })
     }
 

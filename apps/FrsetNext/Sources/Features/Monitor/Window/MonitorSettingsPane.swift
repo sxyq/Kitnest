@@ -53,7 +53,6 @@ public final class MonitorSettingsState: SettingsEditableDraft {
         if values.temperatures != savedValues.temperatures { MonitorPreferences.showTemperatures = values.temperatures }
         if values.keepAlive != savedValues.keepAlive {
             MonitorPreferences.networkKeepAlive = values.keepAlive
-            NetworkFlowTracker.shared.applyKeepAlivePreference()
         }
         if values.topN != savedValues.topN { MonitorPreferences.flowTopN = values.topN }
         guard UserDefaults.standard.synchronize() else { return "监测设置写入磁盘失败，调整已保留" }

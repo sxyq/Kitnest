@@ -340,7 +340,6 @@ struct StatisticsSettingsPane: View {
         }
         if incoming.keys.contains(where: { $0.hasPrefix("monitor.") }) {
             NotificationCenter.default.post(name: MonitorPreferences.didChangeNotification, object: nil)
-            if incoming[MonitorPreferences.keyNetworkKeepAlive] != nil { NetworkFlowTracker.shared.applyKeepAlivePreference() }
         }
         if incoming.keys.contains(where: { $0.hasPrefix("menu-bar-icon-") || $0.hasPrefix("entry.") }) {
             MenuBarIconStyleApplier.shared.refresh()
