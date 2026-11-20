@@ -793,26 +793,25 @@ Archive,Features/Archive/UI/ArchiveTextPreview.swift,ArchiveTextPreview,rendered
 Archive,Features/Archive/UI/ArchiveTextPreview.swift,ArchiveTextPreview,plainAttributed,func,189,KEEP,2026-11-17：rendered纯文本分支调用；按13号字体3点行距构造现有NSTextView正文；草稿由原Binding持有，未读取text入参及调用传值已删
 Audio,Features/Audio/AudioMixer.swift,-,cc,func,19,KEEP,2026-11-20：本文件将短属性名逐字节移位合为 CoreAudio FourCC；供音量、静音、设备及有声进程属性读取和写入
 Audio,Features/Audio/AudioMixer.swift,-,addr,func,25,KEEP,2026-11-20：构造选择器、作用域和元素三元地址；输出设备的音量与静音传 output 作用域，系统级默认值为 global
-Audio,Features/Audio/AudioMixer.swift,AudioAppInfo,func,func,40,KEEP,2026-11-20：音频进程相等按 PID 判断；列表发布现走两组 PID 比较，SwiftUI ForEach 只消费 Identifiable；现行协议无业务调用
-Audio,Features/Audio/AudioMixer.swift,AudioDeviceInfo,func,func,49,KEEP,2026-11-20：设备相等只看系统设备 ID；Picker 按该 ID 作为选择值，未找到其他显式相等比较
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,init,init,109,KEEP,2026-11-20：shared 构造时读取系统输出、设备列表和本进程 audible；初始化无定时器
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,startRefreshing,func,116,KEEP,2026-11-20：设置页出现时登记监听和刷新初值；每2秒在主线程采样一次有声进程，不由刘海音量卡启动
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,stopRefreshing,func,132,KEEP,2026-11-20：设置页离开即失效采样计时器；刘海仍可见则保留系统输出监听；原进程图标和列表继续驻留
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,setIslandVisible,func,140,KEEP,2026-11-20：刘海音量卡按UUID登记可见消费；出现读取系统输出并按需建立监听，最后一位离开且设置页关闭后移除
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,addOutputListeners,func,148,KEEP,2026-11-20：设置页或刘海首次可见以及默认设备切换时，监听默认设备、设备列表、实际音量属性与静音；保存成功项与设备 ID
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,removeOutputListeners,func,165,KEEP,2026-11-20：最后观察者离开或设备切换时逐项按原对象和属性解除监听，并清空记录及设备 ID
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,refreshOutputState,func,174,KEEP,2026-11-20：输出回调、出现和手动写入后共用；readingOutput 防止快照反写系统；当前每次还会枚举全部设备
+Audio,Features/Audio/AudioMixer.swift,AudioDeviceInfo,func,func,45,KEEP,2026-11-20：设备相等只看系统设备 ID；Picker 按该 ID 作为选择值，未找到其他显式相等比较
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,init,init,107,KEEP,2026-11-20：shared 构造时读取系统输出、设备列表和本进程 audible；初始化无定时器
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,startRefreshing,func,114,KEEP,2026-11-20：设置页出现时登记监听和刷新初值；每2秒在主线程采样一次有声进程，不由刘海音量卡启动
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,stopRefreshing,func,130,KEEP,2026-11-20：设置页离开即失效采样计时器；刘海仍可见则保留系统输出监听；原进程图标和列表继续驻留
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,setIslandVisible,func,138,KEEP,2026-11-20：刘海音量卡按UUID登记可见消费；出现读取系统输出并按需建立监听，最后一位离开且设置页关闭后移除
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,addOutputListeners,func,146,KEEP,2026-11-20：设置页或刘海首次可见以及默认设备切换时，监听默认设备、设备列表、实际音量属性与静音；保存成功项与设备 ID
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,removeOutputListeners,func,163,KEEP,2026-11-20：最后观察者离开或设备切换时逐项按原对象和属性解除监听，并清空记录及设备 ID
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,refreshOutputState,func,172,KEEP,2026-11-20：输出回调、出现和手动写入后共用；readingOutput 防止快照反写系统；当前每次还会枚举全部设备
 Audio,Features/Audio/AudioMixer.swift,AudioMixerController,volumeProperties,func,197,KEEP,2026-11-20：给读写和监听选择同一设备的主音量属性；无主属性时读取首选立体声道并仅返回存在的控制属性
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,getSystemVolume,func,214,KEEP,2026-11-20：refreshOutputState 调用；平均可读声道音量，HAL错误则保留原显示值并发布具体错误
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,setSystemVolume,func,229,KEEP,2026-11-20：outputVolume 写入触发；夹到0至1并逐声道写入，失败记录 HAL 状态，最后刷新快照；边界触觉由属性入口处理
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,getSystemMuted,func,243,KEEP,2026-11-20：refreshOutputState 在默认输出有静音属性时调用；HAL失败保留旧布尔值并更新错误及可读状态
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,setSystemMuted,func,252,KEEP,2026-11-20：outputMuted 用户写入触发；设置默认设备的静音属性后刷新系统快照，readingOutput 阻止刷新回写
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,getSelfAudible,func,262,KEEP,2026-11-20：初始化读取系统对象对本进程的可听属性；读取失败返回默认可听
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,setSelfAudible,func,270,KEEP,2026-11-20：selfAudible 开关写系统对象的本进程可听属性；现实现没有向界面反馈 HAL 写入错误
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,reloadDevices,func,278,KEEP,2026-11-20：refreshOutputState 调用；枚举有输出流的设备并取得名称和当前默认项，刷新时不向 HAL 反写选择
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,selectDefaultDevice,func,309,KEEP,2026-11-20：设置 Picker 和刘海菜单共用；写系统默认设备，刷新监听和界面，返回状态码转为可见反馈
-Audio,Features/Audio/AudioMixer.swift,AudioMixerController,refreshPlayingApps,func,321,KEEP,2026-11-20：设置页首次出现及2秒计时调用；筛有声进程、读取 PID 和图标，只在 PID 序列变化时发布；旧图标按 PID 保留
-Audio,Features/Audio/AudioMixer.swift,AudioMixerPane,init,init,374,KEEP,2026-11-20：AppBootstrap 注册音频设置页的构建闭包使用无参初始化；视图出现和离开分别启停本页采样
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,getSystemVolume,func,213,KEEP,2026-11-20：refreshOutputState 调用；平均可读声道音量，HAL错误则保留原显示值并发布具体错误
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,setSystemVolume,func,226,KEEP,2026-11-20：outputVolume 写入触发；夹到0至1并逐声道写入，失败记录 HAL 状态，最后刷新快照；边界触觉由属性入口处理
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,getSystemMuted,func,241,KEEP,2026-11-20：refreshOutputState 在默认输出有静音属性时调用；HAL失败保留旧布尔值并更新错误及可读状态
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,setSystemMuted,func,250,KEEP,2026-11-20：outputMuted 用户写入触发；设置默认设备的静音属性后刷新系统快照，readingOutput 阻止刷新回写
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,getSelfAudible,func,260,KEEP,2026-11-20：初始化读取系统对象对本进程的可听属性；读取失败返回默认可听
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,setSelfAudible,func,268,KEEP,2026-11-20：selfAudible 开关写系统对象的本进程可听属性；现实现没有向界面反馈 HAL 写入错误
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,reloadDevices,func,276,KEEP,2026-11-20：refreshOutputState 调用；枚举有输出流的设备并取得名称和当前默认项，刷新时不向 HAL 反写选择
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,selectDefaultDevice,func,303,KEEP,2026-11-20：设置 Picker 和刘海菜单共用；写系统默认设备，刷新监听和界面，返回状态码转为可见反馈
+Audio,Features/Audio/AudioMixer.swift,AudioMixerController,refreshPlayingApps,func,315,KEEP,2026-11-20：设置页首次出现及2秒计时调用；筛有声进程、读取 PID 和图标，只在 PID 序列变化时发布；旧图标按 PID 保留
+Audio,Features/Audio/AudioMixer.swift,AudioMixerPane,init,init,365,KEEP,2026-11-20：AppBootstrap 注册音频设置页的构建闭包使用无参初始化；视图出现和离开分别启停本页采样
 Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,setVisible,func,44,KEEP,2026-11-20：收起入口与展开媒体卡按UUID共用可见性；首次读取并每秒刷新，最后移除计时、进程和封面任务，保留过渡曲目
 Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,refresh,func,64,KEEP,2026-11-20：定时器与首次可见调用，只有没有执行中的 osascript 时才开始一次读取
 Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,send,func,68,KEEP,2026-11-20：媒体卡按钮及刘海快捷动作把系统命令转字符串送 request；是否成功由系统回调决定
@@ -2444,9 +2443,9 @@ Monitor,Features/Monitor/Memory/ProcessMemoryInspector.swift,ProcessMemoryInspec
 Monitor,Features/Monitor/Memory/ProcessMemoryInspector.swift,ProcessMemoryInspector,applicationBundlePath,func,76,KEEP,topConsumers:36
 Monitor,Features/Monitor/Memory/ProcessMemoryInspector.swift,ProcessMemoryInspector,allProcessIdentifiers,func,82,KEEP,topConsumers:32
 Monitor,Features/Monitor/Memory/ProcessMemoryInspector.swift,ProcessMemoryInspector,executablePath,func,96,KEEP,topConsumers:35
-Monitor,Features/Monitor/Sampling/MonitorHistory.swift,MonitorHistoryBuffer,init,init,10,KEEP,MonitorSampler.swift:90-96 建七个缓冲
-Monitor,Features/Monitor/Sampling/MonitorHistory.swift,MonitorHistoryBuffer,append,func,15,KEEP,MonitorSampler.swift:253-261
-Monitor,Features/Monitor/Sampling/MonitorHistory.swift,MonitorHistoryBuffer,values,func,24,KEEP,同名重载错挂：此行为仍在使用的实现（values(into:)/recommend 3 参/events(from:to:)），非死代码
+Monitor,Features/Monitor/Sampling/MonitorHistory.swift,MonitorHistoryBuffer,init,init,10,KEEP,2026-11-20：MonitorSampler 为12条固定序列和动态温度序列创建60点环形缓冲，预分配同样数量的元素
+Monitor,Features/Monitor/Sampling/MonitorHistory.swift,MonitorHistoryBuffer,append,func,15,KEEP,2026-11-20：采样器为每条时间序列写入同一帧，回绕后覆盖最早元素；新发现的温度序列先补历史缺值以对齐时间轴
+Monitor,Features/Monitor/Sampling/MonitorHistory.swift,MonitorHistoryBuffer,values,func,22,KEEP,2026-11-20：MonitorSampler 把环形历史按时间顺序复制到调用方的复用数组；未满只复制前缀，满环按写入位置分为两段
 Monitor,Features/Monitor/Sampling/MonitorModule.swift,MonitorModule,start,func,8,KEEP,AppBootstrap.swift:26 register → startAll:34 协议派发
 Monitor,Features/Monitor/Sampling/MonitorPreferences.swift,MonitorPreferences,keyEnabled,func,78,KEEP,isModuleEnabled:143、setModuleEnabled:147、resetToDefaults:161
 Monitor,Features/Monitor/Sampling/MonitorPreferences.swift,MonitorPreferences,isModuleEnabled,func,142,KEEP,StatusBarController:197、MonitorSampler:152、SettingsPane:118
@@ -2458,34 +2457,33 @@ Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorExtra,update,func,4
 Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorExtra,reset,func,53,KEEP,2026-11-20：设置重置历史调用；在同一把锁内替换补充快照，网络累计和磁盘峰值随之清零
 Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,init,init,115,KEEP,2026-11-20：MonitorSampler 独有读取器；由实例跨采样保留 CPU、网络及磁盘上一轮计数
 Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readResult,func,131,KEEP,2026-11-20：采样器按 C 快照是否有效传 needFull；有效时跳过 CPU、吞吐和电池五路备用读取，但保留内存压力、温度与功耗
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,loadAverages,func,174,KEEP,2026-11-20：C 快照无效时 MonitorSampler 唯一调用；只取得 1、5、15 分钟负载，不在正常 C 快照上再次取系统数据
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readCPU,func,180,KEEP,2026-11-20：备用路径从 host_processor_info 读取每核四类时间并及时释放内存；与上一帧作差，生成即时分项和每核占比
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readMemory,func,243,KEEP,2026-11-20：两种快照路径均调用；Mach VM 读取系统页面计数，计算已用、压力及压缩字节，交换值直接消费已有深层快照
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readLoadAverages,func,273,KEEP,2026-11-20：loadAverages 转发；用 getloadavg 读取三个时间窗，失败全零且丢弃非有限返回值
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readNetworkCounters,func,284,KEEP,2026-11-20：备用网络吞吐取数；getifaddrs 只纳入启用的非回环接口，按接口名去重计数，释放链表
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readNetworkRate,func,316,KEEP,2026-11-20：备用网络路径；按系统单调运行时间与上一轮接口字节累计作差，第一次返回零速率
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readDiskRate,func,330,KEEP,2026-11-20：备用磁盘路径；IOKit 汇总各块存储驱动读写量并释放句柄；与上一帧作差后返回 bytes/s
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readTemperatures,func,368,KEEP,2026-11-20：温度已启用时筛选本次深层采样的类别0条目，以传感器键返回读数，不重新扫描 SMC
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readBatteryLevel,func,374,KEEP,2026-11-20：备用电池路径读取 IOKit 电源描述；从第一条容量有效的来源计算比例，否则无电池值
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readPower,func,392,KEEP,2026-11-20：两种快照路径共用 C 功耗采样，系统负载与输入功率分别保存；AppleSmartBattery 提供外接电源和充电状态
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,delta,func,419,KEEP,2026-11-20：CPU 核心时间和网络、磁盘累计共用，向下跳变视作前计数失效并返回零差值
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,rate,func,423,KEEP,2026-11-20：网络及磁盘共同把字节差换成速率；有效时长下转 UInt64，与上层显示统一使用字节每秒
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,clamp,func,430,KEEP,2026-11-20：CPU、内存压力和电池利用率使用共同的0至1范围，避免非有限值进入显示
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,uint64Value,func,435,KEEP,2026-11-20：从 IOKit Statistics 中读取读写累计字节，并桥接 NSNumber 或 UInt64；缺值为零
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,History,init,init,40,KEEP,MonitorSampler:16/48/49 构造；resetHistory:326
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setIslandActive,func,69,KEEP,刘海监测实际可见时设置islandActive并applyPreferences重新安排现有采样，激活立即refresh，状态相同不重复安排
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setPanelActive,func,76,KEEP,MonitorPopoutWindow.swift:242/323/359
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setHomePanelActive,func,87,KEEP,PanelController.swift:259/280/353
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setSettingsActive,func,94,KEEP,StatusBarController:152/215、MonitorSettingsPane:39/42
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,init,init,119,KEEP,私有 init，shared:11
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,deinit,deinit,131,KEEP,移除 init:102 的通知观察者 + 取消 pendingWork
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,start,func,138,KEEP,MonitorModule.swift:10
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,stop,func,146,KEEP,MonitorModule.swift:50、applyPreferences:155
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,refresh,func,160,KEEP,setPanelActive:66、setHomePanelActive:77、setSettingsActive:84
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,applyPreferences,func,167,KEEP,init 观察者:107、start:122
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,scheduleNext,func,187,KEEP,applyPreferences:164 + 自递归:183
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,sampleOnce,func,212,KEEP,start:123、refresh:141、scheduleNext:176
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,resetHistory,func,373,KEEP,MonitorSettingsPane.swift:189 重置按钮
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readCPU,func,169,KEEP,2026-11-20：备用路径从 host_processor_info 读取每核四类时间并及时释放内存；与上一帧作差，生成即时分项和每核占比
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readMemory,func,232,KEEP,2026-11-20：两种快照路径均调用；Mach VM 读取系统页面计数，计算已用、压力及压缩字节，交换值直接消费已有深层快照
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,loadAverages,func,263,KEEP,2026-11-20：仅 C 快照无效时 MonitorSampler 调用 getloadavg 取得 1、5、15 分钟负载；保留有效返回数，失败或无效的值为零
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readNetworkCounters,func,274,KEEP,2026-11-20：备用网络吞吐取数；getifaddrs 只纳入启用的非回环接口，按接口名去重计数，释放链表
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readNetworkRate,func,306,KEEP,2026-11-20：备用网络路径；按系统单调运行时间与上一轮接口字节累计作差，第一次返回零速率
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readDiskRate,func,320,KEEP,2026-11-20：备用磁盘路径；IOKit 汇总各块存储驱动读写量并释放句柄；与上一帧作差后返回 bytes/s
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readTemperatures,func,358,KEEP,2026-11-20：温度已启用时筛选本次深层采样的类别0条目，以传感器键返回读数，不重新扫描 SMC
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readBatteryLevel,func,364,KEEP,2026-11-20：备用电池路径读取 IOKit 电源描述；从第一条容量有效的来源计算比例，否则无电池值
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readPower,func,382,KEEP,2026-11-20：两种快照路径共用 C 功耗采样，系统负载与输入功率分别保存；AppleSmartBattery 提供外接电源和充电状态
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,delta,func,409,KEEP,2026-11-20：CPU 核心时间和网络、磁盘累计共用，向下跳变视作前计数失效并返回零差值
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,rate,func,413,KEEP,2026-11-20：网络及磁盘共同把字节差换成速率；有效时长下转 UInt64，与上层显示统一使用字节每秒
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,clamp,func,420,KEEP,2026-11-20：CPU、内存压力和电池利用率使用共同的0至1范围，避免非有限值进入显示
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,uint64Value,func,425,KEEP,2026-11-20：从 IOKit Statistics 中读取读写累计字节，并桥接 NSNumber 或 UInt64；缺值为零
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,History,init,init,40,KEEP,2026-11-20：为空时发布初始历史，构建两份快照缓存及清空历史后的空快照；图表按字段读取
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setIslandActive,func,68,KEEP,2026-11-20：IslandContent 仅正式监测组件可见时更新此位，离开关闭；变化后重排定时并在进入时立即请求一帧
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setPanelActive,func,75,KEEP,2026-11-20：MonitorPopoutWindow 显示标记可见，面板收起和关闭清除此位；不改变主面板状态
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setHomePanelActive,func,86,KEEP,2026-11-20：PanelController 的性能页与主面板退出分别设置进入和离开，不改变监测独立窗状态
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setSettingsActive,func,93,KEEP,2026-11-20：SettingsWindowController 按遮挡通知报告监测设置页可见，StatusBarController 退出时清除此位
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,init,init,118,KEEP,2026-11-20：shared 唯一构造，在主队列接收监测偏好变化，按保存值重新安排采样
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,deinit,deinit,130,KEEP,2026-11-20：释放时移除偏好通知观察者并取消尚未执行的定时采样项
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,start,func,137,KEEP,2026-11-20：MonitorModule 启动时调用；已有定时任务即返回，否则先应用偏好，再复用立即刷新
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,stop,func,145,KEEP,2026-11-20：总开关关闭时取消并清除排队任务，暂停 C 层连通性与进程统计，并在主队列更新运行状态
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,refresh,func,159,KEEP,2026-11-20：启动和四种正式界面进入时调用；在采样队列读已保存总开关，开启时才直接采样一帧
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,applyPreferences,func,169,KEEP,2026-11-20：偏好变化与可见性变化共用；更新温度条件，总开关关闭时停止，否则按可见状态选择设定间隔或至少5秒
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,scheduleNext,func,189,KEEP,2026-11-20：取消旧定时任务，在采样队列延时执行；执行前读取总开关，采样后按当前界面可见性安排下一帧
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,sampleOnce,func,214,KEEP,2026-11-20：优先使用有效 C 快照，补深层指标及时间轴；轮换同一组历史缓冲，在 MonitorExtra 的锁内合并峰值，主队列发布当前值与历史
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,resetHistory,func,350,KEEP,2026-11-20：监测设置的清空按钮调用，锁内重置环形缓冲与两份快照，重置补充指标后发布空历史
 Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,init,init,74,KEEP,私有 init，shared:39
 Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,startBackgroundUpdates,func,90,KEEP,MonitorModule.swift:14 常驻启动
 Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,stopBackgroundUpdates,func,104,KEEP,applyKeepAlivePreference:114
