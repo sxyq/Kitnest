@@ -86,11 +86,15 @@ public final class NetworkFlowTracker {
     /// 后台节拍间隔（nettop 本身就是 5s 一轮，再密只是重复读同一份缓存）
     private static let backgroundInterval: TimeInterval = 5.0
 
-    /// 启动常驻统计（MonitorModule 启动时调用一次；幂等）
-    public func startBackgroundUpdates() {
+    /// 启动及监测偏好变化共用同一个定时器入口。
+    public func applyKeepAlivePreference() {
         dispatchPrecondition(condition: .onQueue(.main))
+        guard MonitorPreferences.isEnabled, MonitorPreferences.networkKeepAlive else {
+            backgroundTimer?.invalidate()
+            backgroundTimer = nil
+            return
+        }
         guard backgroundTimer == nil else { return }
-        guard MonitorPreferences.networkKeepAlive else { return }
         backgroundTick()                       // 立刻采一帧，首开不用等 5s
         let timer = Timer(timeInterval: Self.backgroundInterval, repeats: true) { [weak self] _ in
             self?.backgroundTick()
@@ -98,21 +102,6 @@ public final class NetworkFlowTracker {
         timer.tolerance = 0.6
         RunLoop.main.add(timer, forMode: .common)
         backgroundTimer = timer
-    }
-
-    /// 停止常驻统计（监测总开关关闭 / 用户关掉常驻时）
-    public func stopBackgroundUpdates() {
-        backgroundTimer?.invalidate()
-        backgroundTimer = nil
-    }
-
-    /// 常驻开关变化后重新评估（设置页改完立刻生效）
-    public func applyKeepAlivePreference() {
-        if MonitorPreferences.networkKeepAlive && MonitorPreferences.isEnabled {
-            startBackgroundUpdates()
-        } else {
-            stopBackgroundUpdates()
-        }
     }
 
     private func backgroundTick() {

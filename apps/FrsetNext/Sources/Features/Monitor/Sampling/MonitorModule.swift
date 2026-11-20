@@ -11,7 +11,7 @@ public enum MonitorModule: AppModule {
 
         // 1.5) v191：网络统计常驻——不打开监测页也在累计最近 10 分钟，
         //      打开网络页立刻有数据（用户：「应该就一直放在那，只是会变化显示的 App」）
-        NetworkFlowTracker.shared.startBackgroundUpdates()
+        NetworkFlowTracker.shared.applyKeepAlivePreference()
 
         // 2) 设置窗口「监测」页签
         SettingsPaneRegistry.register(SettingsPaneDescriptor(
