@@ -396,14 +396,12 @@ public final class ClipboardManager: ObservableObject {
 
             switch result.type {
             case .image:
-                if let data = result.imageData, let stored = ClipboardImageStorage.store(imageData: data) {
-                    imagePath = stored.imagePath
-                    thumbnailPath = stored.thumbnailPath
-                    fileBytes += stored.byteCount
-                    fileBytes += ClipboardFileStore.fileSize(stored.thumbnailPath)
-                } else {
-                    fileBytes += result.approximateBytes
-                }
+                guard let data = result.imageData,
+                      let stored = ClipboardImageStorage.store(imageData: data) else { return }
+                imagePath = stored.imagePath
+                thumbnailPath = stored.thumbnailPath
+                fileBytes += stored.byteCount
+                fileBytes += ClipboardFileStore.fileSize(stored.thumbnailPath)
             case .richtext:
                 if let rtf = result.richTextData {
                     richTextPath = ClipboardRichTextStorage.write(rtf)
@@ -468,6 +466,10 @@ public final class ClipboardManager: ObservableObject {
                 }
             } else {
                 // INSERT 失败且行已存在（并发窗口）→ 退化为置顶
+                ClipboardFileStore.remove(imagePath)
+                ClipboardFileStore.remove(thumbnailPath)
+                ClipboardFileStore.remove(richTextPath)
+                ClipboardTextStorage.remove(textPath)
                 repository.touch(dedupeKey: key)
             }
             scheduleReloadCoalesced()
