@@ -2084,63 +2084,61 @@ Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableScrol
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardRowHoverSuppressionController,init,init,55,KEEP,2026-11-20：主列表Coordinator和FloatingDesk分别创建自己的抑制状态，互不共享当前悬停条目
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardRowHoverSuppressionController,suppressUntilMouseMove,func,59,KEEP,2026-11-20：滚轮、右键、多选及浮动窗键盘移动调用，设抑制并清行和图标ID，等待实际鼠标移动恢复
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardRowHoverSuppressionController,mouseMoved,func,66,KEEP,2026-11-20：主列表与浮动窗移动处理调用，只解除抑制，不调系统预览或复制
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardListTopScrollTracker,init,init,89,KEEP,2026-11-20：Coordinator持有唯一顶部迟滞实例，并将状态变化连接到Manager.updateFirstItemScrolledOut
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardListTopScrollTracker,feed,func,96,KEEP,2026-11-20：feedTopTracker按第0行底边和视口原点算超出距离，40进入、24退出；空表复位，保留顶部迟滞语义
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardListTopScrollTracker,setOut,func,111,KEEP,2026-11-20：feed只在迟滞结果变化时调用发布回调，重复同值不触发Manager更新
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardRowChromeView,drawSelection,func,132,KEEP,2026-11-20：主列表及近期选择窗的AppKit绘制入口；以内缩6×1.5pt圆角和活动0.12/非活动0.08透明度呈现选中
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardRowChromeView,drawBackground,func,143,KEEP,2026-11-20：原生空绘制覆盖取消系统行底色，背景交页面处理，保留原生绘制回调用途
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,init,init,168,KEEP,2026-11-20：viewFor复用池无宿主时以reuseIdentifier和frame创建，关闭内容自定尺寸；rootView及coder所需构造标unavailable拒绝非正式入口
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,init,init,182,KEEP,2026-11-20：viewFor复用池无宿主时以reuseIdentifier和frame创建，关闭内容自定尺寸；rootView及coder所需构造标unavailable拒绝非正式入口
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,init,init,187,KEEP,2026-11-20：viewFor复用池无宿主时以reuseIdentifier和frame创建，关闭内容自定尺寸；rootView及coder所需构造标unavailable拒绝非正式入口
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,setItem,func,194,KEEP,2026-11-20：viewFor传当前条目及hover，条目和渲染状态相同则不重建rootView，变化才消费contentBuilder
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,setHovered,func,203,KEEP,2026-11-20：选择变化、鼠标进入及清除高亮共用，同值短路后才重建对应SwiftUI行
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,rightMouseDown,func,211,KEEP,2026-11-20：AppKit右键按下回调转换行内坐标，交viewFor安装的菜单闭包，不透传以保持即时菜单
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,mouseDown,func,217,KEEP,2026-11-20：AppKit按下入口，尾部104pt交SwiftUI按钮，Cmd/Shift交多选、双击交复制，最终统一建立选择和表格焦点；单击重复广播由质量改动移除
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,acceptsFirstMouse,func,246,KEEP,2026-11-20：AppKit首次点击询问返回true，实际键盘归属随后由handlePlainMouseDown显式交给表格
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,WeakRowBox,init,init,252,KEEP,2026-11-20：viewFor登记行侧表时保存宿主弱引用，不阻止复用池回收；旧行映射由质量改动在复用时移除
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,mouseDown,func,265,KEEP,2026-11-20：近期选择窗安装onSelectionClick后点击仅勾选并取焦点，主列表无此闭包时沿原NSTableView分派
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,toggleRowSelection,func,272,KEEP,2026-11-20：主列表修饰点击调用，Cmd切换单项，Shift将锚点到目标范围并入选择，结果仍由表格持有
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,layout,func,319,KEEP,2026-11-20：AppKit布局以clip宽度作固定基准，差异超过0.5pt才更新单列宽，避免document宽度自增
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,frameOfCell,func,335,KEEP,2026-11-20：AppKit单元格布局保留系统y和高度，只以clip宽和x=0消除横向内缩
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,updateTrackingAreas,func,342,KEEP,2026-11-20：AppKit及isActive变化调用，移除旧area后只为活动表格建立可视区鼠标追踪
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,mouseMoved,func,355,KEEP,2026-11-20：原生tracking area回调，表格活动时才转发bind接入的悬停处理
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,mouseExited,func,360,KEEP,2026-11-20：原生离开回调，活动时转发清除高亮；停用也经同一闭包结束残留状态
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,keyDown,func,366,KEEP,2026-11-20：近期模式处理全选、方向、空格勾选和回车，主列表空格预览及回车复制；其余交super并同步标记键盘选中来源
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardListScrollView,scrollWheel,func,414,KEEP,2026-11-20：原生滚轮先调用bind的悬停抑制，再执行系统滚动，不改滚动距离
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableHostView,init,init,436,KEEP,2026-11-20：Section唯一正式构造，注入Manager、滚动代理、活动状态、复制编辑摘要闭包及外观，宿主不另建数据服务
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableHostView,makeCoordinator,func,458,KEEP,2026-11-20：NSViewRepresentable生命周期创建Coordinator(owner:)，保存当前宿主配置与交互状态
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableHostView,makeNSView,func,469,KEEP,2026-11-20：原生创建入口装滚动容器和单列表格、数据源委托及bounds通知，bind接入回顶及鼠标键盘动作
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableHostView,updateNSView,func,516,KEEP,2026-11-20：Representable刷新同步owner、活动状态、密度行高和列宽，实际内容变化才由reloadTableIfNeeded重载
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,reloadTableIfNeeded,func,543,KEEP,2026-11-20：updateNSView调用，比较当前完整条目数组和行高；变化才reload并保存displayedItems快照
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,init,init,567,KEEP,2026-11-20：makeCoordinator构造并把顶部迟滞变化交Manager现有顶部状态，不创建另一个观察服务
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,deinit,deinit,576,KEEP,2026-11-20：Coordinator释放时移除bind持有的回顶block observer，结束宿主重建后的旧通知注册；滚动代理仍只弱持有视图
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,bind,func,580,KEEP,2026-11-20：makeNSView唯一接线点；代理弱持有scrollView，事件闭包弱捕获Coordinator；回顶block token由质量改动保存并在销毁时移除
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,numberOfRows,func,603,KEEP,2026-11-20：NSTableView数据源回调返回Manager当前items数量，数据仍由原Manager维护
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableView,func,607,KEEP,2026-11-20：viewFor按条目类型复用RowHostingView，安装内容及事件闭包并登记弱行映射；质量支线在覆盖host.row前仅移除仍指此host的旧key
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableView,func,651,KEEP,2026-11-20：heightOfRow原生委托统一返回owner.rowHeight，与make和update固定行高一致
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableView,func,657,KEEP,2026-11-20：rowViewForRow原生委托创建ClipboardRowChromeView并传当前外观，替代系统实心选中色
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableView,func,663,KEEP,2026-11-20：didAdd仅末3行附近请求loadMoreIfNeeded，Manager继续确认最后条目并去重在途分页
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableViewSelectionDidChange,func,672,KEEP,2026-11-20：原生选择或reload显式刷新时更新可见行高亮并广播当前条目；键盘导航才更新范围锚点和取消未决键盘预览
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,reloadTable,func,700,KEEP,2026-11-20：按稳定条目ID恢复选择和多选锚点，非顶部保留视口，刷新预览顺序；侧表仅保留有效行与存活宿主
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,clipboardBoundsDidChange,func,756,KEEP,2026-11-20：makeNSView注册的原生selector，非锚定滚动才调用feedTopTracker，避免新条目置顶恢复视口时误报顶部
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,feedTopTracker,func,764,KEEP,2026-11-20：bounds通知使用第0行矩形而非首可见行喂迟滞；空表传nil复位，避免滚动状态恒0
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleMouseMoved,func,777,KEEP,2026-11-20：bind恢复抑制后按鼠标行查条目，同条目短路；更新高亮并按既有外观开关向预览服务发rowHover
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleMouseExited,func,805,KEEP,2026-11-20：bind及表格停用共用离开闭包，统一交clearHoverHighlight处理
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,clearHoverHighlight,func,809,KEEP,2026-11-20：滚轮、换行、移出和多选共用，清宿主及ID高亮，仍存在的前一条目向预览服务发rowHover(false)
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,rowView,func,824,KEEP,2026-11-20：按行重载从弱侧表取实际宿主供鼠标和键盘锚点；按ID重载只供旧空格诊断及锚点线性查找，安全支线迁移后删除
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handlePlainMouseDown,func,836,KEEP,2026-11-20：viewFor设置的按下闭包，普通点击统一选中和记录范围锚点，修饰点击保留多选，最后把firstResponder交回表格
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,consumeOneTimeHint,func,860,KEEP,2026-11-20：双击唯一调用，仅写一次性偏好以控制首次日志，没有实际提示UI；精简支线删除此参数状态链
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,anchorProvider,func,867,KEEP,2026-11-20：空格预览弱捕获行宿主，真正呈现时只对仍在窗口中的视图取window坐标
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleDoubleClick,func,874,KEEP,2026-11-20：viewFor双击闭包先关闭预览再调用owner.onCopy；旧一次性偏好只控制日志，由精简支线去除
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleSpaceKey,func,884,KEEP,2026-11-20：bind的空格入口验证当前选中项后向预览服务请求延时键盘预览，沿原弱行视图锚点提供器
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleModifierClick,func,904,KEEP,2026-11-20：viewFor的Cmd/Shift回调交表格多选后抑制悬停并清当前高亮，不触发复制
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleReturnKey,func,911,KEEP,2026-11-20：多选使用Manager批量复制并展示返回原因，单选走owner.onCopy，两种路径均关闭预览
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,rowView,func,934,KEEP,2026-11-20：按行重载从弱侧表取实际宿主供鼠标和键盘锚点；按ID重载只供旧空格诊断及锚点线性查找，安全支线迁移后删除
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,symbol,func,957,KEEP,2026-11-20：原生右键菜单图标与标签共用32项NSCache，命中复用图像，未命中才创建SF Symbol
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,presentMenu,func,965,KEEP,2026-11-20：viewFor右键闭包实际入口，按当前条目和选中集合构建复制、粘贴、预览、内容动作、标签及删除菜单；删除直接走Manager
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,menuAction,func,1057,KEEP,2026-11-20：原生菜单及标签的target/action入口，从representedObject取得BlockMenuItemAction并执行run
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,BlockMenuItemAction,init,init,1065,KEEP,2026-11-20：原生菜单项、标签及管理标签动作持有的闭包载体，保存传入动作
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,BlockMenuItemAction,run,func,1066,KEEP,2026-11-20：menuAction唯一执行出口，运行保存的Swift闭包，连接原生target/action
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardListTopScrollTracker,init,init,88,KEEP,2026-11-20：Coordinator持有唯一顶部迟滞实例，并将状态变化连接到Manager.updateFirstItemScrolledOut
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardListTopScrollTracker,feed,func,95,KEEP,2026-11-20：feedTopTracker按第0行底边和视口原点算超出距离，40进入、24退出；空表复位，保留顶部迟滞语义
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardListTopScrollTracker,setOut,func,108,KEEP,2026-11-20：feed只在迟滞结果变化时调用发布回调，重复同值不触发Manager更新
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardRowChromeView,drawSelection,func,129,KEEP,2026-11-20：主列表及近期选择窗的AppKit绘制入口；以内缩6×1.5pt圆角和活动0.12/非活动0.08透明度呈现选中
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardRowChromeView,drawBackground,func,140,KEEP,2026-11-20：原生空绘制覆盖取消系统行底色，背景交页面处理，保留原生绘制回调用途
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,init,init,164,KEEP,2026-11-20：viewFor复用池无宿主时以reuseIdentifier和frame创建，关闭内容自定尺寸；rootView及coder所需构造标unavailable拒绝非正式入口
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,init,init,178,KEEP,2026-11-20：viewFor复用池无宿主时以reuseIdentifier和frame创建，关闭内容自定尺寸；rootView及coder所需构造标unavailable拒绝非正式入口
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,init,init,183,KEEP,2026-11-20：viewFor复用池无宿主时以reuseIdentifier和frame创建，关闭内容自定尺寸；rootView及coder所需构造标unavailable拒绝非正式入口
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,setItem,func,190,KEEP,2026-11-20：viewFor传当前条目及hover，条目和渲染状态相同则不重建rootView，变化才消费contentBuilder
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,setHovered,func,199,KEEP,2026-11-20：选择变化、鼠标进入及清除高亮共用，同值短路后才重建对应SwiftUI行
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,rightMouseDown,func,207,KEEP,2026-11-20：AppKit右键按下回调转换行内坐标，交viewFor安装的菜单闭包，不透传以保持即时菜单
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,mouseDown,func,213,KEEP,2026-11-20：AppKit按下入口，尾部104pt交SwiftUI按钮，Cmd/Shift交多选、双击交复制，最终统一建立选择和表格焦点；单击重复广播由质量改动移除
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,acceptsFirstMouse,func,242,KEEP,2026-11-20：AppKit首次点击询问返回true，实际键盘归属随后由handlePlainMouseDown显式交给表格
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,WeakRowBox,init,init,248,KEEP,2026-11-20：viewFor登记行侧表时保存宿主弱引用，不阻止复用池回收；旧行映射由质量改动在复用时移除
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,mouseDown,func,261,KEEP,2026-11-20：近期选择窗安装onSelectionClick后点击仅勾选并取焦点，主列表无此闭包时沿原NSTableView分派
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,toggleRowSelection,func,268,KEEP,2026-11-20：主列表修饰点击调用，Cmd切换单项，Shift将锚点到目标范围并入选择，结果仍由表格持有
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,layout,func,315,KEEP,2026-11-20：AppKit布局以clip宽度作固定基准，差异超过0.5pt才更新单列宽，避免document宽度自增
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,frameOfCell,func,331,KEEP,2026-11-20：AppKit单元格布局保留系统y和高度，只以clip宽和x=0消除横向内缩
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,updateTrackingAreas,func,338,KEEP,2026-11-20：AppKit及isActive变化调用，移除旧area后只为活动表格建立可视区鼠标追踪
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,mouseMoved,func,351,KEEP,2026-11-20：原生tracking area回调，表格活动时才转发bind接入的悬停处理
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,mouseExited,func,356,KEEP,2026-11-20：原生离开回调，活动时转发清除高亮；停用也经同一闭包结束残留状态
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,keyDown,func,362,KEEP,2026-11-20：近期模式处理全选、方向、空格勾选和回车，主列表空格预览及回车复制；其余交super并同步标记键盘选中来源
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardListScrollView,scrollWheel,func,404,KEEP,2026-11-20：原生滚轮先调用bind的悬停抑制，再执行系统滚动，不改滚动距离
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableHostView,init,init,425,KEEP,2026-11-20：Section唯一正式构造，注入Manager、滚动代理、活动状态、复制编辑摘要闭包及外观，宿主不另建数据服务
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableHostView,makeCoordinator,func,445,KEEP,2026-11-20：NSViewRepresentable生命周期创建Coordinator(owner:)，保存当前宿主配置与交互状态
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableHostView,makeNSView,func,456,KEEP,2026-11-20：原生创建入口装滚动容器和单列表格、数据源委托及bounds通知，bind接入回顶及鼠标键盘动作
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableHostView,updateNSView,func,503,KEEP,2026-11-20：Representable刷新同步owner、活动状态、密度行高和列宽，实际内容变化才由reloadTableIfNeeded重载
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,reloadTableIfNeeded,func,530,KEEP,2026-11-20：updateNSView调用，比较当前完整条目数组和行高；变化才reload并保存displayedItems快照
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,init,init,553,KEEP,2026-11-20：makeCoordinator构造并把顶部迟滞变化交Manager现有顶部状态，不创建另一个观察服务
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,deinit,deinit,562,KEEP,2026-11-20：Coordinator释放时移除bind持有的回顶block observer，结束宿主重建后的旧通知注册；滚动代理仍只弱持有视图
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,bind,func,566,KEEP,2026-11-20：makeNSView唯一接线点；代理弱持有scrollView，事件闭包弱捕获Coordinator；回顶block token由质量改动保存并在销毁时移除
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,numberOfRows,func,588,KEEP,2026-11-20：NSTableView数据源回调返回Manager当前items数量，数据仍由原Manager维护
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableView,func,592,KEEP,2026-11-20：viewFor按条目类型复用RowHostingView，安装内容及事件闭包并登记弱行映射；质量支线在覆盖host.row前仅移除仍指此host的旧key
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableView,func,635,KEEP,2026-11-20：heightOfRow原生委托统一返回owner.rowHeight，与make和update固定行高一致
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableView,func,641,KEEP,2026-11-20：rowViewForRow原生委托创建ClipboardRowChromeView并传当前外观，替代系统实心选中色
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableView,func,647,KEEP,2026-11-20：didAdd仅末3行附近请求loadMoreIfNeeded，Manager继续确认最后条目并去重在途分页
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableViewSelectionDidChange,func,656,KEEP,2026-11-20：原生选择或reload显式刷新时更新可见行高亮并广播当前条目；键盘导航才更新范围锚点和取消未决键盘预览
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,reloadTable,func,684,KEEP,2026-11-20：实际内容变化时按条目ID恢复选择、范围锚点和非顶部视口，更新预览顺序；有效行用整数Range判断，不为全表构造Set
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,clipboardBoundsDidChange,func,740,KEEP,2026-11-20：makeNSView注册的原生selector，非锚定滚动才调用feedTopTracker，避免新条目置顶恢复视口时误报顶部
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,feedTopTracker,func,748,KEEP,2026-11-20：bounds通知使用第0行矩形而非首可见行喂迟滞；空表传nil复位，避免滚动状态恒0
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleMouseMoved,func,761,KEEP,2026-11-20：bind恢复抑制后按鼠标行查条目，同条目短路；更新高亮并按既有外观开关向预览服务发rowHover
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleMouseExited,func,789,KEEP,2026-11-20：bind及表格停用共用离开闭包，统一交clearHoverHighlight处理
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,clearHoverHighlight,func,793,KEEP,2026-11-20：滚轮、换行、移出和多选共用，清宿主及ID高亮，仍存在的前一条目向预览服务发rowHover(false)
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,rowView,func,808,KEEP,2026-11-20：空格预览和悬停按已知行号从弱侧表取得实际宿主；forItemID线性查找已删除，复用时旧key按宿主身份移除
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handlePlainMouseDown,func,820,KEEP,2026-11-20：viewFor设置的按下闭包，普通点击统一选中和记录范围锚点，修饰点击保留多选，最后把firstResponder交回表格
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,anchorProvider,func,838,KEEP,2026-11-20：空格预览弱捕获行宿主，真正呈现时只对仍在窗口中的视图取window坐标
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleDoubleClick,func,845,KEEP,2026-11-20：viewFor双击闭包关闭预览并调用owner.onCopy，删除只控制首次日志的一次性偏好及辅助函数
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleSpaceKey,func,851,KEEP,2026-11-20：bind的空格入口验证当前选中项后向预览服务请求延时键盘预览，沿原弱行视图锚点提供器
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleModifierClick,func,863,KEEP,2026-11-20：viewFor的Cmd/Shift回调交表格多选后抑制悬停并清当前高亮，不触发复制
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleReturnKey,func,870,KEEP,2026-11-20：多选使用Manager批量复制并展示返回原因，单选走owner.onCopy，两种路径均关闭预览
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,symbol,func,907,KEEP,2026-11-20：原生右键菜单图标与标签共用32项NSCache，命中复用图像，未命中才创建SF Symbol
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,presentMenu,func,915,KEEP,2026-11-20：viewFor右键闭包实际入口，按当前条目和选中集合构建复制、粘贴、预览、内容动作、标签及删除菜单；删除直接走Manager
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,menuAction,func,1007,KEEP,2026-11-20：原生菜单及标签的target/action入口，从representedObject取得BlockMenuItemAction并执行run
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,BlockMenuItemAction,init,init,1015,KEEP,2026-11-20：原生菜单项、标签及管理标签动作持有的闭包载体，保存传入动作
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,BlockMenuItemAction,run,func,1016,KEEP,2026-11-20：menuAction唯一执行出口，运行保存的Swift闭包，连接原生target/action
 Clipboard,Features/Clipboard/UI/LargeTextPreviewView.swift,AttributedTextView,init,init,32,KEEP,保存传入富文本及showsTableGrid开关，默认true保留Markdown表格网格；WordInlineContent传false，使Word预览不额外绘制Markdown网格
 Clipboard,Features/Clipboard/UI/LargeTextPreviewView.swift,AttributedTextView,makeNSView,func,37,KEEP,构造只读可选择的PreviewTextView及纵向NSScrollView，传入showsTableGrid、富文本和随视图宽度折行设置，再按网格开关建立单元格矩形缓存
 Clipboard,Features/Clipboard/UI/LargeTextPreviewView.swift,AttributedTextView,updateNSView,func,59,KEEP,SwiftUI更新时传递showsTableGrid；仅富文本内容不同才替换textStorage并刷新表格矩形缓存，保持现有滚动宿主
@@ -2605,35 +2603,35 @@ Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,pruned,func,1003
 Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,bytes,func,1020,KEEP,2026-11-20：存储窗口与堆块尺寸说明调用，系统十进制ByteCountFormatter格式；负值仅呈现0
 Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,shortBytes,func,1023,KEEP,2026-11-20：存储窗口和堆块紧凑标签调用，沿Finder十进制1000换算GB/MB/KB，显示一位小数或整数KB
 Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,date,func,1030,KEEP,2026-11-20：存储扫描日期与清理记录标签调用；按MM-dd HH:mm格式呈现本地时间，不改变索引状态
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,63,KEEP,2026-11-20：shared唯一程序化构造1080×720窗口、最小860×560，关闭保留窗口；原生所需coder入口拒绝归档构造，正式入口为私有init
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,78,KEEP,2026-11-20：shared唯一程序化构造1080×720窗口、最小860×560，关闭保留窗口；原生所需coder入口拒绝归档构造，正式入口为私有init
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,show,func,80,KEEP,2026-11-20：监测详情按钮与storage深链共用已有窗口；按参数扫描或延迟发下钻/提示词通知，下钻消费端统一退出分类显示
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageSwipeRegion,makeNSView,func,106,KEEP,2026-11-20：根视图嵌入背景手势区时创建SwipeView，传入共用navigateHistory闭包，不创建业务存储
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageSwipeRegion,updateNSView,func,110,KEEP,2026-11-20：Representable刷新只更新enabled和导航闭包，保留既有NSView及事件监听器
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,init,init,126,KEEP,2026-11-20：makeNSView通过init(onNavigate:)保存导航并零frame创建，实际尺寸交SwiftUI；所需coder构造无归档入口
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,init,init,131,KEEP,2026-11-20：makeNSView通过init(onNavigate:)保存导航并零frame创建，实际尺寸交SwiftUI；所需coder构造无归档入口
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,hitTest,func,133,KEEP,2026-11-20：AppKit命中恒返回nil，滚动监听在本地事件监视器处理，前景按钮继续接收点击
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,viewDidMoveToWindow,func,135,KEEP,2026-11-20：AppKit移窗回调先移除旧事件token，仅在新window非空时装一次监听
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,installSwipeMonitor,func,144,KEEP,2026-11-20：只处理同一可见窗口精确非惯性滚动，按手势起点命中地图并固定归属；横向达42pt且超过纵向1.2倍后只导航一次，闭包弱持有视图
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,deinit,deinit,182,KEEP,2026-11-20：视图释放移除尚存NSEvent monitor，与移窗移除共同结束事件生命周期
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,refreshDiskSpace,func,254,KEEP,2026-11-20：出现、应用激活和indexRevision变化时读取可用空间、完全磁盘访问状态及数据卷f_bfree已用量，展示复用保存值
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,statusLine,func,281,KEEP,2026-11-20：header消费快照范围、扫描日期、节点数与字节，截断时列maxNodes上限；本地日期格式沿StorageFormat
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,openFullDiskAccessSettings,func,311,KEEP,2026-11-20：页头与存储设置去授权按钮共用固定系统设置URL，通过NSWorkspace打开完全磁盘访问页面
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,header,func,461,KEEP,2026-11-20：根body传实际宽度，展示候选总量、扫描状态、权限提示和整盘可用空间，左统计区用width×0.44−20布局
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,toolbarButton,func,529,KEEP,2026-11-20：mapControls的扫描、工作记录和设置按钮共用样式，图标标题及action由调用方提供
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,candidateControls,func,547,KEEP,2026-11-20：全选按候选路径集合；已选数量和大小先去父子重复；删除先存pendingTrash再开确认，提示词按钮只开附属页
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,leftPane,func,632,KEEP,2026-11-20：根布局沿地图轮廓采样，LazyVStack只建可见候选行，按画布坐标计算行宽；点击只改变selectedPaths
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,candidateWidth,func,671,KEEP,2026-11-20：leftPane逐行以中心水平线与轮廓边求交，取最左交点作候选右界，未交返回0，调用处限制最终宽非负
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,categoryDetail,func,918,KEEP,2026-11-20：rightPane显示分类字节、扫描根、精确pathBytes和coverageHelp；普通VStack一次创建全部明细，留下一批按可见区域构建
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,refreshedNavigationNode,func,960,KEEP,2026-11-20：indexRevision更新时实际路径查新树，disk-files按父ownSize更新；展示分组递归剔除消失成员并重算字节、排序和数量
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigate,func,981,KEEP,2026-11-20：深链、面包屑、根和图块共用，先退出分类模式再判是否同目录；下钻重建前缀，回祖先保留前进记录
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigateHistory,func,990,KEEP,2026-11-20：手势、Esc、前后按钮和地图返回共用，只将历史游标移动到已存在索引，不重建目录树
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,topDirectories,func,999,KEEP,2026-11-20：buildAgentPrompt唯一调用，局部visit遍历已保留树前4层的正大小目录，按字节降序取默认12项，父子可同时列出
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,buildAgentPrompt,func,1014,KEEP,2026-11-20：附属页预览和复制共用当前索引快照、候选及Top目录；概况复用statusLine与coverageHelp，准确列缓存时间、排除路径、跳过原因和截断状态，不执行删除；当前固定generic参数链另由精简支线删除
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,copyAgentPrompt,func,1061,KEEP,2026-11-20：附属页按钮复用生成函数，将正文写系统剪贴板并关闭提示词页；agentKind目前只有generic初值
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,selectedBytesForPending,func,1242,KEEP,2026-11-20：删除确认框先去掉pendingTrash内已被父路径覆盖的项，再从当前快照合计真实节点字节，不操作文件
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,performTrash,func,1248,KEEP,2026-11-20：确认删除取出并清空pendingTrash，非空才交store.trash；按回传成功数、字节和lastError显示结果
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageCandidateRow,displayPath,func,1273,KEEP,2026-11-20：候选行只把当前home本身或home/后代缩写为~，其他路径原样显示，不误缩写同名前缀
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,27,KEEP,2026-11-20：shared唯一程序化构造1080×720窗口、最小860×560，关闭保留窗口；原生所需coder入口拒绝归档构造，正式入口为私有init
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,42,KEEP,2026-11-20：shared唯一程序化构造1080×720窗口、最小860×560，关闭保留窗口；原生所需coder入口拒绝归档构造，正式入口为私有init
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,show,func,44,KEEP,2026-11-20：监测详情按钮与storage深链共用已有窗口；按参数扫描或延迟发下钻/提示词通知，下钻消费端统一退出分类显示
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageSwipeRegion,makeNSView,func,70,KEEP,2026-11-20：根视图嵌入背景手势区时创建SwipeView，传入共用navigateHistory闭包，不创建业务存储
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageSwipeRegion,updateNSView,func,74,KEEP,2026-11-20：Representable刷新只更新enabled和导航闭包，保留既有NSView及事件监听器
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,init,init,90,KEEP,2026-11-20：makeNSView通过init(onNavigate:)保存导航并零frame创建，实际尺寸交SwiftUI；所需coder构造无归档入口
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,init,init,95,KEEP,2026-11-20：makeNSView通过init(onNavigate:)保存导航并零frame创建，实际尺寸交SwiftUI；所需coder构造无归档入口
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,hitTest,func,97,KEEP,2026-11-20：AppKit命中恒返回nil，滚动监听在本地事件监视器处理，前景按钮继续接收点击
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,viewDidMoveToWindow,func,99,KEEP,2026-11-20：AppKit移窗回调先移除旧事件token，仅在新window非空时装一次监听
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,installSwipeMonitor,func,108,KEEP,2026-11-20：只处理同一可见窗口精确非惯性滚动，按手势起点命中地图并固定归属；横向达42pt且超过纵向1.2倍后只导航一次，闭包弱持有视图
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,deinit,deinit,146,KEEP,2026-11-20：视图释放移除尚存NSEvent monitor，与移窗移除共同结束事件生命周期
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,refreshDiskSpace,func,217,KEEP,2026-11-20：出现、应用激活和indexRevision变化时读取可用空间、完全磁盘访问状态及数据卷f_bfree已用量，展示复用保存值
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,statusLine,func,244,KEEP,2026-11-20：header消费快照范围、扫描日期、节点数与字节，截断时列maxNodes上限；本地日期格式沿StorageFormat
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,openFullDiskAccessSettings,func,274,KEEP,2026-11-20：页头与存储设置去授权按钮共用固定系统设置URL，通过NSWorkspace打开完全磁盘访问页面
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,header,func,424,KEEP,2026-11-20：根body传实际宽度，展示候选总量、扫描状态、权限提示和整盘可用空间，左统计区用width×0.44−20布局
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,toolbarButton,func,492,KEEP,2026-11-20：mapControls的扫描、工作记录和设置按钮共用样式，图标标题及action由调用方提供
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,candidateControls,func,510,KEEP,2026-11-20：全选按候选路径集合；已选数量和大小先去父子重复；删除先存pendingTrash再开确认，提示词按钮只开附属页
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,leftPane,func,595,KEEP,2026-11-20：根布局沿地图轮廓采样，LazyVStack只建可见候选行，按画布坐标计算行宽；点击只改变selectedPaths
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,candidateWidth,func,634,KEEP,2026-11-20：leftPane逐行以中心水平线与轮廓边求交，取最左交点作候选右界，未交返回0，调用处限制最终宽非负
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,categoryDetail,func,881,KEEP,2026-11-20：rightPane显示分类字节、扫描根、pathBytes与覆盖范围说明；ScrollView内用LazyVStack按可见区域构建全部明细，仍保留文本选择和缺失明细提示
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,refreshedNavigationNode,func,923,KEEP,2026-11-20：indexRevision更新时实际路径查新树，disk-files按父ownSize更新；展示分组递归剔除消失成员并重算字节、排序和数量
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigate,func,944,KEEP,2026-11-20：深链、面包屑、根和图块共用，先退出分类模式再判是否同目录；下钻重建前缀，回祖先保留前进记录
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigateHistory,func,953,KEEP,2026-11-20：手势、Esc、前后按钮和地图返回共用，只将历史游标移动到已存在索引，不重建目录树
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,topDirectories,func,962,KEEP,2026-11-20：buildAgentPrompt唯一调用，局部visit遍历已保留树前4层的正大小目录，按字节降序取默认12项，父子可同时列出
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,buildAgentPrompt,func,977,KEEP,2026-11-20：附属页预览和复制共用当前索引快照、候选及Top目录；概况复用statusLine与coverageHelp，准确列缓存时间、排除路径、跳过原因和截断状态，不执行删除，使用通用角色且无客户端选择参数
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,copyAgentPrompt,func,1024,KEEP,2026-11-20：附属页按钮调用同一无参buildAgentPrompt，写系统剪贴板后关闭提示词页；没有客户端选择器或agentKind状态
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,selectedBytesForPending,func,1205,KEEP,2026-11-20：删除确认框先去掉pendingTrash内已被父路径覆盖的项，再从当前快照合计真实节点字节，不操作文件
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,performTrash,func,1211,KEEP,2026-11-20：确认删除取出并清空pendingTrash，非空才交store.trash；按回传成功数、字节和lastError显示结果
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageCandidateRow,displayPath,func,1236,KEEP,2026-11-20：候选行只把当前home本身或home/后代缩写为~，其他路径原样显示，不误缩写同名前缀
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskVoronoiLayout,make,func,42,KEEP,DiskLayoutCache.tiles:133
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskVoronoiLayout,inradius,func,125,KEEP,DiskVoronoiLayout.make 在布局时计算标签质心到各边的最小距离，供标签档位和宽度复用；悬停不再求内切圆半径
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskLayoutCache,tiles,func,147,KEEP,StorageTreemap.body:171
@@ -2874,12 +2872,12 @@ Onboarding,Features/Onboarding/WhatsNew.swift,WhatsNewWindowController,ensureWin
 Onboarding,Features/Onboarding/WhatsNew.swift,WhatsNewWindow,performClose,func,219,KEEP,NSWindow override；标题栏关闭按钮派发
 Onboarding,Features/Onboarding/WhatsNew.swift,WhatsNewWindow,performKeyEquivalent,func,224,KEEP,NSWindow override；AppKit Esc 键派发到该方法
 Onboarding,Features/Onboarding/WhatsNew.swift,WhatsNewView,section,func,275,KEEP,WhatsNewView.body:247 ForEach 调用
-Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLink,init,init,52,KEEP,FrsetNextApp.swift:419 构造深链；detect :170/:183 亦构造
-Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,provider,func,102,KEEP,FrsetNextApp.swift:418 与 Downloader:97/164/216 调用
-Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,isSharePage,func,118,KEEP,FrsetNextApp.swift:420 与 detect :170/:183 调用
-Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,normalized,func,133,KEEP,detect :169 唯一调用（private 辅助）
-Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,detect,func,160,KEEP,FrsetNextApp.swift:416；CloudLinkPrompt:56/76；预览内容:24
-Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,recentLink,func,191,KEEP,CloudLinkBar.swift:27 detectionKey 与 :32 link 调用
+Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLink,init,init,52,KEEP,2026-11-20：detect和App深链构造URL、provider与分享页标记，消费者为链接条、提示和下载中心；外部分离提取码目前未保留，留后续处理
+Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,provider,func,102,KEEP,2026-11-20：检测器、下载器与App共用主机识别；精确域名表和123通配后缀，当前根域后缀未限定点边界，可误认相似域，待处理
+Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,isSharePage,func,118,KEEP,2026-11-20：detect与App分类后供提示、中心和下载分流；当前/share及主机share.字符串包含过宽，会把同前缀文件归分享页，待处理
+Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,normalized,func,133,KEEP,2026-11-20：detect的标准URL分支调用；目前所有受支持主机HTTP均升级HTTPS，显式签名HTTP也改写，需只为裸域名补协议
+Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,detect,func,160,KEEP,2026-11-20：剪贴板提示、首页、预览及刘海共用，静态检测器及正则；当前全量matches后找首条，裸域名左边界缺失，外部分离提取码未保存，待处理
+Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,recentLink,func,191,KEEP,2026-11-20：首页链接条及布局动画扫描最多20条，按类型检测content/title；长正文仅前4000字符且同首页重复求值，留后续处理
 Panel,Features/Panel/CloudLink/CloudLinkBar.swift,CloudLinkBar,init,init,25,KEEP,PanelRootView.swift:719 构造 CloudLinkBar()
 Panel,Features/Panel/CloudLink/CloudLinkBar.swift,CloudLinkBar,detectionKey,func,28,KEEP,PanelRootView.swift:733 作 .animation(value:)
 Panel,Features/Panel/CloudLink/CloudLinkBar.swift,CloudLinkBar,bar,func,61,KEEP,本文件 body :40 调用

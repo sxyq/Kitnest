@@ -167,7 +167,7 @@ public struct ClipboardSectionView: View {
                                        onSummarize: { item in
                                            Task { await runSummary(for: item) }
                                        },
-                                       onDelete: { manager.delete($0) }, personalization: effectivePersonalization)
+                                       personalization: effectivePersonalization)
                     // v91（2026-10-20 用户：「日历与剪贴板没有统一宽度」）：
                     // 此前只锁高度，NSScrollView 的固有宽度参与布局 → 表格比
                     // 日历卡（maxWidth: .infinity）窄约 6pt。锁满宽后行卡与日历卡同宽。

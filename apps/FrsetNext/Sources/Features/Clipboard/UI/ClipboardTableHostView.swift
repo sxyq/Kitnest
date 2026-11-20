@@ -68,7 +68,7 @@ public final class ClipboardRowHoverSuppressionController {
     }
 }
 
-// MARK: - 顶部滚动 tracker（specs/14 §3.4，ivar 对齐原作 band/isOut/lastMinY）
+// MARK: - 顶部滚动 tracker（specs/14 §3.4，band/isOut）
 
 /// 对**首行底边相对视口顶部的距离**做迟滞双阈值判定（enter > exit 防抖动），
 /// 输出 onFirstItemScrolledOutChange → ClipboardManager.isMainListAtTop。
@@ -80,7 +80,6 @@ public final class ClipboardRowHoverSuppressionController {
 public final class ClipboardListTopScrollTracker {
     public private(set) var band: Double = 0
     public private(set) var isOut = false
-    private var lastMinY: Double?
 
     public var enterThreshold: Double = 40
     public var exitThreshold: Double = 24
@@ -95,12 +94,10 @@ public final class ClipboardListTopScrollTracker {
     ///   - hasFirstRow: 列表是否非空；空列表视为在顶部
     public func feed(firstRowMinY: Double?, firstRowHeight: Double, viewportOriginY: Double) {
         guard let firstRowMinY else {
-            lastMinY = nil
             setOut(false)
             return
         }
         let distance = viewportOriginY - (firstRowMinY + firstRowHeight)
-        lastMinY = distance
         if isOut {
             if distance <= exitThreshold { setOut(false) }
         } else {
@@ -147,7 +144,6 @@ final class RowHostingView: NSHostingView<AnyView> {
 
     static let hoverActionsZoneWidth: CGFloat = 104
 
-    let reuseIdentifier: NSUserInterfaceItemIdentifier
     var item: ClipboardItem?
     var contentBuilder: ((ClipboardItem, Bool) -> AnyView)?
     /// 本视图对应的行号（viewFor 中登记）；供选中态反查
@@ -166,8 +162,8 @@ final class RowHostingView: NSHostingView<AnyView> {
     var onRightMouseDown: ((ClipboardItem, CGPoint, NSView) -> Void)?
 
     init(reuseIdentifier: NSUserInterfaceItemIdentifier, frame: NSRect) {
-        self.reuseIdentifier = reuseIdentifier
         super.init(rootView: AnyView(EmptyView()))
+        identifier = reuseIdentifier
         self.frame = frame
         autoresizingMask = [.width]
         // v100（2026-10-21 用户：「每条卡片横向宽度不一致，改了没生效」）：
@@ -379,12 +375,6 @@ final class ClipboardTableView: NSTableView {
             }
             if characters == "\r" { onReturnKey?(); return }
         }
-        // 诊断（临时）：键盘入口打状态。handleSpaceKey/handleReturnKey 的入口日志
-        // 只在本函数真正分派过去后才才会执行；若这里完全没有日志 → 说明本表格
-        // 不是 first responder（焦点被搜索框等抢占），keyDown 压根没被调用。
-        // ⚠️ 诊断点，非行为变更，不计入对照差异。
-        Log.info("clipboard", "keyDown[\(characters)] selectedRow=\(selectedRow) "
-            + "firstResponder=\(String(describing: window?.firstResponder))")
         switch characters {
         case " ":
             if selectedRow >= 0 { onSpaceKey?(); return }
@@ -431,7 +421,6 @@ public struct ClipboardTableHostView: NSViewRepresentable {
     var onCopy: (ClipboardItem) -> Void
     var onEdit: (ClipboardItem) -> Void
     var onSummarize: (ClipboardItem) -> Void
-    var onDelete: (ClipboardItem) -> Void
 
     public init(manager: ClipboardManager,
                 scrollProxy: ClipboardTableScrollProxy,
@@ -439,7 +428,6 @@ public struct ClipboardTableHostView: NSViewRepresentable {
                 onCopy: @escaping (ClipboardItem) -> Void,
                 onEdit: @escaping (ClipboardItem) -> Void,
                 onSummarize: @escaping (ClipboardItem) -> Void,
-                onDelete: @escaping (ClipboardItem) -> Void,
                 personalization: Personalization = .shared) {
         self.manager = manager
         self.scrollProxy = scrollProxy
@@ -447,7 +435,6 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         self.onCopy = onCopy
         self.onEdit = onEdit
         self.onSummarize = onSummarize
-        self.onDelete = onDelete
         self.personalization = personalization
     }
 
@@ -551,7 +538,6 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         fileprivate var owner: ClipboardTableHostView
         private weak var scrollView: NSScrollView?
         private weak var table: ClipboardTableView?
-        private weak var proxy: ClipboardTableScrollProxy?
 
         // 交互族状态
         let topTracker = ClipboardListTopScrollTracker()
@@ -580,7 +566,6 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         func bind(scrollView: ClipboardListScrollView, table: ClipboardTableView, proxy: ClipboardTableScrollProxy) {
             self.scrollView = scrollView
             self.table = table
-            self.proxy = proxy
             proxy.scrollView = scrollView
             // v102：底部「回到顶部」按钮经通知触发（代理在别处持有）
             scrollTopObserver = NotificationCenter.default.addObserver(
@@ -612,7 +597,6 @@ public struct ClipboardTableHostView: NSViewRepresentable {
             let host = tableView.makeView(withIdentifier: identifier, owner: nil) as? RowHostingView
                 ?? RowHostingView(reuseIdentifier: identifier,
                                   frame: NSRect(x: 0, y: 0, width: tableView.bounds.width, height: owner.rowHeight))
-            host.identifier = identifier
             if rowViewsByRow[host.row]?.view === host {
                 rowViewsByRow.removeValue(forKey: host.row)
             }
@@ -727,7 +711,7 @@ public struct ClipboardTableHostView: NSViewRepresentable {
             // 只裁掉「行号越界」与「视图已被回收」两类条目：前者是条目删除后的残留，
             // 后者由 weak 引用自然变 nil（残留条目只会查得 nil，不会给出错误视图），
             // 一并清掉可避免字典无限增长——这正是整体 removeAll() 原本的唯一收益。
-            let validRows = Set(0..<table.numberOfRows)
+            let validRows = 0..<table.numberOfRows
             rowViewsByRow = rowViewsByRow.filter { validRows.contains($0.key) && $0.value.view != nil }
             hoveredRowView = nil
             // hoveredItemID 必须与 hoveredRowView 同步清空：若只清视图而保留 ID，
@@ -851,19 +835,6 @@ public struct ClipboardTableHostView: NSViewRepresentable {
             }
         }
 
-        /// 一次性交互提示（specs/14 §3.7：提示文案 cstring `0xb43d70` "双击条目可复制" /
-        /// `0xb43da0` "单击条目可预览"）。⚠️ 原作对应的 defaults 键名未探明（specs/14 §7），
-        /// 此处按工程既有键名风格自拟，语义为「该提示已消费」。
-        private static let doubleClickCopyHintKey = "hasSeenClipboardDoubleClickCopyHint"
-
-        /// 首次触发时消费一次性提示键，返回是否需要展示
-        private func consumeOneTimeHint(_ key: String) -> Bool {
-            let preferences = Preferences.shared
-            if preferences.value(key, default: false) { return false }
-            preferences.set(key, true)
-            return true
-        }
-
         private func anchorProvider(for view: NSView?) -> () -> CGRect? {
             { [weak view] in
                 guard let view, view.window != nil else { return nil }
@@ -874,25 +845,13 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         private func handleDoubleClick(_ item: ClipboardItem) {
             // 双击 = 复制（预览程序化关闭）
             ServiceLocator.panelPreview?.dismissPreview()
-            if consumeOneTimeHint(Self.doubleClickCopyHintKey) {
-                // 原作此处除提示外还有复制成功 toast（copy() 内部已发），故不重复发
-                Log.info("clipboard", "首次双击条目：已提示「双击条目可复制」")
-            }
             owner.onCopy(item)
         }
 
         private func handleSpaceKey() {
-            // 诊断（临时）：入口打全量状态，一次区分三道门哪个挂了
-            // ⚠️ 诊断点，非行为变更，不计入对照差异。注意不能引用下方才声明的 item，
-            //    故此处按行号安全取 id。
-            let row = table?.selectedRow ?? -1
-            let rowID = owner.manager.items.indices.contains(row) ? owner.manager.items[row].id : "<none>"
-            Log.info("clipboard", "space → selectedRow=\(row) "
-                + "firstResponder=\(String(describing: table?.window?.firstResponder)) "
-                + "rowView=\(rowView(forItemID: rowID) != nil)")
             guard let table, table.selectedRow >= 0, table.selectedRow < owner.manager.items.count else { return }
             let item = owner.manager.items[table.selectedRow]
-            let view = rowView(forItemID: item.id)
+            let view = rowView(at: table.selectedRow)
             ServiceLocator.panelPreview?.requestKeyboardPreview(item: item,
                                                                 anchorRectProvider: anchorProvider(for: view))
         }
@@ -909,11 +868,6 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         }
 
         private func handleReturnKey() {
-            // 诊断（临时）：↩ 只依赖 selectedRow + first responder（不依赖锚点），
-            // 是二分判据的干净探针——与space 的 rowView= 值对比即可定位失败层。
-            let row = table?.selectedRow ?? -1
-            Log.info("clipboard", "return → selectedRow=\(row) "
-                + "firstResponder=\(String(describing: table?.window?.firstResponder))")
             guard let table, table.selectedRow >= 0, table.selectedRow < owner.manager.items.count else { return }
             // 多选批量复制（原版「已复制 %d 项」）：⌘/⇧ 点击 ≥2 条后按 ↩ 一次性写入剪贴板
             if table.selectedRowIndexes.count > 1 {
@@ -931,10 +885,6 @@ public struct ClipboardTableHostView: NSViewRepresentable {
             owner.onCopy(item)
         }
 
-        private func rowView(forItemID itemID: String) -> NSView? {
-            guard let row = owner.manager.items.firstIndex(where: { $0.id == itemID }) else { return nil }
-            return rowView(at: row)
-        }
     }
 }
 
