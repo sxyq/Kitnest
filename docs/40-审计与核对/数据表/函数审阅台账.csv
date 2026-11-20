@@ -2388,12 +2388,12 @@ Manual,Features/Manual/ManualView.swift,ManualPaneView,ancestorPath,func,262,KEE
 Manual,Features/Manual/ManualView.swift,ManualPaneView,parent,func,272,KEEP,2026-11-19：ancestorPath直接用解析期父索引查分类，未登记父级时结束遍历
 Manual,Features/Manual/ManualView.swift,ManualDisclosureStyle,makeBody,func,384,KEEP,2026-11-19：ManualTreeRow的DisclosureGroupStyle协议实现，三角按钮切换原expanded集合并沿主题播放展开过渡
 Manual,Features/Manual/ManualView.swift,-,inlineMarkdown,func,502,KEEP,2026-11-19：ManualBlockView直接调用唯一行内Markdown转换；已移除仅转发的inline方法，保留解析失败时原文显示
-Monitor,Features/Monitor/BatteryEnergy.swift,StatsEnergyItem,init,init,32,KEEP,构造于 BatteryEnergy.swift:133 tick 内建行，全仓唯一构造点
-Monitor,Features/Monitor/BatteryEnergy.swift,BatteryEnergySampler,init,init,68,KEEP,私有 init，仅 shared 单例 BatteryEnergy.swift:44 调用
-Monitor,Features/Monitor/BatteryEnergy.swift,BatteryEnergySampler,start,func,72,KEEP,onAppear :240；CPUEnergyImpactSection 在 MonitorDetailView:212
-Monitor,Features/Monitor/BatteryEnergy.swift,BatteryEnergySampler,stop,func,91,KEEP,onDisappear BatteryEnergy.swift:241
-Monitor,Features/Monitor/BatteryEnergy.swift,BatteryEnergySampler,tick,func,100,KEEP,start:76 建基线 + start:84 定时器回调
-Monitor,Features/Monitor/BatteryEnergy.swift,BatteryEnergySampler,wattsText,func,171,KEEP,BatteryEnergy:157/254、BatteryPanel:246、MonitorDetailView:591
+Monitor,Features/Monitor/BatteryEnergy.swift,StatsEnergyItem,init,init,32,KEEP,2026-11-20：tick在后台聚合应用能耗后构造排行值；主线程发布前六项，功耗页仅展示前五项
+Monitor,Features/Monitor/BatteryEnergy.swift,BatteryEnergySampler,init,init,67,KEEP,2026-11-20：私有构造仅供shared单例；512项采样缓冲随该单例存在，停止采样不释放缓冲
+Monitor,Features/Monitor/BatteryEnergy.swift,BatteryEnergySampler,start,func,71,KEEP,2026-11-20：实际功耗页出现时调用；主线程立即采样并安排1.5秒补采及5秒定时，已有定时器时不重复启动；设置预览不创建消费者
+Monitor,Features/Monitor/BatteryEnergy.swift,BatteryEnergySampler,stop,func,90,KEEP,2026-11-20：功耗页消失时取消定时和补采；保留在途标记与缓冲，页面重开仍由同一在途标记串行采样
+Monitor,Features/Monitor/BatteryEnergy.swift,BatteryEnergySampler,tick,func,99,KEEP,2026-11-20：MainActor先置inflight后后台调用唯一C能耗入口并完成聚合；回主线程才清标记及发布，负返回值切为CPU活跃度；删除仅包围不可变指针复制的锁
+Monitor,Features/Monitor/BatteryEnergy.swift,BatteryEnergySampler,wattsText,func,168,KEEP,2026-11-20：能耗排行日志与行及电池功率流向共用；不高于0.0005显示0 W，低于0.9999用一位mW，其余两位W
 Monitor,Features/Monitor/DiskVolumes.swift,DiskVolumeStore,init,init,57,KEEP,私有 init，shared:50 调用；MonitorDetailView.swift:40 引用
 Monitor,Features/Monitor/DiskVolumes.swift,DiskVolumeStore,deinit,deinit,73,KEEP,对称移除 init:66-69 注册的 3 个 NSWorkspace 观察者
 Monitor,Features/Monitor/DiskVolumes.swift,DiskVolumeStore,refresh,func,78,KEEP,init:58 首刷 + 挂载/卸载/改名通知回调:67

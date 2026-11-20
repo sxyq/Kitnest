@@ -63,7 +63,6 @@ public final class BatteryEnergySampler: ObservableObject {
     private var inflight = false
     private var loggedSample = false
     private let buffer = UnsafeMutablePointer<frset_energy_pid_t>.allocate(capacity: 512)
-    private let bufferLock = NSLock()
 
     private init() {}
 
@@ -100,9 +99,7 @@ public final class BatteryEnergySampler: ObservableObject {
     private func tick() {
         guard !inflight else { return }
         inflight = true
-        bufferLock.lock()
         let ptr = buffer
-        bufferLock.unlock()
 
         DispatchQueue.global(qos: .utility).async { [weak self] in
             var elapsed: Double = 0
