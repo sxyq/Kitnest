@@ -64,50 +64,60 @@ struct ArchiveDefaultApplicationOption: View {
     @AppStorage(ArchiveCreationPreferences.encryptFileNames) private var encryptFileNames = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("默认解压应用 · ZIP").font(.headline)
-            Toggle("用 Kitnest 默认打开 ZIP", isOn: Binding(
-                get: { association.enabled }, set: { association.setEnabled($0) }))
-                .toggleStyle(.switch)
-                .disabled(association.changing)
-            Text("开启后，双击 ZIP 在 Kitnest 中查看并解压；关闭后恢复此前的打开方式。")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Text(association.changing ? "正在更改…" : "当前默认：\(association.applicationName)")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-            HStack {
-                Button("定位当前 ZIP 应用") {
-                    if let application = NSWorkspace.shared.urlForApplication(toOpen: .zip) {
-                        NSWorkspace.shared.activateFileViewerSelecting([application])
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 5) {
+                Label("双击打开与解压", systemImage: "archivebox")
+                    .font(.system(size: 12, weight: .medium))
+                Toggle("ZIP 使用 Kitnest 打开", isOn: Binding(
+                    get: { association.enabled }, set: { association.setEnabled($0) }))
+                    .toggleStyle(.switch)
+                    .disabled(association.changing)
+                Text(association.changing ? "正在更改…" : "当前默认应用：\(association.applicationName)")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                Text("启用后双击 ZIP 会在 Kitnest 中浏览与解压；关闭后恢复先前应用。")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack {
+                    Button("定位当前 ZIP 应用") {
+                        if let application = NSWorkspace.shared.urlForApplication(toOpen: .zip) {
+                            NSWorkspace.shared.activateFileViewerSelecting([application])
+                        }
+                    }
+                    Button("定位系统归档工具") {
+                        if let application = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.archiveutility") {
+                            NSWorkspace.shared.activateFileViewerSelecting([application])
+                        }
                     }
                 }
-                Button("定位系统归档工具") {
-                    if let application = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.archiveutility") {
-                        NSWorkspace.shared.activateFileViewerSelecting([application])
+                .buttonStyle(.link)
+                Text("其他格式：访达选中压缩包 → 显示简介 → 打开方式 → 全部更改。")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+            }
+            Divider().opacity(0.6)
+            VStack(alignment: .leading, spacing: 5) {
+                Label("Finder 服务", systemImage: "folder")
+                    .font(.system(size: 12, weight: .medium))
+                Text("压缩：选中文件 → 右键 → 服务 → 用 Kitnest 压缩。系统原有的「压缩」不变。")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("解压：选中归档 → 右键 → 服务 → 解压到此处 / 解压到…")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("复制路径与终端打开：Finder 选中文件或目录 → 右键 → 服务 →「用 Kitnest 复制路径」或「用 Kitnest 在终端打开」。请在系统设置 → 键盘 → 键盘快捷键 → 服务中分别启用这两项。")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("打开系统键盘设置") {
+                    if !NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.keyboard")!) {
+                        Toast.show("无法打开系统键盘设置，请从系统设置进入键盘 → 键盘快捷键 → 服务", isWarning: true)
                     }
                 }
+                .buttonStyle(.link)
             }
-            .buttonStyle(.link)
-            Text("其他格式：访达选中压缩包 → 显示简介 → 打开方式 → 全部更改。")
-                .font(.system(size: 11)).foregroundStyle(.secondary)
-            Divider()
-            Text("Finder 压缩与解压服务").font(.headline)
-            Text("压缩：访达选中文件 → 右键 → 服务 → 用 Kitnest 压缩。访达原有的「压缩」保持不变。")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Text("复制路径与终端打开：Finder 选中文件或目录 → 右键 → 服务 →「用 Kitnest 复制路径」或「用 Kitnest 在终端打开」。请在系统设置 → 键盘 → 键盘快捷键 → 服务中分别启用这两项。")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Button("打开系统键盘设置") {
-                if !NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.keyboard")!) {
-                    Toast.show("无法打开系统键盘设置，请从系统设置进入键盘 → 键盘快捷键 → 服务", isWarning: true)
-                }
-            }
-            .buttonStyle(.link)
             Divider()
             Text("加密压缩 · 新建窗口默认值").font(.headline)
             Toggle("默认启用密码保护", isOn: $passwordEnabled)

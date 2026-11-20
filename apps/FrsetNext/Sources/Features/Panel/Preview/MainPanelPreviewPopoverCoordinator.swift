@@ -178,6 +178,7 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
                         showsKeyboardHint: Bool = false,
                         anchorRectInScreen: CGRect? = nil,
                         sourceWindow: NSWindow? = nil) -> Bool {
+        if previewPinned && hasActivePreview { return false }
         cancelHoverWorkItems()
         cancelKeyboardPreview()
         restoreAfterHover = nil
@@ -281,7 +282,8 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     /// 关闭预览（可带完成回调；面板收起等待预览先关时由 PanelController 调用，reason = .panelCollapse）
     public func dismiss(reason: MainPanelPreviewPopoverCloseReason = .programmatic,
                         completion: (() -> Void)? = nil) {
-        if previewPinned && reason == .panelCollapse {
+        if previewPinned && (reason == .panelCollapse || reason == .hoverOut
+                             || reason == .scrolledOutOfViewport || reason == .systemInterruption) {
             cancelHoverWorkItems()
             completion?()
             return

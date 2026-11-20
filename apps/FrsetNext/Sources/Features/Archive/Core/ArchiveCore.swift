@@ -284,6 +284,7 @@ public enum ArchiveCore {
     public struct ArchivePreset: Identifiable {
         public let title: String
         public let detail: String
+        public let symbol: String
         /// 7zz 的 -t 参数（tar.gz 走两趟：先 tar 再 gzip）
         public let format: String
         /// 0(store) - 9(ultra)
@@ -294,18 +295,23 @@ public enum ArchiveCore {
     public static let presets: [ArchivePreset] = [
         .init(title: "通用分享",
               detail: "ZIP · 均衡，任何系统都能直接打开",
+              symbol: "globe",
               format: "zip", level: 5),
         .init(title: "Mac 之间传递",
               detail: "7z · 保留 macOS 元数据，压缩率更高",
+              symbol: "laptopcomputer",
               format: "7z", level: 5),
         .init(title: "Windows 用户",
               detail: "ZIP · Windows 资源管理器直接解压",
+              symbol: "desktopcomputer",
               format: "zip", level: 5),
         .init(title: "Linux 与服务器",
               detail: "tar.gz · 命令行友好，保留权限与软链",
+              symbol: "terminal",
               format: "tar.gz", level: 5),
         .init(title: "尽可能小",
               detail: "7z · 最高压缩率，体积最小、耗时更长",
+              symbol: "arrow.down.to.line",
               format: "7z", level: 9),
     ]
 

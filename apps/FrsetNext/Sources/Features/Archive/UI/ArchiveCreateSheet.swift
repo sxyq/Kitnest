@@ -232,36 +232,64 @@ public struct ArchiveCreateView: View {
     // MARK: 用途预设
 
     private var presetPicker: some View {
-        VStack(alignment: .leading, spacing: 3) {
-            Text("用途预设")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.secondary)
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 6) {
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Label("用途预设", systemImage: "square.grid.2x2")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("选择后仍可调整格式与强度")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+            }
+            let columns = [GridItem(.flexible(), spacing: 7), GridItem(.flexible(), spacing: 7)]
+            LazyVGrid(columns: columns, spacing: 7) {
                 ForEach(Array(ArchiveCore.presets.enumerated()), id: \.element.id) { idx, preset in
+                    let selected = model.presetIndex == idx
+                    let selectedFill = selected ? Theme.accent.opacity(0.09) : Color.primary.opacity(0.035)
+                    let selectedStroke = selected ? Theme.accent.opacity(0.62) : Color.primary.opacity(0.08)
+                    let selectionSymbol = selected ? "checkmark.circle.fill" : "circle"
                     Button {
-                        model.applyPreset(idx)
+                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.16)) { model.applyPreset(idx) }
                     } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: ["square.and.arrow.up", "laptopcomputer", "desktopcomputer", "server.rack", "arrow.down.right.and.arrow.up.left"][idx])
-                                .foregroundStyle(model.presetIndex == idx ? Theme.accent : .secondary)
-                            Text(preset.title)
-                                .font(.system(size: 11, weight: .medium))
-                            Spacer()
+                        HStack(spacing: 7) {
+                            Image(systemName: preset.symbol)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(selected ? Theme.accent : .secondary)
+                                .frame(width: 18)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(preset.title)
+                                    .font(.system(size: 10.5, weight: .medium))
+                                    .lineLimit(1)
+                                Text(preset.detail)
+                                    .font(.system(size: 9.5))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            Spacer(minLength: 3)
                             Text(preset.format.uppercased())
-                                .font(.system(size: 11, design: .monospaced))
-                                .foregroundStyle(Theme.tertiaryText)
-                            Image(systemName: model.presetIndex == idx ? "checkmark.circle.fill" : "circle")
+                                .font(.system(size: 9, weight: .medium, design: .monospaced))
+                                .foregroundStyle(selected ? Theme.accent : Theme.tertiaryText)
+                            Image(systemName: selectionSymbol)
+                                .font(.system(size: 11))
+                                .foregroundStyle(selected ? Theme.accent : Color.secondary)
                         }
+                        .padding(.horizontal, 7)
+                        .frame(maxWidth: .infinity, minHeight: 39, alignment: .leading)
+                        .background(RoundedRectangle(cornerRadius: 6)
+                            .fill(selectedFill))
+                        .overlay(RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(selectedStroke, lineWidth: selected ? 1 : 0.5))
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .padding(8)
-                    .background(RoundedRectangle(cornerRadius: 8).fill(model.presetIndex == idx ? Theme.accent.opacity(0.12) : Color.clear))
-                    .help(preset.detail)
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                    .gridCellColumns(idx == ArchiveCore.presets.count - 1 ? 2 : 1)
                 }
             }
-            Text(ArchiveCore.presets[model.presetIndex].detail)
-                .font(.system(size: 11)).foregroundStyle(.secondary)
+            Label("用途图标 · 格式标识 · 选中状态", systemImage: "info.circle")
+                .font(.system(size: 9.5))
+                .foregroundStyle(.tertiary)
         }
     }
 
@@ -276,6 +304,10 @@ public struct ArchiveCreateView: View {
                     .textFieldStyle(.roundedBorder)
                     .font(.system(size: 11))
             }
+            Divider().opacity(0.6)
+            Label("格式与压缩强度", systemImage: "slider.horizontal.3")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.secondary)
             HStack {
                 Text("格式").frame(width: 56, alignment: .leading)
                 Picker("", selection: $model.format) {
@@ -306,6 +338,7 @@ public struct ArchiveCreateView: View {
                     .toggleStyle(.checkbox)
                     .font(.system(size: 11))
                     .disabled(!model.supportsPassword)
+                    .help("ZIP 密码仅支持 ASCII；中文密码请使用 7z")
                 if model.usePassword {
                     HStack(spacing: 4) {
                         if model.showPassword {
