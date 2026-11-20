@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import WebKit
 
 // MARK: - 网盘「解析下载」（LinkSwift 思路的最小可用实现）
@@ -46,12 +47,6 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
         "pdf", "epub", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
         "png", "jpg", "jpeg", "gif", "webp", "apk", "exe", "txt", "md", "json"
     ]
-
-    private var downloadsDirectory: URL {
-        let url = URL(fileURLWithPath: CloudLinkSettings.downloadDirectory, isDirectory: true)
-        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-        return url
-    }
 
     // MARK: - 入口
 
@@ -196,10 +191,23 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
                 case .file(let dest):
                     try FileManager.default.moveItem(at: tempURL, to: dest)
                     self.finish(id: job.id, localURL: dest)
+                case .replacement(let dest):
+                    let directory = try FileManager.default.url(for: .itemReplacementDirectory,
+                                                                in: .userDomainMask,
+                                                                appropriateFor: dest, create: true)
+                    defer { try? FileManager.default.removeItem(at: directory) }
+                    let incoming = directory.appendingPathComponent(filename)
+                    try FileManager.default.moveItem(at: tempURL, to: incoming)
+                    guard Darwin.rename(incoming.path, dest.path) == 0 else {
+                        throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno),
+                                      userInfo: [NSFilePathErrorKey: dest.path])
+                    }
+                    self.finish(id: job.id, localURL: dest)
                 }
                 self.release()
             } catch {
-                self.handleFailure(job, reason: error.localizedDescription)
+                self.finish(id: job.id, error: error.localizedDescription)
+                self.release()
             }
         }
         task.resume()
@@ -304,17 +312,18 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
 
     private enum Destination {
         case file(URL)
+        case replacement(URL)
         case skipped
     }
 
     private func destination(for filename: String) throws -> Destination {
-        let dir = downloadsDirectory
+        let dir = URL(fileURLWithPath: CloudLinkSettings.downloadDirectory, isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let dest = dir.appendingPathComponent(filename)
         guard FileManager.default.fileExists(atPath: dest.path) else { return .file(dest) }
         switch CloudLinkSettings.conflictPolicy {
         case .overwrite:
-            try FileManager.default.removeItem(at: dest)
-            return .file(dest)
+            return .replacement(dest)
         case .skip:
             return .skipped
         case .rename:
