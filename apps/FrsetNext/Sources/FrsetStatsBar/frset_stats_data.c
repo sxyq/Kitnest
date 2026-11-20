@@ -575,15 +575,7 @@ static double frset_nowsec(void) {
     return (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
 }
 
-/* v128（CPU 优化）：FRSET_PROC_CAP 2048 → 512。
-   · 内存：g_pPrev[4][CAP]（136B/项）1.06MB → 265KB，cur+score 同步缩小（-220KB），
-     合计省约 1MB 静态堆。
-   · 截断语义：frset_proc_top 用 proc_listallpids 枚举 pid（返回 n），扫描循环以
-     ncur < FRSET_PROC_CAP 为界；进程数 > 512 时**只扫描前 512 个 pid**（枚举序、
-     非用量序），Top 表可能漏掉枚举序靠后的进程。Top 表只展示前 N 个
-     （readProcList max=8），macOS 常态进程数 300-700，可接受。
-   · 边界：cur/score/g_pPrev 所有写入都在 `ncur < FRSET_PROC_CAP` 条件内，不会越界；
-     g_pPrevN[k] = ncur（ncur 恒 ≤ CAP）。 */
+/* 只保留枚举顺序中前 512 个有效进程；显示层仍按使用量排序。 */
 #define FRSET_PROC_CAP 512
 
 typedef struct {
@@ -593,10 +585,21 @@ typedef struct {
     char name[64];
 } frset_proc_raw_t;
 
+typedef struct {
+    int pid;
+    uint64_t ut, st, rb, wb;
+} frset_proc_counters_t;
+
+/* 两种差分快照都把 PID 放在首字段，且查找键本身也是 int。 */
+static int frset_compare_pid(const void *a, const void *b) {
+    int left = *(const int *)a, right = *(const int *)b;
+    return (left > right) - (left < right);
+}
+
 // v86：每个维度（0=CPU 1=内存 2=磁盘 3=网络）各自保留上一轮快照。
 // 原来共用一份：同一 tick 里连续取 CPU/内存/磁盘时，第 2、3 次调用 dt≈0 →
 // havePrev=0 → 磁盘读写速率恒为 0（磁盘页进程表全 0 B/s 的根因）。
-static frset_proc_raw_t g_pPrev[4][FRSET_PROC_CAP];
+static frset_proc_counters_t g_pPrev[4][FRSET_PROC_CAP];
 static int g_pPrevN[4] = {0, 0, 0, 0};
 static double g_pPrevT[4] = {0, 0, 0, 0};
 
@@ -665,14 +668,13 @@ int frset_proc_top(int kind, frset_proc_t *out, int max) {
 
     for (int i = 0; i < nsrc && ncur < FRSET_PROC_CAP; i++) {
         frset_proc_raw_t r = src[i];
-        int pid = r.pid;
         if (havePrev) {
-            for (int j = 0; j < g_pPrevN[k]; j++) {
-                if (g_pPrev[k][j].pid != pid) continue;
-                r.cpu = (((double)(r.ut - g_pPrev[k][j].ut) + (double)(r.st - g_pPrev[k][j].st)) / 1e9 / dt) * 100.0;
-                r.dr = (double)(r.rb - g_pPrev[k][j].rb) / dt;
-                r.dw = (double)(r.wb - g_pPrev[k][j].wb) / dt;
-                break;
+            const frset_proc_counters_t *prev = bsearch(&r.pid, g_pPrev[k], g_pPrevN[k],
+                                                        sizeof(g_pPrev[k][0]), frset_compare_pid);
+            if (prev) {
+                r.cpu = (((double)(r.ut - prev->ut) + (double)(r.st - prev->st)) / 1e9 / dt) * 100.0;
+                r.dr = (double)(r.rb - prev->rb) / dt;
+                r.dw = (double)(r.wb - prev->wb) / dt;
             }
         }
         if (r.cpu < 0) r.cpu = 0;
@@ -683,11 +685,12 @@ int frset_proc_top(int kind, frset_proc_t *out, int max) {
         ncur++;
     }
 
-    g_pPrevN[k] = (ncur < FRSET_PROC_CAP) ? ncur : FRSET_PROC_CAP;
+    g_pPrevN[k] = ncur;
     for (int i = 0; i < g_pPrevN[k]; i++) {
-        g_pPrev[k][i].pid = cur[i].pid; g_pPrev[k][i].ut = cur[i].ut; g_pPrev[k][i].st = cur[i].st;
-        g_pPrev[k][i].rb = cur[i].rb; g_pPrev[k][i].wb = cur[i].wb;
+        const frset_proc_raw_t *r = &cur[i];
+        g_pPrev[k][i] = (frset_proc_counters_t){r->pid, r->ut, r->st, r->rb, r->wb};
     }
+    qsort(g_pPrev[k], g_pPrevN[k], sizeof(g_pPrev[k][0]), frset_compare_pid);
     g_pPrevT[k] = t;
 
     int m = (max < ncur) ? max : ncur;
@@ -1516,13 +1519,11 @@ int frset_proc_energy_pids(frset_energy_pid_t *out, int max, double *elapsedSec)
         static double score[FRSET_PROC_CAP];
         int nr = 0;
         for (int i = 0; i < ncur && nr < FRSET_PROC_CAP; i++) {
-            uint64_t prev = 0; int found = 0;
-            for (int j = 0; j < g_ePrevN; j++) {
-                if (g_ePrev[j].pid == cur[i].pid) { prev = g_ePrev[j].nj; found = 1; break; }
-            }
+            const frset_energy_raw_t *prev = bsearch(&cur[i].pid, g_ePrev, g_ePrevN,
+                                                     sizeof(g_ePrev[0]), frset_compare_pid);
             /* 新进程（无基线）或计数回退（pid 复用 / 唤醒后清零）→ 本轮不计 */
-            if (!found || cur[i].nj <= prev) continue;
-            double watts = (double)(cur[i].nj - prev) / 1e9 / dt;
+            if (!prev || cur[i].nj <= prev->nj) continue;
+            double watts = (double)(cur[i].nj - prev->nj) / 1e9 / dt;
             if (watts <= 0.00005) continue;   /* 50 µW 以下视为噪声 */
             memset(&rows[nr], 0, sizeof(rows[nr]));
             rows[nr].pid = cur[i].pid;
@@ -1558,7 +1559,8 @@ int frset_proc_energy_pids(frset_energy_pid_t *out, int max, double *elapsedSec)
     }
 
     g_ePrevN = ncur;
-    for (int i = 0; i < ncur; i++) g_ePrev[i] = cur[i];
+    memcpy(g_ePrev, cur, sizeof(cur[0]) * ncur);
+    qsort(g_ePrev, g_ePrevN, sizeof(g_ePrev[0]), frset_compare_pid);
     g_ePrevT = t;
     return m;
 }
