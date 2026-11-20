@@ -102,8 +102,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // v127（ArcZip P3）：退出前确认未完成归档任务（ArchiveTaskQueue 是 arch-engine 的
     // 公开类型，只读调用）——有未完成任务时弹确认框，「返回」则取消退出。
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard ArchiveTaskQueue.shared.confirmQuitIfNeeded() else { return .terminateCancel }
-        return .terminateNow
+        let approved = ArchiveTaskQueue.shared.confirmQuitIfNeeded()
+        return AppUpdateChecker.shared.prepareToTerminate(approved: approved) ? .terminateNow : .terminateCancel
     }
 
     func applicationWillTerminate(_ notification: Notification) {

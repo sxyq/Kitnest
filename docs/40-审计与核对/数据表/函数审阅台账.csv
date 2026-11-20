@@ -21,7 +21,7 @@ App,App/AppBootstrap.swift,AppBootstrap,readSelection,func,703,KEEP,命令面板
 App,App/AppBootstrap.swift,AppBootstrap,runSelectionAction,func,749,KEEP,快捷键、命令面板和刘海OCR划词按钮共用已捕获SelectionResult或readSelection；失败Toast，翻译取消旧请求交translateAndIngest，其他动作交正式ToolRunnerWindow自动执行
 App,App/FrsetNextApp.swift,AppDelegate,applicationDidFinishLaunching,func,33,KEEP,NSApplicationDelegate 回调（系统派发）；单实例护栏 + AppBootstrap.start + NSServices + 任务中心
 App,App/FrsetNextApp.swift,AppDelegate,enforceSingleMenubarOwner,func,80,KEEP,applicationDidFinishLaunching L37 调用；同 bundle 多实例退出 + 原版并存提示
-App,App/FrsetNextApp.swift,AppDelegate,applicationShouldTerminate,func,104,KEEP,NSApplicationDelegate 回调；有未完成归档任务时取消退出
+App,App/FrsetNextApp.swift,AppDelegate,applicationShouldTerminate,func,104,KEEP,2026-11-20：系统退出回调先取得原归档任务确认结果，再由更新器处理待安装交接；取消时不启动替换，替换程序启动失败也保留当前进程
 App,App/FrsetNextApp.swift,AppDelegate,applicationWillTerminate,func,109,KEEP,NSApplicationDelegate 回调；个性化落盘 + 日志归档停止 + bootstrap.stop
 App,App/FrsetNextApp.swift,AppDelegate,applicationShouldHandleReopen,func,119,KEEP,NSApplicationDelegate 回调；点 Dock/重开时显示主面板
 App,App/FrsetNextApp.swift,AppDelegate,updateDockPresence,func,129,KEEP,applicationDidFinishLaunching 注册 NSWindow 键状态/关闭通知；函数统计可见标题窗后在 regular 与 accessory 策略间切换
@@ -64,16 +64,17 @@ Core,Core/Motion/GenieWarp.swift,GenieWarp,snapshot,func,645,KEEP,"2026-11-19：
 Core,Core/Motion/GenieWarp.swift,GenieWarp,local,func,671,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:273,274 坐标换算"
 Core,Core/Motion/PanelMotion.swift,PanelMotion,animation,func,34,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v243 新增：PanelRootView:704/735、MonitorDetailView:101 调用
 Core,Core/Motion/PanelMotion.swift,PanelMotion,transition,func,39,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v243 新增：panel 四处 page transition 调用
-Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,init,init,31,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；private init；static shared:23 唯一构造
-Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,checkNowManual,func,79,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；StatusBarController:189 / SettingsPanes:500
-Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,checkOnLaunch,func,82,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；AppBootstrap.swift:190 启动检查
-Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,startPolling,func,87,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；checkOnLaunch:83 调用
-Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,check,func,97,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；checkNowManual:79 / 轮询:92 / 启动:84
-Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,parseBuild,func,160,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；check:125 调用
-Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,notifyUpdate,func,174,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；check:146 调用
-Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,presentUpdate,func,196,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；check:147 调用
-Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,installUpdate,func,238,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；presentUpdate:217 / AppBootstrap:206
-Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,compare,func,329,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；parseBuild:165 旧 tag 兼容
+Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,init,init,31,KEEP,2026-11-20：私有构造仅供shared单例，原启动轮询与手动更新共用同一清单及待安装交接
+Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,checkNowManual,func,80,KEEP,2026-11-20：设置关于页和状态栏菜单调用，沿check的manual路径让成功无更新或失败均有反馈
+Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,checkOnLaunch,func,83,KEEP,2026-11-20：AppBootstrap启动时调用，安排既有6小时轮询并立即查询一次，保留当前业务频率
+Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,startPolling,func,88,KEEP,2026-11-20：checkOnLaunch在主线程重建唯一Timer，每6小时执行非手动查询，闭包弱持有单例
+Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,check,func,98,KEEP,2026-11-20：正式URLSession读取清单后回主线程；先保存清单与可用build再广播，非手动同一build只提示一次，原错误和通知路径保留
+Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,parseBuild,func,161,KEEP,2026-11-20：check优先消费整数或字符串build，旧tag_name去v前缀后以当前显示版本比较，支持既有清单格式
+Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,notifyUpdate,func,175,KEEP,2026-11-20：发现新build时请求本地通知；获准发标题与最多120字符说明，未获准沿原Toast和状态栏反馈
+Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,presentUpdate,func,197,KEEP,2026-11-20：主线程显示原更新选择；仅立即更新调用installUpdate，下载页交系统，忽略保存build，下次再说直接返回
+Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,prepareToTerminate,func,240,KEEP,2026-11-20：AppDelegate完成原归档退出确认后调用；无待更新时返回原结果，取消清本次目录，允许才启动等待原PID退出的替换程序；启动失败取消退出并提示
+Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,installUpdate,func,259,KEEP,2026-11-20：正式按钮和自清探针共用下载及原整包校验解压；独立目录保存脚本和原参数，原退出确认允许后才启动并等PID退出；失败反馈且各结束路径清本次目录
+Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,compare,func,358,KEEP,2026-11-20：仅旧tag_name解析消费；按点分数字逐段比较，缺位补0，保留原非数字剥离行为
 Core,Core/Runtime/L10n.swift,L10n,t,func,30,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；SearchSettingsPane:86 等 UI 调用
 Core,Core/Runtime/L10n.swift,L10n,lprojBundle,func,38,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；t:31 唯一取 bundle 处
 Core,Core/Runtime/L10n.swift,L10n,invalidateCache,func,47,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；LanguageManager.apply:130 调用

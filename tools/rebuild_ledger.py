@@ -44,6 +44,8 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Core/Runtime/AppUpdateChecker.swift", "prepareToTerminate"):
+        "2026-11-20：AppDelegate完成原归档退出确认后调用；无待更新时返回原结果，取消清本次目录，允许才启动等待原PID退出的替换程序；启动失败取消退出并提示",
     ("Features/Island/IslandController.swift", "rememberPage"):
         "2026-11-20：主线草稿页面变化与selectPage共用；正式记忆模式且当前屏幕页面发生变化时写入lastPageByDisplay，持久化成功再发布配置，失败显示原提示",
     ("Features/Island/IslandDisplay.swift", "entrySize"):

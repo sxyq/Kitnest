@@ -72,6 +72,7 @@ public final class AppUpdateChecker {
     }
 
     private var pollTimer: Timer?
+    private var pendingInstaller: (runner: Process, work: URL)?
 
     // MARK: - 检查
 
@@ -235,6 +236,26 @@ public final class AppUpdateChecker {
     //   ⑤ 本应用退出，脚本接管
     // 风险控制：旧版本一定先备份成 /Applications/Kitnest.app.bak，失败可手动回滚。
 
+    /// v201（2026-11-20「代码安全质量保证」）：复用原退出确认，取消时不启动替换。
+    func prepareToTerminate(approved: Bool) -> Bool {
+        guard let pending = pendingInstaller else { return approved }
+        pendingInstaller = nil
+        guard approved else {
+            try? FileManager.default.removeItem(at: pending.work)
+            Toast.show("已取消更新", icon: "xmark.circle")
+            return false
+        }
+        do {
+            try pending.runner.run()
+            return true
+        } catch {
+            try? FileManager.default.removeItem(at: pending.work)
+            Toast.show("更新未能启动：\(error.localizedDescription)",
+                       icon: "exclamationmark.triangle", isWarning: true)
+            return false
+        }
+    }
+
     public func installUpdate(zipURL: URL, expectedSHA256: String?) {
         Toast.show("开始下载更新…", icon: "arrow.down.circle")
         URLSession.shared.downloadTask(with: zipURL) { tmp, _, error in
@@ -245,6 +266,8 @@ public final class AppUpdateChecker {
                 }
                 return
             }
+            let work = URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("frset-update-\(UUID().uuidString)", isDirectory: true)
             do {
                 let data = try Data(contentsOf: tmp)
                 if let expectedSHA256 {
@@ -257,8 +280,6 @@ public final class AppUpdateChecker {
                         return
                     }
                 }
-                let work = URL(fileURLWithPath: NSTemporaryDirectory())
-                    .appendingPathComponent("frset-update-\(UUID().uuidString)", isDirectory: true)
                 try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true)
                 let zip = work.appendingPathComponent("update.zip")
                 try data.write(to: zip)
@@ -269,52 +290,60 @@ public final class AppUpdateChecker {
                 try unzip.run()
                 unzip.waitUntilExit()
                 guard unzip.terminationStatus == 0 else {
-                    DispatchQueue.main.async { Toast.show("解压失败，已中止", icon: "exclamationmark.triangle", isWarning: true) }
-                    return
+                    throw NSError(domain: "Kitnest.Update", code: Int(unzip.terminationStatus),
+                                  userInfo: [NSLocalizedDescriptionKey: "更新包解压失败"])
                 }
                 // 找到 .app
                 let payload = work.appendingPathComponent("payload")
                 let appName = (try? FileManager.default.contentsOfDirectory(atPath: payload.path))?
                     .first { $0.hasSuffix(".app") }
                 guard let appName else {
-                    DispatchQueue.main.async { Toast.show("更新包里没有 .app", icon: "exclamationmark.triangle", isWarning: true) }
-                    return
+                    throw NSError(domain: "Kitnest.Update", code: 1,
+                                  userInfo: [NSLocalizedDescriptionKey: "更新包里没有应用"])
                 }
                 let newApp = payload.appendingPathComponent(appName)
 
                 // 替换脚本：等本进程退出 → 备份 → 覆盖 → 去隔离 → 重开
                 let script = """
                 #!/bin/sh
-                sleep 2
-                BACKUP="/Applications/\(appName).bak"
-                rm -rf "$BACKUP"
-                if [ -d "/Applications/\(appName)" ]; then
-                  mv "/Applications/\(appName)" "$BACKUP" || exit 1
-                fi
-                /usr/bin/ditto "\(newApp.path)" "/Applications/\(appName)" || {
-                  rm -rf "/Applications/\(appName)"
-                  mv "$BACKUP" "/Applications/\(appName)"
+                PID="$1"
+                NEW="$2"
+                APP="$3"
+                WORK="$4"
+                BACKUP="$APP.bak"
+                trap '/bin/rm -rf "$WORK"' EXIT
+                fail() {
+                  /usr/bin/osascript -e 'on run argv' -e 'display alert "Kitnest 更新未完成" message (item 1 of argv) as critical' -e 'end run' "$1"
                   exit 1
                 }
-                /usr/bin/xattr -dr com.apple.quarantine "/Applications/\(appName)" 2>/dev/null
-                open "/Applications/\(appName)"
+                while /bin/kill -0 "$PID" 2>/dev/null; do /bin/sleep 0.1; done
+                if [ -d "$APP" ]; then
+                  /bin/rm -rf "$BACKUP" || fail "无法清理上一版文件，更新没有完成。"
+                  /bin/mv "$APP" "$BACKUP" || fail "无法移开当前版本，更新没有完成。"
+                fi
+                /usr/bin/ditto "$NEW" "$APP" || {
+                  if /bin/rm -rf "$APP" && /bin/mv "$BACKUP" "$APP"; then
+                    /usr/bin/open "$APP"
+                    fail "安装新版失败，已恢复之前版本。"
+                  fi
+                  fail "安装失败，之前版本未能恢复。请查看 $BACKUP。"
+                }
+                /usr/bin/xattr -dr com.apple.quarantine "$APP" 2>/dev/null
+                /usr/bin/open "$APP" || fail "Kitnest 已更新，但未能自动打开。请从应用程序打开。"
                 """
-                let scriptURL = URL(fileURLWithPath: NSTemporaryDirectory())
-                    .appendingPathComponent("frset-swap.sh")
+                let scriptURL = work.appendingPathComponent("frset-swap.sh")
                 try script.write(to: scriptURL, atomically: true, encoding: .utf8)
-                try FileManager.default.setAttributes([.posixPermissions: 0o755],
-                                                      ofItemAtPath: scriptURL.path)
                 let runner = Process()
                 runner.executableURL = URL(fileURLWithPath: "/bin/sh")
-                runner.arguments = [scriptURL.path]
-                try runner.run()
+                runner.arguments = [scriptURL.path, String(ProcessInfo.processInfo.processIdentifier),
+                                    newApp.path, "/Applications/\(appName)", work.path]
                 DispatchQueue.main.async {
-                    Toast.show("更新就绪，正在重启完成替换…", icon: "arrow.triangle.2.circlepath")
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                        NSApp.terminate(nil)
-                    }
+                    self.pendingInstaller = (runner, work)
+                    Toast.show("更新已下载，正在准备重启…", icon: "arrow.triangle.2.circlepath")
+                    NSApp.terminate(nil)
                 }
             } catch {
+                try? FileManager.default.removeItem(at: work)
                 DispatchQueue.main.async {
                     Toast.show("更新失败：\(error.localizedDescription)",
                                icon: "exclamationmark.triangle", isWarning: true)
