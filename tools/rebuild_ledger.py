@@ -52,6 +52,8 @@ EVIDENCE = {
         "2026-11-20：主线草稿入口尺寸属性与entryFrame共用；真实刘海读左右安全区间距和顶部安全高度，普通屏沿配置宽度及28pt高度",
     ("Features/Island/IslandDisplay.swift", "entryFrame"):
         "2026-11-20：主线草稿入口刷新与鼠标命中共用；真实刘海按安全区居中，普通屏按左中右位置及配置宽度定位，沿逻辑点和frame负坐标计算",
+    ("Features/Island/IslandContent.swift", "applyTagChange"):
+        "2026-11-20：IslandRootView接收TagStore增量通知；映射整体替换或缺少变更信息时重新查询，单标签删除清除对应筛选，仅更新受影响已加载行的tagIDs",
     ("Features/Archive/UI/ArchiveHTMLPreview.swift", "openExternalLink"):
         "2026-11-20：归档网页两种导航回调共用，仅主文档由用户点击的HTTP、HTTPS或mailto链接交系统打开；自动重定向不唤起外部应用",
     ("Features/CodePreview/CodePreviewView.swift", "updateText"):
@@ -72,6 +74,8 @@ EVIDENCE = {
         "2026-11-19：WebDAV网络失败、取消、头或正文提前结束及响应完成共用；在原服务队列移除连接并解绑取消，关闭服务后迟到响应不再发送",
     ("Features/TransferDock/Android/AndroidWebDAVServer.swift", "escapeXML"):
         "2026-11-19：entryXML中的href和displayname共用；依次转义与号及左右尖括号，使文件名作为XML文本而非标签解释",
+    ("App/FrsetNextApp.swift", "updateDockPresence"):
+        "2026-11-18：AppDelegate注册窗口激活、最小化、恢复与关闭通知；存在可见或最小化的独立标题窗口时切换regular显示Dock图标，最后窗口关闭切回accessory，关闭通知排除正在关闭的窗口",
     ("Features/Archive/Table/ArchiveEntryTable.swift", "update"):
         "2026-11-18：归档表格viewFor复用行和行初始化共用；更新图标锁路径标记名称大小与压缩率，保留既有控件和约束",
     ("Features/Archive/Table/ArchiveHoverPreview.swift", "windowClosed"):
@@ -2525,6 +2529,17 @@ def main() -> int:
 
 
 EVIDENCE.update({
+    ("Features/Toolbox/Search/SearchSectionView.swift", "search"):
+        "读取当前启用工具的译名与说明；斜杠沿SlashCommandCatalog，普通搜索沿FuzzyMatcher；只有本地化字段在主线程取值后交原结果项",
+    ("Features/Toolbox/Search/CommandPalette.swift", "refreshLanguage"):
+        "语言通知到达时用本窗口原选区重建普通及斜杠命令目录，再沿原搜索词refilter；不重建窗口或清输入",
+    ("Features/Onboarding/WelcomeView.swift", "step"):
+        "quickStart构造三张引导卡；仅呈现步骤序号、标题和操作说明，不持有交互状态",
+    ("Features/Manual/ManualView.swift", "quickStartCard"):
+        "分类首页保留原有任务卡；实际教程沿WelcomeWindowController入口打开，完整章节使用原文章ID选择，不复制教程状态",
+})
+
+EVIDENCE.update({
     ("Features/Capture/Screenshot/ScreenshotManager.swift", "store"):
         "2026-11-19：把窗口与整屏 SCK 异步结果交给有超时的同步入口，锁保护等待与迟到完成间的读写",
     ("Features/Capture/Screenshot/ScreenshotManager.swift", "load"):
@@ -2551,6 +2566,94 @@ EVIDENCE.update({
         "2026-11-19：窗口 SCK 等待设 4 秒上限，超时回退触发时冻结图而不阻塞交付",
     ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "globalPoint"):
         "2026-11-19：把覆盖层中的真实点击点转为屏幕全局坐标，窗口候选只和同一画面位置比较",
+    ("Features/Settings/Shell/SettingsWindowController.swift", "windowDidChangeScreen"):
+        "更新设置窗最小尺寸以匹配进入屏幕的可见区域；窗口根视图仍由同一自适应容器布局",
+    ("Features/Manual/ManualView.swift", "quickGuide"):
+        "为剪贴板、截图/OCR、文件中转返回对应快速教程的纯文字概览",
+    ("Features/Onboarding/QuickTutorialController.swift", "init"):
+        "恢复已选教程并监听截图、复制、OCR 与文件发送的真实业务结果以推进任务状态",
+    ("Features/Onboarding/QuickTutorialController.swift", "deinit"):
+        "释放教程进度轮询计时器及通知观察者",
+    ("Features/Onboarding/QuickTutorialController.swift", "status"):
+        "按教程独立读取持久化完成状态",
+    ("Features/Onboarding/QuickTutorialController.swift", "step"):
+        "读取指定教程当前已完成的步骤数",
+    ("Features/Onboarding/QuickTutorialController.swift", "select"):
+        "保存当前教程选择并标记欢迎页已查看",
+    ("Features/Onboarding/QuickTutorialController.swift", "returnToTasks"):
+        "清除当前任务选择并返回欢迎页任务列表，保留每项进度",
+    ("Features/Onboarding/QuickTutorialController.swift", "skip"):
+        "退出当前教程而不标记为完成",
+    ("Features/Onboarding/QuickTutorialController.swift", "resumeClipboardRecording"):
+        "恢复用户暂停的剪贴板记录并刷新教程视图",
+    ("Features/Onboarding/QuickTutorialController.swift", "begin"):
+        "开始或恢复指定教程；完成项重新进入时从首步学习",
+    ("Features/Onboarding/QuickTutorialController.swift", "restart"):
+        "清除该教程完成状态和步骤后重新开始",
+    ("Features/Onboarding/QuickTutorialController.swift", "copyClipboardExample"):
+        "用户点击后才写入示例文本，记录剪贴板变更标记并等待真实历史项",
+    ("Features/Onboarding/QuickTutorialController.swift", "openClipboard"):
+        "示例已进入历史后切到主面板并打开剪贴板操作入口",
+    ("Features/Onboarding/QuickTutorialController.swift", "startScreenshot"):
+        "记录截图前最近路径并调用正式区域截图流程",
+    ("Features/Onboarding/QuickTutorialController.swift", "openTransfer"):
+        "记录初始暂存条目并打开主面板文件中转页",
+    ("Features/Onboarding/QuickTutorialController.swift", "chooseTransferFile"):
+        "由用户通过 NSOpenPanel 选择单个文件后加入本地暂存并记录路径",
+    ("Features/Onboarding/QuickTutorialController.swift", "openResult"):
+        "从剪贴板、截图或文件中转教程跳转到对应真实结果位置",
+    ("Features/Onboarding/QuickTutorialController.swift", "resumeTracking"):
+        "仅存在进行中的教程时启动一次共享进度轮询",
+    ("Features/Onboarding/QuickTutorialController.swift", "refreshProgress"):
+        "根据剪贴板历史、自写标记和新增暂存项推进教程，不播放虚构完成动画",
+    ("Features/Onboarding/QuickTutorialController.swift", "complete"):
+        "保存独立完成状态、最终步骤和实际结果提示",
+    ("Features/Onboarding/QuickTutorialController.swift", "setStep"):
+        "写入指定教程当前步骤并通知观察视图",
+    ("Features/Onboarding/QuickTutorialController.swift", "key"):
+        "生成按教程与字段分隔的偏好键",
+    ("Features/Onboarding/WelcomeView.swift", "tutorialCard"):
+        "绘制单项新手任务入口并根据该项进度提供开始、继续或重学",
+    ("Features/Onboarding/WelcomeView.swift", "taskDescription"):
+        "提供三项真实教程任务的单行操作摘要",
+    ("Features/Onboarding/WelcomeView.swift", "tutorialDetail"):
+        "展示当前任务步骤、实际状态、结果和跳过/稍后继续入口",
+    ("Features/Onboarding/WelcomeView.swift", "tutorialSteps"):
+        "按剪贴板、截图或文件中转分派真实按钮和完成条件",
+    ("Features/Onboarding/WelcomeView.swift", "tutorialStep"):
+        "按业务状态显示教程步骤及完成图标",
+    ("Features/Onboarding/WelcomeView.swift", "shortcutDisplay"):
+        "显示按键管理器当前解析出的用户快捷键",
+    ("Features/Onboarding/WelcomeWindowController.swift", "showTutorial"):
+        "选定新手任务后复用欢迎窗入口",
+    ("Features/StatusBar/StatusBarController.swift", "showTutorialAction"):
+        "菜单栏教程入口先返回欢迎页任务列表，再展示同一欢迎窗",
+    ("Features/TransferDock/UI/TransferDockView.swift", "selectTutorialTransferItem"):
+        "正式文件中转页出现和暂存列表变动时调用；仅文件中转教程选中的目标已经入列时勾选该项并切到发送页",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "applyTagChange"):
+        "正式浮动窗接收标签通知，整体替换时只对可见窗重查；删除当前标签清筛选；按受影响dedupeKey更新行tagIDs，筛选或加载中重查，所选项变化重建预览",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "deinit"):
+        "释放初始化登记的标签变化观察者，回调原本弱持有manager，不在释放时写数据库",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "applyTagChange"):
+        "标签整体替换重查，当前标签被删除时清筛选；其他通知仅更新命中keys的行tagIDs，当前筛选或分页读取中沿原reload刷新",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "toggleSaved"):
+        "行收藏按钮与菜单共用，将请求交updateSavedState的后台队列读取数据库现值后取反，不依赖过期行状态",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "updateSavedState"):
+        "setNote及toggleSaved共用串行仓储写入，失败主线程提示；成功通知其他窗，收藏筛选重查，普通列表直接更新原条目isNote并发布items",
+    ("Features/Clipboard/Store/ClipboardRepository.swift", "init"):
+        "ClipboardQuery显式初始化保存查询条件；filter构造从queryMapping转换类型收藏工具代码及文件分类，剥搜索首尾空白后转交原初始化，供主面板与浮动窗查询",
+    ("Features/Clipboard/Store/TagStore.swift", "rename"):
+        "标签管理保存调用，先剥空白并排除其他同名标签；参数绑定更新名称时间，成功主线程更新标签并按更新时间排序，失败返回false给表单",
+    ("Features/Clipboard/Store/TagStore.swift", "tagIDs"):
+        "主列表与浮动窗接收标签增量通知时按单个dedupeKey持锁读原mapping，没有关联返回空数组，不逐行访问SQLite",
+    ("Features/Clipboard/Store/TagStore.swift", "publishTags"):
+        "创建重命名删除成功后共用，主线程应用传入的标签数组更新并发变化通知；后台调用沿原主队列交付",
+    ("Features/Clipboard/Store/TagStore.swift", "postChange"):
+        "关联分配取消与标签列表变更共用，主线程发送原didChangeNotification及受影响keys信息，不重新加载整张关联表",
+    ("Features/Clipboard/UI/ClipboardSectionView.swift", "init"):
+        "剪贴板列表组件按item或选中标签及管理回调保存输入；新增收藏按钮与标签徽章init仅保存条目，正式按钮交manager翻转收藏，设置预览不执行写入",
+    ("Features/Settings/Shell/SettingsPanes.swift", "saveRename"):
+        "标签管理表单回车与保存按钮调用store.rename，失败提示并保留编辑，成功清editingTagID及名称草稿",
 })
 
 if __name__ == "__main__":

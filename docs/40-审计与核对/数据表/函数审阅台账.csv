@@ -1804,7 +1804,7 @@ Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipDe
 Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipDeskStore,reload,func,213,KEEP,:323 onAppear、:329/:333 onChange
 Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipDeskStore,fetch,func,243,KEEP,仅 reload:142 调用（私有）
 Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipDeskStore,isCurrentQuery,func,290,KEEP,fetch 后台读取前及主线程发布结果前调用；以锁保护的 queryGeneration 丢弃旧查询
-Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipDeskStore,applyTagChange,func,296,KEEP,正式浮动窗接收标签通知，整体替换时只对可见窗重查；删除当前标签清筛选；按受影响dedupeKey更新行tagIDs，筛选或加载中重查，所选项变化重建预览
+Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipDeskStore,applyTagChange,func,296,KEEP,2026-11-20：正式浮动窗通过main队列标签观察者调用；仅可见时按keys更新行与选中预览，整体替换及当前筛选改动沿原reload，不逐行查询SQLite
 Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipDeskStore,loadMoreIfNeeded,func,325,KEEP,悬浮列表尾项onAppear调用，非设置预览且未加载、尚未达分类总数时将loadedLimit加120并fetch
 Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipDeskStore,paste,func,331,KEEP,:600/:613 双击；Window:380/:407
 Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipDeskStore,pasteSelected,func,338,KEEP,:353 onSubmit 回车粘贴
@@ -1897,7 +1897,7 @@ Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageSto
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardStorageUsageProvider,exceeds,func,310,KEEP,2026-11-17：容量prune循环调用；先SQL总量再按需枚举五类目录；等价于既有max数据库磁盘口径超限判定
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardFilterKind,matches,func,89,KEEP,主剪贴板和悬浮窗的固定预览共用九类过滤：按条目类型、https 链接前缀、代码/JSON 分类、colorpicker 来源、工具生成标记及笔记标记匹配
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,init,init,184,KEEP,单例 :88 初始化
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,deinit,deinit,190,KEEP,释放初始化登记的标签变化观察者，回调原本弱持有manager，不在释放时写数据库
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,deinit,deinit,190,KEEP,2026-11-20：删除init注册的标签通知观察者；通知回调弱持有manager，析构不操作用户数据
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,pauseRecording,func,223,KEEP,设置可选恢复时限、刷新剩余分钟并发布暂停通知与提示
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,resumeRecording,func,237,KEEP,清除剪贴板暂停状态并按调用选项显示恢复提示
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,refreshPauseDeadline,func,242,KEEP,根据截止时间更新剩余分钟并在到期时恢复记录；无截止时间时清空分钟数
@@ -1913,7 +1913,7 @@ Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,sched
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,updateFirstItemScrolledOut,func,496,KEEP,TableHostView:529 调用
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,makeQuery,func,504,KEEP,:450/:476 调用
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,reload,func,513,KEEP,SectionView:37、Manager:416 等
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,applyTagChange,func,543,KEEP,标签整体替换重查，当前标签被删除时清筛选；其他通知仅更新命中keys的行tagIDs，当前筛选或分页读取中沿原reload刷新
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,applyTagChange,func,543,KEEP,2026-11-20：init的main队列观察者调用；整体替换重查，删除当前标签清筛选；按通知keys更新tagIDs，当前筛选或正在加载时复用reload
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,loadMoreIfNeeded,func,564,KEEP,TableHostView:616 尾行翻页
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,recentItems,func,594,KEEP,FloatingClipboardWindow:179
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,fullText,func,606,KEEP,AppBootstrap:51 注入预览数据桥
@@ -1968,7 +1968,7 @@ Clipboard,Features/Clipboard/Store/ClipboardPruneSchedulers.swift,ClipboardStora
 Clipboard,Features/Clipboard/Store/ClipboardPruneSchedulers.swift,ClipboardStoragePruneScheduler,pruneAsync,func,125,KEEP,SettingsPane:80 立即清理
 Clipboard,Features/Clipboard/Store/ClipboardPruneSchedulers.swift,ClipboardStoragePruneScheduler,prune,func,137,KEEP,2026-11-17：pruneAsync后台调用；保持用量90%目标与200条批次；仅累计成功删除和onReclaimedBytes实际字节；一批无进展结束避免反复删除相同失败记录
 Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardQuery,init,init,26,KEEP,Desk:155、Manager:431/:491
-Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardQuery,init,init,52,KEEP,ClipboardQuery显式初始化保存查询条件；filter构造从queryMapping转换类型收藏工具代码及文件分类，剥搜索首尾空白后转交原初始化，供主面板与浮动窗查询
+Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardQuery,init,init,52,KEEP,2026-11-20：主列表makeQuery与浮动fetch调用filter构造；通过queryMapping映射类型及收藏，搜索剥首尾空白后转交完整参数初始化，分页和标签条件保留
 Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,appendClauses,func,84,KEEP,fetch:134、count:154 调用
 Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,fetch,func,153,KEEP,2026-11-17：ClipboardManager.reload与浮窗fetch调用；保留SQL筛选排序分页与批量标签挂载；借助query transform逐行构造ClipboardItem而不再同时保留整批SQL字典
 Clipboard,Features/Clipboard/Store/ClipboardRepository.swift,ClipboardRepository,count,func,172,KEEP,2026-11-17：FloatingClipboardDesk.fetch:223调用count(query)并将结果写入totalInKind供分页状态使用；COUNT复用fetch的appendClauses条件
@@ -1997,15 +1997,15 @@ Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,init,init,21,KEEP,202
 Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,refresh,func,25,KEEP,2026-11-17：Manager启动与备份恢复及标签设置调用；数据库锁覆盖读取两表到mapping替换；与Repository.delete保持数据库锁后索引锁顺序；主线程发布tags
 Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,attachTags,func,57,KEEP,2026-11-17：Repository.fetch及item调用；持锁对当前结果做字典查找而不逐条查询；Repository.delete成功后同步移除mapping避免旧标签重新附着
 Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,create,func,73,KEEP,2026-11-17：标签菜单与设置调用；非空名称经SQLite绑定插入并refresh；NOCASE重名沿既有标签复用；未发现重复创建入口
-Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,rename,func,92,KEEP,标签管理保存调用，先剥空白并排除其他同名标签；参数绑定更新名称时间，成功主线程更新标签并按更新时间排序，失败返回false给表单
+Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,rename,func,92,KEEP,2026-11-20：标签管理保存调用；排除其他同名标签后参数绑定更新名称与时间，成功经publishTags主线程更新排序，失败返回false给原表单
 Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,delete,func,116,KEEP,2026-11-17：标签设置删除按钮调用；删除tags后由已启用外键清理关联并refresh；没有删除剪贴板条目或附件
 Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,assign,func,136,KEEP,2026-11-17：标签创建后的分配与toggle调用；INSERT OR IGNORE后锁内增量维护当前key的tag列表；不重读两张表
 Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,unassign,func,159,KEEP,2026-11-17：toggle的已选标签路径调用；绑定key及tagID删除关联并同步移除内存条目；空标签列表释放key
 Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,removeMapping,func,180,KEEP,2026-11-17：Repository.delete事务成功后调用；在既有索引锁内移除被删除去重键；不重读标签与关联全表
 Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,toggle,func,187,KEEP,2026-11-17：剪贴板行菜单与原生表菜单共用；锁内只读取已选状态；解锁后调用assign或unassign以避免锁重入
-Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,tagIDs,func,195,KEEP,主列表与浮动窗接收标签增量通知时按单个dedupeKey持锁读原mapping，没有关联返回空数组，不逐行访问SQLite
-Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,publishTags,func,200,KEEP,创建重命名删除成功后共用，主线程应用传入的标签数组更新并发变化通知；后台调用沿原主队列交付
-Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,postChange,func,210,KEEP,关联分配取消与标签列表变更共用，主线程发送原didChangeNotification及受影响keys信息，不重新加载整张关联表
+Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,tagIDs,func,195,KEEP,2026-11-20：两个applyTagChange按受影响dedupeKey持原mapping锁读取关联数组，不访问数据库；无关联返回空数组
+Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,publishTags,func,200,KEEP,2026-11-20：create、rename和delete成功后共用；在main队列应用原标签更新闭包并发postChange通知，关联修改不重读整表
+Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,postChange,func,210,KEEP,2026-11-20：assign、unassign、refresh及publishTags共用；main队列发布didChangeNotification和受影响keys等字段，供两个列表消费
 Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditTextView,init,init,9,KEEP,2026-11-20：控制器显式以frame:.zero构造，super创建标准文本网络后configure一次；已删除无自定义容器消费者的双参数覆盖
 Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditTextView,init,init,14,KEEP,2026-11-20：NSTextView的required coder入口由框架要求保留；super解码后复用configure，实际编辑窗使用显式frame构造
 Clipboard,Features/Clipboard/UI/ClipboardItemEditWindowController.swift,ClipboardItemEditTextView,configure,func,19,KEEP,2026-11-20：frame和required coder入口共用；关闭富文本、链接、引号与破折号替换，开启撤销并设置可纵向伸缩的文本容器
@@ -2045,8 +2045,8 @@ Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,SummaryState,reset,fu
 Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardTagFilterMenu,init,init,216,KEEP,:53 头部标签菜单
 Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardMenuActionItem,init,init,249,KEEP,:308-329 菜单项构造
 Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRowMenuContent,init,init,296,KEEP,Desk:602/:615 contextMenu
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardFavoriteButton,init,init,393,KEEP,剪贴板列表组件按item或选中标签及管理回调保存输入；新增收藏按钮与标签徽章init仅保存条目，正式按钮交manager翻转收藏，设置预览不执行写入
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardTagBadges,init,init,415,KEEP,剪贴板列表组件按item或选中标签及管理回调保存输入；新增收藏按钮与标签徽章init仅保存条目，正式按钮交manager翻转收藏，设置预览不执行写入
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardFavoriteButton,init,init,393,KEEP,2026-11-20：主列表与浮动窗卡片或行视图传入item；只保存输入，按钮消费原manager.toggleFavorite，设置演示不写入
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardTagBadges,init,init,415,KEEP,2026-11-20：主列表与浮动窗卡片或行视图传入item；只保存输入，body消费共享tagStore和当前tagIDs，最多显示三个名称与颜色
 Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,init,init,453,KEEP,TableHostView:573 行渲染
 Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imagePixelSize,func,597,KEEP,:460 图片行调用
 Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imagePixelSize,func,603,KEEP,:467 文件行调用
