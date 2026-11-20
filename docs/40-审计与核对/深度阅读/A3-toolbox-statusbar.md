@@ -458,8 +458,7 @@
 | `ToolShortcutStore.registrationID` | 27 | `"tool.<id>"` 命名空间 |
 | `binding(for:)` / `all` | 44/50 | 持久化读取 |
 | `set(toolID:keyCode:modifiers:)` | 61 | 强修饰键校验 → 注册成功才落盘 → 失败分类返回 |
-| `clear(toolID:)` | 88 | 注销 + 删键 |
-| `restoreAll` | 97 | 启动恢复（工具已被删则跳过） |
+| `restoreAll` | 88 | 启动恢复（工具已被删则跳过）；直接清除方法无源码调用，删除后设置页仍经 `applyShortcuts` 批量注销并保存未绑定状态 |
 | `DoubleTapShortcutCenter.setHandlers/bind/replaceBindings/modifier` | 当前实现：监听由组合键设置保存路径批量替换；移除旧的逐项解绑入口 |
 | `startMonitoringIfNeeded/stopMonitoringIfNeeded` | 128/142 | global + local `flagsChanged` 双监听 |
 | `handleFlags(_:)` | 153 | 只取"按下沿"；0.3s 内同键二次按下触发 |

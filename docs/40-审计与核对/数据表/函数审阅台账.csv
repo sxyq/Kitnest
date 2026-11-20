@@ -3748,12 +3748,11 @@ Toolbox,Features/Toolbox/Shortcuts/ShortcutSettingsPane.swift,ShortcutSettingsPa
 Toolbox,Features/Toolbox/Shortcuts/ShortcutSettingsPane.swift,ShortcutSettingsPane,staticRow,func,165,KEEP,body:23-30 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Shortcuts/ToolShortcutStore.swift,ToolShortcutStore,registrationID,func,27,KEEP,set:68/90、ToolSettingsPane:129 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Shortcuts/ToolShortcutStore.swift,ToolShortcutStore,title,func,29,KEEP,set:70 调用（构造 ShortcutDefinition）；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Shortcuts/ToolShortcutStore.swift,ToolShortcutStore,loadRaw,func,35,KEEP,binding:45、all:51、set:78、clear:91 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Shortcuts/ToolShortcutStore.swift,ToolShortcutStore,saveRaw,func,39,KEEP,set:80、clear:93 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Shortcuts/ToolShortcutStore.swift,ToolShortcutStore,loadRaw,func,35,KEEP,binding、all和set读取持久化工具快捷键映射；无clear调用，2026-11-21全仓及CodeGraph核实
+Toolbox,Features/Toolbox/Shortcuts/ToolShortcutStore.swift,ToolShortcutStore,saveRaw,func,39,KEEP,set成功注册后持久化映射；清除由ShortcutSettingsDraft与AppBootstrap.applyShortcuts批量保存，不调用本函数的clear包装
 Toolbox,Features/Toolbox/Shortcuts/ToolShortcutStore.swift,ToolShortcutStore,binding,func,44,KEEP,ToolSettingsPane:91、AppBootstrap:407 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Shortcuts/ToolShortcutStore.swift,ToolShortcutStore,set,func,61,KEEP,restoreAll:99、ToolSettingsPane:95 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Shortcuts/ToolShortcutStore.swift,ToolShortcutStore,clear,func,88,KEEP,ToolSettingsPane:71/99 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Shortcuts/ToolShortcutStore.swift,ToolShortcutStore,restoreAll,func,97,KEEP,ToolboxModule.swift:36 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Shortcuts/ToolShortcutStore.swift,ToolShortcutStore,restoreAll,func,88,KEEP,ToolboxModule.swift:36 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Tools/BuiltinTools.swift,BuiltinTools,setDefaultAction,func,22,KEEP,ToolSettingsPane.swift:73 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Tools/BuiltinTools.swift,BuiltinTools,registerAll,func,28,KEEP,ToolboxModule.swift:11 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Tools/BuiltinTools.swift,BuiltinTools,registerAITool,func,49,KEEP,registerAll:29/31 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅

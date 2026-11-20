@@ -10046,8 +10046,7 @@ Toolbox,Features/Toolbox/Shortcuts/ToolShortcutStore.swift,ToolShortcutStore,fun
 Toolbox,Features/Toolbox/Shortcuts/ToolShortcutStore.swift,ToolShortcutStore,func,binding,44,4,3
 Toolbox,Features/Toolbox/Shortcuts/ToolShortcutStore.swift,ToolShortcutStore,var,all,50,0,1
 Toolbox,Features/Toolbox/Shortcuts/ToolShortcutStore.swift,ToolShortcutStore,func,set,61,25,4
-Toolbox,Features/Toolbox/Shortcuts/ToolShortcutStore.swift,ToolShortcutStore,func,clear,88,7,1
-Toolbox,Features/Toolbox/Shortcuts/ToolShortcutStore.swift,ToolShortcutStore,func,restoreAll,97,5,2
+Toolbox,Features/Toolbox/Shortcuts/ToolShortcutStore.swift,ToolShortcutStore,func,restoreAll,88,5,2
 Toolbox,Features/Toolbox/Tools/BuiltinTools.swift,BuiltinTools,let,defaultActionKey,15,0,1
 Toolbox,Features/Toolbox/Tools/BuiltinTools.swift,BuiltinTools,var,defaultAction,17,0,1
 Toolbox,Features/Toolbox/Tools/BuiltinTools.swift,BuiltinTools,func,setDefaultAction,22,3,1
