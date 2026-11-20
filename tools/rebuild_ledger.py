@@ -44,6 +44,12 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Features/Island/IslandController.swift", "rememberPage"):
+        "2026-11-20：主线草稿页面变化与selectPage共用；正式记忆模式且当前屏幕页面发生变化时写入lastPageByDisplay，持久化成功再发布配置，失败显示原提示",
+    ("Features/Island/IslandDisplay.swift", "entrySize"):
+        "2026-11-20：主线草稿入口尺寸属性与entryFrame共用；真实刘海读左右安全区间距和顶部安全高度，普通屏沿配置宽度及28pt高度",
+    ("Features/Island/IslandDisplay.swift", "entryFrame"):
+        "2026-11-20：主线草稿入口刷新与鼠标命中共用；真实刘海按安全区居中，普通屏按左中右位置及配置宽度定位，沿逻辑点和frame负坐标计算",
     ("Features/Archive/UI/ArchiveHTMLPreview.swift", "openExternalLink"):
         "2026-11-20：归档网页两种导航回调共用，仅主文档由用户点击的HTTP、HTTPS或mailto链接交系统打开；自动重定向不唤起外部应用",
     ("Features/CodePreview/CodePreviewView.swift", "updateText"):
