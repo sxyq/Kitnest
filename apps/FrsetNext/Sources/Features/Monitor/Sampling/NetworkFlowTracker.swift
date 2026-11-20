@@ -245,25 +245,10 @@ public final class NetworkFlowTracker {
         let cutoff = now - Self.windowSeconds
         nicSamples.removeAll { $0.at < cutoff }
         for (key, state) in apps {
-            var trimmed = state.samples
-            if let firstKeep = trimmed.firstIndex(where: { $0.at >= cutoff }) {
-                if firstKeep > 0 { trimmed.removeFirst(firstKeep) }
+            if let firstKeep = state.samples.firstIndex(where: { $0.at >= cutoff }) {
+                if firstKeep > 0 { apps[key]?.samples.removeFirst(firstKeep) }
             } else {
-                trimmed.removeAll()
-            }
-            if trimmed.isEmpty {
-                // 窗口内没有流量了：保留 30s 让「刚刚很活跃」的项不要立刻消失
-                if state.samples.last.map({ now - $0.at > 30 }) ?? true {
-                    apps.removeValue(forKey: key)
-                } else {
-                    var copy = state
-                    copy.samples = trimmed
-                    apps[key] = copy
-                }
-            } else if trimmed.count != state.samples.count {
-                var copy = state
-                copy.samples = trimmed
-                apps[key] = copy
+                apps.removeValue(forKey: key)
             }
         }
     }

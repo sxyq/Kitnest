@@ -184,7 +184,6 @@ public final class StatsDataProvider {
     // v129（内存）：connHistory 双缓冲（见 refresh 内注释；仅采样队列单线程访问）
     private var connScratchA: [Int] = []
     private var connScratchB: [Int] = []
-    private var connScratchIndex = 0
 
     // 节流时间戳（systemUptime）
     private var lastProcAt: TimeInterval = -10
@@ -376,26 +375,15 @@ public final class StatsDataProvider {
             // v129（内存）：connHistory 双缓冲复用——原来每帧 map 出新 [Int]（90×8B
             // + 数组头），refresh 每 0.5~1.5s 一帧是稳定小块churn；交替**原地**回填
             // 另一份 scratch（上一份此时已被 storage 释放、refcount=1）零分配。
-            connScratchIndex ^= 1
-            if connScratchIndex == 0 {
-                connScratchA.removeAll(keepingCapacity: true)
-                withUnsafePointer(to: conn) { base in
-                    connScratchA.reserveCapacity(historyCount)
-                    for i in 0..<historyCount {
-                        connScratchA.append(Int(FSStatsConnHistoryAt(base, Int32(i))))
-                    }
+            swap(&connScratchA, &connScratchB)
+            connScratchA.removeAll(keepingCapacity: true)
+            connScratchA.reserveCapacity(historyCount)
+            withUnsafePointer(to: conn) { base in
+                for i in 0..<historyCount {
+                    connScratchA.append(Int(FSStatsConnHistoryAt(base, Int32(i))))
                 }
-                snap.connHistory = connScratchA
-            } else {
-                connScratchB.removeAll(keepingCapacity: true)
-                withUnsafePointer(to: conn) { base in
-                    connScratchB.reserveCapacity(historyCount)
-                    for i in 0..<historyCount {
-                        connScratchB.append(Int(FSStatsConnHistoryAt(base, Int32(i))))
-                    }
-                }
-                snap.connHistory = connScratchB
             }
+            snap.connHistory = connScratchA
         }
 
         mark("conn")
