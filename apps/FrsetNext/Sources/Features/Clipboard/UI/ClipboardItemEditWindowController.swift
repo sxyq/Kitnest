@@ -6,11 +6,6 @@ import Foundation
 /// 纯文本编辑视图：关闭富文本/链接检测，避免粘贴时带入样式与链接属性
 public final class ClipboardItemEditTextView: NSTextView {
 
-    public override init(frame frameRect: NSRect, textContainer container: NSTextContainer?) {
-        super.init(frame: frameRect, textContainer: container)
-        configure()
-    }
-
     public override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         configure()
@@ -42,7 +37,7 @@ public final class ClipboardItemEditWindowController: NSWindowController, NSWind
 
     public private(set) var item: ClipboardItem
     private let aliasField = NSTextField()
-    private let textView = ClipboardItemEditTextView()
+    private let textView = ClipboardItemEditTextView(frame: .zero)
     private let storage = ClipboardManager.shared
 
     // MARK: 构建
