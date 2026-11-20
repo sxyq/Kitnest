@@ -468,7 +468,7 @@ final class DiskIndexScanner {
                                          counter, skipped,
                                          Double(root.size) / 1_073_741_824,
                                          CFAbsoluteTimeGetCurrent() - startedAt))
-            var snapshot = DiskIndexSnapshot(scope: scope.rawValue,
+            let snapshot = DiskIndexSnapshot(scope: scope.rawValue,
                                              rootPath: scope.rootPath,
                                              scannedAt: Date().timeIntervalSince1970,
                                              totalBytes: root.size,
@@ -476,9 +476,9 @@ final class DiskIndexScanner {
                                              skippedCount: skipped,
                                              root: root,
                                              truncated: counter >= Self.maxNodes,
-                                             schema: Self.schemaVersion)
-            snapshot.recomputeDataCategories()
-            snapshot.excludedPaths = excluded
+                                             schema: Self.schemaVersion,
+                                             dataCategories: result.summary.categories(),
+                                             excludedPaths: excluded)
             DispatchQueue.main.async { completion(snapshot) }
         }
     }
@@ -951,6 +951,9 @@ final class DiskIndexStore: ObservableObject {
 
     /// 从树里删掉指定路径并重算父节点大小
     static func pruned(_ node: DiskNode, removing paths: Set<String>) -> DiskNode {
+        guard paths.contains(where: { $0.hasPrefix(node.path == "/" ? "/" : node.path + "/") }) else {
+            return node
+        }
         var n = node
         let kept = n.children
             .filter { !paths.contains($0.path) }

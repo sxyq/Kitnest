@@ -2581,7 +2581,7 @@ Monitor,Features/Monitor/Storage/DiskIndex.swift,Accumulator,merge,func,247,KEEP
 Monitor,Features/Monitor/Storage/DiskIndex.swift,Accumulator,categories,func,262,KEEP,2026-11-20：根与折叠汇总输出所有类别，按字节及路径排序明细；directories仅编码无读取方，仍重复生成路径去重结果，留精简
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskDataCategory,summarize,func,287,KEEP,2026-11-20：recomputeDataCategories调用，递归互斥分类并恢复折叠summary；缺折叠明细或总量不一致返回具体错误，不推测分类
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,cancel,func,441,KEEP,2026-11-20：cancelScan调用，以原NSLock写取消标记供walk与scan读取，实际目录句柄由walk的defer关闭
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,scan,func,444,KEEP,2026-11-20：rescan交专用queue扫描，walk返回根和完整summary；当前重遍历可见树生成分类，取消后main队列completion(nil)，保留真实节点及时间日志
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,scan,func,444,KEEP,2026-11-20：rescan唯一入口，walk在原worker返回根与完整summary，直接生成快照dataCategories和excludedPaths，删除扫描后第二次整树汇总；进度及取消完成仍按原策略
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,physicalSize,func,491,KEEP,2026-11-20：walk的普通文件与DT_UNKNOWN分支调用；当前零st_blocks会退回st_size，稀疏文件零分配仍被算逻辑大小，留后续处理
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,retainFile,func,507,KEEP,2026-11-20：walk对普通文件调用，原100MB门槛和60项最大候选保持降序，只保留本层大文件用于可见树
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,walk,func,521,KEEP,2026-11-20：scan唯一根入口后递归，opendir/readdir/lstat不跟随链接；按原排除路径深度和节点数收尾，最大60项外目录以分类小计折叠，每万项main队列发进度
@@ -2600,10 +2600,10 @@ Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,candidates,func,
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,trash,func,878,KEEP,2026-11-20：窗口performTrash调用，仅对实际索引且非合成路径移至系统废纸篓；后台当前捕获原snapshot生成整树，连续删除会重新发布旧节点，留后续处理
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,findNode,func,927,KEEP,2026-11-20：窗口查找和trash确认对象及计数调用，按实际路径和disk-folded前缀沿相关子树递归，不搜索无关路径
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,independentPaths,func,939,KEEP,2026-11-20：窗口选择、分类directories及trash共用，Set去重后沿父路径排除已含在所选父目录下的子项，避免重复删除计数
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,pruned,func,953,KEEP,2026-11-20：trash删除后重建保留树，移除目标子项并重算父节点和排序；当前也遍历无关分支，留性能精简
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,bytes,func,967,KEEP,2026-11-20：存储窗口与堆块尺寸说明调用，系统十进制ByteCountFormatter格式；负值仅呈现0
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,shortBytes,func,970,KEEP,2026-11-20：存储窗口和堆块紧凑标签调用，沿Finder十进制1000换算GB/MB/KB，显示一位小数或整数KB
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,date,func,977,KEEP,2026-11-20：窗口扫描时间与清理记录调用，系统日期时间样式不参与文件或索引状态变更
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,pruned,func,953,KEEP,2026-11-20：trash裁剪已删除路径时先按完整目录前缀判断交集，无关子树直接复用原值；仅目标祖先分支重建、排序并汇总大小，不复制整树
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,bytes,func,970,KEEP,2026-11-20：存储窗口与堆块尺寸说明调用，系统十进制ByteCountFormatter格式；负值仅呈现0
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,shortBytes,func,973,KEEP,2026-11-20：存储窗口和堆块紧凑标签调用，沿Finder十进制1000换算GB/MB/KB，显示一位小数或整数KB
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,date,func,980,KEEP,2026-11-20：窗口扫描时间与清理记录调用，系统日期时间样式不参与文件或索引状态变更
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,63,KEEP,私有 init，shared:63
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,78,KEEP,NSWindowController 的 NSCoding 必需构造器，编译期强制
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,show,func,80,KEEP,FrsetNextApp.swift:356 深链、MonitorDetailView:959

@@ -6721,10 +6721,10 @@ Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,func,candidates,
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,func,trash,878,48,8
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,func,findNode,927,10,9
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,func,independentPaths,939,12,4
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,func,pruned,953,9,1
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,func,bytes,967,3,1
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,func,shortBytes,970,7,3
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,func,date,977,5,1
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,func,pruned,953,12,3
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,func,bytes,970,3,1
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,func,shortBytes,973,7,3
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,func,date,980,5,1
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,Notification,let,storageDrillTo,6,0,1
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,Notification,let,storageOpenAgent,8,0,1
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,CleanupAgent,var,id,22,0,1
