@@ -68,7 +68,7 @@ public struct ManualPaneView: View {
             .padding(.bottom, 6)
 
             Button { selection = quickStartID } label: {
-                Label("快速入门", systemImage: "sparkles")
+                Label("功能分类", systemImage: "square.grid.2x2")
                     .font(.system(size: 12, weight: .semibold))
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 9).padding(.vertical, 7)
@@ -140,8 +140,8 @@ public struct ManualPaneView: View {
                         } else {
                             ForEach(node.blocks) { item in
                                 if case .numbered(let steps) = item.block {
-                                    ManualDemoView(title: node.title, demoID: node.demoID ?? "tools",
-                                                   symbol: node.symbol, steps: steps)
+                                    ManualDemoView(title: node.title, symbol: node.symbol,
+                                                   steps: steps, frames: node.frames, scene: node.scene)
                                         .id(node.id)
                                 } else {
                                     ManualBlockView(block: item.block)
@@ -170,34 +170,55 @@ public struct ManualPaneView: View {
 
     private var quickStart: some View {
         VStack(alignment: .leading, spacing: 18) {
-            Text("你想做什么？").font(.system(size: 22, weight: .semibold))
-            Text("选一个常见任务，查看操作步骤和示例演示；全部功能按左侧类别整理。")
+            Text("按功能分类浏览").font(.system(size: 22, weight: .semibold))
+            Text("每项功能都有独立说明和预设操作演示。")
                 .font(.system(size: 13)).foregroundStyle(.secondary)
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                quickStartCard("找回复制过的内容", detail: "查看历史记录，再次复制或粘贴。",
-                               symbol: "doc.on.clipboard", guide: "02-01-剪贴板历史")
-                quickStartCard("截屏并提取文字", detail: "框选画面，识别文字并复制。",
-                               symbol: "viewfinder", guide: "03-11-文字识别")
-                quickStartCard("把文件发到手机", detail: "选择传输方式，查看发送结果。",
-                               symbol: "iphone.and.arrow.right.inward", guide: "06-02-手机直传")
-                quickStartCard("设置刘海与多屏", detail: "选择显示屏幕，了解另一块屏幕的入口。",
-                               symbol: "display.2", guide: "01-03-刘海工作台与多屏")
+                ForEach(doc.roots) { category in
+                    Button { selection = category.id } label: {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Label(category.title, systemImage: categorySymbol(category.title))
+                                .font(.system(size: 13, weight: .semibold))
+                            Text(categoryDescription(category.title))
+                                .font(.system(size: 11.5)).foregroundStyle(.secondary)
+                                .lineLimit(2)
+                            Text("\(category.children.count) 项功能")
+                                .font(.system(size: 10.5, weight: .medium)).foregroundStyle(Theme.accent)
+                        }
+                        .padding(13)
+                        .frame(maxWidth: .infinity, minHeight: 96, alignment: .leading)
+                        .glassCard(radius: Theme.Radius.card)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
     }
 
-    private func quickStartCard(_ title: String, detail: String, symbol: String, guide: String) -> some View {
-        Button { selection = guide } label: {
-            VStack(alignment: .leading, spacing: 8) {
-                Label(title, systemImage: symbol).font(.system(size: 13, weight: .semibold))
-                Text(detail).font(.system(size: 11.5)).foregroundStyle(.secondary)
-                Label("查看步骤与演示", systemImage: "arrow.right")
-                    .font(.system(size: 10.5, weight: .medium)).foregroundStyle(Theme.accent)
-            }
-            .padding(13).frame(maxWidth: .infinity, minHeight: 96, alignment: .leading)
-            .glassCard(radius: Theme.Radius.card)
+    private func categorySymbol(_ title: String) -> String {
+        switch title {
+        case "开始使用": "sparkles"
+        case "剪贴板": "doc.on.clipboard"
+        case "截图与录屏": "camera.viewfinder"
+        case "文件与传输": "folder"
+        case "搜索与 AI": "magnifyingglass"
+        case "工具箱": "wrench.and.screwdriver"
+        case "电脑状态": "waveform.path.ecg"
+        default: "gearshape"
         }
-        .buttonStyle(.plain)
+    }
+
+    private func categoryDescription(_ title: String) -> String {
+        switch title {
+        case "开始使用": "找到入口、设置刘海工作台和屏幕"
+        case "剪贴板": "找回、编辑、整理和备份复制内容"
+        case "截图与录屏": "截图、识字、标注、录制和剪辑"
+        case "文件与传输": "暂存、整理、压缩并发送文件"
+        case "搜索与 AI": "搜索文件、处理文字和打开常用功能"
+        case "工具箱": "翻译文字、生成图案和转换内容"
+        case "电脑状态": "查看处理器、内存、网络和电池用量"
+        default: "调整外观、快捷键、更新和帮助"
+        }
     }
 
     /// 面包屑：祖先路径（点击可回跳）

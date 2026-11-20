@@ -617,28 +617,24 @@ EVIDENCE.update({
 
 # ── 使用手册：文章分类与预设演示 ───────────────────────────────
 EVIDENCE.update({
+    ("Features/Onboarding/WelcomeView.swift", "step"):
+        "欢迎页quickStart调用三次，按序号、标题与说明绘制30秒上手卡片；不读取权限或启动所列功能",
     ("Features/Manual/ManualView.swift", "sidebar"):
         "2026-11-19：body只计算一次搜索命中与可见分类，并传给侧栏；分类展开、文章选择和快速入门沿用原绑定",
     ("Features/Manual/ManualView.swift", "detail"):
         "2026-11-19：body传入本轮无结果状态；有序操作步骤原位展示ManualDemoView，正文和可点击步骤只保留一份，选文时滚回顶部",
     ("Features/Capture/OCR/ScreenshotOCRWindow.swift", "setSourceImage"):
         "2026-11-19：show复用结果窗且截图变化时调用，更新现有SourceNSScrollView的原图，使左侧图片与重新识别输入一致",
-    ("Features/Manual/ManualDemoSamples.swift", "example"):
-        "按功能标题为每篇现有功能指南提供固定示例输入与结果，不运行工具或读取用户资料",
-    ("Features/Manual/ManualView.swift", "quickStartCard"):
-        "把查找剪贴板、截图识字、手机传文件和多屏设置四个常见任务连到各自的完整指南",
-    ("Features/Manual/ManualDemoView.swift", "searchPreview"):
-        "用预设搜索结果、网盘文件和 AI 回复逐步展示搜索类指南的入口与结果",
-    ("Features/Manual/ManualDemoView.swift", "settingsPreview"):
-        "展示设置页选项预览、保存状态和当前操作步骤，不修改用户设置",
+    ("Features/Manual/ManualView.swift", "categorySymbol"):
+        "2026-11-20：功能分类首页为八类文章选用对应SF Symbol；点击分类进入现有功能卡列表，不启动正式功能",
+    ("Features/Manual/ManualView.swift", "categoryDescription"):
+        "2026-11-20：分类首页用普通用户词语说明每类用途，配合真实文章数量显示，不把内部接口放入手册",
     ("Features/Manual/ManualDemoView.swift", "advance"):
-        "切换到指定操作步骤并同步演示卡片、当前预览和示例阶段；减少动态效果时不播放过渡动画",
+        "2026-11-20：播放、阶段与逐步点击共用指定步骤索引，文章frame驱动示例画面，0.25秒过渡遵循减少动态效果",
     ("Features/Manual/ManualDemoView.swift", "preset"):
-        "呈现用途、操作和结果三种预设演示入口；点击时停止自动播放并切换到对应步骤",
-    ("Features/Manual/ManualDemoView.swift", "samplePanel"):
-        "在演示舞台中显示固定的输入或结果示例，供用户对照实际操作",
-    ("Features/Manual/ManualDemoView.swift", "displayPreview"):
-        "按当前演示步骤展示多个屏幕入口、搜索条和唯一工作台的预设变化",
+        "2026-11-20：用途、操作、结果跳转使用同一播放状态；手动选择立即停止每2.4秒切换的自动演示",
+    ("Features/Manual/ManualDocument.swift", "parse"):
+        "2026-11-20：逐篇解析标题、分类、图标、scene与每步frame JSON；解码错误交给load显示，应用网页共用86篇383帧来源",
     ("Features/Manual/ManualDocument.swift", "displayCategory"):
         "把文章文件编号映射成用户分类；截图与录屏归在同一类，导航不显示文件序号",
 })
@@ -2527,17 +2523,6 @@ def main() -> int:
         print("  （非 --strict 模式：已写占位文案）")
     return 0
 
-
-EVIDENCE.update({
-    ("Features/Manual/ManualDemoSamples.swift", "example"):
-        "按功能标题选取固定示例输入与结果，供手册演示复用，不运行工具或读取用户资料",
-    ("Features/Manual/ManualDemoView.swift", "advance"):
-        "手动选择或播放演示时更新当前步和剪贴板预览选中项，沿用减少动态效果设置",
-    ("Features/Manual/ManualDemoView.swift", "samplePanel"):
-        "将预设输入、过程或结果排成手册演示面板，仅呈现示例文字",
-    ("Features/Manual/ManualDemoView.swift", "displayPreview"):
-        "绘制普通屏搜索短条与真实刘海的两屏演示画面，不创建额外窗口或控制器",
-})
 
 EVIDENCE.update({
     ("Features/Capture/Screenshot/ScreenshotManager.swift", "store"):
