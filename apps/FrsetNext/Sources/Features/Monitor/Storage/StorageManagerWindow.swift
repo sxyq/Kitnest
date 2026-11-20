@@ -434,7 +434,6 @@ struct StorageManagerRootView: View {
         .onChange(of: store.scope) { _ in
             directoryHistory = [[]]
             historyIndex = 0
-            store.reloadFromCache(autoScanIfMissing: false)
         }
         .onChange(of: currentNode?.id) { _ in detailNode = nil }
         .onChange(of: showDataCategories) { _ in detailNode = nil }

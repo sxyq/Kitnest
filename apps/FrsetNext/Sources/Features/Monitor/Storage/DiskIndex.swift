@@ -440,7 +440,7 @@ final class DiskIndexScanner {
 
     func cancel() { cancelled = true }
 
-    /// 后台队列执行；progress 在主线程回调（nodeCount, 当前路径）
+    /// 后台队列执行并完成；progress 在主线程回调（nodeCount, 当前路径）。
     func scan(scope: DiskScanScope,
               queue: DispatchQueue,
               progress: @escaping (Int, String) -> Void,
@@ -460,7 +460,7 @@ final class DiskIndexScanner {
                                    skipped: &skipped,
                                    progress: progress)
             guard !self.cancelled, let result else {
-                DispatchQueue.main.async { completion(nil) }
+                completion(nil)
                 return
             }
             let root = result.node
@@ -479,7 +479,7 @@ final class DiskIndexScanner {
                                              schema: Self.schemaVersion)
             snapshot.recomputeDataCategories()
             snapshot.excludedPaths = excluded
-            DispatchQueue.main.async { completion(snapshot) }
+            completion(snapshot)
         }
     }
 
@@ -489,9 +489,7 @@ final class DiskIndexScanner {
     /// 实际只占 13GB，用 st_size 会让「已索引」虚高、与 df 对不上（v264 实测）。
     /// `st_blocks`（512 字节块）才是 df/du 的口径。稀疏文件也靠它算对。
     private static func physicalSize(_ st: stat) -> Int64 {
-        let blocks = Int64(st.st_blocks) * 512
-        // 少数文件系统（网络卷 / FAT）不报 st_blocks，退回逻辑大小
-        return blocks > 0 ? blocks : Int64(st.st_size)
+        Int64(st.st_blocks) * 512
     }
 
     /// 子目录名称用于递归；文件只保留本层最大的有限候选。
@@ -679,7 +677,15 @@ final class DiskIndexStore: ObservableObject {
     @Published private(set) var records: [CleanupRecord] = []
     /// v211（用户：「它同时扫描的是一个全盘，包括点开头的这些目录，然后还有就是其他目录」）：
     /// 默认就是整块启动卷；个人目录留在设置里做「只想清理自己文件」的快速选项。
-    @Published var scope: DiskScanScope = .fullDisk
+    @Published var scope: DiskScanScope = .fullDisk {
+        didSet {
+            if scope != oldValue {
+                cancelScan()
+                snapshot = nil
+                reloadFromCache()
+            }
+        }
+    }
 
     private let queue = DispatchQueue(label: "com.frsetnext.diskindex", qos: .utility)
     private var scanner: DiskIndexScanner?
@@ -700,21 +706,26 @@ final class DiskIndexStore: ObservableObject {
     func loadIfNeeded() {
         guard !loaded else { return }
         loaded = true
+        let url = recordsURL
+        queue.async { [weak self] in
+            let data = try? Data(contentsOf: url)
+            let records = data.flatMap { try? JSONDecoder().decode([CleanupRecord].self, from: $0) } ?? []
+            DispatchQueue.main.async { self?.records = records }
+        }
         reloadFromCache(autoScanIfMissing: false)
     }
 
     func reloadFromCache(autoScanIfMissing: Bool = false) {
-        let url = cacheURL(for: scope)
-        let recordsURL = self.recordsURL
+        let requestedScope = scope
+        let revision = indexRevision
+        let url = cacheURL(for: requestedScope)
         queue.async { [weak self] in
             let data = try? Data(contentsOf: url, options: .mappedIfSafe)
             let snap = data.flatMap { Self.decodeSnapshot($0) }
-            let recData = try? Data(contentsOf: recordsURL)
-            let recs = recData.flatMap { try? JSONDecoder().decode([CleanupRecord].self, from: $0) } ?? []
             DispatchQueue.main.async {
-                guard let self else { return }
+                guard let self, self.scope == requestedScope,
+                      self.indexRevision == revision, !self.isScanning else { return }
                 self.snapshot = snap
-                self.records = recs
                 if snap == nil, autoScanIfMissing { self.rescan() }
             }
         }
@@ -725,7 +736,7 @@ final class DiskIndexStore: ObservableObject {
     /// 深度放开后节点从 15 万涨到 40 万，同样的树用 JSON 要 80MB、解码 2~3 秒；
     /// 二进制 plist 小一半、解码快 3 倍。旧缓存是 JSON，先试 plist 再回落 JSON，
     /// 升级后第一次打开仍能读出来（只是慢一次）。
-    private static func decodeSnapshot(_ data: Data) -> DiskIndexSnapshot? {
+    private static func decodeSnapshot(_ data: Data, recomputeCategories: Bool = true) -> DiskIndexSnapshot? {
         struct Header: Decodable { let schema: Int? }
         let schema = (try? PropertyListDecoder().decode(Header.self, from: data))?.schema
             ?? (try? JSONDecoder().decode(Header.self, from: data))?.schema
@@ -742,7 +753,7 @@ final class DiskIndexStore: ObservableObject {
         } else {
             return nil
         }
-        snap.recomputeDataCategories()
+        if recomputeCategories { snap.recomputeDataCategories() }
         return snap
     }
 
@@ -755,39 +766,42 @@ final class DiskIndexStore: ObservableObject {
         lastError = nil
         progressText = "正在索引…"
         let currentScope = scope
+        let url = cacheURL(for: currentScope)
         s.scan(scope: currentScope, queue: queue,
-               progress: { [weak self] count, path in
-                   self?.progressText = "已索引 \(count) 项 · \(path)"
+               progress: { [weak self, s] count, path in
+                   guard let self, self.scanner === s else { return }
+                   self.progressText = "已索引 \(count) 项 · \(path)"
                },
-               completion: { [weak self] snap in
-                   guard let self else { return }
-                   self.isScanning = false
-                   self.scanner = nil
-                   guard let snap else {
-                       self.lastError = "扫描已取消或无法读取"
-                       return
+               completion: { [weak self, s] snap in
+                   if let snap, DispatchQueue.main.sync(execute: { self?.scanner === s }) {
+                       do { try Self.persist(snap: snap, to: url) }
+                       catch { Log.warn("DiskIndex", "索引缓存写入失败：\(error.localizedDescription)") }
                    }
-                   self.snapshot = snap
-                   self.progressText = ""
-                   self.persist(snap: snap, for: currentScope)
+                   DispatchQueue.main.async { [weak self, s] in
+                       guard let self, self.scanner === s else { return }
+                       self.isScanning = false
+                       self.scanner = nil
+                       self.progressText = ""
+                       guard let snap else {
+                           self.lastError = "扫描已取消或无法读取"
+                           return
+                       }
+                       self.snapshot = snap
+                   }
                })
     }
 
     func cancelScan() {
         scanner?.cancel()
+        scanner = nil
         isScanning = false
         progressText = ""
     }
 
-    private func persist(snap: DiskIndexSnapshot, for scope: DiskScanScope) {
-        let url = cacheURL(for: scope)
-        queue.async {
-            let encoder = PropertyListEncoder()
-            encoder.outputFormat = .binary
-            if let data = try? encoder.encode(snap) {
-                try? data.write(to: url, options: .atomic)
-            }
-        }
+    private static func persist(snap: DiskIndexSnapshot, to url: URL) throws {
+        let encoder = PropertyListEncoder()
+        encoder.outputFormat = .binary
+        try encoder.encode(snap).write(to: url, options: .atomic)
     }
 
     private func persistRecords() {
@@ -801,6 +815,7 @@ final class DiskIndexStore: ObservableObject {
     }
 
     func clearCache() {
+        cancelScan()
         snapshot = nil
         let urls = DiskScanScope.allCases.map { cacheURL(for: $0) }
         queue.async { for u in urls { try? FileManager.default.removeItem(at: u) } }
@@ -877,9 +892,10 @@ final class DiskIndexStore: ObservableObject {
     /// 返回成功移入废纸篓的路径数；同时更新内存树与缓存。
     func trash(paths: [String], completion: @escaping (Int, Int64) -> Void) {
         let unique = Self.independentPaths(paths)
-        let original = snapshot
-        let root = original?.root
+        let root = snapshot?.root
+        let caches = DiskScanScope.allCases.map { ($0, cacheURL(for: $0)) }
         queue.async { [weak self] in
+            guard let self else { return }
             var moved = Set<String>()
             var errors: [String] = []
             for p in unique {
@@ -899,19 +915,36 @@ final class DiskIndexStore: ObservableObject {
             let bytes = moved.reduce(Int64(0)) { sum, p in
                 sum + (Self.findNode(root, path: p)?.size ?? 0)
             }
-            var updated = original
-            if !moved.isEmpty, var s = updated {
-                s.root = Self.pruned(s.root, removing: moved)
-                s.totalBytes = s.root.size
-                s.recomputeDataCategories()
-                updated = s
+            let state = DispatchQueue.main.sync { (snapshot: self.snapshot, revision: self.indexRevision) }
+            let update = state.snapshot.map { Self.removing(moved, from: $0) }
+            if !moved.isEmpty {
+                for (scope, url) in caches {
+                    do {
+                        let mutation: (changed: Bool, snapshot: DiskIndexSnapshot?)
+                        if let update, state.snapshot?.scope == scope.rawValue {
+                            mutation = update
+                        } else {
+                            guard FileManager.default.fileExists(atPath: url.path) else { continue }
+                            let data = try Data(contentsOf: url, options: .mappedIfSafe)
+                            guard let snapshot = Self.decodeSnapshot(data, recomputeCategories: false) else { continue }
+                            mutation = Self.removing(moved, from: snapshot)
+                        }
+                        guard mutation.changed else { continue }
+                        if let cached = mutation.snapshot {
+                            try Self.persist(snap: cached, to: url)
+                        } else if FileManager.default.fileExists(atPath: url.path) {
+                            try FileManager.default.removeItem(at: url)
+                        }
+                    } catch {
+                        errors.append("\(url.lastPathComponent)：\(error.localizedDescription)")
+                    }
+                }
             }
-            DispatchQueue.main.async {
+            DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
                 self.lastError = errors.isEmpty ? nil : errors.joined(separator: "\n")
-                if !moved.isEmpty, let s = updated {
-                    self.snapshot = s
-                    self.persist(snap: s, for: DiskScanScope(rawValue: s.scope) ?? self.scope)
+                if let update, update.changed, self.indexRevision == state.revision {
+                    self.snapshot = update.snapshot
                 }
                 let record = CleanupRecord(at: Date().timeIntervalSince1970,
                                            paths: unique, bytes: bytes,
@@ -922,6 +955,25 @@ final class DiskIndexStore: ObservableObject {
                 completion(moved.count, bytes)
             }
         }
+    }
+
+    private static func removing(_ paths: Set<String>, from snapshot: DiskIndexSnapshot)
+        -> (changed: Bool, snapshot: DiskIndexSnapshot?) {
+        let root = snapshot.rootPath
+        let affected = Set(paths.filter {
+            root == "/" || $0 == root || $0.hasPrefix(root + "/")
+                || root.hasPrefix($0 == "/" ? "/" : $0 + "/")
+        })
+        guard !affected.isEmpty else { return (false, snapshot) }
+        guard !affected.contains(where: { root == $0 || root.hasPrefix($0 == "/" ? "/" : $0 + "/") }),
+              affected.allSatisfy({ findNode(snapshot.root, path: $0) != nil }) else {
+            return (true, nil)
+        }
+        var updated = snapshot
+        updated.root = pruned(updated.root, removing: affected)
+        updated.totalBytes = updated.root.size
+        updated.recomputeDataCategories()
+        return (true, updated)
     }
 
     static func findNode(_ node: DiskNode?, path: String) -> DiskNode? {
