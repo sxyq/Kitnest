@@ -2873,11 +2873,11 @@ Onboarding,Features/Onboarding/WhatsNew.swift,WhatsNewWindow,performClose,func,2
 Onboarding,Features/Onboarding/WhatsNew.swift,WhatsNewWindow,performKeyEquivalent,func,224,KEEP,NSWindow override；AppKit Esc 键派发到该方法
 Onboarding,Features/Onboarding/WhatsNew.swift,WhatsNewView,section,func,275,KEEP,WhatsNewView.body:247 ForEach 调用
 Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLink,init,init,52,KEEP,2026-11-20：detect和App深链构造URL、provider与分享页标记，消费者为链接条、提示和下载中心；外部分离提取码目前未保留，留后续处理
-Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,provider,func,102,KEEP,2026-11-20：检测器、下载器与App共用主机识别；精确域名表和123通配后缀，当前根域后缀未限定点边界，可误认相似域，待处理
-Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,isSharePage,func,118,KEEP,2026-11-20：detect与App分类后供提示、中心和下载分流；当前/share及主机share.字符串包含过宽，会把同前缀文件归分享页，待处理
-Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,normalized,func,133,KEEP,2026-11-20：detect的标准URL分支调用；目前所有受支持主机HTTP均升级HTTPS，显式签名HTTP也改写，需只为裸域名补协议
-Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,detect,func,160,KEEP,2026-11-20：剪贴板提示、首页、预览及刘海共用，静态检测器及正则；当前全量matches后找首条，裸域名左边界缺失，外部分离提取码未保存，待处理
-Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,recentLink,func,191,KEEP,2026-11-20：首页链接条及布局动画扫描最多20条，按类型检测content/title；长正文仅前4000字符且同首页重复求值，留后续处理
+Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,provider,func,96,KEEP,2026-11-20：检测器、下载器与App共用主机识别；精确域名表和123通配后缀，当前根域后缀未限定点边界，可误认相似域，待处理
+Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,isSharePage,func,112,KEEP,2026-11-20：detect与App分类后供提示、中心和下载分流；当前/share及主机share.字符串包含过宽，会把同前缀文件归分享页，待处理
+Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,normalized,func,129,KEEP,2026-11-20：detect的标准URL分支调用；目前所有受支持主机HTTP均升级HTTPS，显式签名HTTP也改写，需只为裸域名补协议
+Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,detect,func,157,KEEP,2026-11-20：剪贴板提示、首页、预览及刘海共用，静态检测器及正则；当前全量matches后找首条，裸域名左边界缺失，外部分离提取码未保存，待处理
+Panel,Features/Panel/CloudLink/CloudDriveLink.swift,CloudDriveLinkDetector,recentLink,func,189,KEEP,2026-11-20：首页链接条及布局动画扫描最多20条，按类型检测content/title；长正文仅前4000字符且同首页重复求值，留后续处理
 Panel,Features/Panel/CloudLink/CloudLinkBar.swift,CloudLinkBar,init,init,25,KEEP,PanelRootView.swift:719 构造 CloudLinkBar()
 Panel,Features/Panel/CloudLink/CloudLinkBar.swift,CloudLinkBar,detectionKey,func,28,KEEP,PanelRootView.swift:733 作 .animation(value:)
 Panel,Features/Panel/CloudLink/CloudLinkBar.swift,CloudLinkBar,bar,func,61,KEEP,本文件 body :40 调用
