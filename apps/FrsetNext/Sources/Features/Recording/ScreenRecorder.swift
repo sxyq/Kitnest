@@ -64,7 +64,6 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
     private var latestCamera: CVPixelBuffer?
     private let cameraLock = NSLock()
 
-    private(set) var isRunning = false
     var onStopped: ((Error) -> Void)?
 
     init(options: RecordingOptions, videoSize: CGSize, regionOrigin: CGPoint,
@@ -145,7 +144,6 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
     func finish() async -> URL? {
         await withCheckedContinuation { continuation in
             queue.async {
-                self.isRunning = false
                 self.stopDevices()
                 guard let writer = self.writer, writer.status == .writing else {
                     continuation.resume(returning: nil)
@@ -236,7 +234,6 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
 
     func stream(_ stream: SCStream, didStopWithError error: Error) {
         Log.error("Recording", "SCStream 中止：\(error.localizedDescription)")
-        isRunning = false
         onStopped?(error)
     }
 
