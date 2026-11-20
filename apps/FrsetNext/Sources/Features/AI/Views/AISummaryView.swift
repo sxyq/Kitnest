@@ -159,12 +159,13 @@ public final class AISummaryViewModel: ObservableObject {
     }
 
     /// 结果回写剪贴板条目：通过 AIEventBus 交给总控接线，AI 模块不直接触碰剪贴板模块
-    public func saveToClipboard() {
+    @MainActor
+    public func saveToClipboard() async {
         let text = outputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty else { return }
         let saved: Bool
-        if let kind = outputToolKind { saved = ToolboxEventBus.emitResult(text, kind: kind) }
-        else { saved = AIEventBus.emitResult(text) }
+        if let kind = outputToolKind { saved = await ToolboxEventBus.emitResult(text, kind: kind) }
+        else { saved = await AIEventBus.emitResult(text) }
         guard saved else {
             errorMessage = "保存失败：无法写入剪贴板历史"
             return
@@ -197,19 +198,22 @@ public final class AISummaryViewModel: ObservableObject {
         task = Task { [self] in
             if let tool {
                 let result = await ToolRegistry.run(tool, input: input, options: tool.defaultOptions())
-                await MainActor.run {
-                    guard !Task.isCancelled, request == self.requestGeneration else { return }
+                let shouldSave = await MainActor.run { () -> Bool in
+                    guard !Task.isCancelled, request == self.requestGeneration else { return false }
                     self.isRunning = false
                     self.outputText = result.isError ? "" : result.text
                     self.errorMessage = result.isError ? result.text : nil
                     if result.isError { HapticFeedback.perform(.operationFailed) }
-                    guard !result.isError, !result.text.isEmpty else { return }
+                    guard !result.isError, !result.text.isEmpty else { return false }
                     HapticFeedback.perform(.aiCompleted)
                     switch BuiltinTools.defaultAction {
-                    case .copy: self.copyResult(haptic: false)
-                    case .save: self.saveToClipboard()
+                    case .copy:
+                        self.copyResult(haptic: false)
+                        return false
+                    case .save: return true
                     }
                 }
+                if shouldSave { await self.saveToClipboard() }
             } else {
                 await perform(messages: messages, model: model, request: request)
             }
@@ -388,7 +392,7 @@ public struct AISummaryView: View {
         HStack {
             Button("复制") { model.copyResult() }
                 .disabled(model.outputText.isEmpty)
-            Button("存为剪贴板条目") { model.saveToClipboard() }
+            Button("存为剪贴板条目") { Task { @MainActor in await model.saveToClipboard() } }
                 .disabled(model.outputText.isEmpty)
                 .help("结果通过 AIEventBus 交由剪贴板模块落库（is_generated_by_tool=1）")
             Spacer()

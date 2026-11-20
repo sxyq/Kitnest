@@ -280,7 +280,7 @@ public struct ToolRunnerView: View {
                         .disabled(output == nil || output?.isError == true)
                         .frame(minWidth: 100)
                     if compact {
-                        Button("存为剪贴板条目") { saveToClipboard(ToolOutput(text: outputDraft)) }
+                        Button("存为剪贴板条目") { Task { @MainActor in await saveToClipboard(ToolOutput(text: outputDraft)) } }
                             .disabled(output == nil || output?.isError == true || outputDraft.isEmpty)
                     }
                 }
@@ -321,7 +321,7 @@ public struct ToolRunnerView: View {
             if intent == .preview, tool.identifier == "qrcode" {
                 Button("复制链接") { copyText(input) }
             } else if intent == .standard {
-                Button("存为剪贴板条目") { saveToClipboard(output) }.disabled(output.text.isEmpty)
+                Button("存为剪贴板条目") { Task { @MainActor in await saveToClipboard(output) } }.disabled(output.text.isEmpty)
             }
             if compact, let image = output.image {
                 Button("复制图片") { copyImage(image) }
@@ -380,26 +380,27 @@ public struct ToolRunnerView: View {
         isRunning = true
         statusText = ""
         let result = await ToolRegistry.run(tool, input: input, options: options)
-        await MainActor.run {
+        let shouldApplyDefault = await MainActor.run { () -> Bool in
             // 被切换或关闭的刘海工具不再发布结果、自动复制或保存。
-            guard !compact || !Task.isCancelled else { return }
+            guard !compact || !Task.isCancelled else { return false }
             withAnimation(.easeOut(duration: reduceMotion ? 0.08 : 0.12)) { output = result }
             outputDraft = result.text
             if tool.identifier == "deduplicate" { showOriginal = false }
             isRunning = false
             if compact { runTask = nil }
-            if intent == .standard, tool.identifier != "deduplicate" { applyDefaultAction(result) }
+            return intent == .standard && tool.identifier != "deduplicate"
         }
+        if shouldApplyDefault { await applyDefaultAction(result) }
     }
 
     /// 按设置中的"默认输出行为"自动处理结果
-    private func applyDefaultAction(_ result: ToolOutput) {
+    private func applyDefaultAction(_ result: ToolOutput) async {
         guard !result.text.isEmpty, !result.isError else { return }
         switch BuiltinTools.defaultAction {
         case .copy:
             copyText(result.text)
         case .save:
-            saveToClipboard(result)
+            await saveToClipboard(result)
         }
     }
 
@@ -439,9 +440,9 @@ public struct ToolRunnerView: View {
     }
 
     /// 不直接引用剪贴板模块：通过 ToolboxEventBus 回调交给总控
-    private func saveToClipboard(_ result: ToolOutput) {
+    private func saveToClipboard(_ result: ToolOutput) async {
         if isSettingsPreview { statusText = "保存效果预览，不修改历史"; return }
-        statusText = ToolboxEventBus.emitResult(result.text, kind: tool.kind)
+        statusText = await ToolboxEventBus.emitResult(result.text, kind: tool.kind)
             ? "已存为剪贴板条目" : "保存失败：无法写入剪贴板历史"
     }
 

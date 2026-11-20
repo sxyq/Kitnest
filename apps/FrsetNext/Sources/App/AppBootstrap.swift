@@ -262,13 +262,13 @@ enum AppBootstrap {
         // AI 产出 → 写入剪贴板历史（标记为工具生成：is_generated_by_tool=1）
         // 注：ai_request_count 由 LLMService.send 统一计数（每次请求一处），此处不重复 bump
         AIEventBus.onResultProduced = { text in
-            ClipboardManager.shared.ingestToolOutput(text: text, sourceToolKeyword: "ai") != nil
+            await ClipboardManager.shared.ingestToolOutput(text: text, sourceToolKeyword: "ai") != nil
         }
 
         // 工具箱产出 → 写入剪贴板历史（标记为工具生成）
         // 注：tool_count 由 ToolRegistry.run → recordInvocation 统一计数（每次运行一处），此处不重复 bump
         ToolboxEventBus.onResultProduced = { text, kind in
-            ClipboardManager.shared.ingestToolOutput(text: text, sourceToolKeyword: kind.rawValue) != nil
+            await ClipboardManager.shared.ingestToolOutput(text: text, sourceToolKeyword: kind.rawValue) != nil
         }
 
         // v60 移除「剪贴板条目 → 搜索结果」hook：剪贴板内容已由搜索区独立的
@@ -675,7 +675,7 @@ enum AppBootstrap {
             do {
                 let result = try await TranslationToolSession.shared.complete(text)
                 try Task.checkCancellation()
-                guard ClipboardManager.shared.ingestToolOutput(text: result, sourceToolKeyword: "AI翻译") != nil else {
+                guard await ClipboardManager.shared.ingestToolOutput(text: result, sourceToolKeyword: "AI翻译") != nil else {
                     Toast.show("翻译已完成，但写入剪贴板历史失败", icon: "exclamationmark.triangle", isWarning: true)
                     return
                 }

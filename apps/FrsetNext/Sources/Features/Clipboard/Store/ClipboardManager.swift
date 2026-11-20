@@ -1000,44 +1000,53 @@ public final class ClipboardManager: ObservableObject {
     }
 
     /// 工具回流：工具箱产物以 is_generated_by_tool=1 进历史（05 号规格 B10），供 10 号模块复用
-    @discardableResult
-    public func ingestToolOutput(text: String, sourceToolKeyword: String, analyticsId: String? = nil) -> ClipboardItem? {
-        let key = "tool:" + text.sha256
-        if repository.exists(dedupeKey: key) {
-            repository.touch(dedupeKey: key)
-        } else {
-            var content = text
-            var textPath: String? = nil
-            var charCount: Int? = nil
-            var lineCount: Int? = nil
-            var bytes = text.utf8.count
-            if (text as NSString).length > Self.inlineTextByteLimit {
-                guard let stored = ClipboardTextStorage.write(text) else { return nil }
-                textPath = stored.path
-                charCount = (text as NSString).length
-                lineCount = text.lineCount
-                content = String(text.prefix(Self.inlinePreviewLength))
-                bytes = stored.bytes + content.utf8.count
-            }
-            let item = ClipboardItem(type: .text,
-                                     content: content,
-                                     title: text.firstLineBrief,
-                                     subtitle: "工具 · \(sourceToolKeyword)",
-                                     isGeneratedByTool: true,
-                                     sourceToolAnalyticsId: analyticsId,
-                                     sourceToolKeyword: sourceToolKeyword,
-                                     textPath: textPath,
-                                     fullTextCharCount: charCount,
-                                     fullTextLineCount: lineCount,
-                                     storageBytes: bytes,
-                                     dedupeKey: key)
-            guard repository.insert(item) else {
-                ClipboardTextStorage.remove(textPath)
-                return nil
+    public func ingestToolOutput(text: String, sourceToolKeyword: String, analyticsId: String? = nil) async -> ClipboardItem? {
+        await withCheckedContinuation { continuation in
+            queue.async { [weak self] in
+                guard let self else { continuation.resume(returning: nil); return }
+                let key = "tool:" + text.sha256
+                if self.repository.exists(dedupeKey: key) {
+                    self.repository.touch(dedupeKey: key)
+                } else {
+                    var content = text
+                    var textPath: String?
+                    var charCount: Int?
+                    var lineCount: Int?
+                    var bytes = text.utf8.count
+                    if (text as NSString).length > Self.inlineTextByteLimit {
+                        guard let stored = ClipboardTextStorage.write(text) else {
+                            continuation.resume(returning: nil)
+                            return
+                        }
+                        textPath = stored.path
+                        charCount = (text as NSString).length
+                        lineCount = text.lineCount
+                        content = String(text.prefix(Self.inlinePreviewLength))
+                        bytes = stored.bytes + content.utf8.count
+                    }
+                    let item = ClipboardItem(type: .text,
+                                             content: content,
+                                             title: text.firstLineBrief,
+                                             subtitle: "工具 · \(sourceToolKeyword)",
+                                             isGeneratedByTool: true,
+                                             sourceToolAnalyticsId: analyticsId,
+                                             sourceToolKeyword: sourceToolKeyword,
+                                             textPath: textPath,
+                                             fullTextCharCount: charCount,
+                                             fullTextLineCount: lineCount,
+                                             storageBytes: bytes,
+                                             dedupeKey: key)
+                    guard self.repository.insert(item) else {
+                        ClipboardTextStorage.remove(textPath)
+                        continuation.resume(returning: nil)
+                        return
+                    }
+                }
+                let item = self.repository.item(dedupeKey: key)
+                DispatchQueue.main.async { self.reload(reset: true) }
+                continuation.resume(returning: item)
             }
         }
-        DispatchQueue.main.async { self.reload(reset: true) }
-        return repository.item(dedupeKey: key)
     }
 
     // MARK: 跨模块写入（App 总控事件接线：截图 / OCR 等外部产出）
