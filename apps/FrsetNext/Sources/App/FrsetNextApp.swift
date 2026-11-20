@@ -162,7 +162,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         guard let url = urls.first,
               url.scheme == "kitnest" || url.scheme == "frsetnext" else { return }
-        Log.info("App", "URL 唤起: \(url.absoluteString)")
+        Log.info("App", "URL 唤起：\(url.scheme ?? "-")://\(url.host ?? "-")")
         // 窗口创建延后到下一 runloop：Apple Event 处理上下文内创建 NSWindow +
         // NSHostingView 会在 display cycle layout observer 中触发次级约束更新，
         // 导致 NSWindow._postWindowNeedsUpdateConstraints 异常（2026-10-16 实测：
@@ -272,7 +272,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     if let img = ImageProcessor.cgImage(from: URL(fileURLWithPath: path)) {
                         BeautifyController.shared.show(image: img)
                     } else {
-                        Log.warn("App", "demo beautify：图片不存在 \(path)")
+                        Log.warn("App", "demo beautify：图片不存在")
                     }
                 case "recorder":
                     StatsBarEngine.openRecorder()
@@ -297,14 +297,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                             let t0 = CFAbsoluteTimeGetCurrent()
                             let hits = FileNameIndex.shared.search(q, limit: 8)
                             let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
-                            Log.info("FileIndex", String(format: "探针就绪：%d 条 · 占用 %@ · q=「%@」命中 %d 条 · 耗时 %.1f ms",
+                            Log.info("FileIndex", String(format: "探针就绪：%d 条 · 占用 %@ · 命中 %d 条 · 耗时 %.1f ms",
                                                          count,
                                                          ByteCountFormatter.string(fromByteCount: FileNameIndex.shared.diskBytes, countStyle: .file),
-                                                         q, hits.count, ms))
-                            for h in hits { Log.info("FileIndex", "  → \(h)") }
+                                                         hits.count, ms))
                             return
-                        case .failed(let m):
-                            Log.info("FileIndex", "探针失败：\(m)")
+                        case .failed:
+                            Log.info("FileIndex", "探针失败")
                             return
                         default:
                             try? await Task.sleep(nanoseconds: 1_000_000_000)
@@ -453,10 +452,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 if let file, let img = ImageProcessor.cgImage(from: URL(fileURLWithPath: file)),
                    let data = ImageProcessor.pngData(img) {
                     if let staged = ScreenshotManager.shared.stagePNG(data, pixelSize: CGSize(width: img.width, height: img.height)) {
-                        Log.info("App", "stagetest 暂存 → \(staged.path)")
+                        Log.info("App", "stagetest 暂存完成")
                         if commit {
                             let dest = ScreenshotManager.shared.commitToSaveDirectory(staged: staged)
-                            Log.info("App", "stagetest 保存 → \(dest?.path ?? "失败")")
+                            Log.info("App", "stagetest 保存\(dest == nil ? "失败" : "完成")")
                         }
                     }
                 } else {
@@ -501,7 +500,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
                 let fileURL = URL(fileURLWithPath: rawPath)
                 guard FileManager.default.fileExists(atPath: fileURL.path) else {
-                    Log.warn("App", "归档深链：文件不存在 \(rawPath)")
+                    Log.warn("App", "归档深链：文件不存在")
                     break
                 }
                 switch action {
@@ -547,7 +546,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         CloudLinkCenterController.shared.show(link: link)
                     }
                 } else {
-                    Log.warn("App", "cloudlink 深链：无法识别网盘链接 \(raw)")
+                    Log.warn("App", "cloudlink 深链：无法识别网盘链接")
                 }
             case "toast":
                 // v89 视觉验收/排障深链：kitnest://toast?text=已复制&icon=checkmark.circle.fill

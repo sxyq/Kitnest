@@ -186,7 +186,7 @@ public struct CloudLinkPreviewAction: View {
 
 enum CloudLinkActions {
     static func resolve(_ link: CloudDriveLink) {
-        Log.info("CloudLink", "解析请求: \(link.provider.rawValue) \(link.url.absoluteString) share=\(link.isSharePage)")
+        Log.info("CloudLink", "解析请求：\(link.provider.rawValue) share=\(link.isSharePage)")
         StatisticsManager.shared.record(.browserOpen)
         // 真实下载链路（2026-10-20）：直链直接下；分享页 WKWebView 抓直链后下；
         // 解析不了就明确报错并打开页面，不再只弹「接入中」。

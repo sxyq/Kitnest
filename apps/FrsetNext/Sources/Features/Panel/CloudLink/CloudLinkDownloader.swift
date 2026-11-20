@@ -54,7 +54,7 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
     ///   （UI 按钮走 true；自动化测试深链走 false，避免弹满浏览器标签）
     func start(link: CloudDriveLink, openBrowserOnFailure: Bool = true) {
         let direct = Self.isDirectFileURL(link.url) && !link.isSharePage
-        Log.info("CloudLink", "解析下载：provider=\(link.provider.rawValue) direct=\(direct) engine=\(CloudLinkSettings.engine.rawValue) url=\(link.url.absoluteString)")
+        Log.info("CloudLink", "解析下载：provider=\(link.provider.rawValue) direct=\(direct) engine=\(CloudLinkSettings.engine.rawValue)")
 
         if CloudLinkSettings.engine == .copy, direct {
             NSPasteboard.general.clearContents()
@@ -80,7 +80,7 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
                 Toast.show("已解析到直链，开始下载", icon: "checkmark.circle.fill")
                 self.enqueueDownload(url: fileURL, preferredName: nil, provider: link.provider)
             case .failure(let reason):
-                Log.info("CloudLink", "解析失败：\(reason)")
+                Log.info("CloudLink", "解析失败")
                 HapticFeedback.perform(.transferFailed)
                 Toast.show(reason, icon: "exclamationmark.triangle", isWarning: true)
                 if openBrowserOnFailure { NSWorkspace.shared.open(link.url) }
@@ -118,7 +118,7 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
         items.insert(item, at: 0)
         let id = item.id
         pending.append(Job(id: id, url: url, name: name, provider: provider))
-        Log.info("CloudLink", "入队：\(name)（等待 \(pending.count)，并发上限 \(CloudLinkSettings.maxConcurrent)）")
+        Log.info("CloudLink", "任务入队（等待 \(pending.count)，并发上限 \(CloudLinkSettings.maxConcurrent)）")
         pump()
     }
 
@@ -297,7 +297,7 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
         if job.attempt < CloudLinkSettings.retryCount {
             var next = job
             next.attempt += 1
-            Log.info("CloudLink", "下载失败（\(reason)），第 \(next.attempt)/\(CloudLinkSettings.retryCount) 次重试")
+            Log.info("CloudLink", "下载失败，第 \(next.attempt)/\(CloudLinkSettings.retryCount) 次重试")
             release()
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
                 guard let self else { return }
@@ -359,7 +359,7 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
                 self.items[index].progress = 1
                 HapticFeedback.perform(.downloadCompleted)
                 Toast.show("已下载：\(localURL.lastPathComponent)", icon: "checkmark.circle.fill")
-                Log.info("CloudLink", "下载完成：\(localURL.path)")
+                Log.info("CloudLink", "下载完成")
                 // v95：使用统计接入（下载）
                 StatisticsManager.shared.record(.fileDownload)
                 if CloudLinkSettings.revealAfterDownload {

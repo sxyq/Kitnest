@@ -1,5 +1,5 @@
 ﻿module,file,owner,name,kind,line,status,evidence
-App,App/AppBootstrap.swift,AppBootstrap,start,func,11,KEEP,启动接线在filesCapturedNotification到达时同时读取中转总开关和自动暂存开关，允许时交LocalTransferStore.autoStage；成功只记录同步数量，启动阶段按已保存保留期启动暂存清理
+App,App/AppBootstrap.swift,AppBootstrap,start,func,11,KEEP,启动接线与更新安装探针共用；探针只记更新URL是否提供及校验值是否提供，不将源URL或校验内容写日志
 App,App/AppBootstrap.swift,AppBootstrap,stop,func,214,KEEP,FrsetNextApp:101 applicationWillTerminate 调用
 App,App/AppBootstrap.swift,AppBootstrap,wireEventBuses,func,220,KEEP,start L45 调用；接线截图/OCR/取色/AI/工具箱产出到剪贴板
 App,App/AppBootstrap.swift,AppBootstrap,registerAppLevelTools,func,283,KEEP,start L91 调用；注册取色器工具砖（跨模块）
@@ -19,13 +19,13 @@ App,App/AppBootstrap.swift,AppBootstrap,translateAndIngest,func,673,KEEP,onTextR
 App,App/AppBootstrap.swift,AppBootstrap,runTranslateSelection,func,691,KEEP,划词翻译热键 L361 与 .frsetTranslateSelection 通知 L235
 App,App/AppBootstrap.swift,AppBootstrap,readSelection,func,703,KEEP,命令面板、划词快捷键及刘海展开前读取真实前台AX焦点的SelectedText，拒绝自身前台及密码字段，不取系统剪贴板，返回具体授权或应用选区错误
 App,App/AppBootstrap.swift,AppBootstrap,runSelectionAction,func,749,KEEP,快捷键、命令面板和刘海OCR划词按钮共用已捕获SelectionResult或readSelection；失败Toast，翻译取消旧请求交translateAndIngest，其他动作交正式ToolRunnerWindow自动执行
-App,App/FrsetNextApp.swift,AppDelegate,applicationDidFinishLaunching,func,33,KEEP,NSApplicationDelegate 回调（系统派发）；单实例护栏 + AppBootstrap.start + NSServices + 任务中心
+App,App/FrsetNextApp.swift,AppDelegate,applicationDidFinishLaunching,func,33,KEEP,NSApplicationDelegate启动回调；启动日志与更新探针只记阶段和凭据是否提供，不记更新URL或校验值
 App,App/FrsetNextApp.swift,AppDelegate,enforceSingleMenubarOwner,func,80,KEEP,applicationDidFinishLaunching L37 调用；同 bundle 多实例退出 + 原版并存提示
 App,App/FrsetNextApp.swift,AppDelegate,applicationShouldTerminate,func,104,KEEP,2026-11-20：系统退出回调先取得原归档任务确认结果，再由更新器处理待安装交接；取消时不启动替换，替换程序启动失败也保留当前进程
 App,App/FrsetNextApp.swift,AppDelegate,applicationWillTerminate,func,109,KEEP,NSApplicationDelegate 回调；个性化落盘 + 日志归档停止 + bootstrap.stop
 App,App/FrsetNextApp.swift,AppDelegate,applicationShouldHandleReopen,func,119,KEEP,NSApplicationDelegate 回调；点 Dock/重开时显示主面板
 App,App/FrsetNextApp.swift,AppDelegate,updateDockPresence,func,129,KEEP,applicationDidFinishLaunching 注册 NSWindow 键状态/关闭通知；函数统计可见标题窗后在 regular 与 accessory 策略间切换
-App,App/FrsetNextApp.swift,AppDelegate,application,func,146,KEEP,NSApplicationDelegate 回调 application(_:open:)；文件 URL 分流 + kitnest:// 深链分发
+App,App/FrsetNextApp.swift,AppDelegate,application,func,146,KEEP,NSApplicationDelegate回调；文件URL与kitnest://深链分流，入站URL日志只保留scheme和host，不记录路径、参数或文件名
 Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,isEnabled,func,49,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；统一事件入口按独立场景开关取值，总强度由perform后续处理
 Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,load,func,51,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；从haptic.configuration读取独立Codable偏好，设置草稿与真实事件共用
 Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,persist,func,60,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；设置保存把强度与禁用事件集合编码到原UserDefaults，不影响刘海配置
@@ -2893,7 +2893,7 @@ Panel,Features/Panel/CloudLink/CloudLinkBar.swift,CloudLinkBar,bar,func,61,KEEP,
 Panel,Features/Panel/CloudLink/CloudLinkBar.swift,CloudLinkBar,providerBadge,func,122,KEEP,bar :60 调用
 Panel,Features/Panel/CloudLink/CloudLinkBar.swift,CloudLinkBar,shortURL,func,133,KEEP,bar :64 调用
 Panel,Features/Panel/CloudLink/CloudLinkBar.swift,CloudLinkPreviewAction,init,init,145,KEEP,PreviewPopoverContentView.swift:25 构造
-Panel,Features/Panel/CloudLink/CloudLinkBar.swift,CloudLinkActions,resolve,func,188,KEEP,CloudLinkBar:81/168 与 CloudLinkCenter:729 按钮回调
+Panel,Features/Panel/CloudLink/CloudLinkBar.swift,CloudLinkActions,resolve,func,188,KEEP,CloudLinkBar与CloudLinkCenter按钮回调；解析日志保留服务商及分享页状态，不记录分享URL
 Panel,Features/Panel/CloudLink/CloudLinkCenter.swift,CloudLinkSettings,defaultUA,func,140,KEEP,CloudLinkDownloader.swift:166/218 取各家下载 UA
 Panel,Features/Panel/CloudLink/CloudLinkCenter.swift,CloudLinkTester,run,func,172,KEEP,CloudLinkCenterView :379 onAppear / :424 / :750 调用
 Panel,Features/Panel/CloudLink/CloudLinkCenter.swift,CloudLinkTester,probe,func,229,KEEP,run :226 调用
@@ -2904,20 +2904,20 @@ Panel,Features/Panel/CloudLink/CloudLinkCenter.swift,CloudLinkCenterView,stateIc
 Panel,Features/Panel/CloudLink/CloudLinkCenter.swift,CloudLinkCenterView,configRow,func,631,KEEP,configSection :481-659 共 12 处调用
 Panel,Features/Panel/CloudLink/CloudLinkCenter.swift,CloudLinkCenterView,pickScript,func,702,KEEP,「选择…」按钮 :605 回调
 Panel,Features/Panel/CloudLink/CloudLinkCenter.swift,CloudLinkCenterView,pickDownloadDir,func,716,KEEP,「选择…」按钮 :641 回调
-Panel,Features/Panel/CloudLink/CloudLinkCenter.swift,CloudLinkCenterController,show,func,736,KEEP,CloudLinkPrompt.swift:88 与 FrsetNextApp.swift:427 调用
-Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,CloudLinkDownloader,start,func,55,KEEP,2026-11-20：Actions和cloudlink深链调用；按真实文件扩展名分流复制、直链和WebKit解析；完成时移除resolver，失败发触觉并按来源决定打开网页
+Panel,Features/Panel/CloudLink/CloudLinkCenter.swift,CloudLinkCenterController,show,func,736,KEEP,CloudLinkPrompt与深链调用；窗口内容展示原链接，日志只记服务商，不记录分享码和URL参数
+Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,CloudLinkDownloader,start,func,55,KEEP,Actions和cloudlink深链调用；按扩展名分流复制、直链和WebKit解析；日志只保留服务商、直链态及引擎，不记录原链接，失败提示仍沿原UI返回
 Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,CloudLinkDownloader,startDirectDownload,func,92,KEEP,2026-11-20：刘海下载输入及原有启动探针调用；识别可选provider后复用enqueueDownload，不新建下载链
 Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,CloudLinkDownloader,isDirectFileURL,func,97,KEEP,2026-11-20：start调用；只按fileExtensions集合匹配小写扩展名，分享页仍由原isSharePage判定排除
-Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,CloudLinkDownloader,enqueueDownload,func,114,KEEP,2026-11-20：三个正式入口调用；插入queued条目并创建同ID作业，沿pump共享并发计数；preferredName目前均传nil
+Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,CloudLinkDownloader,enqueueDownload,func,114,KEEP,三个正式入口调用；插入queued条目并创建同ID作业，沿pump共享并发计数；日志只记队列数，不记录用户文件名
 Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,CloudLinkDownloader,pump,func,125,KEEP,2026-11-20：入队、释放和重试交付调用；按现有maxConcurrent启动pending队首并只增加一次active
 Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,CloudLinkDownloader,release,func,133,KEEP,2026-11-20：每条任务终态或重试安排后调用；main队列减少active一次并复用pump，不发布下载结果
 Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,CloudLinkDownloader,run,func,140,KEEP,2026-11-20：pump唯一调用；按copy、aria2、builtin选择既有实现；复制终态同样释放并发名额
 Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,CloudLinkDownloader,download,func,155,KEEP,2026-11-20：run的内置下载分支；URLSession临时文件落盘，覆盖先移到目标同卷目录再rename，旧文件不预删；本地写盘错finish并release一次，不重下整个文件
 Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,CloudLinkDownloader,sendToAria2,func,217,KEEP,2026-11-20：run调用；按设置组addUri请求和token、连接数、UA等选项；校验HTTP和gid后交付，RPC失败复用既有重试；实际未传Cookie留后续处理
-Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,CloudLinkDownloader,handleFailure,func,296,KEEP,2026-11-20：网络、HTTP及RPC失败共用原次数和1.2秒间隔；释放后重新入队；本地文件错误已移除此入口，不改变用户重试配置
+Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,CloudLinkDownloader,handleFailure,func,296,KEEP,网络、HTTP及RPC失败共用原次数和1.2秒间隔；日志只记重试计数，不复制可能含URL或本地路径的错误文本；UI错误内容沿原入口显示
 Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,CloudLinkDownloader,destination,func,319,KEEP,2026-11-20：内置download调用；创建配置目录并透传失败，覆盖返回replacement而不删目标，skip直接结束，rename按原序号找空闲路径
 Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,CloudLinkDownloader,setStatus,func,342,KEEP,2026-11-20：内置和aria2开始时调用；main队列按任务ID修改现有列表状态，不创建额外观察任务
-Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,CloudLinkDownloader,finish,func,349,KEEP,2026-11-20：各真实终态共用；main队列按ID发布成功或失败、触觉和提示，只有真实本地文件完成才记下载统计及可选Finder定位
+Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,CloudLinkDownloader,finish,func,349,KEEP,各真实终态共用；main队列按ID发布成功或失败、触觉和提示，只有真实本地文件完成才记下载统计及可选Finder定位；日志仅记完成态，不记文件名或磁盘路径
 Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,CloudLinkDownloader,sanitize,func,377,KEEP,2026-11-20：download接收响应建议文件名后调用；剥首尾空白、空名转download、替换路径斜线；不改变原扩展名
 Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,LinkPageResolver,resolve,func,400,KEEP,2026-11-20：start创建并持有解析器后调用；读取可选脚本，建立同应用WebKit会话并启动12秒超时；读脚本失败进入同一finish出口
 Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,LinkPageResolver,webView,func,427,KEEP,2026-11-20：WebKit完成代理回调；可选脚本先执行，完成后沿原1.2秒延迟调用extractLinks；脚本失败交finish
@@ -2928,9 +2928,9 @@ Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,LinkPageResolver,syncCo
 Panel,Features/Panel/CloudLink/CloudLinkDownloader.swift,LinkPageResolver,finish,func,502,KEEP,2026-11-20：超时、WebKit失败及候选提取完成共用；先取消超时、取出清空completion再停网页解除代理，成功等待Cookie同步后只调用原回调一次
 Panel,Features/Panel/CloudLink/CloudLinkPrompt.swift,CloudLinkPromptController,init,init,24,KEEP,static shared :16 单例构造（private init）
 Panel,Features/Panel/CloudLink/CloudLinkPrompt.swift,CloudLinkPromptController,start,func,26,KEEP,AppBootstrap.swift:117 启动挂载
-Panel,Features/Panel/CloudLink/CloudLinkPrompt.swift,CloudLinkPromptController,catchUpRecentShareLink,func,49,KEEP,start :44 启动 2s 后闭包调用
-Panel,Features/Panel/CloudLink/CloudLinkPrompt.swift,CloudLinkPromptController,handle,func,66,KEEP,$items sink :32 与通知 :37 双路调用
-Panel,Features/Panel/CloudLink/CloudLinkPrompt.swift,CloudLinkPromptController,open,func,87,KEEP,catchUp :61 与 handle :83 调用
+Panel,Features/Panel/CloudLink/CloudLinkPrompt.swift,CloudLinkPromptController,catchUpRecentShareLink,func,49,KEEP,start延迟2秒调用；扫描最近条目补开一次未提示分享链接，日志只记录服务商与动作，不输出分享URL
+Panel,Features/Panel/CloudLink/CloudLinkPrompt.swift,CloudLinkPromptController,handle,func,66,KEEP,$items sink与条目变化通知双路调用；启动基线和剪贴板新增项过滤后识别网盘链接，日志不输出链接正文
+Panel,Features/Panel/CloudLink/CloudLinkPrompt.swift,CloudLinkPromptController,open,func,87,KEEP,启动追赶与新增条目命中后打开解析中心；日志只记录服务商，不写入分享码、路径或参数
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONNodeModel,init,init,50,KEEP,2026-11-17：JSONDocument根与makeChildren调用；NSNumber内用CFBoolean类型区分布尔与数字；保留80字符预览和完整原值，保存实际depth供原64层规则消费
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONNodeModel,ensureChildren,func,98,KEEP,2026-11-17：搜索表格和toggle共用唯一子级构造入口；builtChildren首次生成后复用，传递真实depth供子级判断层数
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONNodeModel,toggle,func,106,KEEP,2026-11-17：文档初始化与树形行调用；复用ensureChildren后只切换isExpanded，删除重复构造代码
@@ -3652,35 +3652,35 @@ Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,webView
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,init,init,574,KEEP,ToolboxModule.swift:16 经 PanelSectionRegistry.build 构造；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,init,init,581,KEEP,正式 SearchSectionView.init 观察共享服务；草稿重载观察 SearchDisplayDraft.service 并注入三项分类绑定，预览与正式路径复用同一视图；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,init,init,588,KEEP,正式 SearchSectionView.init 观察共享服务；草稿重载观察 SearchDisplayDraft.service 并注入三项分类绑定，预览与正式路径复用同一视图
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,previewAction,func,782,KEEP,设置预览的网页/工具/引擎动作仅显示演示反馈，消费clearSearchInputAfterWebAction决定调用clearInput或保留输入；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ContentHeightKey,reduce,func,898,KEEP,PreferenceKey 协议实现（:710 onPreferenceChange 消费）；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,categoryHeader,func,991,KEEP,webCategory:844、clipboard:1173、files:1299、tools:1381 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webCategory,func,1055,KEEP,listContent:732/734 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webResultArea,func,1116,KEEP,webCategory:849 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ClipboardFilterKind,matches,func,1306,KEEP,filteredClipboardMatches:1127 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filterChips,func,1346,KEEP,clipboardCategory:1176、filesCategory:1302 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardCategory,func,1368,KEEP,listContent:731/736 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardIcon,func,1459,KEEP,clipboardCategory:1195/1215 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fileIcon,func,1480,KEEP,filesCategory:1318/1340 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,resultFileIcon,func,1491,KEEP,设置预览文件行用 doc SF Symbol，正式文件行继续读取缓存的 NSWorkspace 文件图标；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,ago,func,1570,KEEP,「22 分钟前建立」相对时间文案；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filesCategory,func,1578,KEEP,listContent:729/738 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,toolCategory,func,1673,KEEP,listContent:730/747 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,highlighted,func,1742,KEEP,web:1014/1036、clipboard:1199、files:1321、tools:1396 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,updatePreviewCategories,func,1787,KEEP,仅设置预览响应分类开关；当前类关闭时切回全部并调用本地 scheduleSearch，不写持久分类；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filterPreviewItems,func,1794,KEEP,固定工具名/命令、副标题、五类文件名及网页标题/摘要通过 FuzzyMatcher 本地筛选，更新结果与搜索状态，不进入注册检索源、文件索引或网页抓取；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,previewSelectionFill,func,1820,KEEP,按 previewSelectedResultID 给被点击的固定结果绘制强调色圆角底，正式搜索行使用透明底；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,performWebSearch,func,1831,KEEP,onSubmit:603、engineActionsRow:865 等 5 处调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clearInput,func,1857,KEEP,搜索框 ✕ 按钮:629、toolCategory:1385、performWebSearch:1486 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fetchWebResults,func,1872,KEEP,categoryChips:658、engineActionsRow:863、scheduleSearch:1567；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,scheduleSearch,func,1911,KEEP,body onChange(query):502 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,1969,KEEP,WKNavigationDelegate 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,1972,KEEP,WKNavigationDelegate 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,1975,KEEP,WKNavigationDelegate 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeCoordinator,func,1980,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeNSView,func,1982,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,updateNSView,func,1993,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,dismantleNSView,func,1999,KEEP,NSViewRepresentable 静态协议方法；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,previewAction,func,778,KEEP,设置预览的网页/工具/引擎动作仅显示演示反馈，消费clearSearchInputAfterWebAction决定调用clearInput或保留输入；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ContentHeightKey,reduce,func,894,KEEP,PreferenceKey 协议实现（:710 onPreferenceChange 消费）；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,categoryHeader,func,987,KEEP,webCategory:844、clipboard:1173、files:1299、tools:1381 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webCategory,func,1051,KEEP,listContent:732/734 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webResultArea,func,1112,KEEP,webCategory调用并构造网页结果动作；日志探针仅记录结果数量与状态，不输出标题和目标URL
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ClipboardFilterKind,matches,func,1302,KEEP,filteredClipboardMatches:1127 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filterChips,func,1342,KEEP,clipboardCategory:1176、filesCategory:1302 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardCategory,func,1364,KEEP,listContent:731/736 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardIcon,func,1455,KEEP,clipboardCategory:1195/1215 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fileIcon,func,1476,KEEP,filesCategory:1318/1340 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,resultFileIcon,func,1487,KEEP,设置预览文件行用 doc SF Symbol，正式文件行继续读取缓存的 NSWorkspace 文件图标；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,ago,func,1566,KEEP,「22 分钟前建立」相对时间文案；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filesCategory,func,1574,KEEP,listContent:729/738 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,toolCategory,func,1669,KEEP,listContent:730/747 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,highlighted,func,1738,KEEP,web:1014/1036、clipboard:1199、files:1321、tools:1396 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,updatePreviewCategories,func,1783,KEEP,仅设置预览响应分类开关；当前类关闭时切回全部并调用本地 scheduleSearch，不写持久分类；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filterPreviewItems,func,1790,KEEP,固定工具名/命令、副标题、五类文件名及网页标题/摘要通过 FuzzyMatcher 本地筛选，更新结果与搜索状态，不进入注册检索源、文件索引或网页抓取；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,previewSelectionFill,func,1816,KEEP,按 previewSelectedResultID 给被点击的固定结果绘制强调色圆角底，正式搜索行使用透明底；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,performWebSearch,func,1827,KEEP,搜索框提交与引擎按钮调用；生成搜索URL并交默认浏览器，日志只记引擎，不记录关键词或URL参数
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clearInput,func,1853,KEEP,搜索框 ✕ 按钮:629、toolCategory:1385、performWebSearch:1486 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fetchWebResults,func,1868,KEEP,categoryChips:658、engineActionsRow:863、scheduleSearch:1567；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,scheduleSearch,func,1907,KEEP,body onChange(query):502 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,1965,KEEP,WKNavigationDelegate加载完成回调；只记录目标host，不记录搜索结果路径和查询参数
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,1968,KEEP,WKNavigationDelegate加载失败回调；日志只记NSError domain与code，避免错误描述夹带目标URL
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,1972,KEEP,WKNavigationDelegate连接失败回调；日志只记NSError domain与code，避免错误描述夹带目标URL
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeCoordinator,func,1978,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeNSView,func,1980,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,updateNSView,func,1991,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,dismantleNSView,func,1997,KEEP,NSViewRepresentable 静态协议方法；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SlashCommands.swift,SlashCommandCatalog,build,func,52,KEEP,CommandPalette.swift:58 buildSlash 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SlashCommands.swift,SlashCommandCatalog,match,func,112,KEEP,SearchSectionView.swift:97 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Shell/ToolboxModule.swift,ToolboxModule,start,func,9,KEEP,AppModule 协议，经 ModuleRegistry.startAll 派发；2026-11-19人工复核：保留，源码与调用/系统入口已核阅

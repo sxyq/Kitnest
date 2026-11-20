@@ -57,7 +57,7 @@ final class CloudLinkPromptController {
                   link.isSharePage else { continue }
             guard link.url.absoluteString != lastPromptedURL else { return }
             lastPromptedURL = link.url.absoluteString
-            Log.info("CloudLink", "启动追赶：自动打开 \(link.provider.rawValue) \(link.url.absoluteString)")
+            Log.info("CloudLink", "启动追赶：自动打开 \(link.provider.rawValue) 分享链接")
             open(link)
             return
         }
@@ -79,13 +79,13 @@ final class CloudLinkPromptController {
         }
         guard link.url.absoluteString != lastPromptedURL else { return }
         lastPromptedURL = link.url.absoluteString
-        Log.info("CloudLink", "剪贴板命中网盘链接：\(link.provider.rawValue) \(link.url.absoluteString)")
+        Log.info("CloudLink", "剪贴板命中网盘链接：\(link.provider.rawValue)")
         open(link)
     }
 
     /// 命中即直开解析中心（不再先弹小胶囊）
     private func open(_ link: CloudDriveLink) {
         CloudLinkCenterController.shared.show(link: link)
-        Log.info("CloudLink", "已自动打开解析中心：\(link.provider.displayName) \(link.url.absoluteString)")
+        Log.info("CloudLink", "已自动打开解析中心：\(link.provider.displayName)")
     }
 }

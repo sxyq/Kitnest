@@ -709,13 +709,9 @@ public struct SearchSectionView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
                     query = wq
                     DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
-                        let head = webResults.prefix(3).map(\.title).joined(separator: " | ")
-                        Log.info("Toolbox", "探针：网页结果 \(webResults.count) 条，引擎=\(previewEngine?.id ?? "-")，兜底=\(webFallbackName ?? "-")，失败=\(webFetchFailed) → \(head)")
+                        Log.info("Toolbox", "探针：网页结果 \(webResults.count) 条，引擎=\(previewEngine?.id ?? "-")，兜底=\(webFallbackName ?? "-")，失败=\(webFetchFailed)")
                         // v181：主操作改成「点击即开浏览器」后，探针不再自动打开内嵌预览
                         //（否则面板一出现就被预览占满，看不到结果列表本身）。
-                        if let first = webResults.first {
-                            Log.info("Toolbox", "探针：首条结果 \(first.url.absoluteString)（点击应直接用浏览器打开）")
-                        }
                     }
                 }
             }
@@ -1222,7 +1218,7 @@ public struct SearchSectionView: View {
                         if NSEvent.modifierFlags.contains(.option) {
                             previewArticleURL = result.url
                         } else {
-                            Log.info("Search", "openResult url=\(result.url.absoluteString)")
+                            Log.info("Search", "openResult host=\(result.url.host ?? "-")")
                             NSWorkspace.shared.open(result.url)
                             if service.clearSearchInputAfterWebAction { clearInput() }
                         }
@@ -1843,7 +1839,7 @@ public struct SearchSectionView: View {
         }
         let text = trimmedQuery
         guard !text.isEmpty, let url = SearchServiceManager.searchURL(for: engine, query: text) else { return }
-        Log.info("Search", "performWebSearch engine=\(engine.name) q='\(text)' url=\(url.absoluteString)")
+        Log.info("Search", "performWebSearch engine=\(engine.name)")
         // v84：搜索结果打开埋点（面板内所有「搜索」动作的统一出口）
         StatisticsManager.shared.record(.searchExecute)
         StatisticsManager.shared.record(.webSearchOpen)
@@ -1967,13 +1963,15 @@ private struct WebPreviewRepresentable: NSViewRepresentable {
 
     final class Coordinator: NSObject, WKNavigationDelegate {
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            Log.info("Search", "内嵌预览加载完成 \(webView.url?.absoluteString ?? "-")")
+            Log.info("Search", "内嵌预览加载完成 host=\(webView.url?.host ?? "-")")
         }
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-            Log.warn("Search", "内嵌预览加载失败：\(error.localizedDescription)")
+            let failure = error as NSError
+            Log.warn("Search", "内嵌预览加载失败：\(failure.domain) \(failure.code)")
         }
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-            Log.warn("Search", "内嵌预览无法连接：\(error.localizedDescription)")
+            let failure = error as NSError
+            Log.warn("Search", "内嵌预览无法连接：\(failure.domain) \(failure.code)")
         }
     }
 

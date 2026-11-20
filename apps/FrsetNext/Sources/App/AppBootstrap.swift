@@ -200,7 +200,7 @@ enum AppBootstrap {
                 UserDefaults.standard.removeObject(forKey: "probe.updateZip")
                 let sha = UserDefaults.standard.string(forKey: "probe.updateSha") ?? ""
                 UserDefaults.standard.removeObject(forKey: "probe.updateSha")
-                Log.info("Update", "探针：3s 后走整包更新（zip=\(raw)，sha=\(sha.isEmpty ? "跳过校验" : "已提供")）")
+                Log.info("Update", "探针：3s 后走整包更新（zip=已提供，sha=\(sha.isEmpty ? "跳过校验" : "已提供")）")
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                     AppUpdateChecker.shared.installUpdate(zipURL: url,
                                                           expectedSHA256: sha.isEmpty ? nil : sha)
