@@ -165,7 +165,6 @@ final class TransientWindowCenter {
                 continue
             }
             if w.frame.contains(point) { continue }
-            if let clickWindow = event.window, entry.allowsClickIn?(clickWindow) == true { continue }
             Log.info("Transient", "点外收起：\(w.title.isEmpty ? "\(type(of: w))" : w.title)")
             entry.dismiss()
         }

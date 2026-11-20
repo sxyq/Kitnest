@@ -136,25 +136,25 @@ Core,Core/Runtime/RenderProbe.swift,RenderProbe,dumpWindow,func,80,KEEP,2026-11-
 Core,Core/Runtime/RenderProbe.swift,RenderProbe,emit,func,85,KEEP,2026-11-20：两个快照入口共用；读取窗口和内容层可见性尺寸并记录异常，正常相同行不重复写；异常后缀按三项实际标记匹配，删除将竖线当普通字符的失效查找
 Core,Core/Runtime/StateCompat.swift,StoredBox,init,init,17,KEEP,2026-11-20：Stored以StateObject延迟构造唯一引用盒；Published值供包装器读写与Binding共同消费，不替换现有视图状态容器
 Core,Core/Runtime/StateCompat.swift,Stored,init,init,24,KEEP,2026-11-20：手册导航和主面板输入等实际Stored属性由SwiftUI初始化；StateObject保存引用盒，wrappedValue及projectedValue共用同一个值
-Core,Core/Runtime/TransientWindows.swift,TransientWindowCenter,init,init,37,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；static shared:19
-Core,Core/Runtime/TransientWindows.swift,TransientWindowCenter,register,func,42,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；PanelController:231 / MonitorPopoutWindow:238
-Core,Core/Runtime/TransientWindows.swift,TransientWindowCenter,unregister,func,54,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；PanelController:315 / MonitorPopoutWindow:322,358"
-Core,Core/Runtime/TransientWindows.swift,TransientWindowCenter,requestDismiss,func,60,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；PanelController:480 / MonitorPopoutWindow:417
-Core,Core/Runtime/TransientWindows.swift,TransientWindowCenter,dismissAll,func,67,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；register:51 / 失活监听:99,110"
-Core,Core/Runtime/TransientWindows.swift,TransientWindowCenter,startMonitoringIfNeeded,func,76,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；register:50 调用
-Core,Core/Runtime/TransientWindows.swift,TransientWindowCenter,stopMonitoring,func,115,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；unregister:56 无窗口时调用
-Core,Core/Runtime/TransientWindows.swift,TransientWindowCenter,handleLocalClick,func,128,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；本地事件监视器闭包 :81 派发
-Core,Core/Runtime/TransientWindows.swift,TransientWindowCenter,isInMenuBar,func,174,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；handleLocalClick:137 调用
-Core,Core/Runtime/WindowReveal.swift,WindowReveal,transform,func,32,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；playIn:54 / playOut:91 / PanelController:221
-Core,Core/Runtime/WindowReveal.swift,WindowReveal,playIn,func,43,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；PanelController:275 / ClipboardPreviewWindow:156
-Core,Core/Runtime/WindowReveal.swift,WindowReveal,playOut,func,80,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；PanelController:365 / MonitorPopoutWindow:333
-Core,Core/Runtime/WindowReveal.swift,WindowReveal,addAnimation,func,107,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；playIn:60,62 / playOut:96,98"
-Core,Core/Runtime/WindowReveal.swift,Once,run,func,124,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；playIn:57 / playOut:93 去重回调
-Core,Core/Runtime/WindowReveal.swift,WindowReveal,probePresentation,func,134,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；playIn:74 / playOut:104
-Core,Core/Runtime/WindowReveal.swift,WindowReveal,unitAtMouse,func,149,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；playInFromMouse:164 调用
-Core,Core/Runtime/WindowReveal.swift,WindowReveal,playInFromMouse,func,160,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；10+ 窗口控制器调用（SettingsWindowController:121）
-Core,Core/Runtime/WindowReveal.swift,WindowReveal,playOutToLastAnchor,func,169,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；SettingsWindowController:132 等 6 处
-Core,Core/Runtime/WindowReveal.swift,WindowReveal,reset,func,180,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ToolRunnerWindow:41 / SettingsWindowController:116
+Core,Core/Runtime/TransientWindows.swift,TransientWindowCenter,init,init,37,KEEP,2026-11-20：私有初始化仅供shared；不自行启动监视，首个窗口注册时安装
+Core,Core/Runtime/TransientWindows.swift,TransientWindowCenter,register,func,42,KEEP,2026-11-20：主面板与监测窗登记弱窗口及关闭置顶兄弟窗闭包，安装同一组监视并收起其他未固定窗口
+Core,Core/Runtime/TransientWindows.swift,TransientWindowCenter,unregister,func,54,KEEP,2026-11-20：主面板或监测窗隐藏关闭后移除登记，最后一个窗口离开时移除全部监视与通知
+Core,Core/Runtime/TransientWindows.swift,TransientWindowCenter,requestDismiss,func,60,KEEP,2026-11-20：窗口代理失去key时转入，只有已登记可见且未固定的窗口才执行原关闭闭包
+Core,Core/Runtime/TransientWindows.swift,TransientWindowCenter,dismissAll,func,67,KEEP,2026-11-20：注册及应用失活路径共用；跳过指定窗口、已关闭窗口和固定窗口，调用各自原关闭入口
+Core,Core/Runtime/TransientWindows.swift,TransientWindowCenter,startMonitoringIfNeeded,func,76,KEEP,2026-11-20：首个登记窗口按现有可空句柄各安装一次本地全局点击及两种应用失活通知，全部回调共用收起入口
+Core,Core/Runtime/TransientWindows.swift,TransientWindowCenter,stopMonitoring,func,115,KEEP,2026-11-20：最后一项注销后移除两个NSEvent监视及两个通知观察者，并清空四个句柄以供再次注册
+Core,Core/Runtime/TransientWindows.swift,TransientWindowCenter,handleLocalClick,func,128,KEEP,2026-11-20：本地点击优先使用事件屏幕位置，放行自家状态项和系统菜单；异窗分支只判一次sheet或预览例外，删去后续重复判定
+Core,Core/Runtime/TransientWindows.swift,TransientWindowCenter,isInMenuBar,func,173,KEEP,2026-11-20：从包含点击位置的真实屏幕读取顶部范围，再按系统状态栏高度加2pt判断；保留负坐标屏幕计算
+Core,Core/Runtime/WindowReveal.swift,WindowReveal,transform,func,32,KEEP,2026-11-20：按归一化锚点生成两次平移和一次缩放；入场退场及主面板均复用同一变换
+Core,Core/Runtime/WindowReveal.swift,WindowReveal,playIn,func,43,KEEP,2026-11-20：主面板与预览窗入场设置模型终态并添加显式缩放和透明动画；本次用弱窗口键记录锚点，窗口释放即移除
+Core,Core/Runtime/WindowReveal.swift,WindowReveal,playOut,func,80,KEEP,2026-11-20：窗口收回显式插值至指定锚点并保持透明终态，结束回调由Once去重；调用方随后关闭或隐藏
+Core,Core/Runtime/WindowReveal.swift,WindowReveal,addAnimation,func,107,KEEP,2026-11-20：入场与退场共用CABasicAnimation构造，按keyPath保留结束态，reset统一清除动画
+Core,Core/Runtime/WindowReveal.swift,Once,run,func,124,KEEP,2026-11-20：同一动画事务完成与既有延时完成共用一个实例，首次设置fired后执行，后续回调不重复关闭窗口
+Core,Core/Runtime/WindowReveal.swift,WindowReveal,probePresentation,func,134,KEEP,2026-11-20：只在已有probe.reveal启用时后台读取动画中段presentation；入场退场调用，不参与正式动画完成判断
+Core,Core/Runtime/WindowReveal.swift,WindowReveal,unitAtMouse,func,149,KEEP,2026-11-20：将全局鼠标换算成窗口内左上原点归一化位置；窗口过小或鼠标在外时沿原顶部中点
+Core,Core/Runtime/WindowReveal.swift,WindowReveal,playInFromMouse,func,160,KEEP,2026-11-20：设置窗、工具窗和命令面板上屏后共用；只计算一次鼠标锚点再交playIn
+Core,Core/Runtime/WindowReveal.swift,WindowReveal,playOutToLastAnchor,func,169,KEEP,2026-11-20：设置窗及命令面板退场共用；从弱键表取得最近锚点，无记录沿原中心点后交playOut
+Core,Core/Runtime/WindowReveal.swift,WindowReveal,reset,func,180,KEEP,2026-11-20：工具窗复用及收回完成时清层动画、缩放和透明状态，并移除该窗口的弱键锚点
 Core,Core/UI/AppearanceTheme.swift,MidnightTheme,h,func,56,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；本文件:77,79,81 三色均经 h() 派生"
 Core,Core/UI/AppearanceTheme.swift,MidnightTheme,baseBackground,func,77,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；AppearanceThemeModifier 与 Theme.windowSurface(for:midnight:) 调用：将指定 Personalization.midnightHueShift 传给 h，生成 Midnight 窗口基色；静态属性继续传 shared
 Core,Core/UI/AppearanceTheme.swift,MidnightTheme,cardBackground,func,84,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；AppearanceThemeModifier 与 Theme.cardFill(for:midnight:) 调用：按指定草稿 glassCardLift/0.55 提升 RGB 基色，再经 h 应用 midnightHueShift，使卡片亮度和色相随预览更新
@@ -3539,29 +3539,29 @@ Toolbox,Features/Toolbox/Calendar/LunarCalendar.swift,LunarCalendar,daysBetween,
 Toolbox,Features/Toolbox/Calendar/LunarCalendar.swift,LunarCalendar,lunarDate,func,131,KEEP,CalendarService:144/147、CalendarSectionView:293/327 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Calendar/LunarCalendar.swift,LunarCalendar,solarTerm,func,189,KEEP,CalendarService:147、CalendarSectionView:292/329 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Calendar/LunarCalendar.swift,LunarCalendar,lunarFestival,func,210,KEEP,CalendarService:145、CalendarSectionView:294/328 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandItem,init,init,39,KEEP,CommandCatalog.build:78 起、buildSlash:60 等 20+ 处构造；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandCatalog,buildSlash,func,57,KEEP,CommandPaletteState.init:341 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandCatalog,build,func,72,KEEP,CommandPaletteState.init:340 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteController,init,init,234,KEEP,单例 shared:219（private override init）；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteController,toggle,func,236,KEEP,AppBootstrap.swift:393 热键闭包调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteController,closeAnimated,func,245,KEEP,toggle:229 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteController,show,func,255,KEEP,toggle:231 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteController,dismissForCommand,func,276,KEEP,SlashCommands.swift:70/87/101 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteController,windowWillClose,func,282,KEEP,NSWindowDelegate 协议实现，按规程保留；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPalettePanel,init,init,293,KEEP,CommandPaletteController.show:256 构造；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPalettePanel,centerInScreen,func,320,KEEP,show:258 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPalettePanel,windowWillClose,func,328,KEEP,NSWindowDelegate（init:302 delegate = self）；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,init,init,352,KEEP,CommandPalettePanel.init:297 构造；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,toggleSlashMode,func,360,KEEP,CommandPaletteView:459 按钮调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,refilter,func,370,KEEP,onChange:454、onAppear:535、toggleSlashMode:354 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,publish,func,421,KEEP,refilter:365/382/387/403 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,move,func,427,KEEP,keyHandler:546/547 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,executeSelected,func,432,KEEP,onSubmit:453、行 onTapGesture:501 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcher,makeNSView,func,616,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcher,updateNSView,func,622,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcherView,viewDidMoveToWindow,func,631,KEEP,NSView override（框架回调）；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcherView,deinit,deinit,644,KEEP,deinit 生命周期，移除本地 monitor；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,Array,subscript,subscript,652,KEEP,CommandPalette.swift:507 items[safe:] 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandItem,init,init,39,KEEP,2026-11-20：目录与斜杠映射构造命令元数据和动作闭包；可选开关读取器及别名分别供列表和筛选消费
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandCatalog,buildSlash,func,57,KEEP,2026-11-20：每次构造面板状态时读取正式SlashCommandCatalog，将token及别名转小写供斜杠筛选，执行仍调用原run
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandCatalog,build,func,72,KEEP,2026-11-20：每次打开按当前选区构造AI动作截图开关监测设置和启用工具目录；动作闭包交原业务入口，目录不常驻刷新
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteController,init,init,234,KEEP,2026-11-20：shared唯一构造；保留单个面板引用及收回标记，不在初始化时创建窗口
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteController,toggle,func,236,KEEP,2026-11-20：AppBootstrap命令快捷键调用，可见时走收回动画，否则复用show
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteController,closeAnimated,func,245,KEEP,2026-11-20：热键再次触发时沿最近锚点收回，isClosing避免重复close；结束清标记，只清仍对应的窗口
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteController,show,func,255,KEEP,2026-11-20：快捷键或斜杠入口读取选区；可见普通唤起只前置，切斜杠才重建；新面板居中成为key后播放原展开动画
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteController,dismissForCommand,func,276,KEEP,2026-11-20：斜杠命令执行前解除控制器引用并对旧面板收回关闭，闭包只弱持有旧面板以免误关新窗口
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteController,windowWillClose,func,282,KEEP,2026-11-20：由实际delegate面板转发关闭通知，只有通知对象仍是当前面板才清引用；修复Esc关闭后残留窗口
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPalettePanel,init,init,293,KEEP,2026-11-20：show创建660×470非激活工具面板，正文持有状态并将关闭动作弱连自身；delegate明确设为面板自身
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPalettePanel,centerInScreen,func,320,KEEP,2026-11-20：show上屏前按主屏visibleFrame水平居中，顶部留可见高度的12%；尺寸与逻辑点沿原规则
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPalettePanel,windowWillClose,func,328,KEEP,2026-11-20：系统关闭回调先解除状态onDismiss，再转发控制器清当前引用；不新增关闭路径
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,init,init,353,KEEP,2026-11-20：每次面板打开构造普通及斜杠两份本次目录，按initialQuery选择初始项目并保留前台选区
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,toggleSlashMode,func,361,KEEP,2026-11-20：搜索栏斜杠按钮在空查询与斜杠之间切换，再调用同一refilter更新结果
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,refilter,func,371,KEEP,2026-11-20：输入变化先重置选中项；斜杠按完全前缀和模糊分数排序，普通按标题匹配，空查询直接发布原目录
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,publish,func,422,KEEP,2026-11-20：refilter共用结果出口，仅id序列变化时写Published列表，避免同一目录重复绘制
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,move,func,428,KEEP,2026-11-20：键盘上下键只在非空结果内夹取选中索引，列表监听随后滚动到该项
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,executeSelected,func,433,KEEP,2026-11-20：回车和点击共用；取有效选中项后先关闭原面板，再执行该项保存的业务动作
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcher,makeNSView,func,617,KEEP,2026-11-20：SwiftUI宿主首次创建KeyEventCatcherView并传当前处理闭包；监视器由视图挂窗时安装
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcher,updateNSView,func,623,KEEP,2026-11-20：SwiftUI状态变化时替换现有视图的处理闭包，不重复安装NSEvent监视
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcherView,viewDidMoveToWindow,func,632,KEEP,2026-11-20：进入窗口且无句柄时安装本地按键监听，只消费所属窗口已处理按键；离开窗口移除监听并清句柄
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcherView,deinit,deinit,645,KEEP,2026-11-20：视图释放时移除尚存本地按键监听，与挂窗离开处理共用同一可空句柄
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,Array,subscript,subscript,653,KEEP,2026-11-20：选中项变化触发滚动定位时按indices取可选元素，结果目录变化后不访问越界项
 Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,init,init,65,KEEP,2026-11-20：shared唯一私有构造，初始化本身不扫描；SearchSectionView计算属性及其state订阅会取得单例，旧注释称面板不走初始化失实
 Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,ensureReady,func,76,KEEP,2026-11-20：搜索调度及建立按钮调用，ready或building直接返回，先尝试loadFromDisk，失败交既有后台build；非路径文件搜索才需要该索引
 Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,preloadIfCached,func,88,KEEP,2026-11-20：正式搜索面板onAppear调用，只在absent时尝试映射已存索引，缺失保持absent不遍历磁盘

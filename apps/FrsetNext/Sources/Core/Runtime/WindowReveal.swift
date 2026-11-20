@@ -26,7 +26,7 @@ import QuartzCore
 enum WindowReveal {
 
     /// 每个窗口最近一次展开用的锚点（收回时「回哪去」不用每个控制器自己记）
-    private static var lastAnchors: [ObjectIdentifier: CGPoint] = [:]
+    private static let lastAnchors = NSMapTable<NSWindow, NSValue>.weakToStrongObjects()
 
     /// 以内容层归一化锚点为中心、按 `scale` 缩放后的 transform。
     static func transform(scale: CGFloat, around unit: CGPoint, in size: CGSize) -> CATransform3D {
@@ -52,7 +52,7 @@ enum WindowReveal {
         }
         layer.removeAllAnimations()
         let start = transform(scale: scale, around: unit, in: view.bounds.size)
-        lastAnchors[ObjectIdentifier(window)] = unit
+        lastAnchors.setObject(NSValue(point: unit), forKey: window)
         let once = Once()
         let fire: () -> Void = { once.run { completion?() } }
         CATransaction.begin()
@@ -171,7 +171,7 @@ enum WindowReveal {
                                     duration: TimeInterval = Personalization.shared.openAnimation.duration,
                                     timing: CAMediaTimingFunction = Theme.Motion.caEaseIn,
                                     completion: @escaping () -> Void) {
-        let unit = lastAnchors[ObjectIdentifier(window)] ?? CGPoint(x: 0.5, y: 0.5)
+        let unit = lastAnchors.object(forKey: window)?.pointValue ?? CGPoint(x: 0.5, y: 0.5)
         playOut(on: window, to: unit, scale: scale, duration: duration,
                 timing: timing, completion: completion)
     }
@@ -182,6 +182,6 @@ enum WindowReveal {
         layer.removeAllAnimations()
         layer.transform = CATransform3DIdentity
         layer.opacity = 1
-        lastAnchors[ObjectIdentifier(window)] = nil
+        lastAnchors.removeObject(forKey: window)
     }
 }

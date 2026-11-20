@@ -327,6 +327,7 @@ final class CommandPalettePanel: NSPanel, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         onClose?()
+        CommandPaletteController.shared.windowWillClose(notification)
     }
 }
 
