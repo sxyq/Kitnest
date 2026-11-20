@@ -79,12 +79,6 @@ public enum CloudDriveLinkDetector {
 
     /// 通配主机（123 云盘多域名）
     private static let wildcardSuffixes: [(String, CloudDriveProvider)] = [
-        (".123pan.com", .pan123),
-        (".123pan.cn", .pan123),
-        (".123684.com", .pan123),
-        (".123865.com", .pan123),
-        (".123952.com", .pan123),
-        (".123912.com", .pan123),
         ("123pan.com", .pan123),
         ("123pan.cn", .pan123),
         ("123684.com", .pan123),
@@ -97,7 +91,7 @@ public enum CloudDriveLinkDetector {
     public static func provider(forHost host: String) -> CloudDriveProvider? {
         let h = host.lowercased()
         if let p = exactHosts[h] { return p }
-        for (suffix, p) in wildcardSuffixes where h == suffix || h.hasSuffix(suffix) {
+        for (suffix, p) in wildcardSuffixes where h == suffix || h.hasSuffix("." + suffix) {
             return p
         }
         return nil
@@ -113,20 +107,23 @@ public enum CloudDriveLinkDetector {
     public static func isSharePage(_ url: URL) -> Bool {
         let path = url.path.lowercased()
         let host = url.host?.lowercased() ?? ""
-        if path.contains("/share") || path.contains("/s/") { return true }
-        if host.contains("189.cn"), path.hasPrefix("/t/") { return true }
-        if host.contains("139.com"), path.contains("/w/") || path.contains("/m/") { return true }
+        let firstComponent = path.split(separator: "/").first
+        if firstComponent == "s" || firstComponent == "share" || firstComponent == "shareweb" { return true }
+        let provider = provider(forHost: host)
+        if provider == .tianyi189, path.hasPrefix("/t/") { return true }
+        if provider == .mobile139, path.hasPrefix("/w/") || path.hasPrefix("/m/") { return true }
         // 123 云盘：/123pan/<id> 直达分享；*.share.* 子域本身就是分享域
-        if provider(forHost: host) == .pan123 {
-            if path.hasPrefix("/123pan/") || path.contains("/share") { return true }
-            if host.contains("share.") { return true }
+        if provider == .pan123 {
+            if path.hasPrefix("/123pan/") { return true }
+            if host.split(separator: ".").contains("share") { return true }
         }
         return false
     }
 
-    /// 裸域名被 NSDataDetector 识别时会补成 http://，统一升到 https（网盘分享页都强制 https）
-    private static func normalized(_ url: URL) -> URL {
-        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false),
+    /// 只将探测器为裸域名补入的 http 升为 https，保留原文显式指定的协议。
+    private static func normalized(_ url: URL, matchedText: Substring) -> URL {
+        guard !matchedText.lowercased().hasPrefix("http:"),
+              var components = URLComponents(url: url, resolvingAgainstBaseURL: false),
               components.scheme?.lowercased() == "http",
               let host = components.host,
               provider(forHost: host) != nil else { return url }
@@ -136,7 +133,7 @@ public enum CloudDriveLinkDetector {
 
     /// v101 性能审计：探测器/正则静态化（此前每条目构造一次）
     private static let linkDetector = try? NSDataDetector(types: NSTextCheckingResult.CheckingType.link.rawValue)
-    private static let bareDomainRegex = try? NSRegularExpression(pattern: #"(?i)((?:pan\.baidu|yun\.baidu|www\.aliyundrive|aliyundrive|www\.alipan|alipan|yun\.139|caiyun\.139|cloud\.189|pan\.xunlei|pan\.quark|drive\.uc|(?:[a-z0-9-]+\.)?123(?:pan|684|865|952|912)\.(?:com|cn))[^\s"'<>）)]*)"#)
+    private static let bareDomainRegex = try? NSRegularExpression(pattern: #"(?i)(?<![a-z0-9_.@/-])((?:pan\.baidu|yun\.baidu|www\.aliyundrive|aliyundrive|www\.alipan|alipan|yun\.139|caiyun\.139|cloud\.189|pan\.xunlei|pan\.quark|drive\.uc|(?:[a-z0-9-]+\.)?123(?:pan|684|865|952|912)\.(?:com|cn))[^\s"'<>）)]*)"#)
 
     /// 廉价预筛词（v172 性能审阅）
     ///
@@ -160,8 +157,9 @@ public enum CloudDriveLinkDetector {
         if let detector = Self.linkDetector {
             let range = NSRange(text.startIndex..., in: text)
             for match in detector.matches(in: text, options: [], range: range) {
-                guard let url = match.url, let host = url.host, let p = provider(forHost: host) else { continue }
-                let fixed = normalized(url)
+                guard let url = match.url, let host = url.host, let p = provider(forHost: host),
+                      let matchedRange = Range(match.range, in: text) else { continue }
+                let fixed = normalized(url, matchedText: text[matchedRange])
                 return CloudDriveLink(url: fixed, provider: p, isSharePage: isSharePage(fixed))
             }
         }
