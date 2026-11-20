@@ -2630,26 +2630,37 @@ Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootVi
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,selectedBytesForPending,func,1205,KEEP,2026-11-20：删除确认框先去掉pendingTrash内已被父路径覆盖的项，再从当前快照合计真实节点字节，不操作文件
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,performTrash,func,1211,KEEP,2026-11-20：确认删除取出并清空pendingTrash，非空才交store.trash；按回传成功数、字节和lastError显示结果
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageCandidateRow,displayPath,func,1236,KEEP,2026-11-20：候选行只把当前home本身或home/后代缩写为~，其他路径原样显示，不误缩写同名前缀
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskVoronoiLayout,make,func,42,KEEP,DiskLayoutCache.tiles:133
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskVoronoiLayout,inradius,func,125,KEEP,DiskVoronoiLayout.make 在布局时计算标签质心到各边的最小距离，供标签档位和宽度复用；悬停不再求内切圆半径
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskLayoutCache,tiles,func,147,KEEP,StorageTreemap.body:171
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageMapShape,path,func,224,KEEP,StorageManagerRootView.rightPane 以 StorageMapShape 裁剪整栏，左缘曲线从左下连续接到上缘内收点
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,tileView,func,323,KEEP,body:192
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,label,func,352,KEEP,tileView:249
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,fill,func,385,KEEP,tileView:233
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,contentColor,func,398,KEEP,tileView:213
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskVoronoiLayout,make,func,39,KEEP,DiskLayoutCache.tiles:133
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskVoronoiLayout,inradius,func,120,KEEP,DiskVoronoiLayout.make 在布局时计算标签质心到各边的最小距离，供标签档位和宽度复用；悬停不再求内切圆半径
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskLayoutCache,tiles,func,142,KEEP,StorageTreemap.body:171
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageMapShape,path,func,201,KEEP,StorageManagerRootView.rightPane 以 StorageMapShape 裁剪整栏，左缘曲线从左下连续接到上缘内收点
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,tileView,func,287,KEEP,body:192
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,label,func,316,KEEP,tileView:249
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,fill,func,349,KEEP,tileView:233
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,contentColor,func,362,KEEP,tileView:213
 Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,layout,func,24,KEEP,StorageTreemap.swift:97
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,basePolygon,func,90,KEEP,layout:41
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,arcSeeds,func,101,KEEP,layout:45（arcFirst 分支）
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,seeds,func,159,KEEP,layout:46
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,cells,func,195,KEEP,layout:62 每轮迭代
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,clipHalfPlane,func,222,KEEP,cells:223
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,area,func,243,KEEP,layout:42、67
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,centroid,func,253,KEEP,layout:77、inset:279
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,inset,func,268,KEEP,StorageTreemap:203、238
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,boundingBox,func,274,KEEP,StorageTreemap:113
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,sampledPoints,func,285,KEEP,按指定间距采样正式曲线路径，为异形布局与液态轮廓提供静态点集，悬停时复用缓存
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,roundedPath,func,342,KEEP,DiskVoronoiLayout.make 生成静态命中轮廓；LiquidTileDrawing.body 每帧共用一次圆角路径绘制填色、裁切和描边
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,basePolygon,func,99,KEEP,layout:41
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,arcSeeds,func,109,KEEP,layout:45（arcFirst 分支）
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,seeds,func,167,KEEP,layout:46
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,cells,func,203,KEEP,layout:62 每轮迭代
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,triangulate,func,231,KEEP,将凹形存储图边界耳切为三角片，使加权 Voronoi 裁切覆盖原容器形状
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,signedArea,func,262,KEEP,计算多边形有向面积，为耳切判断顶点顺序
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,cross,func,270,KEEP,计算三点叉积，供耳切凸角与点内判定使用
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,polygonPath,func,274,KEEP,将三角裁切轮廓闭合为 SwiftUI Path，供图块填充与命中区域复用
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,PointKey,init,init,287,KEEP,将裁切交点量化到百万分之一坐标精度，使相邻三角片的共享边可合并
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,PointKey,func,func,294,KEEP,按坐标字典序排列 PointKey，统一共享边的端点方向
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,mergedContours,func,304,KEEP,抵消三角片间的内部边并追踪剩余外轮廓，避免图块出现分片接缝
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,clockwiseTurn,func,355,KEEP,在轮廓分叉处按转角选择下一条边，连续追踪凹形边界
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,area,func,362,KEEP,layout:42、67
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,centroid,func,366,KEEP,layout:77、inset:279
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,clipHalfPlane,func,377,KEEP,cells:223
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,area,func,398,KEEP,分别汇总三角片面积和单片面积，供权重收敛与质心加权使用
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,centroid,func,408,KEEP,分别计算多片面积加权中心与单个多边形质心，供站点松弛和图块定位使用
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,inset,func,423,KEEP,StorageTreemap:203、238
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,boundingBox,func,429,KEEP,StorageTreemap:113
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,sampledPoints,func,440,KEEP,按指定间距采样正式曲线路径，为异形布局与液态轮廓提供静态点集，悬停时复用缓存
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,sampledContours,func,492,KEEP,按间距采样 Path 曲线并保留分离轮廓，供图块边界、标签区域与命中路径生成
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,roundedPath,func,558,KEEP,DiskVoronoiLayout.make 生成静态命中轮廓；LiquidTileDrawing.body 每帧共用一次圆角路径绘制填色、裁切和描边
 Monitor,Features/Monitor/Views/BatteryPanel.swift,BatteryStatsContent,init,init,54,KEEP,BatteryStatsContent 接收 StatsSnapshot、可选电量和可选 LowPowerModeController；真实页注入控制器，固定预览传 nil，低电量开关只改本地状态
 Monitor,Features/Monitor/Views/BatteryPanel.swift,BatteryStatsContent,hero,func,82,KEEP,用传入电池百分比或 batteryLevel 绘制74pt电量环，按充电/接电状态显示标题、副标题及状态色
 Monitor,Features/Monitor/Views/BatteryPanel.swift,BatteryStatsContent,headline,func,116,KEEP,按传入电池的充电、充满和外接电源状态返回正在充电、已充满、接电未充或电池供电，缺值显示状态未知

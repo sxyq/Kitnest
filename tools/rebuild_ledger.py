@@ -2664,5 +2664,30 @@ EVIDENCE.update({
         "标签管理表单回车与保存按钮调用store.rename，失败提示并保留编辑，成功清editingTagID及名称草稿",
 })
 
+EVIDENCE.update({
+    ("Features/Monitor/Storage/StorageVoronoi.swift", "triangulate"):
+        "将凹形存储图边界耳切为三角片，使加权 Voronoi 裁切覆盖原容器形状",
+    ("Features/Monitor/Storage/StorageVoronoi.swift", "signedArea"):
+        "计算多边形有向面积，为耳切判断顶点顺序",
+    ("Features/Monitor/Storage/StorageVoronoi.swift", "cross"):
+        "计算三点叉积，供耳切凸角与点内判定使用",
+    ("Features/Monitor/Storage/StorageVoronoi.swift", "polygonPath"):
+        "将三角裁切轮廓闭合为 SwiftUI Path，供图块填充与命中区域复用",
+    ("Features/Monitor/Storage/StorageVoronoi.swift", "init"):
+        "将裁切交点量化到百万分之一坐标精度，使相邻三角片的共享边可合并",
+    ("Features/Monitor/Storage/StorageVoronoi.swift", "func"):
+        "按坐标字典序排列 PointKey，统一共享边的端点方向",
+    ("Features/Monitor/Storage/StorageVoronoi.swift", "mergedContours"):
+        "抵消三角片间的内部边并追踪剩余外轮廓，避免图块出现分片接缝",
+    ("Features/Monitor/Storage/StorageVoronoi.swift", "clockwiseTurn"):
+        "在轮廓分叉处按转角选择下一条边，连续追踪凹形边界",
+    ("Features/Monitor/Storage/StorageVoronoi.swift", "area"):
+        "分别汇总三角片面积和单片面积，供权重收敛与质心加权使用",
+    ("Features/Monitor/Storage/StorageVoronoi.swift", "centroid"):
+        "分别计算多片面积加权中心与单个多边形质心，供站点松弛和图块定位使用",
+    ("Features/Monitor/Storage/StorageVoronoi.swift", "sampledContours"):
+        "按间距采样 Path 曲线并保留分离轮廓，供图块边界、标签区域与命中路径生成",
+})
+
 if __name__ == "__main__":
     sys.exit(main())
