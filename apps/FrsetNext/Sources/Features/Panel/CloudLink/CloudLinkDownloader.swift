@@ -396,6 +396,11 @@ final class LinkPageResolver: NSObject, WKNavigationDelegate {
     private var completion: ((Result) -> Void)?
     private var timeoutWork: DispatchWorkItem?
     private var selectedScript: String?
+    private static let cookieDomains: Set<String> = [
+        "baidu.com", "aliyundrive.com", "alipan.com", "139.com", "189.cn",
+        "xunlei.com", "quark.cn", "uc.cn", "123pan.com", "123pan.cn",
+        "123684.com", "123865.com", "123952.com", "123912.com"
+    ]
 
     func resolve(pageURL: URL, completion: @escaping (Result) -> Void) {
         self.completion = completion
@@ -486,13 +491,10 @@ final class LinkPageResolver: NSObject, WKNavigationDelegate {
     /// 把 WKWebView 的 cookie 同步给 URLSession（很多直链校验登录态）
     private func syncCookiesFrom(_ webView: WKWebView, completion: @escaping () -> Void) {
         webView.configuration.websiteDataStore.httpCookieStore.getAllCookies { cookies in
-            for cookie in cookies where cookie.domain.hasSuffix(".baidu.com")
-                || cookie.domain.hasSuffix(".aliyundrive.com")
-                || cookie.domain.hasSuffix(".alipan.com")
-                || cookie.domain.hasSuffix(".quark.cn")
-                || cookie.domain.hasSuffix(".123pan.com")
-                || cookie.domain.hasSuffix(".123684.com")
-                || cookie.domain.hasSuffix(".xunlei.com") {
+            for cookie in cookies {
+                let rawDomain = cookie.domain.lowercased()
+                let domain = rawDomain.hasPrefix(".") ? String(rawDomain.dropFirst()) : rawDomain
+                guard Self.cookieDomains.contains(where: { domain == $0 || domain.hasSuffix("." + $0) }) else { continue }
                 HTTPCookieStorage.shared.setCookie(cookie)
             }
             completion()
