@@ -177,19 +177,11 @@ public enum ScreenCastEngine {
         for p in candidates where FileManager.default.isExecutableFile(atPath: p) {
             return p
         }
-        // PATH 查找
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/usr/bin/env")
-        task.arguments = ["which", "scrcpy"]
-        let pipe = Pipe()
-        task.standardOutput = pipe
-        task.standardError = FileHandle.nullDevice
-        try? task.run()
-        task.waitUntilExit()
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        let path = String(data: data, encoding: .utf8)?
-            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        return path.isEmpty ? nil : path
+        for directory in ProcessInfo.processInfo.environment["PATH", default: ""].components(separatedBy: ":") {
+            let path = (directory.isEmpty ? "." : directory) + "/scrcpy"
+            if FileManager.default.isExecutableFile(atPath: path) { return path }
+        }
+        return nil
     }
 
     /// adb 可执行文件探测
