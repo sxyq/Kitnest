@@ -44,6 +44,8 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Features/Clipboard/UI/ClipboardTableHostView.swift", "deinit"):
+        "2026-11-20：Coordinator释放时移除bind持有的回顶block observer，结束宿主重建后的旧通知注册；滚动代理仍只弱持有视图",
     ("Features/Monitor/Storage/DiskIndex.swift", "removing"):
         "2026-11-20：trash更新内存与两个范围缓存共用；按路径分隔判断交集，无交集沿用，根被移走或折叠导致目标节点缺失时失效该范围，其余仅裁剪已删除路径并重算总量与分类",
     ("Core/Runtime/AppUpdateChecker.swift", "prepareToTerminate"):

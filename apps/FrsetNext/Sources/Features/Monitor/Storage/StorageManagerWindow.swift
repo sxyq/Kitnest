@@ -273,10 +273,6 @@ struct StorageManagerRootView: View {
         volumeUsedBytes = total > free ? total - free : nil
     }
 
-    private var volumeUsedText: String? {
-        volumeUsedBytes.map { "磁盘已用 \(StorageFormat.shortBytes($0))" }
-    }
-
     /// 覆盖度状态行（v264）。
     ///
     /// 用户原话：「它的那个清理的索引是不完整，就是没有索引到全盘，整个盘」。
@@ -983,6 +979,7 @@ struct StorageManagerRootView: View {
     }
 
     private func navigate(to path: [DiskNode]) {
+        showDataCategories = false
         guard path.last?.id != stack.last?.id else { return }
         if path.map(\.id) != stack.prefix(path.count).map(\.id) {
             directoryHistory = (0...path.count).map { Array(path.prefix($0)) }
@@ -1020,19 +1017,14 @@ struct StorageManagerRootView: View {
 
         lines.append(agent.roleLine)
         lines.append("")
-        lines.append("下面是我这台 Mac 刚跑完的一次磁盘占用扫描。请逐项判断：哪些可以安全删除、"
+        lines.append("下面是这台 Mac 的磁盘索引快照。请逐项判断：哪些可以安全删除、"
                      + "哪些需要我确认、哪些绝对不要动，并给出可执行命令。")
         lines.append("")
         lines.append("## 扫描概况")
-        lines.append("- 扫描范围：\(store.scope.title)（根路径 \(snap?.rootPath ?? "/")）")
-        lines.append("- 索引总量：\(StorageFormat.bytes(snap?.totalBytes ?? 0))")
-        if let used = volumeUsedText {
-            lines.append("- \(used)")
-        }
         if let snap {
-            lines.append("- 扫描时间：\(StorageFormat.date(snap.scannedAt))")
-            lines.append("- 节点数：\(snap.nodeCount)（跳过 \(snap.skippedCount) 处不可读路径，含隐藏目录）")
+            lines.append("- \(statusLine(snap))")
         }
+        lines.append(coverageHelp)
         lines.append("")
         lines.append("## 可清理候选（App 按常见缓存目录名筛出，共 \(candidates.count) 项，按大小降序）")
         if candidates.isEmpty {
