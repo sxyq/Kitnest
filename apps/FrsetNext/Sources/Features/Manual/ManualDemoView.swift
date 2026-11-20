@@ -10,6 +10,8 @@ struct ManualDemoView: View {
     @Stored private var playing = false
     @Stored private var selected: String? = "appearance-note"
     @Stored private var selectedPreset = 0
+    @Stored private var clipStart = 0.0
+    @Stored private var clipEnd = 20.0
     @StateObject private var toolbar = CaptureToolbarModel()
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -96,6 +98,8 @@ struct ManualDemoView: View {
             step = index
             selectedPreset = index == 0 ? 0 : index == steps.count - 1 ? 2 : 1
             selected = "appearance-note"
+            clipStart = index > 0 ? 3 : 0
+            clipEnd = index > 0 ? 12 : 20
         }
     }
 
@@ -362,7 +366,10 @@ struct ManualDemoView: View {
                             .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(index == step % 3 ? Theme.accent : .clear, lineWidth: 2))
                     }
                 }
-                Text(step > 1 ? "选择图片 → 复制、保存或钉图" : "展开后选择一张截图").font(.caption).foregroundStyle(.secondary)
+                Text(title.contains("历史")
+                     ? ["浏览缩略图，按关键词或模式筛选", "双击图片 → 继续标注", "右键 → 复制到剪贴板", "右键 → 在访达中显示"][step]
+                     : step > 1 ? "选择图片 → 复制、保存或钉图" : "展开后选择一张截图")
+                    .font(.caption).foregroundStyle(.secondary)
             }.padding(16)
         } else if title.contains("长截图") {
             HStack(spacing: 20) {
@@ -414,6 +421,7 @@ struct ManualDemoView: View {
     }
 
     private var captureCaption: String {
+        if title.contains("延时") { return finished ? "整屏已截取 · 复制或保存" : step == 0 ? "选择延时秒数" : "倒数结束后截取指针所在的整块屏幕" }
         if title.contains("钉图") { return finished ? "关闭钉图窗口" : step > 0 ? "置顶参考图 · 拖动位置与调整大小" : "截图后点击「钉住」" }
         if title.contains("美化") { return step > 0 ? "背景、边距与圆角已调整" : "选择截图并打开美化" }
         if title.contains("抹除") { return step > 1 ? "所选星形物体已移除" : "选择抹除笔刷并涂过星形物体" }
@@ -448,17 +456,25 @@ struct ManualDemoView: View {
             HStack(spacing: 8) {
                 Image(systemName: title.contains("剪辑") ? "scissors" : "record.circle")
                     .foregroundStyle(finished ? Theme.accent : .red)
-                Text(title.contains("剪辑") ? "保留 00:03 — 00:12" : finished ? "00:08 · 已停止" : step == 0 ? "选择录制范围" : "00:08 · 录制中")
+                Text(title.contains("剪辑") ? "保留 \(Int(clipEnd - clipStart)) 秒" : finished ? "00:08 · 已停止" : step == 0 ? "选择录制范围" : "00:08 · 录制中")
                 Spacer()
-                Text(finished ? "已导出 录屏.mp4" : "30 FPS · 麦克风关闭")
+                Text(finished ? (title.contains("剪辑") ? "已导出 录屏.mp4" : "已保存 · 打开录屏编辑") : "30 FPS · 麦克风关闭")
             }.font(.system(size: 11))
             if title.contains("剪辑") {
-                HStack(spacing: 0) {
-                    ForEach(0..<12) { index in
-                        Rectangle().fill(index > 1 && index < 10 && step > 0 ? Theme.accent.opacity(0.5) : Color.secondary.opacity(0.15))
-                            .frame(height: 18).overlay(Rectangle().strokeBorder(Color.primary.opacity(0.2)))
+                VStack(spacing: 6) {
+                    HStack {
+                        Text("开始")
+                        Slider(value: Binding(get: { clipStart }, set: { clipStart = min($0, clipEnd - 1); playing = false }), in: 0...20, step: 1)
+                            .accessibilityLabel("开始秒数")
+                        Text(String(format: "00:%02d", Int(clipStart))).monospacedDigit()
                     }
-                }
+                    HStack {
+                        Text("结束")
+                        Slider(value: Binding(get: { clipEnd }, set: { clipEnd = max($0, clipStart + 1); playing = false }), in: 0...20, step: 1)
+                            .accessibilityLabel("结束秒数")
+                        Text(String(format: "00:%02d", Int(clipEnd))).monospacedDigit()
+                    }
+                }.font(.system(size: 11))
             }
         }.padding(14)
     }

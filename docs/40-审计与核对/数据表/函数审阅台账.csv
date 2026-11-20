@@ -2366,10 +2366,10 @@ Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,settle,func,3
 Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,adjustSize,func,349,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；编辑态方向键和辅助功能共用尺寸调整；候选来自实际可见画布，正常态不挂载此入口
 Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,distance,func,363,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；以行列归一化距离选择现有五档尺寸，并留 0.12 距离差避免边界附近反复切换
 Manual,Features/Manual/ManualDemoSamples.swift,ManualDemoSamples,example,func,69,KEEP,2026-11-19：ManualDemoView.walkthrough按文章标题取固定输入和结果；已对齐改名后的JSON与Base64等标题，未匹配文章沿本文首尾步骤展示
-Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,advance,func,94,KEEP,切换到指定操作步骤并同步演示卡片、当前预览和示例阶段；减少动态效果时不播放过渡动画
-Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,preset,func,110,KEEP,呈现用途、操作和结果三种预设演示入口；点击时停止自动播放并切换到对应步骤
-Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,samplePanel,func,211,KEEP,在演示舞台中显示固定的输入或结果示例，供用户对照实际操作
-Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,displayPreview,func,279,KEEP,按当前演示步骤展示多个屏幕入口、搜索条和唯一工作台的预设变化
+Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,advance,func,96,KEEP,切换到指定操作步骤并同步演示卡片、当前预览和示例阶段；减少动态效果时不播放过渡动画
+Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,preset,func,114,KEEP,呈现用途、操作和结果三种预设演示入口；点击时停止自动播放并切换到对应步骤
+Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,samplePanel,func,215,KEEP,在演示舞台中显示固定的输入或结果示例，供用户对照实际操作
+Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,displayPreview,func,283,KEEP,按当前演示步骤展示多个屏幕入口、搜索条和唯一工作台的预设变化
 Manual,Features/Manual/ManualDocument.swift,ManualNode,init,init,18,KEEP,2026-11-19：load创建分类及parse创建文章共用，保存稳定文档标识、标题、层级、演示分类和图标供双栏导航消费
 Manual,Features/Manual/ManualDocument.swift,ManualNode,finalizeSearchText,func,27,KEEP,2026-11-19：分类与文章解析结束后拼接标题和正文一次，searchIndex直接读取现成搜索文字
 Manual,Features/Manual/ManualDocument.swift,ManualDocument,load,func,72,KEEP,2026-11-19：ManualPaneView初始化时加载随包Guides，按八类排序并建立父索引与文章顺序；实际读取失败交由正文显示原因
