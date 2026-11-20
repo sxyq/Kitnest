@@ -15,7 +15,7 @@ App,App/AppBootstrap.swift,AppBootstrap,shortcutBinding,func,621,KEEP,registerDe
 App,App/AppBootstrap.swift,AppBootstrap,setShortcut,func,637,KEEP,ShortcutSettingsPane:118/122 录入或清除组合键
 App,App/AppBootstrap.swift,AppBootstrap,beginScreenshotTranslate,func,652,KEEP,截图翻译热键 L349 与 .frsetScreenshotTranslate 通知 L231
 App,App/AppBootstrap.swift,AppBootstrap,takeScreenshotTranslatePending,func,660,KEEP,onTextRecognized L246 一次性消费挂起标志
-App,App/AppBootstrap.swift,AppBootstrap,translateAndIngest,func,673,KEEP,onTextRecognized L247 / runTranslateSelection L590 翻译并回写剪贴板
+App,App/AppBootstrap.swift,AppBootstrap,translateAndIngest,func,673,KEEP,2026-11-21：识别与快捷键翻译共用；await剪贴板串行入库完成后才显示成功/失败提示。
 App,App/AppBootstrap.swift,AppBootstrap,runTranslateSelection,func,691,KEEP,划词翻译热键 L361 与 .frsetTranslateSelection 通知 L235
 App,App/AppBootstrap.swift,AppBootstrap,readSelection,func,703,KEEP,命令面板、划词快捷键及刘海展开前读取真实前台AX焦点的SelectedText，拒绝自身前台及密码字段，不取系统剪贴板，返回具体授权或应用选区错误
 App,App/AppBootstrap.swift,AppBootstrap,runSelectionAction,func,749,KEEP,快捷键、命令面板和刘海OCR划词按钮共用已捕获SelectionResult或readSelection；失败Toast，翻译取消旧请求交translateAndIngest，其他动作交正式ToolRunnerWindow自动执行
@@ -254,7 +254,7 @@ Core,Core/UI/Toast.swift,Toast,show,func,318,KEEP,2026-11-19：已逐函数阅�
 AI,Features/AI/Services/AIConnectionService.swift,AIConnectionTestResult,init,init,15,KEEP,2026-11-20：候选连接成功和失败返回构造，保存ok、用户文案、目录及耗时，不持有凭据
 AI,Features/AI/Services/AIConnectionService.swift,AIProviderConnectionService,init,init,23,KEEP,2026-11-20：共享候选连接服务构造，无状态初始化，由AIProviderSettingsViewModel默认注入
 AI,Features/AI/Services/AIConnectionService.swift,AIProviderConnectionService,test,func,31,KEEP,2026-11-20：设置测试按钮用内存凭据和候选URL构造厂商适配器；先请求目录，普通失败沿原对话探测；补全阶段前checkCancellation让已取消目录任务返回失败，不再发起生成请求；URLSession和异步流沿原取消链
-AI,Features/AI/Services/AIEventBus.swift,AIEventBus,emitResult,func,17,KEEP,AISummaryView:137 调用；AppBootstrap:258 接线到剪贴板 is_generated_by_tool
+AI,Features/AI/Services/AIEventBus.swift,AIEventBus,emitResult,func,17,KEEP,2026-11-21：AISummaryView等待异步回调；AppBootstrap接线在现有持久化队列写入完成后返回成功状态。
 AI,Features/AI/Services/AIModule.swift,AIModule,start,func,12,KEEP,ModuleRegistry.startAll() 经 AppModule 协议派发；AppBootstrap:29 注册
 AI,Features/AI/Services/AnthropicService.swift,AnthropicService,init,init,25,KEEP,2026-11-20：resolver及连接探测构造；保存凭据依赖与可选候选地址，未传地址时每次读取已保存偏好；候选地址不写配置
 AI,Features/AI/Services/AnthropicService.swift,AnthropicService,makeRequest,func,32,KEEP,2026-11-20：默认send调用；POST规范地址v1/messages，x-api-key及固定2023-06-01头；system单列且conversation排除system；maxTokens和stream入体，temperature直接写入并保留AISettings和配置导入支持的0值
@@ -483,12 +483,12 @@ AI,Features/AI/Views/AISummaryView.swift,AISummaryViewModel,run,func,104,KEEP,�
 AI,Features/AI/Views/AISummaryView.swift,AISummaryViewModel,runCustom,func,125,KEEP,自定义工具按钮 L301
 AI,Features/AI/Views/AISummaryView.swift,AISummaryViewModel,stop,func,136,KEEP,「停止」按钮 L286
 AI,Features/AI/Views/AISummaryView.swift,AISummaryViewModel,copyResult,func,143,KEEP,「复制」按钮 L323
-AI,Features/AI/Views/AISummaryView.swift,AISummaryViewModel,saveToClipboard,func,162,KEEP,「存为剪贴板条目」按钮 L325
-AI,Features/AI/Views/AISummaryView.swift,AISummaryViewModel,validatedInput,func,179,KEEP,run/runCustom L93/L106 输入校验
-AI,Features/AI/Views/AISummaryView.swift,AISummaryViewModel,start,func,188,KEEP,run/runCustom L100/L113 统一启动
-AI,Features/AI/Views/AISummaryView.swift,AISummaryViewModel,perform,func,219,KEEP,start L162 起的 Task 调用，流式产出与错误保留
-AI,Features/AI/Views/AISummaryView.swift,AISummaryView,init,init,255,KEEP,View init；AISectionView:415 无参构造（inputText 默认值路径）
-AI,Features/AI/Views/AISummaryView.swift,AISummaryView,init,init,259,KEEP,029de12台账已有StateObject构造说明；现有inputText构造创建ViewModel，ToolRunnerWindow传model重载持有同一运行模型，使停止请求作用当前摘要
+AI,Features/AI/Views/AISummaryView.swift,AISummaryViewModel,saveToClipboard,func,163,KEEP,2026-11-21：按钮和AI工具默认保存动作等待事件总线完成；仅保存成功/失败后更新原提示状态。
+AI,Features/AI/Views/AISummaryView.swift,AISummaryViewModel,validatedInput,func,180,KEEP,run/runCustom L93/L106 输入校验
+AI,Features/AI/Views/AISummaryView.swift,AISummaryViewModel,start,func,189,KEEP,run/runCustom L100/L113 统一启动
+AI,Features/AI/Views/AISummaryView.swift,AISummaryViewModel,perform,func,223,KEEP,start L162 起的 Task 调用，流式产出与错误保留
+AI,Features/AI/Views/AISummaryView.swift,AISummaryView,init,init,259,KEEP,View init；AISectionView:415 无参构造（inputText 默认值路径）
+AI,Features/AI/Views/AISummaryView.swift,AISummaryView,init,init,263,KEEP,029de12台账已有StateObject构造说明；现有inputText构造创建ViewModel，ToolRunnerWindow传model重载持有同一运行模型，使停止请求作用当前摘要
 Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveEntry,init,init,29,KEEP,2026-11-17：parseListOutput和浏览器及Peek目录映射构造真实条目或中间目录；保存完整路径大小格式加密及链接标记供列表和预览消费
 Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,extractionDirectory,func,52,KEEP,2026-11-17：extractEntryToTemp返回的嵌套文件路径，按临时根组件数定位本次唯一的首层提取目录；缩略图、悬停缓存与撤销快照共用精确删除单位
 Archive,Features/Archive/Core/ArchiveCore.swift,ArchiveCore,isArchive,func,99,KEEP,2026-11-17：App打开文件和Finder服务及文件中转入口识别归档；按现有扩展名集合及tar复合后缀返回；未执行IO
@@ -1934,15 +1934,15 @@ Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,resto
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,saveContent,func,894,KEEP,2026-11-21：编辑窗与预览共用；正文/别名在单条UPDATE中写入，新文本及RTF先落到独立路径，SQL成功后移除旧附件，失败只回收暂存文件；安装版界面回调待实测。
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,toggleFavorite,func,955,KEEP,2026-11-20：主面板和表格收藏动作读数据库当前值取反，成功通知窗口，收藏筛选重查，普通列表原位更新。
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,setNote,func,980,KEEP,2026-11-20：已存动作异步写库，失败提示；取消当前已存过滤项时重查，其余只更新对应模型。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,ingestToolOutput,func,999,KEEP,2026-11-20：工具、AI、翻译和摘要回流保留原同步存储返回，列表刷新改派主线程；串行持久化归并及主线程文件IO仍留后续处理。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,insert,func,1041,KEEP,2026-11-20：截图、文本及主动复制回读共用，非空结果沿原串行队列交writeToDatabase，可替代重复persist。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,insertImage,func,1047,KEEP,2026-11-20：AppBootstrap截图完成调用，以现有Reader构造图片结果后复用insert。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,insertText,func,1053,KEEP,2026-11-20：OCR和取色完成调用，保留来源及副标题，经Reader正式文本结果复用insert。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,auxiliaryBytes,func,1061,KEEP,2026-11-20：saveContent计算图片、缩略图和RTF实际文件字节，不重算待替换正文。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleAutoStage,func,1069,KEEP,2026-11-20：新文件及重复文件捕获在主线程发布URL通知，AppBootstrap按中转启用和自动暂存开关消费。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleOCR,func,1079,KEEP,2026-11-20：成功存图按偏好异步识别，完成回到原队列确认条目仍存在再写OCR与统计；空结果保留图片。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,pasteToFrontmostApplication,func,1103,KEEP,2026-11-20：主动复制自动粘贴分支先取辅助功能权限，生成Cmd+V按下及抬起事件，成功文案明确为已发送粘贴。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,presentAccessibilityGuide,func,1130,KEEP,2026-11-20：自动粘贴权限失败本次启动首回显示引导、系统设置及暂不开启，后续走已有提示入口。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,ingestToolOutput,func,998,KEEP,2026-11-21：AI、工具、翻译和摘要唯一写入口现await既有utility串行持久化队列；去重查询、长文落盘、INSERT与回查离开调用UI线程，完成后刷新主列表并返回原条目。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,insert,func,1050,KEEP,2026-11-20：截图、文本及主动复制回读共用，非空结果沿原串行队列交writeToDatabase，可替代重复persist。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,insertImage,func,1056,KEEP,2026-11-20：AppBootstrap截图完成调用，以现有Reader构造图片结果后复用insert。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,insertText,func,1062,KEEP,2026-11-20：OCR和取色完成调用，保留来源及副标题，经Reader正式文本结果复用insert。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,auxiliaryBytes,func,1070,KEEP,2026-11-20：saveContent计算图片、缩略图和RTF实际文件字节，不重算待替换正文。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleAutoStage,func,1078,KEEP,2026-11-20：新文件及重复文件捕获在主线程发布URL通知，AppBootstrap按中转启用和自动暂存开关消费。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleOCR,func,1088,KEEP,2026-11-20：成功存图按偏好异步识别，完成回到原队列确认条目仍存在再写OCR与统计；空结果保留图片。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,pasteToFrontmostApplication,func,1112,KEEP,2026-11-20：主动复制自动粘贴分支先取辅助功能权限，生成Cmd+V按下及抬起事件，成功文案明确为已发送粘贴。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,presentAccessibilityGuide,func,1139,KEEP,2026-11-20：自动粘贴权限失败本次启动首回显示引导、系统设置及暂不开启，后续走已有提示入口。
 Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardReadResult,init,init,22,KEEP,2026-11-17：各读取分支及imageResult和textResult构造；统一携带正文图片RTF文件URL来源和去重输入；isEmpty由ingest与insert消费
 Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,init,init,64,KEEP,2026-11-17：ClipboardManager持有唯一默认general读取器；可注入的NSPasteboard为原有构造参数；本轮未新建读取器或轮询服务
 Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,read,func,70,KEEP,2026-11-17：Manager读取及文件复制回读调用；Finder继续文件优先；微信容器jpg附带TIFF的实际许可错误已复现，沿原QQ条件加入微信容器单图并优先读取图片数据
@@ -3693,12 +3693,12 @@ Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,outputAre
 Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,outputContent,func,333,KEEP,ToolRunnerView正式与刘海紧凑结果共用图片、可选文本及note排版，compact把图片最大高度降到120，文本错误着红且可选择，图片菜单沿copyImage；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,startRun,func,366,KEEP,执行按钮、输入提交及去重选项变化共用run；紧凑刘海取消旧runTask并持有新Task，完整页沿原Task执行；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,run,func,378,KEEP,执行按钮:186、onAppear autoRun:223 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,applyDefaultAction,func,396,KEEP,run:279 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,copyText,func,406,KEEP,复制结果按钮:262、applyDefaultAction:288 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,copyImage,func,423,KEEP,outputArea 右键菜单:239 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,completed,func,435,KEEP,更新工具结果提示并短暂显示复制完成状态；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,saveToClipboard,func,442,KEEP,存为剪贴板条目按钮:264 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,chooseFile,func,448,KEEP,选择图片按钮:138 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,applyDefaultAction,func,397,KEEP,run:279 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,copyText,func,407,KEEP,复制结果按钮:262、applyDefaultAction:288 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,copyImage,func,424,KEEP,outputArea 右键菜单:239 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,completed,func,436,KEEP,更新工具结果提示并短暂显示复制完成状态；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,saveToClipboard,func,443,KEEP,2026-11-21：手动保存与默认保存await总控回写后更新原statusText，不阻塞工具完成后的主线程。
+Toolbox,Features/Toolbox/Shell/ToolboxSectionView.swift,ToolRunnerView,chooseFile,func,449,KEEP,选择图片按钮:138 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Shortcuts/DoubleTapShortcut.swift,DoubleTapShortcutCenter,init,init,90,KEEP,单例 shared:74（private init）；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Shortcuts/DoubleTapShortcut.swift,DoubleTapShortcutCenter,setHandlers,func,95,KEEP,AppBootstrap.swift:440 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Shortcuts/DoubleTapShortcut.swift,DoubleTapShortcutCenter,bind,func,101,KEEP,AppBootstrap.swift:446/460/484 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
@@ -3804,7 +3804,7 @@ Toolbox,Features/Toolbox/Tools/ToolRegistry.swift,ToolOption,init,init,63,KEEP,B
 Toolbox,Features/Toolbox/Tools/ToolRegistry.swift,ToolDescriptor,init,init,94,KEEP,BuiltinTools 各 register* 共 13 处构造；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Tools/ToolRegistry.swift,ToolDescriptor,init,init,113,KEEP,既有工具描述支持原生自带界面挂载，音频混音器回到正式工具窗口，不留设置正文；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Tools/ToolRegistry.swift,ToolDescriptor,defaultOptions,func,124,KEEP,ToolRunnerView:219 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Tools/ToolRegistry.swift,ToolboxEventBus,emitResult,func,139,KEEP,ToolRunnerView:291/315 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Tools/ToolRegistry.swift,ToolboxEventBus,emitResult,func,139,KEEP,2026-11-21：AI摘要和工具页以async等待总控回写结果，持久化结束后维持原成功/失败显示。
 Toolbox,Features/Toolbox/Tools/ToolRegistry.swift,ToolRegistry,register,func,153,KEEP,BuiltinTools 13 个 register* 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Tools/ToolRegistry.swift,ToolRegistry,tool,func,165,KEEP,ToolRunnerWindow:31、ToolShortcutStore:30/98 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Tools/ToolRegistry.swift,ToolRegistry,enabledKey,func,171,KEEP,isEnabled:158、setEnabled:162 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅

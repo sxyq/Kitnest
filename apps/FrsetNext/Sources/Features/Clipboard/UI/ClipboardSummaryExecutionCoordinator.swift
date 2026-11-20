@@ -69,9 +69,9 @@ public final class ClipboardSummaryExecutionCoordinator {
     public func summarizeAndWriteBack(_ item: ClipboardItem) async throws -> ClipboardItem {
         do {
             let summary = try await summarize(item)
-            guard let saved = ClipboardManager.shared.ingestToolOutput(text: summary,
-                                                                       sourceToolKeyword: "AI摘要",
-                                                                       analyticsId: item.dedupeKey) else {
+            guard let saved = await ClipboardManager.shared.ingestToolOutput(text: summary,
+                                                                            sourceToolKeyword: "AI摘要",
+                                                                            analyticsId: item.dedupeKey) else {
                 throw ClipboardSummaryError.saveFailed
             }
             return saved

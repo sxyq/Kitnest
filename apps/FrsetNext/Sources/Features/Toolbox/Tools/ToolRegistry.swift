@@ -134,12 +134,12 @@ public struct ToolDescriptor: Identifiable {
 
 public enum ToolboxEventBus {
     /// 参数：(结果文本, 工具类型)。由总控在启动时接线到"存为剪贴板条目"。
-    public static var onResultProduced: ((String, ToolKind) -> Bool)?
+    public static var onResultProduced: ((String, ToolKind) async -> Bool)?
 
-    public static func emitResult(_ text: String, kind: ToolKind) -> Bool {
+    public static func emitResult(_ text: String, kind: ToolKind) async -> Bool {
         guard !text.isEmpty else { return false }
         Log.info("Toolbox", "result produced by \(kind.rawValue), \(min(text.count, 32)) chars")
-        return onResultProduced?(text, kind) ?? false
+        return await onResultProduced?(text, kind) ?? false
     }
 }
 
