@@ -19,12 +19,12 @@ import SwiftUI
 
 enum VoronoiTreemap {
 
-    /// 返回与 weights 一一对应的多边形（容器坐标）
+    /// 返回与 weights 一一对应的异形裁切区域（容器坐标）
     ///
     static func layout(weights: [CGFloat],
                        in rect: CGRect,
                        arcFirst: Bool = false,
-                       iterations: Int = 60) -> [[CGPoint]] {
+                       iterations: Int = 60) -> [Path] {
         guard !weights.isEmpty, rect.width > 8, rect.height > 8 else { return [] }
         let total = weights.reduce(0, +)
         guard total > 0 else { return [] }
@@ -35,14 +35,15 @@ enum VoronoiTreemap {
         // 实测同样的增益下最大误差高达 17 个百分点，最大块被压到目标的一半。
         // 归一化后 k=0.3 只要 17 轮就把误差压到 0.3%（实测）。
         let unit = CGRect(x: 0, y: 0, width: 1, height: 1)
+        let outline = StorageMapShape().path(in: unit)
         let base = basePolygon()
+        let triangles = triangulate(base)
         let baseArea = area(base)
         // v232：arcFirst = 参考图那种半弧排布（第一块固定左上，其余沿弧线铺开 + 斥力松弛）
         var sites = arcFirst
             ? arcSeeds(targets: targets, in: unit)
             : seeds(in: unit, targets: targets)
         // 矩形二分的种子可能落在弧边外，沿容器中心方向收进实际轮廓。
-        let outline = StorageMapShape().path(in: unit)
         let center = centroid(base)
         for i in sites.indices {
             while !outline.contains(sites[i]) {
@@ -51,12 +52,12 @@ enum VoronoiTreemap {
             }
         }
         var bias = [CGFloat](repeating: 0, count: weights.count)
-        var polygons: [[CGPoint]] = []
+        var polygons: [[[CGPoint]]] = []
         let gain: CGFloat = 0.3
         let relax: CGFloat = 0.08
 
         for _ in 0..<iterations {
-            polygons = cells(sites: sites, bias: bias, in: base)
+            polygons = cells(sites: sites, bias: bias, in: triangles)
 
             var maxErr: CGFloat = 0
             for i in polygons.indices {
@@ -70,7 +71,7 @@ enum VoronoiTreemap {
             // 轻微 Lloyd 松弛：站点向单元质心靠拢 → 分布更均匀 → 单元更接近
             // 圆形/六边形，边缘看起来是「被挤压的鹅卵石」而不是「斜切的方块」。
             // 实测 0.08 不会破坏面积收敛（误差仍 < 0.4%）。
-            for i in polygons.indices where polygons[i].count >= 3 {
+            for i in polygons.indices where !polygons[i].isEmpty {
                 let c = centroid(polygons[i])
                 sites[i].x += (c.x - sites[i].x) * relax
                 sites[i].y += (c.y - sites[i].y) * relax
@@ -79,17 +80,24 @@ enum VoronoiTreemap {
             if maxErr < 0.003 { break }
         }
 
-        // 缩回容器坐标
-        return polygons.map { poly in
-            poly.map { CGPoint(x: rect.minX + $0.x * rect.width,
-                               y: rect.minY + $0.y * rect.height) }
+        let transform = CGAffineTransform(a: rect.width, b: 0, c: 0, d: rect.height,
+                                          tx: rect.minX, ty: rect.minY)
+        return polygons.map { pieces in
+            let center = centroid(pieces)
+            var path = Path()
+            for contour in mergedContours(pieces) {
+                let inset = contour.map {
+                    CGPoint(x: center.x + ($0.x - center.x) * 0.976,
+                            y: center.y + ($0.y - center.y) * 0.976)
+                }
+                path.addPath(polygonPath(inset))
+            }
+            return path.applying(transform)
         }
     }
 
-    /// 布局与裁切复用同一异形轮廓，避免矩形布局的面积被曲边裁掉。
     private static func basePolygon() -> [CGPoint] {
-        sampledPoints(StorageMapShape().path(in: CGRect(x: 0, y: 0, width: 1, height: 1)),
-                      spacing: 0.035)
+        sampledPoints(StorageMapShape().path(in: CGRect(x: 0, y: 0, width: 1, height: 1)), spacing: 0.035)
     }
 
     /// 半弧布点（v232，参考图）：第一块（可用空间）固定在左上，
@@ -192,30 +200,177 @@ enum VoronoiTreemap {
 
     // MARK: Voronoi 单元（半平面裁剪）
 
-    private static func cells(sites: [CGPoint], bias: [CGFloat], in base: [CGPoint]) -> [[CGPoint]] {
-        var out: [[CGPoint]] = []
+    private static func cells(sites: [CGPoint], bias: [CGFloat], in triangles: [[CGPoint]]) -> [[[CGPoint]]] {
+        var out: [[[CGPoint]]] = []
         out.reserveCapacity(sites.count)
 
         for i in sites.indices {
-            var poly = base
-            let pi = sites[i]
-            let wi = bias[i]
-            let pi2 = pi.x * pi.x + pi.y * pi.y
+            var pieces: [[CGPoint]] = []
+            for triangle in triangles {
+                var poly = triangle
+                let pi = sites[i]
+                let wi = bias[i]
+                let pi2 = pi.x * pi.x + pi.y * pi.y
 
-            for j in sites.indices where j != i {
-                let pj = sites[j]
-                // |x-pi|² - wi ≤ |x-pj|² - wj
-                // → 2x·(pj-pi) ≤ |pj|² - |pi|² - wj + wi
-                let a = 2 * (pj.x - pi.x)
-                let b = 2 * (pj.y - pi.y)
-                let c = (pj.x * pj.x + pj.y * pj.y - bias[j]) - (pi2 - wi)
-                if abs(a) < 1e-9, abs(b) < 1e-9 { continue }   // 两站点重合，跳过
-                poly = clipHalfPlane(poly, a: a, b: b, c: c)
-                if poly.count < 3 { break }
+                for j in sites.indices where j != i {
+                    let pj = sites[j]
+                    let a = 2 * (pj.x - pi.x)
+                    let b = 2 * (pj.y - pi.y)
+                    let c = (pj.x * pj.x + pj.y * pj.y - bias[j]) - (pi2 - wi)
+                    if abs(a) < 1e-9, abs(b) < 1e-9 { continue }
+                    poly = clipHalfPlane(poly, a: a, b: b, c: c)
+                    if poly.count < 3 { break }
+                }
+                if poly.count >= 3, area(poly) > 1e-10 { pieces.append(poly) }
             }
-            out.append(poly.count >= 3 ? poly : [])
+            out.append(pieces)
         }
         return out
+    }
+
+    private static func triangulate(_ polygon: [CGPoint]) -> [[CGPoint]] {
+        let orientation: CGFloat = signedArea(polygon) >= 0 ? 1 : -1
+        var indices = Array(polygon.indices)
+        var triangles: [[CGPoint]] = []
+        while indices.count > 3 {
+            var clipped = false
+            for position in indices.indices {
+                let previous = indices[(position + indices.count - 1) % indices.count]
+                let current = indices[position]
+                let next = indices[(position + 1) % indices.count]
+                let a = polygon[previous], b = polygon[current], c = polygon[next]
+                guard cross(a, b, c) * orientation > 1e-9 else { continue }
+                let containsVertex = indices.contains { index in
+                    guard index != previous, index != current, index != next else { return false }
+                    let point = polygon[index]
+                    return cross(a, b, point) * orientation > 1e-9
+                        && cross(b, c, point) * orientation > 1e-9
+                        && cross(c, a, point) * orientation > 1e-9
+                }
+                guard !containsVertex else { continue }
+                triangles.append([a, b, c])
+                indices.remove(at: position)
+                clipped = true
+                break
+            }
+            guard clipped else { return [] }
+        }
+        if indices.count == 3 { triangles.append(indices.map { polygon[$0] }) }
+        return triangles
+    }
+
+    private static func signedArea(_ polygon: [CGPoint]) -> CGFloat {
+        guard polygon.count >= 3 else { return 0 }
+        return polygon.indices.reduce(CGFloat.zero) { sum, i in
+            let a = polygon[i], b = polygon[(i + 1) % polygon.count]
+            return sum + a.x * b.y - b.x * a.y
+        } / 2
+    }
+
+    private static func cross(_ a: CGPoint, _ b: CGPoint, _ c: CGPoint) -> CGFloat {
+        (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
+    }
+
+    private static func polygonPath(_ points: [CGPoint]) -> Path {
+        var path = Path()
+        guard let first = points.first else { return path }
+        path.move(to: first)
+        for point in points.dropFirst() { path.addLine(to: point) }
+        path.closeSubpath()
+        return path
+    }
+
+    private struct PointKey: Hashable, Comparable {
+        let x: Int64
+        let y: Int64
+
+        init(_ point: CGPoint) {
+            // 相邻三角形独立裁切会产生极小的浮点误差；按微小坐标误差合并共享边。
+            x = Int64((point.x * 1_000_000).rounded())
+            y = Int64((point.y * 1_000_000).rounded())
+        }
+
+        var point: CGPoint { CGPoint(x: CGFloat(x) / 1_000_000, y: CGFloat(y) / 1_000_000) }
+        static func < (lhs: PointKey, rhs: PointKey) -> Bool {
+            lhs.x == rhs.x ? lhs.y < rhs.y : lhs.x < rhs.x
+        }
+    }
+
+    private struct EdgeKey: Hashable {
+        let first: PointKey
+        let second: PointKey
+    }
+
+    private static func mergedContours(_ polygons: [[CGPoint]]) -> [[CGPoint]] {
+        var order: [EdgeKey] = []
+        var counts: [EdgeKey: Int] = [:]
+        for polygon in polygons {
+            for index in polygon.indices {
+                let start = PointKey(polygon[index])
+                let end = PointKey(polygon[(index + 1) % polygon.count])
+                guard start != end else { continue }
+                let forward = start < end
+                let edge = forward ? EdgeKey(first: start, second: end) : EdgeKey(first: end, second: start)
+                if counts[edge] == nil { order.append(edge) }
+                counts[edge, default: 0] += forward ? 1 : -1
+            }
+        }
+
+        var edges: [(start: PointKey, end: PointKey)] = []
+        var outgoing: [PointKey: [Int]] = [:]
+        for edge in order {
+            guard let count = counts[edge], count != 0 else { continue }
+            let segment = count > 0
+                ? (start: edge.first, end: edge.second)
+                : (start: edge.second, end: edge.first)
+            outgoing[segment.start, default: []].append(edges.count)
+            edges.append(segment)
+        }
+
+        var used = Set<Int>()
+        var contours: [[CGPoint]] = []
+        for firstIndex in edges.indices where !used.contains(firstIndex) {
+            let first = edges[firstIndex]
+            var previous = first.start
+            var current = first.end
+            var contour = [previous.point]
+            used.insert(firstIndex)
+
+            while current != first.start {
+                contour.append(current.point)
+                let candidates = (outgoing[current] ?? []).filter { !used.contains($0) }
+                guard let next = candidates.min(by: {
+                    clockwiseTurn(from: previous, through: current, to: edges[$0].end)
+                        < clockwiseTurn(from: previous, through: current, to: edges[$1].end)
+                }) else { break }
+                used.insert(next)
+                previous = current
+                current = edges[next].end
+            }
+            if current == first.start, contour.count >= 3 { contours.append(contour) }
+        }
+        return contours
+    }
+
+    private static func clockwiseTurn(from start: PointKey, through pivot: PointKey, to end: PointKey) -> CGFloat {
+        let reverse = atan2(CGFloat(start.y - pivot.y), CGFloat(start.x - pivot.x))
+        let outgoing = atan2(CGFloat(end.y - pivot.y), CGFloat(end.x - pivot.x))
+        let turn = (reverse - outgoing).truncatingRemainder(dividingBy: 2 * .pi)
+        return turn < 0 ? turn + 2 * .pi : turn
+    }
+
+    private static func area(_ pieces: [[CGPoint]]) -> CGFloat {
+        pieces.reduce(CGFloat.zero) { $0 + area($1) }
+    }
+
+    private static func centroid(_ pieces: [[CGPoint]]) -> CGPoint {
+        let total = area(pieces)
+        guard total > 1e-9 else { return .zero }
+        return pieces.reduce(CGPoint.zero) { result, contour in
+            let weight = area(contour) / total
+            let center = centroid(contour)
+            return CGPoint(x: result.x + center.x * weight, y: result.y + center.y * weight)
+        }
     }
 
     /// 保留 a·x + b·y ≤ c 的部分（Sutherland–Hodgman）
@@ -332,6 +487,67 @@ enum VoronoiTreemap {
             current = end
         }
         return points
+    }
+
+    static func sampledContours(_ path: Path, spacing: CGFloat) -> [[CGPoint]] {
+        var contours: [[CGPoint]] = []
+        var points: [CGPoint] = []
+        var current = CGPoint.zero
+        var first = CGPoint.zero
+
+        func finish() {
+            if points.count >= 3 { contours.append(points) }
+            points = []
+        }
+        func appendSegment(to end: CGPoint, control1 c1: CGPoint, control2 c2: CGPoint) {
+            let start = current
+            let length = hypot(c1.x - start.x, c1.y - start.y)
+                + hypot(c2.x - c1.x, c2.y - c1.y) + hypot(end.x - c2.x, end.y - c2.y)
+            let steps = Int(ceil(length / spacing))
+            for i in 0..<steps {
+                let t = CGFloat(i) / CGFloat(steps), u = 1 - t
+                points.append(CGPoint(x: u * u * u * start.x + 3 * u * u * t * c1.x
+                                      + 3 * u * t * t * c2.x + t * t * t * end.x,
+                                      y: u * u * u * start.y + 3 * u * u * t * c1.y
+                                      + 3 * u * t * t * c2.y + t * t * t * end.y))
+            }
+            current = end
+        }
+
+        path.forEach { element in
+            switch element {
+            case .move(to: let point):
+                finish()
+                current = point
+                first = point
+                points = [point]
+            case .line(to: let point):
+                appendSegment(to: point,
+                              control1: CGPoint(x: current.x + (point.x - current.x) / 3,
+                                                y: current.y + (point.y - current.y) / 3),
+                              control2: CGPoint(x: current.x + (point.x - current.x) * 2 / 3,
+                                                y: current.y + (point.y - current.y) * 2 / 3))
+            case .quadCurve(to: let point, control: let control):
+                appendSegment(to: point,
+                              control1: CGPoint(x: current.x + (control.x - current.x) * 2 / 3,
+                                                y: current.y + (control.y - current.y) * 2 / 3),
+                              control2: CGPoint(x: point.x + (control.x - point.x) * 2 / 3,
+                                                y: point.y + (control.y - point.y) * 2 / 3))
+            case .curve(to: let point, control1: let control1, control2: let control2):
+                appendSegment(to: point, control1: control1, control2: control2)
+            case .closeSubpath:
+                let start = current
+                appendSegment(to: first,
+                              control1: CGPoint(x: start.x + (first.x - start.x) / 3,
+                                                y: start.y + (first.y - start.y) / 3),
+                              control2: CGPoint(x: start.x + (first.x - start.x) * 2 / 3,
+                                                y: start.y + (first.y - start.y) * 2 / 3))
+                finish()
+                current = first
+            }
+        }
+        finish()
+        return contours
     }
 
     /// 多边形圆角路径：每个顶点用 tangent 圆弧过渡。
