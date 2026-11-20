@@ -283,7 +283,7 @@ public final class ClipboardManager: ObservableObject {
         poll()
     }
 
-    private func poll() {
+    private func poll(forceRead: Bool = false, retryOnReadFailure: Bool = true) {
         // v128（内存优化）：外层包 autoreleasepool，防 0.5s 突发轮询下
         // NSPasteboard 读取产生的 NSString/NSData autorelease 对象堆积
         autoreleasepool {
@@ -294,7 +294,7 @@ public final class ClipboardManager: ObservableObject {
                 scheduleRetry()
                 return
             }
-            guard first != lastChangeCount else { return }
+            guard first != lastChangeCount || forceRead else { return }
             // 暂停记录：只同步 changeCount，不 ingest（恢复后不回补暂停期间内容）
             guard !isRecordingPaused else {
                 lastChangeCount = first
@@ -311,17 +311,22 @@ public final class ClipboardManager: ObservableObject {
                 return
             }
             lastChangeCount = first
-            ingest()
+            readAndIngest(retryOnFailure: retryOnReadFailure)
         }
     }
 
     /// 读取失败重试：一次性 Timer（repeats=false），间隔 ≥0.5s，.common 模式（specs/14 F2 @0x1000ec8b8）
-    private func scheduleRetry() {
-        guard retryTimer == nil else { return }
+    private func scheduleRetry(forceRead: Bool = false) {
+        if retryTimer != nil {
+            guard forceRead else { return }
+            retryTimer?.invalidate()
+            retryTimer = nil
+        }
         let interval = max(Self.retryIntervalFloor, currentPollingInterval)
         let timer = Timer(timeInterval: interval, repeats: false) { [weak self] _ in
             self?.retryTimer = nil
-            self?.poll()
+            if forceRead { self?.poll(forceRead: true, retryOnReadFailure: false) }
+            else { self?.poll() }
         }
         RunLoop.main.add(timer, forMode: .common)
         retryTimer = timer
@@ -333,11 +338,15 @@ public final class ClipboardManager: ObservableObject {
     /// 读取一次粘贴板并入库（含去重）。isIngesting 串行保护避免重入；
     /// 捕获成功进入 0.5s 突发（持续 2.0s 窗口，specs/14 F1）
     public func ingest() {
+        readAndIngest(retryOnFailure: true)
+    }
+
+    private func readAndIngest(retryOnFailure: Bool) {
         guard !isIngesting else { return }
         isIngesting = true
         defer { isIngesting = false }
         guard let result = reader.read() else {
-            scheduleRetry()
+            if retryOnFailure { scheduleRetry(forceRead: true) }
             return
         }
         guard !result.isEmpty else { return }

@@ -44,6 +44,8 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Features/Clipboard/Store/ClipboardManager.swift", "readAndIngest"):
+        "2026-11-21：由poll及公开ingest入口调用一次；粘贴板读取失败时仅初次调用安排强制poll补读，可替换已有普通计数Timer且不续排补读，成功后的忽略规则和入库沿原实现",
     ("Features/Clipboard/UI/ClipboardTableHostView.swift", "deinit"):
         "2026-11-20：Coordinator释放时移除bind持有的回顶block observer，结束宿主重建后的旧通知注册；滚动代理仍只弱持有视图",
     ("Features/Monitor/Storage/DiskIndex.swift", "removing"):
