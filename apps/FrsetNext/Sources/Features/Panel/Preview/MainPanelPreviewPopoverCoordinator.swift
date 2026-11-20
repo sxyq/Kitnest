@@ -615,54 +615,11 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     }
 }
 
-// MARK: - 箭头几何（specs/12 §4.6，PreviewArrowGeometrySupport / PreviewArrowGeometryStore）
-//
-// v71：NSPopover 箭头退役，几何支撑保留给 SwiftUI .popover() 家族调用方使用。
-
-/// 条目屏几何 + 预览窗内容屏框 → arrowEdge（防越屏翻转）
-
-/// 箭头几何缓存（按条目 id 记忆最近计算的边；classname 实证 @0x100acce7c）
-
-// MARK: - SwiftUI 环境键（specs/12 类清单：isPreviewPopoverHovered / onPreviewPopoverHoverChanged）
-
-private struct IsPreviewPopoverHoveredKey: EnvironmentKey {
-    static let defaultValue = false
-}
-
-public extension EnvironmentValues {
-    /// 鼠标是否在预览窗内容内（F4 __isPreviewPopoverHovered；`__` 前缀 = @Environment 包装存储名）
-    var isPreviewPopoverHovered: Bool {
-        get { self[IsPreviewPopoverHoveredKey.self] }
-        set { self[IsPreviewPopoverHoveredKey.self] = newValue }
-    }
-}
+// MARK: - 预览悬停回调
 
 public extension View {
-    /// 预览窗内容根视图挂接：写入环境值并通知协调器做保活/关闭仲裁
+    /// 预览窗内容根视图挂接，通知协调器保留或关闭窗口。
     func onPreviewPopoverHoverChanged(_ action: @escaping (Bool) -> Void) -> some View {
-        modifier(PreviewPopoverHoverChangedModifier(action: action))
-    }
-}
-
-public struct PreviewPopoverHoverChangedModifier: ViewModifier {
-    let action: (Bool) -> Void
-    public init(action: @escaping (Bool) -> Void) { self.action = action }
-    public func body(content: Content) -> some View {
-        PreviewPopoverHoverProbe(content: content, action: action)
-    }
-}
-
-private struct PreviewPopoverHoverProbe<Content: View>: View {
-    let content: Content
-    let action: (Bool) -> Void
-    @Stored private var inside = false
-
-    var body: some View {
-        content
-            .environment(\.isPreviewPopoverHovered, inside)
-            .onHover { hovering in
-                inside = hovering
-                action(hovering)
-            }
+        onHover(perform: action)
     }
 }

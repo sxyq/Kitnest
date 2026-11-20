@@ -472,7 +472,7 @@ private struct ClipboardBackupSheet: View {
             HStack {
                 if busy { ProgressView().controlSize(.small); Text("正在处理…").foregroundStyle(.secondary) }
                 Spacer()
-                Button("取消") { operation?.cancel(); if !busy { session?.cleanup() }; password = ""; close() }
+                Button("取消") { operation?.cancel(); password = ""; close() }
                     .keyboardShortcut(.cancelAction)
                 Button(session == nil ? (request.importing ? "读取备份" : (missingRecords?.isEmpty == false ? "仅备份完整记录" : "加密备份")) : "确认恢复") { execute() }
                     .buttonStyle(.borderedProminent)
@@ -523,7 +523,6 @@ private struct ClipboardBackupSheet: View {
         operation = nil
         switch result {
         case .success(let text):
-            session?.cleanup()
             password = ""; confirmation = ""
             Toast.show(text, icon: "checkmark.circle")
             close()

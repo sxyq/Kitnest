@@ -1860,17 +1860,17 @@ Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,validat
 Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,readManifest,func,362,KEEP,解密后和apply前读取version=1清单，核对条目/标签id及关联、必要与声明附件、实际普通文件及字节长度，异常抛具体资料路径
 Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,analyze,func,427,KEEP,按dedupeKey比本机与备份的笔记、标题、标签名、正文、附件字节及OCR，计新增/重复/冲突；文件型正文路径不存在则列失效引用
 Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,apply,func,484,KEEP,恢复时锁住数据库重新读取与分析，按合并/替换及冲突选择导入条目、标签和重映射私有附件；事务失败还原已移动附件，提交后仅回收不再引用附件并报告数量与失败路径
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,attachmentPaths,func,648,KEEP,prepare/readManifest/apply共用image、thumbnail、text、richText四个非空相对路径，OCR按dedupeKey单独加入
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,fullText,func,652,KEEP,analyze失效文件引用与apply文件分类优先读取备份textPath的UTF-8完整正文，无长文本附件才用item.content
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,validatePath,func,657,KEEP,备份附件只接受images/thumbnails/texts/rich_texts/ocr下一层非空文件名，拒绝点路径、反斜杠及控制字符，限制真实导入路径
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,attachmentURL,func,666,KEEP,私有附件读写共用validatePath，从解析过链接的root逐层确认普通目录及文件；mustExist=false仅允许尚未创建的路径段
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,byteCount,func,685,KEEP,prepare记附件大小、readManifest比长度及apply计回收字节，共用FileManager.size读取
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,counts,func,690,KEEP,导出结果和读取摘要共用Manifest条目总数、isNote数量及附件数量文案
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,temporaryDirectory,func,694,KEEP,export/prepareRestore在系统临时目录创建带UUID的本次备份目录并设0700，承载待加密或解密内容
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,removeTemporaryDirectory,func,701,KEEP,备份导出、取消、会话释放及恢复清理共用指定URL移除；失败写日志并返回含路径的明文清理原因
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,cleanupFailure,func,712,KEEP,2026-11-20：导出、读取和恢复失败出口复用明文目录清理，将原错误及清理失败的具体路径合并返回；恢复附件回滚失败时保留原附件目录
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,archiveFailure,func,717,KEEP,7zz失败沿ArchivePasswords.looksLikePasswordError识别密码错误并保留原因，其余返回服务消息或7zz操作失败
-Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,deliver,func,722,KEEP,备份后台成功与失败统一DispatchQueue.main.async交给sheet完成回调
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,attachmentPaths,func,647,KEEP,prepare/readManifest/apply共用image、thumbnail、text、richText四个非空相对路径，OCR按dedupeKey单独加入
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,fullText,func,651,KEEP,analyze失效文件引用与apply文件分类优先读取备份textPath的UTF-8完整正文，无长文本附件才用item.content
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,validatePath,func,656,KEEP,备份附件只接受images/thumbnails/texts/rich_texts/ocr下一层非空文件名，拒绝点路径、反斜杠及控制字符，限制真实导入路径
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,attachmentURL,func,665,KEEP,私有附件读写共用validatePath，从解析过链接的root逐层确认普通目录及文件；mustExist=false仅允许尚未创建的路径段
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,byteCount,func,684,KEEP,prepare记附件大小、readManifest比长度及apply计回收字节，共用FileManager.size读取
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,counts,func,689,KEEP,导出结果和读取摘要共用Manifest条目总数、isNote数量及附件数量文案
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,temporaryDirectory,func,693,KEEP,export/prepareRestore在系统临时目录创建带UUID的本次备份目录并设0700，承载待加密或解密内容
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,removeTemporaryDirectory,func,700,KEEP,备份导出、取消、会话释放及恢复清理共用指定URL移除；失败写日志并返回含路径的明文清理原因
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,cleanupFailure,func,711,KEEP,2026-11-20：导出、读取和恢复失败出口复用明文目录清理，将原错误及清理失败的具体路径合并返回；恢复附件回滚失败时保留原附件目录
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,archiveFailure,func,716,KEEP,7zz失败沿ArchivePasswords.looksLikePasswordError识别密码错误并保留原因，其余返回服务消息或7zz操作失败
+Clipboard,Features/Clipboard/Store/ClipboardBackup.swift,ClipboardBackup,deliver,func,721,KEEP,备份后台成功与失败统一DispatchQueue.main.async交给sheet完成回调
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardFileStore,url,func,14,KEEP,2026-11-17：私有文件读写与Repository.delete共用AppDirectories.base相对路径拼接；备份导入另由attachmentURL限定目录与文件类型
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardFileStore,write,func,20,KEEP,2026-11-17：文本RTF和图片写盘共用；创建父目录后原子写Data并返回成功标记；写失败记录具体相对路径
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardFileStore,read,func,33,KEEP,2026-11-17：文本解码与图片缓存读取共用；仅返回所选相对路径的Data；读取失败由各消费者处理
@@ -3040,9 +3040,7 @@ Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelP
 Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,handlePreviewWindowDidClose,func,580,KEEP,2026-11-20：Slot实际关闭回调只处理当前槽位，释放来源及活动条目，结束Esc监听、启动移动抑制并运行积累completion；两个只复位无读取的字段可删
 Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,beginHoverSuppression,func,599,KEEP,2026-11-20：窗口实际关闭后设置抑制，只装一个本地鼠标移动或拖动监听，避免静止指针立即重开
 Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,endHoverSuppression,func,609,KEEP,2026-11-20：面板出现和鼠标移动回调解除抑制并移除token，原事件继续传递
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,View,onPreviewPopoverHoverChanged,func,642,KEEP,2026-11-20：ClipboardPreviewWindow根内容挂载，保留公开悬停回调入口；内部仅供无人读取环境值的包装可精简
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,PreviewPopoverHoverChangedModifier,init,init,649,KEEP,2026-11-20：View扩展构造修饰器，仅保存原action，无独立资源或任务
-Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,PreviewPopoverHoverChangedModifier,body,func,650,KEEP,2026-11-20：ViewModifier把内容交Probe，Probe的inside仅写入无人读取的环境值；可直接使用content.onHover(perform: action)
+Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,View,onPreviewPopoverHoverChanged,func,622,KEEP,2026-11-20：ClipboardPreviewWindow根内容挂载，保留公开悬停回调入口；内部仅供无人读取环境值的包装可精简
 Panel,Features/Panel/Preview/MermaidRenderer.swift,MermaidRenderer,image,func,62,KEEP,PreviewMarkdownRenderer.swift:475 渲染 mermaid 代码块
 Panel,Features/Panel/Preview/MermaidRenderer.swift,MermaidRenderer,parse,func,88,KEEP,image :68 调用
 Panel,Features/Panel/Preview/MermaidRenderer.swift,MermaidRenderer,splitStatements,func,145,KEEP,parse :131 调用
