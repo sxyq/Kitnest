@@ -596,6 +596,16 @@ static int frset_compare_pid(const void *a, const void *b) {
     return (left > right) - (left < right);
 }
 
+static int frset_compare_proc_rank(void *context, const void *a, const void *b) {
+    int kind = *(const int *)context;
+    const frset_proc_raw_t *left = *(const frset_proc_raw_t *const *)a;
+    const frset_proc_raw_t *right = *(const frset_proc_raw_t *const *)b;
+    double l = kind == 0 ? left->cpu : kind == 1 ? left->mem : left->dr + left->dw;
+    double r = kind == 0 ? right->cpu : kind == 1 ? right->mem : right->dr + right->dw;
+    if (l != r) return (l < r) - (l > r);
+    return (left > right) - (left < right); /* 同值保留原枚举顺序。 */
+}
+
 // v86：每个维度（0=CPU 1=内存 2=磁盘 3=网络）各自保留上一轮快照。
 // 原来共用一份：同一 tick 里连续取 CPU/内存/磁盘时，第 2、3 次调用 dt≈0 →
 // havePrev=0 → 磁盘读写速率恒为 0（磁盘页进程表全 0 B/s 的根因）。
@@ -663,7 +673,7 @@ int frset_proc_top(int kind, frset_proc_t *out, int max) {
     int havePrev = (dt > 0.15);
 
     static frset_proc_raw_t cur[FRSET_PROC_CAP];
-    static double score[FRSET_PROC_CAP];
+    static const frset_proc_raw_t *ranked[FRSET_PROC_CAP];
     int ncur = 0;
 
     for (int i = 0; i < nsrc && ncur < FRSET_PROC_CAP; i++) {
@@ -680,8 +690,8 @@ int frset_proc_top(int kind, frset_proc_t *out, int max) {
         if (r.cpu < 0) r.cpu = 0;
         if (r.dr < 0) r.dr = 0;
         if (r.dw < 0) r.dw = 0;
-        score[ncur] = (kind == 0) ? r.cpu : ((kind == 1) ? r.mem : (r.dr + r.dw));
         memcpy(&cur[ncur], &r, sizeof(r));
+        ranked[ncur] = &cur[ncur];
         ncur++;
     }
 
@@ -694,14 +704,9 @@ int frset_proc_top(int kind, frset_proc_t *out, int max) {
     g_pPrevT[k] = t;
 
     int m = (max < ncur) ? max : ncur;
+    qsort_r(ranked, ncur, sizeof(ranked[0]), &kind, frset_compare_proc_rank);
     for (int i = 0; i < m; i++) {
-        int best = -1;
-        for (int j = 0; j < ncur; j++) {
-            if (score[j] < 0) continue;
-            if (best < 0 || score[j] > score[best]) best = j;
-        }
-        if (best < 0) { m = i; break; }
-        frset_proc_raw_t *r = &cur[best];
+        const frset_proc_raw_t *r = ranked[i];
         memset(&out[i], 0, sizeof(out[i]));
         out[i].pid = r->pid;
         strncpy(out[i].name, r->name, sizeof(out[i].name) - 1);
@@ -713,7 +718,6 @@ int frset_proc_top(int kind, frset_proc_t *out, int max) {
         if (proc_pidpath(r->pid, pbuf, sizeof(pbuf)) > 0) {
             strncpy(out[i].path, pbuf, sizeof(out[i].path) - 1);
         }
-        score[best] = -1;
     }
     /* v128：pids 缓冲已在扫描分支内释放（缓存命中时根本没有 pids） */
     return m;
@@ -1480,6 +1484,13 @@ static frset_energy_raw_t g_ePrev[FRSET_PROC_CAP];
 static int    g_ePrevN = 0;
 static double g_ePrevT = 0;
 
+static int frset_compare_energy_rank(const void *a, const void *b) {
+    const frset_energy_pid_t *left = *(const frset_energy_pid_t *const *)a;
+    const frset_energy_pid_t *right = *(const frset_energy_pid_t *const *)b;
+    if (left->watts != right->watts) return (left->watts < right->watts) - (left->watts > right->watts);
+    return (left > right) - (left < right);
+}
+
 int frset_proc_energy_pids(frset_energy_pid_t *out, int max, double *elapsedSec) {
     if (elapsedSec) *elapsedSec = 0;
     if (!out || max <= 0) return 0;
@@ -1516,7 +1527,7 @@ int frset_proc_energy_pids(frset_energy_pid_t *out, int max, double *elapsedSec)
 
     if (ready) {
         static frset_energy_pid_t rows[FRSET_PROC_CAP];
-        static double score[FRSET_PROC_CAP];
+        static const frset_energy_pid_t *ranked[FRSET_PROC_CAP];
         int nr = 0;
         for (int i = 0; i < ncur && nr < FRSET_PROC_CAP; i++) {
             const frset_energy_raw_t *prev = bsearch(&cur[i].pid, g_ePrev, g_ePrevN,
@@ -1540,19 +1551,13 @@ int frset_proc_energy_pids(frset_energy_pid_t *out, int max, double *elapsedSec)
                     strncpy(rows[nr].path, fullPath, sizeof(rows[nr].path) - 1);
                 }
             }
-            score[nr] = watts;
+            ranked[nr] = &rows[nr];
             nr++;
         }
         int take = (max < nr) ? max : nr;
+        qsort(ranked, nr, sizeof(ranked[0]), frset_compare_energy_rank);
         for (int i = 0; i < take; i++) {
-            int best = -1;
-            for (int j = 0; j < nr; j++) {
-                if (score[j] < 0) continue;
-                if (best < 0 || score[j] > score[best]) best = j;
-            }
-            if (best < 0) { take = i; break; }
-            out[i] = rows[best];
-            score[best] = -1;
+            out[i] = *ranked[i];
         }
         m = take;
         if (elapsedSec) *elapsedSec = dt;
