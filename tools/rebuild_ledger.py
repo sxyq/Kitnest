@@ -2385,6 +2385,16 @@ EVIDENCE.update({
     ("Core/Haptics/HapticFeedback.swift", "persist"): "设置保存把强度与禁用事件集合编码到原UserDefaults，不影响刘海配置",
     ("Core/Haptics/HapticFeedback.swift", "perform"): "所有业务事件唯一触觉入口，读取场景偏好后交给公共系统反馈模式",
     ("Core/Haptics/HapticFeedback.swift", "preview"): "设置试听和正式事件共用系统调用，关闭不调用，其余每次仅请求一次离散反馈",
+    ("Features/Island/IslandController.swift", "turnComponentPage"): "现有页面草稿将组件页码限制在0至componentPageCount减1；当前尚无调用方",
+    ("Features/Island/IslandController.swift", "selectPage"): "turnPage和goBack复用可见页选择；记忆模式按显示器身份保存实际页面，保存错误交feedback",
+    ("Features/Island/IslandController.swift", "applyOpeningPage"): "现有草稿按固定页或屏幕记忆挑选可见页，并以remember=false交selectPage；当前尚无调用方",
+    ("Features/Island/IslandSettings.swift", "pageTitle"): "现有草稿仅对custom页返回自定义名称，其余返回原页面title；当前尚无调用方",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "toggleFavorite"):
+        "现有草稿新增独立收藏写入：串行队列读取数据库现值取反，成功通知其他窗并更新可见行，保存失败提示；目前尚无界面调用方",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "setNote"):
+        "现有草稿的笔记入口在串行队列写isNote；失败提示，成功通知其他窗并更新可见行，笔记筛选取消后重新读取列表",
+    ("Features/Clipboard/Store/ClipboardRepository.swift", "updateFavorite"):
+        "新增草稿由toggleFavorite调用，按dedupe_key参数绑定写is_favorite，数据库错误记录日志并返回false",
     ("Features/Island/IslandController.swift", "refreshDisplays"): "显示参数或Space变化时更新目标及入口，只移动已有业务窗口，指定离线沿原选择临时主屏",
     ("Features/Island/IslandController.swift", "refreshEntries"): "每个启用逻辑显示目标仅持有绘制入口的NSPanel，当前屏沿用原舞台，不创建正文订阅或采样",
     ("Features/Island/IslandController.swift", "activateDisplay"): "点击屏幕入口明确迁移并保持展开，已有预览时保留其键盘焦点和会话",
