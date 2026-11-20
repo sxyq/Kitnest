@@ -8,42 +8,6 @@ extension Notification.Name {
     static let storageOpenAgent = Notification.Name("frsetnext.storage.openAgent")
 }
 
-/// v212（用户：「让 Agent 清理这个选项需要询问用户调用 Codex 还是什么，
-/// 复制成一个个提示词，让本地 Agent 根据提示词判断」）
-///
-/// App 自己不替用户做删除决策：只把扫描明细整理成一段结构化提示词，
-/// 用户选目标 Agent → 复制 → 粘过去，由那个 Agent 判断哪些能清。
-enum CleanupAgent: String, CaseIterable, Identifiable {
-    case codex
-    case claudeCode
-    case cursor
-    case generic
-
-    var id: String { rawValue }
-
-    var title: String {
-        switch self {
-        case .codex: return "Codex"
-        case .claudeCode: return "Claude Code"
-        case .cursor: return "Cursor"
-        case .generic: return "通用"
-        }
-    }
-
-    var roleLine: String {
-        switch self {
-        case .codex:
-            return "你是 Codex（OpenAI 命令行编码 Agent），正在我的 Mac 上协助清理磁盘。"
-        case .claudeCode:
-            return "你是 Claude Code（Anthropic 命令行 Agent），正在我的 Mac 上协助清理磁盘。"
-        case .cursor:
-            return "你是 Cursor 里的编码 Agent，正在我的 Mac 上协助清理磁盘。"
-        case .generic:
-            return "你是一个运行在我 Mac 上的命令行 AI Agent，协助我清理磁盘。"
-        }
-    }
-}
-
 // MARK: - 存储管理窗口（v211）
 //
 // 布局与交互按截图（Kanso）复刻：
@@ -202,9 +166,8 @@ struct StorageManagerRootView: View {
     @Stored private var showSettings = false
     @Stored private var confirmTrash = false
     @Stored private var pendingTrash: [String] = []
-    /// 让 Agent 清理：询问目标 Agent + 预览提示词
+    /// 让 Agent 清理：预览当前索引后复制提示词。
     @Stored private var showAgentSheet = false
-    @Stored private var agentKind: CleanupAgent = .generic
     /// 深链下钻的待办：窗口刚显示时缓存可能还没读完（snapshot 为 nil），先记下来
     @Stored private var pendingDrill: String?
     /// v229：首次打开时的手势提示（只提示一次）
@@ -1014,11 +977,11 @@ struct StorageManagerRootView: View {
     }
 
     /// 结构化提示词：扫描概况 + 可清理候选 + 最大目录 + 明确的执行纪律
-    private func buildAgentPrompt(_ agent: CleanupAgent) -> String {
+    private func buildAgentPrompt() -> String {
         let snap = store.snapshot
         var lines: [String] = []
 
-        lines.append(agent.roleLine)
+        lines.append("你是一个运行在我 Mac 上的命令行 AI Agent，协助我清理磁盘。")
         lines.append("")
         lines.append("下面是我这台 Mac 刚跑完的一次磁盘占用扫描。请逐项判断：哪些可以安全删除、"
                      + "哪些需要我确认、哪些绝对不要动，并给出可执行命令。")
@@ -1067,7 +1030,7 @@ struct StorageManagerRootView: View {
     }
 
     private func copyAgentPrompt() {
-        let text = buildAgentPrompt(agentKind)
+        let text = buildAgentPrompt()
         let pb = NSPasteboard.general
         pb.clearContents()
         pb.setString(text, forType: .string)
@@ -1095,7 +1058,7 @@ struct StorageManagerRootView: View {
             // v228（用户：「不用分成多个客户端的 Codex，只需要留一个框」）：
             // 去掉客户端选择器，提示词对所有 Agent 通用，复制走人。
             ScrollView {
-                Text(buildAgentPrompt(agentKind))
+                Text(buildAgentPrompt())
                     .font(.system(size: 10.5, design: .monospaced))
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)

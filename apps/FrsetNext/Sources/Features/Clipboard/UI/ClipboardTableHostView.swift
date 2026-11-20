@@ -850,19 +850,6 @@ public struct ClipboardTableHostView: NSViewRepresentable {
             }
         }
 
-        /// 一次性交互提示（specs/14 §3.7：提示文案 cstring `0xb43d70` "双击条目可复制" /
-        /// `0xb43da0` "单击条目可预览"）。⚠️ 原作对应的 defaults 键名未探明（specs/14 §7），
-        /// 此处按工程既有键名风格自拟，语义为「该提示已消费」。
-        private static let doubleClickCopyHintKey = "hasSeenClipboardDoubleClickCopyHint"
-
-        /// 首次触发时消费一次性提示键，返回是否需要展示
-        private func consumeOneTimeHint(_ key: String) -> Bool {
-            let preferences = Preferences.shared
-            if preferences.value(key, default: false) { return false }
-            preferences.set(key, true)
-            return true
-        }
-
         private func anchorProvider(for view: NSView?) -> () -> CGRect? {
             { [weak view] in
                 guard let view, view.window != nil else { return nil }
@@ -878,10 +865,6 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         private func handleDoubleClick(_ item: ClipboardItem) {
             // 双击 = 复制（预览程序化关闭）
             ServiceLocator.panelPreview?.dismissPreview()
-            if consumeOneTimeHint(Self.doubleClickCopyHintKey) {
-                // 原作此处除提示外还有复制成功 toast（copy() 内部已发），故不重复发
-                Log.info("clipboard", "首次双击条目：已提示「双击条目可复制」")
-            }
             owner.onCopy(item)
         }
 
