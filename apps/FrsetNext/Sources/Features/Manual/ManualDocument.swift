@@ -7,19 +7,19 @@ final class ManualNode: Identifiable {
     let id: String
     let title: String
     let level: Int
-    let demoID: String?
     let symbol: String
+    var scene = "list"
+    var frames: [ManualDemoFrame] = []
     var blocks: [ManualBlockItem] = []
     var children: [ManualNode] = []
 
     /// 解析时缓存标题与正文，供搜索直接读取。
     private(set) var searchText = ""
 
-    init(id: String, title: String, level: Int, demoID: String? = nil, symbol: String = "book.closed") {
+    init(id: String, title: String, level: Int, symbol: String = "book.closed") {
         self.id = id
         self.title = title
         self.level = level
-        self.demoID = demoID
         self.symbol = symbol
     }
 
@@ -78,8 +78,8 @@ enum ManualDocument {
             .sorted { $0.lastPathComponent.localizedStandardCompare($1.lastPathComponent) == .orderedAscending }
         do {
             for url in urls {
-                let (category, node) = parse(try String(contentsOf: url, encoding: .utf8),
-                                             id: url.deletingPathExtension().lastPathComponent)
+                let (category, node) = try parse(try String(contentsOf: url, encoding: .utf8),
+                                                 id: url.deletingPathExtension().lastPathComponent)
                 let groupTitle = displayCategory(category)
                 let categoryID = "category:" + groupTitle
                 if index[categoryID] == nil {
@@ -117,10 +117,11 @@ enum ManualDocument {
         }
     }
 
-    /// 一篇功能文档的标题、分类和演示元数据；正文标题不进入导航树。
-    static func parse(_ text: String, id: String) -> (category: String, node: ManualNode) {
+    /// 一篇功能文档的标题、分类和图标；正文标题不进入导航树。
+    static func parse(_ text: String, id: String) throws -> (category: String, node: ManualNode) {
         var title = ""
         var metadata: [String: String] = [:]
+        var frames: [ManualDemoFrame] = []
         var body: [String] = []
         for line in text.components(separatedBy: .newlines) {
             if line.hasPrefix("# ") {
@@ -128,12 +129,19 @@ enum ManualDocument {
             } else if line.hasPrefix("<!-- "), line.hasSuffix(" -->") {
                 let parts = line.dropFirst(5).dropLast(4).split(separator: ":", maxSplits: 1)
                 if parts.count == 2 {
-                    metadata[String(parts[0])] = parts[1].trimmingCharacters(in: .whitespaces)
+                    let value = parts[1].trimmingCharacters(in: .whitespaces)
+                    if parts[0] == "frame" {
+                        frames.append(try JSONDecoder().decode(ManualDemoFrame.self, from: Data(value.utf8)))
+                    } else {
+                        metadata[String(parts[0])] = value
+                    }
                 }
             } else { body.append(line) }
         }
-        let node = ManualNode(id: id, title: title, level: 2, demoID: metadata["demo"],
+        let node = ManualNode(id: id, title: title, level: 2,
                               symbol: metadata["symbol"] ?? "book.closed")
+        node.scene = metadata["scene"] ?? "list"
+        node.frames = frames
         node.blocks = parseBlocks(body).enumerated().map {
             ManualBlockItem(id: "\(id)-b\($0.offset)", block: $0.element)
         }
