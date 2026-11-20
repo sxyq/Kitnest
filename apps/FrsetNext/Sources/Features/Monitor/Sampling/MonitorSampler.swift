@@ -140,7 +140,7 @@ public final class MonitorSampler: ObservableObject {
         guard pendingWork == nil else { lock.unlock(); return }
         lock.unlock()
         applyPreferences()
-        samplingQueue.async { [weak self] in self?.sampleOnce() }
+        refresh()
     }
 
     public func stop() {
@@ -158,7 +158,10 @@ public final class MonitorSampler: ObservableObject {
 
     /// 立即采样一帧（不等待定时器）
     public func refresh() {
-        samplingQueue.async { [weak self] in self?.sampleOnce() }
+        samplingQueue.async { [weak self] in
+            guard MonitorPreferences.isEnabled else { return }
+            self?.sampleOnce()
+        }
     }
 
     // MARK: - 内部
