@@ -1361,9 +1361,13 @@ public final class ScreenshotManager: ObservableObject {
     }
 
     public func copyToPasteboard(_ image: CGImage) -> Bool {
+        copyToPasteboard(image, encodedPNG: ImageProcessor.pngData(image))
+    }
+
+    func copyToPasteboard(_ image: CGImage, encodedPNG: Data?) -> Bool {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        if let data = ImageProcessor.pngData(image) {
+        if let data = encodedPNG {
             pasteboard.setData(data, forType: NSPasteboard.PasteboardType("public.png"))
         }
         let copied = pasteboard.writeObjects([ImageProcessor.nsImage(image)])

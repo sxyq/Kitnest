@@ -104,8 +104,16 @@ EVIDENCE = {
         "JSONInspectorView切离表格模式调用；释放缓存行、文档引用和列键，不触发表格或其他视图更新",
     ("Features/Archive/UI/ArchiveTextPreview.swift", "loadCode"):
         "ArchiveCodePreviewBody.task调用；在后台按当前代码草稿生成原语法着色与行号排版，草稿变化时丢弃旧结果并复用原PreviewTextViewRepresentable",
+    ("Features/Capture/Pin/PinWindow.swift", "flattened"):
+        "flattenedImage及copyClicked共用；以图像和旋转翻转快照生成最终像素图，复制路径可在后台执行，不读取窗口状态",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "copyToPasteboard"):
+        "钉图复制以预编码PNG调用；在主线程清板、写入PNG和NSImage并发送原教程事件，其他截图调用由单参数入口沿用原有编码流程",
     ("Features/Capture/History/CaptureHistoryView.swift", "loadThumbnail"):
         "CaptureHistoryThumbnail.task调用；后台ImageIO读取并生成最长边240像素图像，任务完成且未取消时在原单元格状态中显示，缺图沿占位图呈现",
+    ("Features/Capture/Pin/PinWindow.swift", "flattened"):
+        "flattenedImage和复制任务共用；只读传入图像与旋转翻转快照，生成最终像素图，复制任务可在后台执行",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "copyToPasteboard"):
+        "单参数入口先编码原图再复用剪贴板写入；预编码重载使用调用方PNG，两个入口都保留NSImage representation、失败提示和教程通知",
     ("Features/Capture/Screenshot/ScreenshotManager.swift", "loadThumbnail"):
         "CaptureSectionView最近截图单元格task调用；先读取共享NSCache，未命中时后台ImageIO生成最长边限制缩略图，在主Actor创建NSImage并写入现有有界缓存",
     ("Features/Toolbox/Tools/MediaTools.swift", "compress"):
