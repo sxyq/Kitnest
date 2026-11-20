@@ -1813,6 +1813,8 @@ EVIDENCE.update({
         "导出结果和读取摘要共用Manifest条目总数、isNote数量及附件数量文案",
     ("Features/Clipboard/Store/ClipboardBackup.swift", "temporaryDirectory"):
         "export/prepareRestore在系统临时目录创建带UUID的本次备份目录并设0700，承载待加密或解密内容",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "cleanupFailure"):
+        "2026-11-20：导出、读取和恢复失败出口复用明文目录清理，将原错误及清理失败的具体路径合并返回；恢复附件回滚失败时保留原附件目录",
     ("Features/Clipboard/Store/ClipboardBackup.swift", "removeTemporaryDirectory"):
         "备份导出、取消、会话释放及恢复清理共用指定URL移除；失败写日志并返回含路径的明文清理原因",
     ("Features/Clipboard/Store/ClipboardBackup.swift", "archiveFailure"):

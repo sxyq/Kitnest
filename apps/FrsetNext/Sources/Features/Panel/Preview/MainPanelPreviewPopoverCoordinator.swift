@@ -282,15 +282,16 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     /// 关闭预览（可带完成回调；面板收起等待预览先关时由 PanelController 调用，reason = .panelCollapse）
     public func dismiss(reason: MainPanelPreviewPopoverCloseReason = .programmatic,
                         completion: (() -> Void)? = nil) {
+        cancelHoverWorkItems()
+        cancelKeyboardPreview()
         if previewPinned && (reason == .panelCollapse || reason == .hoverOut
                              || reason == .scrolledOutOfViewport || reason == .systemInterruption) {
-            cancelHoverWorkItems()
             completion?()
             return
         }
         sessionID = UUID()
         removeOutsideClickMonitor()
-        guard let slot, slot.state != .idle, slot.state != .closing else {
+        guard let slot, slot.state != .idle else {
             completion?()
             return
         }
@@ -298,6 +299,7 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
             let previous = pendingCloseCompletion
             pendingCloseCompletion = { previous?(); completion() }
         }
+        guard slot.state != .closing else { return }
         closeSlot(reason: reason)
     }
 
@@ -354,6 +356,7 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     public func prepareForPanelAppear() {
         endHoverSuppression()
         cancelHoverWorkItems()
+        cancelKeyboardPreview()
     }
 
     // MARK: 触发路 3：空格键（F6）
@@ -368,12 +371,12 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
             self.keyboardPreviewPresentationWorkItem = nil
+            guard let rect = anchorProvider(),
+                  self.present(for: item, anchorRectInWindow: rect, source: .mainPreview,
+                               showsKeyboardHint: hintNeeded) else { return }
             if hintNeeded {
                 Preferences.shared.set(Preferences.Keys.clipboardKeyboardPreviewHintConsumed, true)
             }
-            guard let rect = anchorProvider() else { return }
-            self.present(for: item, anchorRectInWindow: rect, source: .mainPreview,
-                         showsKeyboardHint: hintNeeded)
             track("main_panel_preview", "keyboard", nil)
         }
         keyboardPreviewPresentationWorkItem = work

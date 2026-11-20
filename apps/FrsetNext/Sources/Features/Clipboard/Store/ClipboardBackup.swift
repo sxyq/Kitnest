@@ -32,13 +32,13 @@ enum ClipboardBackup {
 
         fileprivate func checkCancellation() throws {
             lock.lock(); defer { lock.unlock() }
-            if cancelled { throw Failure(message: "已取消") }
+            if cancelled || ArchiveTaskQueue.shared.isCancelled(taskID) { throw Failure(message: "已取消") }
         }
 
         /// 进入最终提交后取消不再改写操作结果。
         fileprivate func finish() throws {
             lock.lock(); defer { lock.unlock() }
-            if cancelled { throw Failure(message: "已取消") }
+            if cancelled || ArchiveTaskQueue.shared.isCancelled(taskID) { throw Failure(message: "已取消") }
             finished = true
         }
     }
@@ -159,21 +159,19 @@ enum ClipboardBackup {
                             } else {
                                 try FileManager.default.moveItem(at: destinationStage, to: url)
                             }
-                            let cleanupFailure = removeTemporaryDirectory(root)
+                            let cleanupWarning = removeTemporaryDirectory(root)
                             let result = manifest.skippedRecords.map { "已备份 \(manifest.items.count) 条，跳过 \($0.count) 条；缺失记录保留在本机。" }
                                 ?? ("已加密备份：" + counts(manifest))
                             deliver(.success(result
-                                             + (cleanupFailure.map { "\n" + $0 } ?? "")), completion)
+                                             + (cleanupWarning.map { "\n" + $0 } ?? "")), completion)
                         } catch {
-                            removeTemporaryDirectory(root)
-                            deliver(.failure(error), completion)
+                            deliver(.failure(cleanupFailure(error, directory: root)), completion)
                         }
                     }
                 }
                 operation.install(id)
             } catch {
-                if let directory { removeTemporaryDirectory(directory) }
-                deliver(.failure(error), completion)
+                deliver(.failure(cleanupFailure(error, directory: directory)), completion)
             }
         }
         return operation
@@ -198,14 +196,13 @@ enum ClipboardBackup {
                 let id = ArchiveTaskQueue.shared.enqueue(kind: .extract, title: "读取剪贴板备份",
                     onCancel: {
                         queue.async {
-                            removeTemporaryDirectory(root)
-                            deliver(.failure(Failure(message: "已取消")), completion)
+                            deliver(.failure(cleanupFailure(Failure(message: "已取消"), directory: root)), completion)
                         }
                     }) { taskID, done in
                     func fail(_ error: Error) {
-                        removeTemporaryDirectory(root)
-                        done(false, error.localizedDescription)
-                        deliver(.failure(error), completion)
+                        let failure = cleanupFailure(error, directory: root)
+                        done(false, failure.localizedDescription)
+                        deliver(.failure(failure), completion)
                     }
                     ArchiveCore.list(url: url, password: password, includeAuxiliary: true, taskID: taskID) { entries, error in
                         queue.async {
@@ -230,17 +227,14 @@ enum ClipboardBackup {
                                                 database.accessLock.unlock()
                                                 throw error
                                             }
-                                            let session = RestoreSession(directory: root,
-                                                                         summary: analysis.summary(manifest))
+                                            let summary = analysis.summary(manifest)
                                             DispatchQueue.main.async {
                                                 do {
                                                     try operation.finish()
                                                     done(true, "备份已读取")
-                                                    completion(.success(session))
+                                                    completion(.success(RestoreSession(directory: root, summary: summary)))
                                                 } catch {
-                                                    session.cleanup()
-                                                    done(false, error.localizedDescription)
-                                                    completion(.failure(error))
+                                                    queue.async { fail(error) }
                                                 }
                                             }
                                         } catch { fail(error) }
@@ -252,8 +246,7 @@ enum ClipboardBackup {
                 }
                 operation.install(id)
             } catch {
-                if let directory { removeTemporaryDirectory(directory) }
-                deliver(.failure(error), completion)
+                deliver(.failure(cleanupFailure(error, directory: directory)), completion)
             }
         }
         return operation
@@ -270,8 +263,7 @@ enum ClipboardBackup {
                 if let failure = removeTemporaryDirectory(session.directory) { message += "\n" + failure }
                 deliver(.success(message), completion)
             } catch {
-                removeTemporaryDirectory(session.directory)
-                deliver(.failure(error), completion)
+                deliver(.failure(cleanupFailure(error, directory: session.directory)), completion)
             }
         }
         return operation
@@ -560,7 +552,9 @@ enum ClipboardBackup {
                     row["file_categories"] = .int(Int64(ClipboardFileCategories.classify(try fullText(item, root: session.directory.appendingPathComponent("attachments")))))
                 }
                 var restored = ClipboardRepository.makeItem(row)
+                var seenTags = Set<String>()
                 restored.tagIDs = item.tagIDs.map { importedTagIDs[$0]! }
+                    .filter { seenTags.insert($0).inserted }
                 imported.append(restored)
             }
             finalItems = kept + imported
@@ -614,11 +608,10 @@ enum ClipboardBackup {
                     if let previous = file.previous { try fm.moveItem(at: previous, to: file.target) }
                 } catch { rollbackFailures.append("\(file.target.path)：\(error.localizedDescription)") }
             }
-            if rollbackFailures.isEmpty { removeTemporaryDirectory(stage) }
-            else {
+            if !rollbackFailures.isEmpty {
                 throw Failure(message: error.localizedDescription + "\n附件恢复失败：" + rollbackFailures.joined(separator: "\n") + "\n原附件暂存在：\(stage.path)")
             }
-            throw error
+            throw cleanupFailure(error, directory: stage)
         }
         // 数据库已提交；以下失败只能报告，绝不能进入附件回滚。
         var retainedPaths = Set(finalItems.flatMap(attachmentPaths))
@@ -696,7 +689,7 @@ enum ClipboardBackup {
     }
 
     private static func counts(_ manifest: Manifest) -> String {
-        "条目 \(manifest.items.count) · 收藏 \(manifest.items.filter(\.isNote).count) · 附件 \(manifest.attachments.count)"
+        "条目 \(manifest.items.count) · 已存 \(manifest.items.filter(\.isNote).count) · 附件 \(manifest.attachments.count)"
     }
 
     private static func temporaryDirectory() throws -> URL {
@@ -715,6 +708,11 @@ enum ClipboardBackup {
             Log.warn("clipboard", message)
             return message
         }
+    }
+
+    private static func cleanupFailure(_ error: Error, directory: URL?) -> Failure {
+        let cleanup = directory.flatMap(removeTemporaryDirectory)
+        return Failure(message: error.localizedDescription + (cleanup.map { "\n" + $0 } ?? ""))
     }
 
     private static func archiveFailure(_ message: String) -> Failure {
