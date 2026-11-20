@@ -79,12 +79,6 @@ public protocol PanelControlling: AnyObject {
     func show(atAnchor anchorRect: NSRect?)
 }
 
-public extension PanelControlling {
-    /// 默认实现：无锚点能力时回落到原行为（协议兼容旧实现）
-    func toggle(atAnchor anchorRect: NSRect?) { toggle() }
-    func show(atAnchor anchorRect: NSRect?) { show() }
-}
-
 public protocol SettingsWindowControlling: AnyObject {
     func open(pane: String?)
     func close()

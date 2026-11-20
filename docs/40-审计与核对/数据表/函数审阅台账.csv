@@ -117,26 +117,24 @@ Core,Core/Runtime/Registry.swift,PanelControlling,show,func,74,KEEP,"2026-11-19�
 Core,Core/Runtime/Registry.swift,PanelControlling,hide,func,75,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；协议要求；PanelController:50,164,169 调用"
 Core,Core/Runtime/Registry.swift,PanelControlling,toggle,func,78,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；协议默认实现；StatusBarController:123 派发
 Core,Core/Runtime/Registry.swift,PanelControlling,show,func,79,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；协议默认实现；FrsetNextApp:251 派发
-Core,Core/Runtime/Registry.swift,PanelControlling,toggle,func,84,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；协议扩展默认实现，兜底 toggle()
-Core,Core/Runtime/Registry.swift,PanelControlling,show,func,85,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；协议扩展默认实现，兜底 show()
-Core,Core/Runtime/Registry.swift,SettingsWindowControlling,open,func,89,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；协议要求；20+ 处 settings?.open 调用
-Core,Core/Runtime/Registry.swift,SettingsWindowControlling,close,func,90,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；协议要求；SettingsWindowController:72 调用
-Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,presentPreview,func,113,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardTableHostView:817 / FloatingClipboardWindow:412
-Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,dismissPreview,func,118,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardTableHostView:809,826,904"
-Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,rowHover,func,120,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardTableHostView:723,743 行悬停"
-Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,requestKeyboardPreview,func,125,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardTableHostView:847 空格预览
-Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,cancelKeyboardPreview,func,128,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardTableHostView:635 取消预览
-Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,prepareForPanelAppear,func,130,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardSectionView.swift:36
-Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,setPreviewOrder,func,132,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardTableHostView.swift:679
-Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,notifyItemRemoved,func,134,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardTableHostView:1002 / ClipboardSectionView:96
+Core,Core/Runtime/Registry.swift,SettingsWindowControlling,open,func,83,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；协议要求；20+ 处 settings?.open 调用
+Core,Core/Runtime/Registry.swift,SettingsWindowControlling,close,func,84,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；协议要求；SettingsWindowController:72 调用
+Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,presentPreview,func,107,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardTableHostView:817 / FloatingClipboardWindow:412
+Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,dismissPreview,func,112,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardTableHostView:809,826,904"
+Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,rowHover,func,114,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardTableHostView:723,743 行悬停"
+Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,requestKeyboardPreview,func,119,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardTableHostView:847 空格预览
+Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,cancelKeyboardPreview,func,122,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardTableHostView:635 取消预览
+Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,prepareForPanelAppear,func,124,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardSectionView.swift:36
+Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,setPreviewOrder,func,126,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardTableHostView.swift:679
+Core,Core/Runtime/Registry.swift,PanelPreviewPresenting,notifyItemRemoved,func,128,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardTableHostView:1002 / ClipboardSectionView:96
 Core,Core/Runtime/RenderProbe.swift,RenderProbe,install,func,34,KEEP,2026-11-20：AppBootstrap初始化调用；仅环境显式启用且尚无定时器时建立5秒主循环定时器，默认无周期采样
 Core,Core/Runtime/RenderProbe.swift,RenderProbe,snapshotAll,func,45,KEEP,2026-11-20：5秒定时器及面板切页共用；启用后异步到主线程读取面板句柄并枚举设置及监测预览统计窗口
 Core,Core/Runtime/RenderProbe.swift,RenderProbe,snapshot,func,54,KEEP,2026-11-20：面板设置监测和新手窗口的显示与关闭事件调用；仅启用且有窗口时排主线程读取，不创建窗口
 Core,Core/Runtime/RenderProbe.swift,RenderProbe,dumpNamedWindows,func,64,KEEP,2026-11-20：snapshotAll遍历应用窗口；按设置窗口类型及监测预览检视统计标题选取，各自交emit记录
 Core,Core/Runtime/RenderProbe.swift,RenderProbe,dumpWindow,func,80,KEEP,2026-11-20：snapshotAll仅在面板已存在时取其只读句柄窗口并交emit；保留同一正式PanelController
 Core,Core/Runtime/RenderProbe.swift,RenderProbe,emit,func,85,KEEP,2026-11-20：两个快照入口共用；读取窗口和内容层可见性尺寸并记录异常，正常相同行不重复写；异常后缀按三项实际标记匹配，删除将竖线当普通字符的失效查找
-Core,Core/Runtime/StateCompat.swift,StoredBox,init,init,17,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；Stored.init:25 构造
-Core,Core/Runtime/StateCompat.swift,Stored,init,init,24,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；@Stored 属性包装器，50+ 文件使用
+Core,Core/Runtime/StateCompat.swift,StoredBox,init,init,17,KEEP,2026-11-20：Stored以StateObject延迟构造唯一引用盒；Published值供包装器读写与Binding共同消费，不替换现有视图状态容器
+Core,Core/Runtime/StateCompat.swift,Stored,init,init,24,KEEP,2026-11-20：手册导航和主面板输入等实际Stored属性由SwiftUI初始化；StateObject保存引用盒，wrappedValue及projectedValue共用同一个值
 Core,Core/Runtime/TransientWindows.swift,TransientWindowCenter,init,init,37,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；static shared:19
 Core,Core/Runtime/TransientWindows.swift,TransientWindowCenter,register,func,42,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；PanelController:231 / MonitorPopoutWindow:238
 Core,Core/Runtime/TransientWindows.swift,TransientWindowCenter,unregister,func,54,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；PanelController:315 / MonitorPopoutWindow:322,358"
