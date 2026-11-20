@@ -437,6 +437,7 @@ final class PinToolbarView: NSView {
     }
 
     func updateZoom(percent: Int) {
+        guard currentPercent != percent else { return }
         currentPercent = percent
         zoomButton.attributedTitle = Self.zoomTitle(percent)
     }

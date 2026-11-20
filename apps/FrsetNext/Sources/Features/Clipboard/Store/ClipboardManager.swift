@@ -349,15 +349,11 @@ public final class ClipboardManager: ObservableObject {
             return
         }
         burstUntil = Date().addingTimeInterval(Self.burstDuration)
-        currentPollingInterval = Self.burstPollingInterval
-        persist(result)
-    }
-
-    private func persist(_ result: ClipboardReadResult) {
-        queue.async { [weak self] in
-            guard let self else { return }
-            self.writeToDatabase(result)
+        if currentPollingInterval != Self.burstPollingInterval {
+            currentPollingInterval = Self.burstPollingInterval
+            schedulePoll(interval: Self.burstPollingInterval)
         }
+        insert(result)
     }
 
     /// 在持久化串行队列上执行：落盘 + 去重判定 + 入库
@@ -637,28 +633,44 @@ public final class ClipboardManager: ObservableObject {
     @discardableResult
     public func copy(_ item: ClipboardItem, autoPaste: Bool? = nil, asPlainText: Bool = false,
                      successMessage: String? = nil) -> String? {
+        var readFailure: String?
+        let text = item.type == .image && !asPlainText ? ""
+            : fullText(for: item) { readFailure = $0 }
+        let imageData = item.type == .image && !asPlainText
+            ? item.imagePath.flatMap { ClipboardFileStore.read($0) } : nil
+        let richData = item.type == .richtext && !asPlainText
+            ? item.richTextPath.flatMap { ClipboardFileStore.read($0) } : nil
+        let urls = item.type == .file && !asPlainText
+            ? text.split(separator: "\n").map { URL(fileURLWithPath: String($0)) } : []
+        if item.type == .image && !asPlainText && imageData == nil {
+            readFailure = "复制失败：图片原文件不可读取或未能写入剪贴板（\(item.imagePath ?? "无原图路径")）"
+        } else if item.type == .file && !asPlainText && urls.isEmpty {
+            readFailure = "复制失败：未能写入剪贴板内容"
+        }
+        if let readFailure {
+            Toast.show(readFailure, icon: "exclamationmark.triangle", isWarning: true)
+            return readFailure
+        }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         var didWrite = false
 
         if asPlainText {
-            didWrite = pasteboard.setString(fullText(for: item), forType: .string)
+            didWrite = pasteboard.setString(text, forType: .string)
         } else {
         switch item.type {
         case .image:
-            if let path = item.imagePath, let data = ClipboardFileStore.read(path) {
+            if let path = item.imagePath, let data = imageData {
                 let type: NSPasteboard.PasteboardType = path.hasSuffix(".png") ? .png : .tiff
                 didWrite = pasteboard.setData(data, forType: type)
             }
         case .file:
-            let urls = (item.content ?? "").split(separator: "\n").map { URL(fileURLWithPath: String($0)) }
-            if !urls.isEmpty { didWrite = pasteboard.writeObjects(urls as [NSURL]) }
+            didWrite = pasteboard.writeObjects(urls as [NSURL])
         case .richtext:
-            let richData = item.richTextPath.flatMap { ClipboardFileStore.read($0) }
             if let richData { pasteboard.setData(richData, forType: .rtf) }
-            didWrite = pasteboard.setString(fullText(for: item), forType: .string)
+            didWrite = pasteboard.setString(text, forType: .string)
         case .text, .url:
-            didWrite = pasteboard.setString(fullText(for: item), forType: .string)
+            didWrite = pasteboard.setString(text, forType: .string)
         }
         }
 
@@ -867,17 +879,6 @@ public final class ClipboardManager: ObservableObject {
         }
     }
 
-    /// 重命名（写入 alias_title）
-    public func rename(_ item: ClipboardItem, aliasTitle: String?) {
-        queue.async { [weak self] in
-            let saved = self?.repository.updateAliasTitle(dedupeKey: item.dedupeKey, aliasTitle: aliasTitle)
-            DispatchQueue.main.async {
-                self?.reload(reset: false)
-                if saved == false { Toast.show("重命名失败", icon: "exclamationmark.triangle", isWarning: true) }
-            }
-        }
-    }
-
     /// 编辑窗保存：回写正文与标题。aliasTitle 为 nil 时保留标题，空字符串清除标题。
     public func saveContent(dedupeKey: String, newContent: String, aliasTitle: String? = nil,
                             completion: ((ClipboardItem?) -> Void)? = nil) {
@@ -1009,7 +1010,7 @@ public final class ClipboardManager: ObservableObject {
                 return nil
             }
         }
-        reload(reset: true)
+        DispatchQueue.main.async { self.reload(reset: true) }
         return repository.item(dedupeKey: key)
     }
 

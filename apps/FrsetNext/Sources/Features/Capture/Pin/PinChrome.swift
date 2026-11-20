@@ -114,9 +114,8 @@ final class PinBubblePanel: NSPanel {
 
     /// 在屏幕坐标 rect 的正上方弹出（rect 用底左原点）
     func show(_ model: PinBubbleModel, above anchor: NSRect) {
-        let size = PinBubbleView.measure(model)
         let view = PinBubbleView(model: model)
-        view.frame = NSRect(origin: .zero, size: size)
+        let size = view.frame.size
         view.autoresizingMask = [.width, .height]
         contentView = view
 
@@ -220,9 +219,8 @@ final class PinMenuView: NSView {
         }
         for e in entries {
             switch e {
-            case .action(let id, let title, let symbol, let detail):
+            case .action(_, let title, let symbol, let detail):
                 built.append((e, title, symbol, detail, false))
-                _ = id
             case .toggle(_, let title, let symbol, _):
                 // 开关只用右侧勾表达，不再叠「开/关」两个字
                 built.append((e, title, symbol, nil, false))
@@ -276,11 +274,9 @@ final class PinMenuView: NSView {
         if row.isBack { onBack?(); return }
         guard let entry = row.entry else { return }
         switch entry {
-        case .action(let id, _, _, _):
-            onPick?(id)
-        case .toggle(let id, _, _, _):
-            onPick?(id)
-        case .choice(let id, _, _, _):
+        case .action(let id, _, _, _),
+             .toggle(let id, _, _, _),
+             .choice(let id, _, _, _):
             onPick?(id)
         case .submenu(let id, let title, _, _, let children):
             onPush?(id, title, children)
@@ -495,7 +491,4 @@ final class PinMenuPanel: NSPanel {
         }
         setFrameOrigin(origin)
     }
-}
-
-private extension PinMenuView {
 }

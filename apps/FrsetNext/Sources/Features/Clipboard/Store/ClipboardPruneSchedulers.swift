@@ -77,7 +77,7 @@ public final class ClipboardHistoryRetentionPruneScheduler {
         }
         if removed > 0 {
             Log.info("clipboard", "保留期清理：删除 \(removed) 条（早于 \(cutoff)）")
-            ClipboardManager.shared.reload()
+            DispatchQueue.main.async { ClipboardManager.shared.reload() }
         }
         return ClipboardPruneResult(removed: removed, reclaimedBytes: reclaimed)
     }
@@ -157,7 +157,7 @@ public final class ClipboardStoragePruneScheduler {
         }
         if removed > 0 {
             Log.info("clipboard", "容量清理：删除 \(removed) 条，当前用量 \(usage.totalBytes / 1024 / 1024) MB")
-            ClipboardManager.shared.reload()
+            DispatchQueue.main.async { ClipboardManager.shared.reload() }
         }
         return ClipboardPruneResult(removed: removed, reclaimedBytes: reclaimed)
     }

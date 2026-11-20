@@ -90,7 +90,6 @@ private struct TransferDockContent: View {
               createdAt: 1_794_499_200, type: "file")
     ]
     @AppStorage(TransferDockPref.cloudEnabled) private var cloudEnabled = true
-    @AppStorage(TransferDockPref.lanEnabled) private var lanEnabled = true
     /// v181/v260：「文件中转」功能总开关（设置 → 文件中转）。
     /// 与「面板顶部是否出现中转分段」彻底解耦（v260 拆成独立键）：
     /// 分段开着但这个开关关着时，这里显示一句「已关闭」的说明，
@@ -216,7 +215,7 @@ private struct TransferDockContent: View {
                 stopServiceIfStartedForTransfer()
             }
         }
-        .onChange(of: local.items) { items in
+        .onChange(of: localItems) { items in
             if !isSettingsPreview {
                 selectedIDs.formIntersection(Set(items.map(\.id)))
                 selectTutorialTransferItem(in: items)
@@ -1083,17 +1082,19 @@ private struct TransferDockContent: View {
 
     private func selectLocal(_ id: String) {
         let flags = selectionModifiers
-        if flags.contains(.shift),
-           let anchor = displayedLocalItems.firstIndex(where: { $0.id == selectionAnchorID }),
-           let target = displayedLocalItems.firstIndex(where: { $0.id == id }) {
-            let range = Set(displayedLocalItems[min(anchor, target)...max(anchor, target)].map(\.id))
-            if flags.contains(.command) { selectedIDs.formUnion(range) }
-            else { selectedIDs = range }
-        } else {
-            if flags.contains(.command) { toggleSelect(id) }
-            else { selectedIDs = [id] }
-            selectionAnchorID = id
+        if flags.contains(.shift) {
+            let items = displayedLocalItems
+            if let anchor = items.firstIndex(where: { $0.id == selectionAnchorID }),
+               let target = items.firstIndex(where: { $0.id == id }) {
+                let range = Set(items[min(anchor, target)...max(anchor, target)].map(\.id))
+                if flags.contains(.command) { selectedIDs.formUnion(range) }
+                else { selectedIDs = range }
+                return
+            }
         }
+        if flags.contains(.command) { toggleSelect(id) }
+        else { selectedIDs = [id] }
+        selectionAnchorID = id
     }
 
     /// 勾选后「扫码直传」：**此时才**启动服务并生成 ?pick=ids 的定向接收二维码
