@@ -97,7 +97,11 @@ EVIDENCE = {
     ("Features/Panel/Inspector/JSONInspectorView.swift", "makeColumns"):
         "2026-11-17：JSONTableView.body每轮调用一次；沿原表型和前500条字段集合生成列序与宽度，同一列结果传给行构造筛选排序表头和单元格",
     ("Features/Panel/Inspector/JSONInspectorView.swift", "makeAllRows"):
-        "2026-11-17：JSONTableView.body每轮调用一次；沿原三种表型和50000行上限构造显示行；未筛选结果同时供处理链和列筛选选项使用",
+        "JSONTableView.body调用；按文档对象与列键复用已构造的最多50000行，离开表格视图时由JSONTableState释放；原筛选排序及分页仍消费同一行数据",
+    ("Features/Panel/Inspector/JSONInspectorView.swift", "rows"):
+        "JSONTableView.body调用；同一JSONDocument与列键直接返回已构造行，文档或列键变化时重建，缓存不发布界面状态",
+    ("Features/Panel/Inspector/JSONInspectorView.swift", "discardRows"):
+        "JSONInspectorView切离表格模式调用；释放缓存行、文档引用和列键，不触发表格或其他视图更新",
     ("Features/Panel/Inspector/JSONInspectorView.swift", "makeRowValues"):
         "2026-11-17：JSONTableView.body每轮调用一次；只消费传入行与列完成原搜索多列筛选和排序；行数页数及500行分页共用此结果",
     ("Features/Panel/Inspector/JSONInspectorView.swift", "header"):

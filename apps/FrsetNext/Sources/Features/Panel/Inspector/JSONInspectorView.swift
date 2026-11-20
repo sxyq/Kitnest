@@ -294,6 +294,7 @@ struct JSONInspectorView: View {
         .onChange(of: mode) { newMode in
             // 表格/卡片视图不依赖 matchedPaths，跳过递归；树形才需要
             if newMode == .tree { refreshMatches() }
+            if newMode != .table { tableState.discardRows() }
         }
     }
 
@@ -688,6 +689,11 @@ private struct JSONTreeList: View {
 //   group 勾 A 后仍是 257 行）。@StateObject 的 storage 不跨副本共享。
 //   改成引用类型后，父视图持有一份、弹层与主表格拿的是同一个实例，@Published
 //   一改动两边同时刷新。
+private struct JSONTableRow {
+    let index: Int
+    let cells: [String]
+}
+
 private final class JSONTableState: ObservableObject {
     /// 排序列（nil = 原序；点表头切换 升/降）
     @Published var sortKey: String? = nil
@@ -698,10 +704,28 @@ private final class JSONTableState: ObservableObject {
     @Published var detail: JSONCellDetail? = nil
     /// 当前页（0 基）。搜索/筛选/排序变化后由 safePage 夹到有效范围。
     @Published var page: Int = 0
+
+    private weak var cachedDocument: JSONDocument?
+    private var cachedColumnKeys: [String] = []
+    private var cachedRows: [JSONTableRow] = []
+
+    func rows(for document: JSONDocument, columns: [String], make: () -> [JSONTableRow]) -> [JSONTableRow] {
+        guard cachedDocument !== document || cachedColumnKeys != columns else { return cachedRows }
+        cachedRows = make()
+        cachedDocument = document
+        cachedColumnKeys = columns
+        return cachedRows
+    }
+
+    func discardRows() {
+        cachedDocument = nil
+        cachedColumnKeys = []
+        cachedRows = []
+    }
 }
 
 private struct JSONTableView: View {
-    private typealias Row = (index: Int, cells: [String])
+    private typealias Row = JSONTableRow
 
     let document: JSONDocument
     let fontSize: CGFloat
@@ -781,12 +805,12 @@ private struct JSONTableView: View {
         case .keyValue:
             if document.root.children.isEmpty { document.root.ensureChildren() }
             return document.root.children.prefix(Self.maxTableRows).enumerated().map { index, child in
-                (index, [child.key ?? "", displayValue(child.preview)])
+                Row(index: index, cells: [child.key ?? "", displayValue(child.preview)])
             }
         case .scalars:
             if document.root.children.isEmpty { document.root.ensureChildren() }
             return document.root.children.prefix(Self.maxTableRows).enumerated().map { index, child in
-                (index, [child.preview])
+                Row(index: index, cells: [child.preview])
             }
         case .objectRows:
             let cols = columns.map { $0.key }
@@ -794,7 +818,7 @@ private struct JSONTableView: View {
                 row.ensureChildren()
                 var map: [String: String] = [:]
                 for child in row.children { if let key = child.key { map[key] = child.preview } }
-                return (index, cols.map { displayValue(map[$0] ?? "—") })
+                return Row(index: index, cells: cols.map { displayValue(map[$0] ?? "—") })
             }
         case .unsupported:
             return []
@@ -888,7 +912,9 @@ private struct JSONTableView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
-            let allRows = makeAllRows(shape: shape, columns: columns)
+            let allRows = state.rows(for: document, columns: columns.map(\.key)) {
+                makeAllRows(shape: shape, columns: columns)
+            }
             let rowValues = makeRowValues(rows: allRows, columns: columns)
             let totalRowCount = document.root.children.count
             let filteredRowCount = rowValues.count
