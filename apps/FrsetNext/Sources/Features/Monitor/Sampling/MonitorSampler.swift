@@ -53,7 +53,6 @@ public final class MonitorSampler: ObservableObject {
     // v129（内存）：History 快照双缓冲（见 sampleOnce 内注释）
     private var scratchA = History()
     private var scratchB = History()
-    private var scratchIndex = 0
     private var pendingWork: DispatchWorkItem?
     private var observers: [NSObjectProtocol] = []
 
@@ -300,44 +299,22 @@ public final class MonitorSampler: ObservableObject {
         buffers.diskWrite.append(Double(sample.diskWrite))
         buffers.gpu.append(gpuUsage >= 0 ? gpuUsage : .nan)
         buffers.power.append(sample.powerWatts ?? .nan)
-        // v129（内存）：History 快照双缓冲轮换——每 tick 7 个 values() 新数组
-        //（480B×7 + History 结构拷贝）改为复用两个 scratch 的底座；
-        // 交替发布后旧快照已释放（refcount 回 1），回填即原地写
-        //（removeAll(keepingCapacity:)），稳态零分配，砍掉每 tick 7 个小数组
-        //（32B/48B 直方图峰值源之一）。
-        scratchIndex ^= 1
-        let snapshot: History
-        if scratchIndex == 0 {
-            buffers.cpu.values(into: &scratchA.cpu)
-            buffers.memory.values(into: &scratchA.memory)
-            buffers.netDownload.values(into: &scratchA.netDownload)
-            buffers.netUpload.values(into: &scratchA.netUpload)
-            buffers.diskRead.values(into: &scratchA.diskRead)
-            buffers.diskWrite.values(into: &scratchA.diskWrite)
-            buffers.gpu.values(into: &scratchA.gpu)
-            buffers.power.values(into: &scratchA.power)
-            buffers.timestamps.values(into: &scratchA.timestamps)
-            buffers.intervals.values(into: &scratchA.intervals)
-            buffers.memoryPressure.values(into: &scratchA.memoryPressure)
-            buffers.battery.values(into: &scratchA.battery)
-            for (name, buffer) in buffers.temperatures { buffer.values(into: &scratchA.temperatures[name, default: []]) }
-            snapshot = scratchA
-        } else {
-            buffers.cpu.values(into: &scratchB.cpu)
-            buffers.memory.values(into: &scratchB.memory)
-            buffers.netDownload.values(into: &scratchB.netDownload)
-            buffers.netUpload.values(into: &scratchB.netUpload)
-            buffers.diskRead.values(into: &scratchB.diskRead)
-            buffers.diskWrite.values(into: &scratchB.diskWrite)
-            buffers.gpu.values(into: &scratchB.gpu)
-            buffers.power.values(into: &scratchB.power)
-            buffers.timestamps.values(into: &scratchB.timestamps)
-            buffers.intervals.values(into: &scratchB.intervals)
-            buffers.memoryPressure.values(into: &scratchB.memoryPressure)
-            buffers.battery.values(into: &scratchB.battery)
-            for (name, buffer) in buffers.temperatures { buffer.values(into: &scratchB.temperatures[name, default: []]) }
-            snapshot = scratchB
-        }
+        // 先换到旧缓冲，保留上一帧的底层数组供正在显示的视图使用。
+        swap(&scratchA, &scratchB)
+        buffers.cpu.values(into: &scratchA.cpu)
+        buffers.memory.values(into: &scratchA.memory)
+        buffers.netDownload.values(into: &scratchA.netDownload)
+        buffers.netUpload.values(into: &scratchA.netUpload)
+        buffers.diskRead.values(into: &scratchA.diskRead)
+        buffers.diskWrite.values(into: &scratchA.diskWrite)
+        buffers.gpu.values(into: &scratchA.gpu)
+        buffers.power.values(into: &scratchA.power)
+        buffers.timestamps.values(into: &scratchA.timestamps)
+        buffers.intervals.values(into: &scratchA.intervals)
+        buffers.memoryPressure.values(into: &scratchA.memoryPressure)
+        buffers.battery.values(into: &scratchA.battery)
+        for (name, buffer) in buffers.temperatures { buffer.values(into: &scratchA.temperatures[name, default: []]) }
+        let snapshot = scratchA
         lock.unlock()
 
         // 补充字段写入旁路容器（峰值/累计/负载）
