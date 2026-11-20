@@ -68,7 +68,7 @@ public final class ClipboardRowHoverSuppressionController {
     }
 }
 
-// MARK: - 顶部滚动 tracker（specs/14 §3.4，ivar 对齐原作 band/isOut/lastMinY）
+// MARK: - 顶部滚动 tracker（specs/14 §3.4，band/isOut）
 
 /// 对**首行底边相对视口顶部的距离**做迟滞双阈值判定（enter > exit 防抖动），
 /// 输出 onFirstItemScrolledOutChange → ClipboardManager.isMainListAtTop。
@@ -80,7 +80,6 @@ public final class ClipboardRowHoverSuppressionController {
 public final class ClipboardListTopScrollTracker {
     public private(set) var band: Double = 0
     public private(set) var isOut = false
-    private var lastMinY: Double?
 
     public var enterThreshold: Double = 40
     public var exitThreshold: Double = 24
@@ -95,12 +94,10 @@ public final class ClipboardListTopScrollTracker {
     ///   - hasFirstRow: 列表是否非空；空列表视为在顶部
     public func feed(firstRowMinY: Double?, firstRowHeight: Double, viewportOriginY: Double) {
         guard let firstRowMinY else {
-            lastMinY = nil
             setOut(false)
             return
         }
         let distance = viewportOriginY - (firstRowMinY + firstRowHeight)
-        lastMinY = distance
         if isOut {
             if distance <= exitThreshold { setOut(false) }
         } else {
@@ -147,7 +144,6 @@ final class RowHostingView: NSHostingView<AnyView> {
 
     static let hoverActionsZoneWidth: CGFloat = 104
 
-    let reuseIdentifier: NSUserInterfaceItemIdentifier
     var item: ClipboardItem?
     var contentBuilder: ((ClipboardItem, Bool) -> AnyView)?
     /// 本视图对应的行号（viewFor 中登记）；供选中态反查
@@ -168,8 +164,8 @@ final class RowHostingView: NSHostingView<AnyView> {
     var onRightMouseDown: ((ClipboardItem, CGPoint, NSView) -> Void)?
 
     init(reuseIdentifier: NSUserInterfaceItemIdentifier, frame: NSRect) {
-        self.reuseIdentifier = reuseIdentifier
         super.init(rootView: AnyView(EmptyView()))
+        identifier = reuseIdentifier
         self.frame = frame
         autoresizingMask = [.width]
         // v100（2026-10-21 用户：「每条卡片横向宽度不一致，改了没生效」）：
@@ -437,7 +433,6 @@ public struct ClipboardTableHostView: NSViewRepresentable {
     var onCopy: (ClipboardItem) -> Void
     var onEdit: (ClipboardItem) -> Void
     var onSummarize: (ClipboardItem) -> Void
-    var onDelete: (ClipboardItem) -> Void
 
     public init(manager: ClipboardManager,
                 scrollProxy: ClipboardTableScrollProxy,
@@ -445,7 +440,6 @@ public struct ClipboardTableHostView: NSViewRepresentable {
                 onCopy: @escaping (ClipboardItem) -> Void,
                 onEdit: @escaping (ClipboardItem) -> Void,
                 onSummarize: @escaping (ClipboardItem) -> Void,
-                onDelete: @escaping (ClipboardItem) -> Void,
                 personalization: Personalization = .shared) {
         self.manager = manager
         self.scrollProxy = scrollProxy
@@ -453,7 +447,6 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         self.onCopy = onCopy
         self.onEdit = onEdit
         self.onSummarize = onSummarize
-        self.onDelete = onDelete
         self.personalization = personalization
     }
 
@@ -557,7 +550,6 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         fileprivate var owner: ClipboardTableHostView
         private weak var scrollView: NSScrollView?
         private weak var table: ClipboardTableView?
-        private weak var proxy: ClipboardTableScrollProxy?
 
         // 交互族状态
         let topTracker = ClipboardListTopScrollTracker()
@@ -581,7 +573,6 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         func bind(scrollView: ClipboardListScrollView, table: ClipboardTableView, proxy: ClipboardTableScrollProxy) {
             self.scrollView = scrollView
             self.table = table
-            self.proxy = proxy
             proxy.scrollView = scrollView
             // v102：底部「回到顶部」按钮经通知触发（代理在别处持有）
             NotificationCenter.default.addObserver(
@@ -613,7 +604,6 @@ public struct ClipboardTableHostView: NSViewRepresentable {
             let host = tableView.makeView(withIdentifier: identifier, owner: nil) as? RowHostingView
                 ?? RowHostingView(reuseIdentifier: identifier,
                                   frame: NSRect(x: 0, y: 0, width: tableView.bounds.width, height: owner.rowHeight))
-            host.identifier = identifier
             host.row = row
 
             host.contentBuilder = { [weak self] item, hovered in

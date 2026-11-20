@@ -2084,63 +2084,63 @@ Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableScrol
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardRowHoverSuppressionController,init,init,55,KEEP,本文件:516 Coordinator 字段初始化
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardRowHoverSuppressionController,suppressUntilMouseMove,func,59,KEEP,本文件:549 滚轮 / 587 右键 / 875 多选
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardRowHoverSuppressionController,mouseMoved,func,66,KEEP,本文件:706 handleMouseMoved 首行调用
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardListTopScrollTracker,init,init,89,KEEP,本文件:515 Coordinator 字段初始化
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardListTopScrollTracker,feed,func,96,KEEP,本文件:694 空表分支 / 698 滚动分支
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardListTopScrollTracker,setOut,func,111,KEEP,private；本文件:105/107 调用后触发回写闭包
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardRowChromeView,drawSelection,func,132,KEEP,NSTableRowView 覆盖；:607 返回本类由 AppKit 派发绘制
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardRowChromeView,drawBackground,func,143,KEEP,NSTableRowView 覆盖，AppKit 行绘制派发（空实现）
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,init,init,170,KEEP,本文件:566 viewFor 内构造行视图
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,init,init,184,KEEP,2026-11-19：SDK SwiftUI.swiftinterface的NSHostingView明确声明required init(rootView:)；本类新增reuseIdentifier专用构造后仍须实现父类要求的初始化器，unavailable只限制外部误用，正常行由viewFor构造
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,init,init,189,KEEP,NSView required init?(coder:) 编译期必需；unavailable 阻断 nib
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,setItem,func,196,KEEP,本文件:590 viewFor 配置行内容
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,setHovered,func,205,KEEP,本文件:721 进入 hover / 738 清除
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,rightMouseDown,func,213,KEEP,NSView 事件覆盖；回调 :585 → presentMenu:588
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,mouseDown,func,219,KEEP,NSView 事件覆盖；分派单击/双击/⌘⇧ 三路回调
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,acceptsFirstMouse,func,252,KEEP,NSView 覆盖，AppKit 点击派发前询问
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,WeakRowBox,init,init,258,KEEP,本文件:596 行号侧表登记
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,mouseDown,func,271,KEEP,整行支持单击预览、双击复制及 Command/Shift 多选，并把键盘焦点交给列表
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,toggleRowSelection,func,278,KEEP,切换指定行的选择状态，Shift 将锚点至当前行合并为连续范围
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,layout,func,325,KEEP,NSView 覆盖，AppKit 布局周期调用；钉列宽
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,frameOfCell,func,341,KEEP,NSTableView 覆盖，单元格布局/绘制时调用
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,updateTrackingAreas,func,348,KEEP,NSView 覆盖 + 本文件:287 isActive didSet 主动调用
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,mouseMoved,func,361,KEEP,本文件:326 NSTrackingArea(owner:self) 派发
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,mouseExited,func,366,KEEP,同 tracking area 的 mouseEnteredAndExited 派发
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,keyDown,func,372,KEEP,firstResponder 键盘派发；空格/↩ 转 onSpaceKey/onReturnKey
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardListScrollView,scrollWheel,func,420,KEEP,NSScrollView 覆盖，滚轮派发 → 本文件:547 抑制 hover
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableHostView,init,init,442,KEEP,ClipboardSectionView.swift:87 构造
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableHostView,makeCoordinator,func,464,KEEP,NSViewRepresentable 协议要求，SwiftUI 调用
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableHostView,makeNSView,func,475,KEEP,NSViewRepresentable 协议要求，建表/滚动骨架
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableHostView,updateNSView,func,522,KEEP,NSViewRepresentable 协议要求；:488 脏检查重载
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,reloadTableIfNeeded,func,549,KEEP,本文件:488 updateNSView 调用
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,init,init,572,KEEP,本文件:417 makeCoordinator 构造
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,bind,func,581,KEEP,本文件:464 makeNSView 调用，挂代理与回调
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,numberOfRows,func,604,KEEP,表格数据源：本文件:451 dataSource=coordinator
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableView,func,608,KEEP,表格委托回调 viewFor：行视图供给
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableView,func,650,KEEP,表格委托回调 heightOfRow
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableView,func,656,KEEP,表格委托回调 rowViewForRow，返回 ClipboardRowChromeView
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableView,func,662,KEEP,表格委托回调 didAdd:forRow，尾行触发分页
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableViewSelectionDidChange,func,671,KEEP,表格委托回调；:622 post .clipboardSelectionChanged
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,reloadTable,func,699,KEEP,本文件:506 reloadTableIfNeeded 调用
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,clipboardBoundsDidChange,func,755,KEEP,@objc + #selector(本文件:468)，boundsDidChange 通知派发
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,feedTopTracker,func,763,KEEP,本文件:686 滚动通知内调用
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleMouseMoved,func,776,KEEP,本文件:543 table.onMouseMoved 闭包
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleMouseExited,func,804,KEEP,本文件:544 table.onMouseExited 闭包
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,clearHoverHighlight,func,808,KEEP,本文件:550/711/716/733/876 调用
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,rowView,func,823,KEEP,本文件:720 hover 取视图 / 915 供 forItemID 用
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handlePlainMouseDown,func,835,KEEP,本文件:584 host.onPlainMouseDown；选行+夺 firstResponder
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,consumeOneTimeHint,func,859,KEEP,本文件:810 单击 / 827 双击
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,anchorProvider,func,866,KEEP,本文件:848 传入 requestKeyboardPreview
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleSingleClick,func,873,KEEP,本文件:581 onSingleClick ← mouseDown:238
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleDoubleClick,func,878,KEEP,本文件:582 onDoubleClick ← mouseDown:235
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleSpaceKey,func,888,KEEP,本文件:545 onSpaceKey ← keyDown:355
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleModifierClick,func,908,KEEP,本文件:583 onModifierClick ← mouseDown:230
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleReturnKey,func,915,KEEP,本文件:546 onReturnKey ← keyDown:358
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,rowView,func,938,KEEP,本文件:816 单击锚点 / 842/846 空格
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,symbol,func,961,KEEP,本文件:956 菜单图标 / 987 标签图标
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,presentMenu,func,969,KEEP,本文件:588 右键按下回调调用
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,menuAction,func,1061,KEEP,@objc #selector(本文件:951/981)，NSMenuItem.target 派发
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,BlockMenuItemAction,init,init,1069,KEEP,本文件:953/983 representedObject 构造
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,BlockMenuItemAction,run,func,1070,KEEP,本文件:1011 menuAction 取出执行
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardListTopScrollTracker,init,init,88,KEEP,本文件:515 Coordinator 字段初始化
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardListTopScrollTracker,feed,func,95,KEEP,2026-11-20：第0行底边与视口原点计算距离，按40/24迟滞发布；删除无人读取的lastMinY及两次赋值，状态仍由isOut持有
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardListTopScrollTracker,setOut,func,108,KEEP,private；本文件:105/107 调用后触发回写闭包
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardRowChromeView,drawSelection,func,129,KEEP,NSTableRowView 覆盖；:607 返回本类由 AppKit 派发绘制
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardRowChromeView,drawBackground,func,140,KEEP,NSTableRowView 覆盖，AppKit 行绘制派发（空实现）
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,init,init,166,KEEP,2026-11-20：viewFor创建缺失宿主时直接设置原生identifier，删除仅写的reuseIdentifier副本；关闭内容自定尺寸，所需rootView及coder入口保持unavailable
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,init,init,180,KEEP,2026-11-20：viewFor创建缺失宿主时直接设置原生identifier，删除仅写的reuseIdentifier副本；关闭内容自定尺寸，所需rootView及coder入口保持unavailable
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,init,init,185,KEEP,2026-11-20：viewFor创建缺失宿主时直接设置原生identifier，删除仅写的reuseIdentifier副本；关闭内容自定尺寸，所需rootView及coder入口保持unavailable
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,setItem,func,192,KEEP,本文件:590 viewFor 配置行内容
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,setHovered,func,201,KEEP,本文件:721 进入 hover / 738 清除
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,rightMouseDown,func,209,KEEP,NSView 事件覆盖；回调 :585 → presentMenu:588
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,mouseDown,func,215,KEEP,NSView 事件覆盖；分派单击/双击/⌘⇧ 三路回调
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,RowHostingView,acceptsFirstMouse,func,248,KEEP,NSView 覆盖，AppKit 点击派发前询问
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,WeakRowBox,init,init,254,KEEP,本文件:596 行号侧表登记
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,mouseDown,func,267,KEEP,整行支持单击预览、双击复制及 Command/Shift 多选，并把键盘焦点交给列表
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,toggleRowSelection,func,274,KEEP,切换指定行的选择状态，Shift 将锚点至当前行合并为连续范围
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,layout,func,321,KEEP,NSView 覆盖，AppKit 布局周期调用；钉列宽
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,frameOfCell,func,337,KEEP,NSTableView 覆盖，单元格布局/绘制时调用
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,updateTrackingAreas,func,344,KEEP,NSView 覆盖 + 本文件:287 isActive didSet 主动调用
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,mouseMoved,func,357,KEEP,本文件:326 NSTrackingArea(owner:self) 派发
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,mouseExited,func,362,KEEP,同 tracking area 的 mouseEnteredAndExited 派发
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableView,keyDown,func,368,KEEP,firstResponder 键盘派发；空格/↩ 转 onSpaceKey/onReturnKey
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardListScrollView,scrollWheel,func,416,KEEP,NSScrollView 覆盖，滚轮派发 → 本文件:547 抑制 hover
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableHostView,init,init,437,KEEP,2026-11-20：Section传入Manager、滚动代理、活动状态、复制编辑摘要及外观；删除没有消费者的onDelete参数，原生菜单仍直接调用Manager.delete
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableHostView,makeCoordinator,func,457,KEEP,NSViewRepresentable 协议要求，SwiftUI 调用
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableHostView,makeNSView,func,468,KEEP,NSViewRepresentable 协议要求，建表/滚动骨架
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardTableHostView,updateNSView,func,515,KEEP,NSViewRepresentable 协议要求；:488 脏检查重载
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,reloadTableIfNeeded,func,542,KEEP,本文件:488 updateNSView 调用
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,init,init,564,KEEP,本文件:417 makeCoordinator 构造
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,bind,func,573,KEEP,2026-11-20：接入现有滚动代理和鼠标键盘闭包；删除只写未读的Coordinator.proxy，入参仍用于接线和回顶弱捕获
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,numberOfRows,func,595,KEEP,表格数据源：本文件:451 dataSource=coordinator
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableView,func,599,KEEP,表格委托回调 viewFor：行视图供给
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableView,func,640,KEEP,表格委托回调 heightOfRow
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableView,func,646,KEEP,表格委托回调 rowViewForRow，返回 ClipboardRowChromeView
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableView,func,652,KEEP,表格委托回调 didAdd:forRow，尾行触发分页
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,tableViewSelectionDidChange,func,661,KEEP,表格委托回调；:622 post .clipboardSelectionChanged
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,reloadTable,func,689,KEEP,本文件:506 reloadTableIfNeeded 调用
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,clipboardBoundsDidChange,func,745,KEEP,@objc + #selector(本文件:468)，boundsDidChange 通知派发
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,feedTopTracker,func,753,KEEP,本文件:686 滚动通知内调用
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleMouseMoved,func,766,KEEP,本文件:543 table.onMouseMoved 闭包
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleMouseExited,func,794,KEEP,本文件:544 table.onMouseExited 闭包
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,clearHoverHighlight,func,798,KEEP,本文件:550/711/716/733/876 调用
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,rowView,func,813,KEEP,本文件:720 hover 取视图 / 915 供 forItemID 用
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handlePlainMouseDown,func,825,KEEP,本文件:584 host.onPlainMouseDown；选行+夺 firstResponder
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,consumeOneTimeHint,func,849,KEEP,本文件:810 单击 / 827 双击
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,anchorProvider,func,856,KEEP,本文件:848 传入 requestKeyboardPreview
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleSingleClick,func,863,KEEP,本文件:581 onSingleClick ← mouseDown:238
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleDoubleClick,func,868,KEEP,本文件:582 onDoubleClick ← mouseDown:235
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleSpaceKey,func,878,KEEP,本文件:545 onSpaceKey ← keyDown:355
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleModifierClick,func,898,KEEP,本文件:583 onModifierClick ← mouseDown:230
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleReturnKey,func,905,KEEP,本文件:546 onReturnKey ← keyDown:358
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,rowView,func,928,KEEP,本文件:816 单击锚点 / 842/846 空格
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,symbol,func,951,KEEP,本文件:956 菜单图标 / 987 标签图标
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,presentMenu,func,959,KEEP,本文件:588 右键按下回调调用
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,menuAction,func,1051,KEEP,@objc #selector(本文件:951/981)，NSMenuItem.target 派发
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,BlockMenuItemAction,init,init,1059,KEEP,本文件:953/983 representedObject 构造
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,BlockMenuItemAction,run,func,1060,KEEP,本文件:1011 menuAction 取出执行
 Clipboard,Features/Clipboard/UI/LargeTextPreviewView.swift,AttributedTextView,init,init,32,KEEP,保存传入富文本及showsTableGrid开关，默认true保留Markdown表格网格；WordInlineContent传false，使Word预览不额外绘制Markdown网格
 Clipboard,Features/Clipboard/UI/LargeTextPreviewView.swift,AttributedTextView,makeNSView,func,37,KEEP,构造只读可选择的PreviewTextView及纵向NSScrollView，传入showsTableGrid、富文本和随视图宽度折行设置，再按网格开关建立单元格矩形缓存
 Clipboard,Features/Clipboard/UI/LargeTextPreviewView.swift,AttributedTextView,updateNSView,func,59,KEEP,SwiftUI更新时传递showsTableGrid；仅富文本内容不同才替换textStorage并刷新表格矩形缓存，保持现有滚动宿主
