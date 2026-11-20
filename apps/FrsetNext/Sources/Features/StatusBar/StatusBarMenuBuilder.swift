@@ -138,6 +138,9 @@ public enum StatusBarMenuBuilder {
         menu.addItem(track(item("归档任务…", key: "", modifiers: [],
                                 action: #selector(StatusBarController.openArchiveTasksAction(_:)), target: target)))
 
+        menu.addItem(track(item("新手教程…", key: "", modifiers: [],
+                                action: #selector(StatusBarController.showTutorialAction(_:)), target: target)))
+
         // v206：代码预览独立窗已删除（代码预览改为 hover 预览内联渲染）
 
         // 悬浮剪贴板（v192）：给「怎么查看」一个可见入口，不用记快捷键

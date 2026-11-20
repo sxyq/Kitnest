@@ -641,7 +641,15 @@ public final class LanTransferServer: ObservableObject {
                 let succeeded = transferSucceeded && error == nil
                 HapticFeedback.perform(succeeded ? .transferCompleted : .transferFailed)
                 if succeeded && context.method == "GET" {
-                    DispatchQueue.main.async { self.sentCount += 1 }
+                    DispatchQueue.main.async {
+                        self.sentCount += 1
+                        let route = context.path.split(separator: "?", maxSplits: 1).first.map(String.init) ?? context.path
+                        let fileID = route.components(separatedBy: "/dl/").last ?? ""
+                        if let item = LocalTransferStore.shared.items.first(where: { $0.id == fileID }) {
+                            NotificationCenter.default.post(name: .tutorialFileTransferCompleted, object: nil,
+                                                            userInfo: ["paths": [item.stagedURL.path]])
+                        }
+                    }
                 }
             }
             context.connection.cancel()

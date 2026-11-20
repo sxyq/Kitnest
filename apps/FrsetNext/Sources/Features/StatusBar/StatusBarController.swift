@@ -176,6 +176,11 @@ public final class StatusBarController: NSObject {
         WelcomeWindowController.shared.show()
     }
 
+    @objc func showTutorialAction(_ sender: Any?) {
+        QuickTutorialController.shared.returnToTasks()
+        WelcomeWindowController.shared.show()
+    }
+
     /// 检查更新（v112：手动检查，feed 在 设置 → 关于 配置）
     @objc func checkForUpdatesAction(_ sender: Any?) {
         AppUpdateChecker.shared.checkNowManual()

@@ -192,6 +192,19 @@ public struct ManualPaneView: View {
                     .buttonStyle(.plain)
                 }
             }
+            Text("实际试一遍").font(.system(size: 17, weight: .semibold))
+            Text("跟着引导操作，也可以打开对应的完整说明。")
+                .font(.system(size: 13)).foregroundStyle(.secondary)
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
+                quickStartCard("找回复制过的内容", detail: "查看历史记录，再次复制或粘贴。",
+                               symbol: "doc.on.clipboard", guide: "02-01-剪贴板历史", tutorial: .clipboard)
+                quickStartCard("截屏并提取文字", detail: "框选画面，识别文字并复制。",
+                               symbol: "viewfinder", guide: "03-11-文字识别", tutorial: .screenshot)
+                quickStartCard("把文件发到手机", detail: "选择传输方式，查看发送结果。",
+                               symbol: "iphone.and.arrow.right.inward", guide: "06-02-手机直传", tutorial: .transfer)
+                quickStartCard("设置刘海与多屏", detail: "选择显示屏幕，了解另一块屏幕的入口。",
+                               symbol: "display.2", guide: "01-03-刘海工作台与多屏")
+            }
         }
     }
 
@@ -219,6 +232,24 @@ public struct ManualPaneView: View {
         case "电脑状态": "查看处理器、内存、网络和电池用量"
         default: "调整外观、快捷键、更新和帮助"
         }
+    }
+
+    private func quickStartCard(_ title: String, detail: String, symbol: String, guide: String,
+                                tutorial: QuickTutorial? = nil) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label(title, systemImage: symbol).font(.system(size: 13, weight: .semibold))
+            Text(detail).font(.system(size: 11.5)).foregroundStyle(.secondary)
+            if let tutorial {
+                Button("开始互动教程") { WelcomeWindowController.shared.showTutorial(tutorial) }
+                    .font(.system(size: 10.5, weight: .medium)).foregroundStyle(Theme.accent)
+                    .buttonStyle(.plain)
+            }
+            Button("查看完整章节") { selection = guide }
+                .font(.system(size: 10.5)).foregroundStyle(.secondary).buttonStyle(.plain)
+        }
+        .frame(maxWidth: .infinity, minHeight: 96, alignment: .leading)
+        .padding(13)
+        .glassCard(radius: Theme.Radius.card)
     }
 
     /// 面包屑：祖先路径（点击可回跳）

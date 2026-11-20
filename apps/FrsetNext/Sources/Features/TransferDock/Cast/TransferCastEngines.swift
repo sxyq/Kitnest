@@ -44,6 +44,9 @@ public enum AirDropSendEngine {
     private final class FeedbackDelegate: NSObject, NSSharingServiceDelegate {
         func sharingService(_ sharingService: NSSharingService, didShareItems items: [Any]) {
             HapticFeedback.perform(.transferCompleted)
+            let paths = items.compactMap { ($0 as? URL)?.path }
+            NotificationCenter.default.post(name: .tutorialFileTransferCompleted, object: nil,
+                                            userInfo: ["paths": paths])
         }
         func sharingService(_ sharingService: NSSharingService, didFailToShareItems items: [Any], error: Error) {
             if (error as NSError).code != NSUserCancelledError { HapticFeedback.perform(.transferFailed) }

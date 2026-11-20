@@ -1257,6 +1257,8 @@ public final class ScreenshotManager: ObservableObject {
         // v130②：历史入库（异步生成缩略图；mode 缺省用本次截图入口标签）
         CaptureHistoryStore.shared.record(url: url, mode: mode ?? currentModeTag)
         lastHistoryPath = url.path
+        NotificationCenter.default.post(name: .tutorialScreenshotCaptured, object: nil,
+                                        userInfo: ["path": url.path])
         // 不直接调用剪贴板模块：由 App 层接线把这条回调接到剪贴板历史入库
         CaptureEventBus.onImageCaptured?(url, data)
     }
@@ -1367,6 +1369,9 @@ public final class ScreenshotManager: ObservableObject {
         let copied = pasteboard.writeObjects([ImageProcessor.nsImage(image)])
         if !copied {
             Toast.show("复制失败：未能写入截图", icon: "exclamationmark.triangle", isWarning: true)
+        } else {
+            NotificationCenter.default.post(name: .tutorialScreenshotCopied, object: nil,
+                                            userInfo: ["path": lastHistoryPath ?? ""])
         }
         return copied
     }
@@ -1459,6 +1464,8 @@ public final class ScreenshotManager: ObservableObject {
                     HapticFeedback.perform(.operationFailed)
                 }
                 if !text.isEmpty {
+                    NotificationCenter.default.post(name: .tutorialScreenshotOCRCompleted, object: nil,
+                                                    userInfo: ["path": self.lastHistoryPath ?? ""])
                     HapticFeedback.perform(.ocr)
                     CaptureEventBus.onTextRecognized?(text)
                     // v130（SnowShot 对齐）②：OCR 文本回填截图历史（历史窗可按文本搜索）
@@ -1473,7 +1480,8 @@ public final class ScreenshotManager: ObservableObject {
                         CaptureOCRNotify.show(text: text)
                         return
                     }
-                    if !inline, forceWindow || self.ocrShowResultWindow || autoTranslate,
+                    if !inline, forceWindow || self.ocrShowResultWindow || autoTranslate
+                        || QuickTutorialController.shared.isScreenshotActive,
                        let cg = ScreenshotOCRDirectImageStore.shared.image(for: imageData) {
                         ScreenshotOCRWindowController.shared.show(sourceImage: cg, imageData: imageData,
                                                                   text: text, autoTranslate: autoTranslate)

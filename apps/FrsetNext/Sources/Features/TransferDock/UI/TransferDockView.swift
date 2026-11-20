@@ -108,6 +108,7 @@ private struct TransferDockContent: View {
     @Stored private var selectionModifiers = NSEvent.ModifierFlags()
     @Stored private var selectionMonitor: Any?
     @Stored private var copyCompleted = false
+    @ObservedObject private var tutorial = QuickTutorialController.shared
     /// 「扫码直传」选中文件的二维码链接（带 ?pick=ids，手机只看到这几个）
     @Stored private var pickShareURL: String?
     /// 直传服务是否由「传输」动作拉起（是则勾选清空时随停；手动启动的不代停）
@@ -150,6 +151,9 @@ private struct TransferDockContent: View {
     private var dockContent: some View {
         VStack(spacing: 0) {
             header
+            if tutorial.selected == .transfer && tutorial.currentStatus != .notStarted {
+                tutorialHint
+            }
             if let previewFeedback {
                 Text(previewFeedback).font(.system(size: 11)).foregroundStyle(.secondary).padding(6)
             }
@@ -185,6 +189,7 @@ private struct TransferDockContent: View {
             }
             if isSettingsPreview { return }
             bridgeAvailable = TransferDockPath.isAvailable
+            selectTutorialTransferItem(in: local.items)
             // v103：空投接收监听（系统落盘 ~/Downloads → 自动进本地暂存）
             AirDropReceiveWatcher.shared.onFileReceived = { url in
                 LocalTransferStore.shared.add(urls: [url]) { n in
@@ -212,7 +217,10 @@ private struct TransferDockContent: View {
             }
         }
         .onChange(of: local.items) { items in
-            if !isSettingsPreview { selectedIDs.formIntersection(Set(items.map(\.id))) }
+            if !isSettingsPreview {
+                selectedIDs.formIntersection(Set(items.map(\.id)))
+                selectTutorialTransferItem(in: items)
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .transferDockSettingsDidChange)) { _ in
             if isSettingsPreview { return }
@@ -225,6 +233,32 @@ private struct TransferDockContent: View {
                 pickOverlay(url)
             }
         }
+    }
+
+    private func selectTutorialTransferItem(in items: [LocalTransferItem]) {
+        guard tutorial.selected == .transfer, let id = tutorial.transferTargetID,
+              items.contains(where: { $0.id == id }) else { return }
+        selectedIDs = [id]
+        transferTab = 0
+    }
+
+    private var tutorialHint: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: tutorial.currentStatus == .completed ? "checkmark.circle.fill" : "sparkles")
+                .foregroundStyle(tutorial.currentStatus == .completed ? Color.green : Theme.accent)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("文件中转教程 · \(tutorial.currentStatus == .completed ? "已完成" : "第 \(tutorial.displayStep) 步 / 3")")
+                    .font(.system(size: 11, weight: .semibold))
+                Text(tutorial.message.isEmpty ? "选中暂存文件，再主动选择发送方式。" : tutorial.message)
+                    .font(.system(size: 10.5)).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+            Button("教程") { WelcomeWindowController.shared.show() }
+                .font(.system(size: 10.5)).buttonStyle(.plain).foregroundStyle(Theme.accent)
+        }
+        .padding(.horizontal, 10).padding(.vertical, 7)
+        .background(Theme.accent.opacity(0.07))
     }
 
     // MARK: - v119 三段：发送 / 接收 / 云端
@@ -429,6 +463,10 @@ private struct TransferDockContent: View {
                                 : "推送失败：手机没连？（去「投屏」页连一次）",
                        icon: sent > 0 ? "square.and.arrow.up" : "exclamationmark.triangle",
                        isWarning: sent == 0)
+            if sent > 0 {
+                NotificationCenter.default.post(name: .tutorialFileTransferCompleted, object: nil,
+                                                userInfo: ["paths": urls.map(\.path)])
+            }
         })
     }
 

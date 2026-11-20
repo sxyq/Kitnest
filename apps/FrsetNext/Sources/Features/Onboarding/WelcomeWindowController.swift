@@ -41,6 +41,11 @@ public final class WelcomeWindowController: NSObject {
         RenderProbe.snapshot(window, name: "welcome", reason: "show")
     }
 
+    func showTutorial(_ task: QuickTutorial) {
+        QuickTutorialController.shared.select(task)
+        show()
+    }
+
     /// 「开始使用」：标记已看 + 关闭
     public func finishOnboarding() {
         UserDefaults.standard.set(WelcomeWindowController.onboardingVersion,
