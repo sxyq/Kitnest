@@ -205,7 +205,6 @@ struct DiskDataPath: Codable, Hashable, Identifiable {
 struct DiskDataCategory: Codable, Hashable, Identifiable {
     let kind: DiskDataKind
     let bytes: Int64
-    let directories: [String]
     var pathBytes: [DiskDataPath]? = nil
     var id: String { kind.id }
 
@@ -272,7 +271,6 @@ struct DiskDataCategory: Codable, Hashable, Identifiable {
                 return DiskDataCategory(
                     kind: kind,
                     bytes: paths.reduce(Int64(0), { $0 + $1.bytes }),
-                    directories: DiskIndexStore.independentPaths(paths.map(\.path)),
                     pathBytes: paths
                 )
             }
