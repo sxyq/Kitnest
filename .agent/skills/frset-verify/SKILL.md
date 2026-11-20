@@ -51,6 +51,17 @@ print(''.join(open(p,errors='replace').readlines()[-8:]))"
 ```
 关键词：`已部署` `解析下载` `下载完成` `工具窗已打开` `启动追赶` `show: frame=`。
 
+### 屏幕录制授权
+
+```bash
+codesign -d --requirements - /Applications/Kitnest.app 2>&1
+rg '屏幕录制权限启动实况|权限探测|截图快照冻结完成' "$HOME/Library/Application Support/FrsetNext/logs/$(date +%F).log"
+```
+
+- requirement 必须与 `apps/FrsetNext/build.sh` 的固定 FrsetDev 身份一致；身份迁移后的旧 TCC 记录只需对最终安装版重新授权一次。
+- `CGPreflightScreenCaptureAccess()` 可能假阴性，结合 `ScreenshotManager.probePermission()` 的真实抓屏结果和实际截图日志判断。
+- 不因部署后弹过一次权限提示就重置 TCC；先确认运行包签名身份及真实抓屏结果。
+
 ## 常见坑
 
 - 截图拿不到内容 ≠ 功能坏：先确认窗口 id 对不对、是否被遮挡（必要时 `osascript` 把 Kitnest 设为 frontmost 再全屏截）

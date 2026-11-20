@@ -1,5 +1,5 @@
 #!/bin/bash
-# Kitnest 一键构建：编译全部 Swift 源码 → 打包 .app → ad-hoc 签名
+# Kitnest 一键构建：编译全部 Swift 源码 → 打包 .app → 固定证书签名
 set -o pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 SRC="${FRSETNEXT_SOURCE_ROOT:-$ROOT/Sources}"
@@ -12,6 +12,14 @@ SRC="${FRSETNEXT_SOURCE_ROOT:-$ROOT/Sources}"
 #   （同卷 rename 是原子操作）。对外可见的 build/Kitnest.app 与 /Applications 副本
 #   **任何时刻都是完整、签名有效的可启动包**；构建失败也不影响旧版。
 APP_NAME="${KITNEST_APP_NAME:-Kitnest}"
+INFO_PLIST="${KITNEST_INFO_PLIST:-$ROOT/Info.plist}"
+SIGNING_IDENTITY="2EFBEE27CEFEF9F60C03BA222A972127D9286542"
+SIGNING_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$INFO_PLIST")"
+SIGNING_REQUIREMENT="identifier \"$SIGNING_BUNDLE_ID\" and certificate leaf = H\"2efbee27cefef9f60c03ba222a972127d9286542\""
+if ! security find-identity -v -p codesigning 2>/dev/null | grep -Fq "$SIGNING_IDENTITY"; then
+  echo "✗ 缺少固定 FrsetDev 签名证书；为保留屏幕录制授权，本次不构建临时签名包"
+  exit 1
+fi
 # 外置 exFAT 工作树需把 bundle 留在 APFS，避免 AppleDouble 边车文件破坏签名。
 BUILD_ROOT="${KITNEST_BUILD_ROOT:-$ROOT/build.noindex}"
 APP_FINAL="$BUILD_ROOT/$APP_NAME.app"                  # 对外可见的构建产物（始终完整可启动）
@@ -26,14 +34,15 @@ ditto "$SRC" "$STAGE/Sources"
 SRC="$STAGE/Sources"
 SDK="$(xcrun --show-sdk-path)"
 
-# 优化档位：默认 `-O` + **关闭全模块优化（no-WMO）**。
+# 优化档位：固定 `-O` + **关闭全模块优化（no-WMO）**，编译并发限制为 2。
 # 为什么关 WMO：`-O` 的 whole-module-optimization 会把 120+ 个源文件当成**一个优化单元**，
 # 峰值内存比 typecheck 高一个数量级（实测 26.9MB → 310.6MB，11.5×），在本机
 # （16GB RAM + swap 已近满）必然被系统 SIGKILL（退出码 137）。
 # 关闭 WMO 后 swiftc **逐文件**优化，峰值降到单文件量级；产出的可执行文件功能完全等价，
 # 只损失跨文件的少量内联/去虚化机会（对本 App 无感）。
-# 需要极限优化时可覆盖：FRSETNEXT_OPT="-O" ./build.sh   （前提：内存充足）
-OPT_FLAGS="${FRSETNEXT_OPT:--O -no-whole-module-optimization}"
+OPT_FLAGS="-O -no-whole-module-optimization"
+SWIFT_JOBS=2
+BUILD_NICE=10
 
 echo "== 源码统计 =="
 find "$SRC" -name '*.swift' -not -name '._*' | wc -l | xargs echo "  Swift 文件:"
@@ -41,7 +50,7 @@ find "$SRC" -name '*.swift' -not -name '._*' -exec cat {} + | wc -l | xargs echo
 
 echo "== 清理 =="
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "${KITNEST_INFO_PLIST:-$ROOT/Info.plist}" "$APP/Contents/Info.plist"
+cp "$INFO_PLIST" "$APP/Contents/Info.plist"
 /usr/libexec/PlistBuddy -c "Set :CFBundleExecutable $APP_NAME" "$APP/Contents/Info.plist"
 
 FILES=$(find "$SRC" -name '*.swift' -not -name '._*' \
@@ -74,6 +83,7 @@ echo "== 资源预检 =="
 # 这里只做「知情」提示，不做硬拦截——硬拦截会把「内存暂时紧张」误判成「不能构建」。
 echo "  $(sysctl -n vm.swapusage 2>/dev/null)"
 echo "  优化档位: $OPT_FLAGS"
+echo "  编译资源: Swift 并发 $SWIFT_JOBS，nice $BUILD_NICE"
 
 echo "== 编译 =="
 # 产物目录先清空：若 swiftc 被中途杀死（SIGKILL），可能留下上一次构建的半成品可执行文件，
@@ -92,7 +102,7 @@ if [ -d "$OBJC_DIR" ]; then
   for f in "$OBJC_DIR"/*.c "$OBJC_DIR"/*.m; do
     [ -f "$f" ] || continue
     obj="$OBJ_DIR/$(basename "${f%.*}").o"
-    clang -c "$f" -o "$obj" \
+    nice -n "$BUILD_NICE" clang -c "$f" -o "$obj" \
       -isysroot "$SDK" -target arm64-apple-macosx13.0 \
       -I "$ROOT/Vendor/ocr" \
       -fobjc-arc -O1 2>&1 | tee -a "$BUILD_LOG" | tail -5
@@ -115,7 +125,7 @@ BRIDGE="$OBJC_DIR/FrsetStatsBar.h"
 STAMP="$STAGE/build.stamp"
 rm -f "$STAMP"; touch "$STAMP"
 
-swiftc $OPT_FLAGS -parse-as-library \
+nice -n "$BUILD_NICE" swiftc $OPT_FLAGS -j "$SWIFT_JOBS" -parse-as-library \
   -sdk "$SDK" -target arm64-apple-macosx13.0 -swift-version 5 \
   -o "$APP/Contents/MacOS/$APP_NAME" $FILES $OBJ_FILES \
   -import-objc-header "$BRIDGE" \
@@ -172,14 +182,10 @@ HELPER_OUT="$APP/Contents/Library/PrivilegedHelperTools/$HELPER_NAME"
 if [ -f "$HELPER_SRC" ]; then
   echo "== 内存服务 helper =="
   mkdir -p "$(dirname "$HELPER_OUT")"
-  if swiftc -O -sdk "$SDK" -target arm64-apple-macosx13.0 -swift-version 5 \
+  if nice -n "$BUILD_NICE" swiftc -O -j "$SWIFT_JOBS" -sdk "$SDK" -target arm64-apple-macosx13.0 -swift-version 5 \
        -o "$HELPER_OUT" "$HELPER_SRC" 2>&1 | tail -5; then
     if [ -f "$HELPER_OUT" ]; then
-      if security find-identity -v -p codesigning 2>/dev/null | grep -q "FrsetDev"; then
-        codesign --force -s "FrsetDev" -i "com.sxyq.frsetnext.memoryhelper" "$HELPER_OUT" 2>&1 | tail -2
-      else
-        codesign --force -s - -i "com.sxyq.frsetnext.memoryhelper" "$HELPER_OUT" 2>&1 | tail -2
-      fi
+      codesign --force -s "$SIGNING_IDENTITY" -i "com.sxyq.frsetnext.memoryhelper" "$HELPER_OUT" 2>&1 | tail -2
       if codesign -v "$HELPER_OUT" 2>/dev/null; then
         echo "  helper 签名 ✓"
       else
@@ -219,7 +225,7 @@ if [ -f "$OCR_H_DIR/main.swift" ]; then
     echo "  ✗ helper 的 ONNX 封装编译失败"
     exit 1
   fi
-  if swiftc -O -sdk "$SDK" -target arm64-apple-macosx13.0 -swift-version 5 \
+  if nice -n "$BUILD_NICE" swiftc -O -j "$SWIFT_JOBS" -sdk "$SDK" -target arm64-apple-macosx13.0 -swift-version 5 \
        -o "$OCR_H_OUT" \
        "$OCR_H_DIR/main.swift" "$OCR_H_DIR/LogStub.swift" \
        "$SRC/Features/Capture/OCR/PPOCROCR.swift" \
@@ -227,11 +233,7 @@ if [ -f "$OCR_H_DIR/main.swift" ]; then
        -import-objc-header "$OCR_H_DIR/ocr_bridge.h" \
        -framework AppKit -framework CoreGraphics 2>&1 | tail -10; then
     if [ -x "$OCR_H_OUT" ]; then
-      if security find-identity -v -p codesigning 2>/dev/null | grep -q "FrsetDev"; then
-        codesign --force -s "FrsetDev" -i "com.sxyq.frsetnext.ocrhelper" "$OCR_H_OUT" 2>&1 | tail -2
-      else
-        codesign --force -s - -i "com.sxyq.frsetnext.ocrhelper" "$OCR_H_OUT" 2>&1 | tail -2
-      fi
+      codesign --force -s "$SIGNING_IDENTITY" -i "com.sxyq.frsetnext.ocrhelper" "$OCR_H_OUT" 2>&1 | tail -2
       codesign -v "$OCR_H_OUT" 2>/dev/null && echo "  OCR helper 签名 ✓" || { echo "  ⚠ OCR helper 签名失败"; exit 1; }
       # 冒烟：无参数运行应返回用法错误（退出码 2），证明二进制能启动
       "$OCR_H_OUT" >/dev/null 2>&1; rc=$?
@@ -249,35 +251,19 @@ fi
 # 先签 Frameworks 里的动态库，再签 app——codesign 不会自动签嵌套 dylib，
 # 未签名的库在运行时会被系统拒绝加载（本地 OCR 会静默降级回 Vision）。
 if [ -f "$APP/Contents/Frameworks/libonnxruntime.dylib" ]; then
-  if security find-identity -v -p codesigning 2>/dev/null | grep -q "FrsetDev"; then
-    codesign --force -s "FrsetDev" "$APP/Contents/Frameworks/libonnxruntime.dylib" 2>&1 | tail -2
-  else
-    codesign --force -s - "$APP/Contents/Frameworks/libonnxruntime.dylib" 2>&1 | tail -2
-  fi
+  codesign --force -s "$SIGNING_IDENTITY" "$APP/Contents/Frameworks/libonnxruntime.dylib" 2>&1 | tail -2
   codesign -v "$APP/Contents/Frameworks/libonnxruntime.dylib" 2>/dev/null \
     && echo "  ONNX Runtime 签名 ✓" || echo "  ⚠ ONNX Runtime 签名失败"
 fi
 
 echo "== 签名 =="
-# v30（2026-10-18）：屏幕录制授权失效根因修复——必须用固定证书签，不能用 ad-hoc（-s -）。
-#   ad-hoc 的 designated requirement = cdhash（二进制内容哈希）：每次重新编译内容必变
-#   → TCC 授权记录对不上 → 系统认为未授权 → app 内 CGPreflightScreenCaptureAccess()
-#     返回 false → 弹"需要屏幕录制权限"（用户实障：授权了却又提示没授权）。
-#   自签证书 FrsetDev（钥匙串，2026-10-18 创建）的 requirement =
-#   identifier "com.sxyq.frsetnext" and certificate leaf=H"2efbee..."——与内容无关，
-#   授权一次后重建保留。证书创建方式见 docs/（openssl + keyUsage=digitalSignature
-#   + EKU=codeSigning + security add-trusted-cert -d）。
-if security find-identity -v -p codesigning 2>/dev/null | grep -q "FrsetDev"; then
-  codesign --force -s "FrsetDev" "$APP" 2>&1 | tail -2
-  if codesign -d --requirements - "$APP" 2>/dev/null | grep -q 'certificate leaf'; then
-    echo "  证书签名 ✓（TCC 授权跨构建保留）"
-  else
-    echo "  ⚠️ 证书签名未生效，requirement 仍为 cdhash——检查 FrsetDev 证书"
-  fi
-else
-  echo "  ⚠️⚠️ 钥匙串无 FrsetDev 证书，回退 ad-hoc 签名——**重新构建后屏幕录制授权将失效**！"
-  echo "  ⚠️ 恢复方法见 docs/（或跑 build.sh 旁的 make-cert 段）"
-  codesign --force -s - "$APP" 2>&1 | tail -2
+# v30/v32（2026-10-18）：主程序始终使用固定 FrsetDev 身份。旧 TCC 记录在身份迁移
+# 后需重新授权一次；之后构建不得改签名身份。
+codesign --force -s "$SIGNING_IDENTITY" "$APP" 2>&1 | tail -2
+ACTUAL_REQUIREMENT="$(codesign -d --requirements - "$APP" 2>&1 | sed -n 's/^designated => //p')"
+if [ "$ACTUAL_REQUIREMENT" != "$SIGNING_REQUIREMENT" ]; then
+  echo "✗ 主程序签名身份与已授权身份不符：$ACTUAL_REQUIREMENT"
+  exit 1
 fi
 
 # 签名有效性必须**显式复核**：codesign 的输出被 tail -2 截断，且「bundle 存在」不等于「已签名」
@@ -359,11 +345,7 @@ if ditto "$APP" "$DEPLOY_STAGE" 2>/dev/null; then
   # 的代码身份改成主 app 的 identifier（两个不同可执行文件不应共用身份）。
   # 只有复制导致封印失效时才补签（不带 --deep，helper 保留自身签名）。
   if ! codesign -v --deep --strict "$DEPLOY_STAGE" 2>/dev/null; then
-    if security find-identity -v -p codesigning 2>/dev/null | grep -q "FrsetDev"; then
-      codesign --force -s "FrsetDev" "$DEPLOY_STAGE" >/dev/null 2>&1
-    else
-      codesign --force -s - "$DEPLOY_STAGE" >/dev/null 2>&1
-    fi
+    codesign --force -s "$SIGNING_IDENTITY" "$DEPLOY_STAGE" >/dev/null 2>&1
   fi
   xattr -dr com.apple.quarantine "$DEPLOY_STAGE" 2>/dev/null || true
 

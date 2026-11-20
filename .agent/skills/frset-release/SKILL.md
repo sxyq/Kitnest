@@ -8,13 +8,20 @@ agent_created: true
 
 Kitnest（原名 FrsetNext，macOS 菜单栏工具）每次更改的固定收尾流程。顺序不可省：**改代码 → 构建部署 → 验证 → git 提交 → 重打 DMG → 本地重启 App**。
 
+## 授权与整机负载
+
+- `build.sh` 固定使用源码中指定的 FrsetDev 签名身份与 requirement；证书缺失或签名身份不符时停止构建，禁止临时签名回退。主程序、helper 与随包动态库共用该证书。
+- v30/v32 历史结论：从旧签名身份迁移后，TCC 不会自动改写旧授权记录，最终安装版需重新授权一次；此后保持同一身份，不能每次部署都要求用户授权。不要运行 `tccutil reset`。
+- 构建固定 no-WMO、Swift 并发 2、`nice -n 10`。本机 16GB 内存下完整构建不与其他完整构建并发；不得通过环境变量恢复 WMO 或提高并发。
+- 部署后查看 `ScreenshotManager` 启动日志中的屏幕录制权限状态；“已获得”且抓帧成功时保持授权状态，不再要求用户重复授权。
+
 ## 执行步骤
 
-1. **构建部署**（约 3 分钟，用后台任务跑）：
+1. **构建部署**（按本机负载约 3–9 分钟，串行运行）：
    ```bash
    /Users/sunyiyang/Desktop/Project/frset-rebuild/apps/FrsetNext/build.sh 2>&1 | grep -E "error:|✗|已部署" | head -6
    ```
-   验收：输出含「已部署(原子)」。失败则看 /tmp/frsetnext_build.log 的首个 error。构建期间不要并行编辑源文件（build/ 清理可能打断）。
+   验收：输出含「已部署(原子)」且签名 requirement 与 `build.sh` 固定值一致。失败则看 /tmp/frsetnext_build.log 的首个 error。构建期间不要并行编辑源文件（build/ 清理可能打断）。
 
 2. **验证**：按 `frset-verify` skill 的方法截图/探针确认改动生效。
 
