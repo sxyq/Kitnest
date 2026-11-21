@@ -304,9 +304,10 @@ NSArray<NSString *> *FSBarEnabledForms(NSString *module) {
 NSArray<NSString *> *FSBarPowerMetrics(NSDictionary *cfg) {
     NSArray *metrics = @[@"Power", @"CPUPower", @"GPUPower"];
     NSString *selected = cfg[@"Power_metrics"];
+    NSArray *selectedMetrics = [selected componentsSeparatedByString:@","];
     NSMutableArray *out = [NSMutableArray array];
     for (NSString *metric in metrics) {
-        BOOL enabled = selected != nil ? [[selected componentsSeparatedByString:@","] containsObject:metric]
+        BOOL enabled = selected != nil ? [selectedMetrics containsObject:metric]
                        : [cfg[[metric stringByAppendingString:@"_widget"]] length] > 0;
         if (enabled) [out addObject:metric];
     }
@@ -646,12 +647,8 @@ static double FSBarModuleValue(const FSSnap *s, NSString *module, NSString **str
 
 // 模块主值显示（mini/line 值标签用）：温度已带 °，百分比已带 %
 static NSString *FSBarModuleString(const FSSnap *s, NSString *module) {
-    NSString *str = nil, *suf = nil;
-    FSBarModuleValue(s, module, &str, &suf);
-    if ([module isEqualToString:@"CPU"] || [module isEqualToString:@"RAM"] ||
-        [module isEqualToString:@"Disk"] || [module isEqualToString:@"Battery"]) {
-        return [NSString stringWithFormat:@"%s", [str UTF8String]];   // 已是 "42%"
-    }
+    NSString *str = nil;
+    FSBarModuleValue(s, module, &str, NULL);
     return str;
 }
 
@@ -805,9 +802,8 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
 }
 
 - (double)primaryValue {
-    NSString *str = nil, *suf = nil;
     NSString *metric = [_module isEqualToString:@"Power"] ? FSBarPowerMetrics(_configuration ?: g_cfg).firstObject : _module;
-    return FSBarModuleValue(&_snap, metric, &str, &suf);
+    return FSBarModuleValue(&_snap, metric, NULL, NULL);
 }
 
 // 一组功耗共用双排几何；整机独占上排，CPU/GPU 同处下排。
@@ -879,9 +875,6 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
         CGFloat outWidth = [self speedValueWidth:(uint64_t)[self netOut]];
         CGFloat textWidth = display.length == 1 ? ([display isEqualToString:@"i"] ? inWidth : outWidth) :
             ([mode isEqualToString:@"oneRow"] ? inWidth + outWidth + FSBarConfigurationSpacing(_configuration ?: g_cfg) : MAX(inWidth, outWidth));
-        if (![mode isEqualToString:@"oneRow"]) {
-            return (iconOn ? 8 : 0) + gap + (value ? textWidth : 0);
-        }
         return (iconOn ? 8 : 0) + gap + (value ? textWidth : 0);
     }
     CGFloat gap = FSBarConfigurationSpacing(_configuration ?: g_cfg);
@@ -1040,8 +1033,9 @@ static NSMutableDictionary<NSString *, FSBarWidgetView *> *g_views = nil;   // "
     for (NSArray *row in rows) {
         CGFloat x = startX;
         for (NSString *metric in row) {
-            CGFloat width = FSBarNumberWidth([self powerText:metric value:FSBarModuleString(&_snap, metric)], 9, NSFontWeightRegular);
-            FSBarTextRect([self powerText:metric value:FSBarModuleString(&_snap, metric)], attrs,
+            NSString *text = [self powerText:metric value:FSBarModuleString(&_snap, metric)];
+            CGFloat width = FSBarNumberWidth(text, 9, NSFontWeightRegular);
+            FSBarTextRect(text, attrs,
                           NSMakeRect(x, y, width, rowHeight), NSTextAlignmentLeft);
             x += width + gap;
         }
