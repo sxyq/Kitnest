@@ -61,9 +61,18 @@ private struct HapticSettingsContent: View {
     }
 
     private var controls: some View {
-        SettingsSection("全局强度与试听") {
+        SettingsSection("总开关、强度与试听") {
             SettingsGroupBox {
                 VStack(alignment: .leading, spacing: 10) {
+                    // v270：总开关独立于强度——关掉后不再发任何触觉请求，场景选择保留。
+                    SettingsRow(title: "启用触觉反馈",
+                                subtitle: "关闭后所有业务事件都不再请求触觉；独立场景开关与强度会保留") {
+                        Toggle("启用触觉反馈", isOn: $draft.configuration.enabled)
+                            .labelsHidden()
+                            .toggleStyle(.switch)
+                            .controlSize(.small)
+                    }
+                    Divider().opacity(0.5)
                     HStack(spacing: 16) {
                         Picker("全局强度", selection: $draft.configuration.intensity) {
                             ForEach(HapticIntensity.allCases, id: \.self) { intensity in
@@ -73,31 +82,46 @@ private struct HapticSettingsContent: View {
                         .pickerStyle(.segmented)
                         .labelsHidden()
                         .frame(width: 240)
-                        Button("试听当前强度") {
-                            HapticFeedback.preview(draft.configuration.intensity)
-                        }
-                        .disabled(draft.configuration.intensity == .off)
+                        .disabled(!draft.configuration.enabled)
                         Spacer(minLength: 0)
                     }
                     HStack(spacing: 12) {
-                        Picker("试听场景", selection: $previewEvent) {
+                        Picker("模拟场景", selection: $previewEvent) {
                             ForEach(HapticEvent.allCases, id: \.self) { event in
                                 Text(event.setting.title).tag(event)
                             }
                         }
                         .frame(width: 260)
-                        Button("试听所选场景") {
-                            HapticFeedback.preview(draft.configuration.intensity)
+                        Button("模拟所选场景") {
+                            HapticFeedback.simulate(event: previewEvent,
+                                                    intensity: draft.configuration.intensity)
                         }
-                        .disabled(draft.configuration.intensity == .off || !draft.configuration.isEnabled(previewEvent))
+                        .disabled(!draft.configuration.enabled
+                                  || draft.configuration.intensity == .off
+                                  || !draft.configuration.isEnabled(previewEvent))
                         Spacer(minLength: 0)
                     }
-                    Text("系统模式：\(draft.configuration.intensity.systemMode)")
-                        .font(.system(size: 11)).foregroundStyle(.secondary)
+                    // 明确告诉用户：这里只是模拟系统模式，不代表业务动作发生，也不代表硬件已确认。
+                    Text(sceneStatusLine)
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(.vertical, 6)
             }
         }
+    }
+
+    /// 当前选中场景的真实状态：是否启用、会用哪种系统模式、以及为什么可能没感觉。
+    private var sceneStatusLine: String {
+        let config = draft.configuration
+        let mode = config.intensity.systemMode
+        if !config.enabled { return "\(previewEvent.setting.title)：总开关已关闭，不会发出触觉请求。" }
+        if !config.isEnabled(previewEvent) { return "\(previewEvent.setting.title)：该场景已关闭，业务发生时不会触发。" }
+        if config.intensity == .off { return "\(previewEvent.setting.title)：强度为「关闭」，不会发出触觉请求。" }
+        return "\(previewEvent.setting.title)：已启用 · 模拟模式 \(mode)。"
+            + "「模拟所选场景」只发一次与强度对应的系统模式，不执行任何业务动作；"
+            + "系统不返回硬件是否振动的结果，能否感觉到取决于触控板与系统设置。"
     }
 
     private var usage: some View {
@@ -105,10 +129,10 @@ private struct HapticSettingsContent: View {
             VStack(alignment: .leading, spacing: 12) {
                 Label("Force Touch 触控板", systemImage: "hand.tap")
                     .font(.system(size: 12, weight: .medium))
-                Text("请将手指放在支持触觉反馈的触控板上试听；实际触感由系统和设备决定。")
+                Text("请将手指放在支持触觉反馈的触控板上模拟；实际触感由系统和设备决定。")
                 Text("轻、中、强分别对应对齐、通用、档位变化三种系统模式；系统不提供连续振幅调节。")
-                Text("每项开关独立保存，强度统一跟随全局。关闭全局反馈后，场景选择仍会保留。")
-                Text("保存后应用于实际操作；试听使用当前草稿。")
+                Text("总开关、每项场景开关与强度都会影响真实业务事件；保存后立即生效。")
+                Text("「模拟所选场景」只验证系统模式是否有请求发出，不能证明业务动作成功，也不能证明你确实感觉到了振动。")
             }
             .font(.system(size: 11))
             .foregroundStyle(.secondary)

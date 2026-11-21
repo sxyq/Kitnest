@@ -127,7 +127,7 @@ enum SettingsPage: Hashable {
     var group: SettingsGroup? { self == .manual ? nil : SettingsGroup.group(of: self) }
     var openHint: String? {
         switch canonical {
-        case .haptics: return "全局强度与独立场景开关；试听当前草稿，保存后应用"
+        case .haptics: return "总开关、全局强度与独立场景开关；模拟试听当前草稿，保存后应用"
         case .generalStart: return "启动与语言保存后生效；系统关联与授权单独操作"
         case .generalNotifications: return "复制、截图完成后显示；重播只作用于模拟通知"
         case .permissions: return "查看真实授权状态；系统授权为即时操作"

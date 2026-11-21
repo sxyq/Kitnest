@@ -14,6 +14,9 @@ final class IslandController: NSObject, ObservableObject {
         didSet { if expanded { showingContent = true } }
     }
     @Published private(set) var showingContent = false
+    /// v270：正文独立透明度。外壳先起形（延后 80ms），正文再用 220ms 淡入；
+    /// 收起时正文 120ms 先淡出，外壳 300ms 随后收拢——避免文字在窄剪裁区里被挤压。
+    @Published private(set) var contentOpacity: CGFloat = 0
     @Published var page = IslandPage.home {
         didSet {
             if configuration.visiblePages.contains(oldValue) { returnPage = oldValue }
@@ -25,6 +28,8 @@ final class IslandController: NSObject, ObservableObject {
     }
     private(set) var returnPage = IslandPage.home
     @Published var componentPage = 0
+    /// v270：页面切换方向（+1 右→左、-1 左→右），只用于内容过渡的 12pt 横移。
+    @Published private(set) var pageSlide = 0
     @Published private(set) var componentPageCount = 1
     @Published var selectedRecord: String?
     @Published var selectedTool: String?
@@ -141,9 +146,13 @@ final class IslandController: NSObject, ObservableObject {
             max(1, Int((effectiveHeight - 176 + 8) / 120)))
     }
 
+    // v270（参考 NotchKit motion.md）：展开只给外壳适度弹性，收起单调退场。
+    // 旧的 0.46/0.94 全程高阻尼＋内容同步渐显，观感「笨重」；0.28/1 收起会在末端顿一下。
     func surfaceAnimation(reduceMotion: Bool) -> Animation? {
         if previewOnly && !previewVisible { return nil }
-        return reduceMotion ? .easeOut(duration: 0.12) : .interactiveSpring(response: expanded ? 0.46 : 0.28, dampingFraction: expanded ? 0.94 : 1, blendDuration: 0)
+        guard !reduceMotion else { return .easeOut(duration: 0.12) }
+        return expanded ? .spring(response: 0.42, dampingFraction: 0.80)
+                        : .smooth(duration: 0.30)
     }
 
     private var hidesCollapsedSurface: Bool {
@@ -248,6 +257,7 @@ final class IslandController: NSObject, ObservableObject {
         if editingLayout { return }
         let pages = configuration.visiblePages
         let index = pages.firstIndex(of: page) ?? pages.firstIndex(of: returnPage) ?? 0
+        pageSlide = step >= 0 ? 1 : -1
         selectPage(pages[(index + step + pages.count) % pages.count])
     }
 
@@ -257,6 +267,10 @@ final class IslandController: NSObject, ObservableObject {
 
     func selectPage(_ requested: IslandPage, remember: Bool = true) {
         let page = configuration.visiblePages.contains(requested) ? requested : (configuration.visiblePages.first ?? .home)
+        let pages = configuration.visiblePages
+        if let from = pages.firstIndex(of: self.page), let to = pages.firstIndex(of: page), from != to {
+            pageSlide = to > from ? 1 : -1
+        }
         self.page = page
         returnPage = page
         if remember { rememberPage(page) }
@@ -294,7 +308,49 @@ final class IslandController: NSObject, ObservableObject {
         if componentPage >= count { componentPage = count - 1 }
     }
 
-    func goBack() { selectPage(returnPage) }
+    func goBack() {
+        selectPage(returnPage)
+        feedback = "左右滑动切页 · 编辑布局可调整组件"
+    }
+
+    // MARK: 监测指标详情（v270）
+
+    /// 详情页可切换的模块顺序：与 IslandMonitorFullContent 共用同一份，
+    /// 避免「卡片点进去的指标」和「详情里排的顺序」两套。
+    var monitorDetailOrder: [MonitorModuleID] {
+        var order = metricOrder.compactMap { MonitorModuleID(rawValue: $0.rawValue) }
+        let index = order.firstIndex(of: .power) ?? order.count
+        order.insert(contentsOf: [.disk, .sensors], at: index)
+        return order
+    }
+
+    /// 首页监测卡点击 → 直接打开该指标详情（不经过泛化面板）。
+    func openMonitorDetail(_ metric: IslandMetric) {
+        guard let module = MonitorModuleID(rawValue: metric.rawValue) else { return }
+        selectedMetric = metric
+        MonitorCenterPresenter.shared.monitorSelection.module = module
+        if !expanded { expand(takeFocus: true, useOpeningPage: false) }
+        pageSlide = 1
+        page = .monitor          // page.didSet 会记录来源页；goBack() 回得去
+        feedback = "左右切换指标 · Esc 返回上一页"
+        HapticFeedback.perform(.gridMove)
+    }
+
+    /// 详情内左右切换指标。作用域优先于整页切换。
+    func stepMonitorDetail(_ step: Int) {
+        let order = monitorDetailOrder
+        guard !order.isEmpty else { return }
+        let current = MonitorCenterPresenter.shared.monitorSelection.module
+        let index = order.firstIndex(of: current) ?? 0
+        let next = order[min(max(index + step, 0), order.count - 1)]
+        guard next != current else { return }
+        MonitorCenterPresenter.shared.monitorSelection.module = next
+        if let metric = IslandMetric(rawValue: next.rawValue) { selectedMetric = metric }
+        HapticFeedback.perform(.gridMove)   // 离散切换才发一次，不跟手连续触发
+    }
+
+    /// 当前是否处在「指标详情」这类非 tab 页面（Esc 先返回，再收起）。
+    var isInDetailPage: Bool { !IslandPage.tabs.contains(page) }
 
     func resumeAfterOutside() { open() }
 
@@ -603,13 +659,24 @@ final class IslandController: NSObject, ObservableObject {
             if !previewOnly { selection = AppBootstrap.readSelection() }
             refreshClipboard()
             showingContent = true
+            contentOpacity = 0
             if !previewOnly { position(); panel?.orderFrontRegardless() }
             expanded = true
             revealedEntryID = nil
             if !previewOnly { refreshEntries() }
+            revealContent(after: 0.08)
         }
         hoverArmed = false
         if takeFocus { panel?.makeKeyAndOrderFront(nil) }
+    }
+
+    /// 延后淡入正文；期间再次收起会被 guard 拦下，不会把已收起的正文又点亮。
+    private func revealContent(after delay: TimeInterval) {
+        guard !previewOnly else { contentOpacity = 1; return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self, self.expanded else { return }
+            withAnimation(.easeOut(duration: 0.22)) { self.contentOpacity = 1 }
+        }
     }
 
     func collapse() {
@@ -620,6 +687,8 @@ final class IslandController: NSObject, ObservableObject {
         hoverWork?.cancel()
         hoverWork = nil
         openedExplicitly = false
+        // 正文先退场（120ms），外壳再收（surfaceAnimation 300ms）。
+        if !previewOnly { withAnimation(.easeOut(duration: 0.12)) { contentOpacity = 0 } }
         expanded = false
         entryHoverID = nil
         entryHoverWork?.cancel(); entryHoverWork = nil
@@ -710,7 +779,10 @@ final class IslandController: NSObject, ObservableObject {
                     self.horizontalScroll += event.scrollingDeltaX
                     if !self.didSwipe, abs(self.horizontalScroll) > 36 {
                         let step = self.horizontalScroll < 0 ? 1 : -1
-                        if (self.page == .home || self.page == .custom) && self.componentPageCount > 1 {
+                        if self.page == .monitor {
+                            // 详情横滑 = 切指标，绝不整页跳走（两种作用域分开）
+                            self.stepMonitorDetail(step)
+                        } else if (self.page == .home || self.page == .custom) && self.componentPageCount > 1 {
                             self.turnComponentPage(step)
                         } else { self.turnPage(step) }
                         self.didSwipe = true
@@ -867,7 +939,9 @@ final class IslandPanel: NSPanel {
     override var canBecomeMain: Bool { false }
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if event.keyCode == 53, event.type == .keyDown {
-            IslandController.shared.collapse()
+            // v270：详情页 Esc 先回上一页，再按一次才收起。
+            if IslandController.shared.isInDetailPage { IslandController.shared.goBack() }
+            else { IslandController.shared.collapse() }
             return true
         }
         if event.modifierFlags.contains(.command), event.charactersIgnoringModifiers == "o" {
@@ -875,7 +949,9 @@ final class IslandPanel: NSPanel {
             return true
         }
         if event.modifierFlags.contains(.option), event.keyCode == 123 || event.keyCode == 124 {
-            IslandController.shared.turnPage(event.keyCode == 123 ? -1 : 1)
+            let step = event.keyCode == 123 ? -1 : 1
+            if IslandController.shared.page == .monitor { IslandController.shared.stepMonitorDetail(step) }
+            else { IslandController.shared.turnPage(step) }
             return true
         }
         let visiblePages = IslandController.shared.configuration.visiblePages
