@@ -160,8 +160,6 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
     public let state = FloatingClipboardPinState.shared
     public let store = FloatingClipboardStore()
     private var didRestoreVisibility = false
-    /// v198：收回动画进行中（重复 hide 不重播）
-    private var isHiding = false
 
     private init() {
         FloatingClipboardPinState.shared.migrateLayoutIfNeeded()
@@ -217,7 +215,6 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
     public func show() {
         Log.info("Clipboard", "悬浮工作台 show（visible -> true）")
         revealGeneration += 1          // 让上一轮收起的 completion/计时器失效
-        isHiding = false
         store.setVisible(true)
         FloatingClipDeskStore.shared.reload()
         // v201：只在尺寸真的变化时才 setFrame——启动恢复时窗口已按同一 frame 创建，
@@ -240,10 +237,8 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
             guard let self, token == self.revealGeneration else { return }
             w?.orderOut(nil)
             if let w { WindowReveal.reset(w) }
-            self.isHiding = false
             completion?()
         }
-        isHiding = true
     }
 
     public func toggle() {
@@ -398,13 +393,3 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
         if let mouseMonitor { NSEvent.removeMonitor(mouseMonitor) }
     }
 }
-
-// MARK: - 浮动窗内容（SwiftUI）
-
-/// 浮动窗内容：最近条目列表 + 底部工具条（对齐原版 ClipboardFilterBarView，2026-10-18 实机核验）。
-/// 原版悬浮窗**没有标题栏**，底部悬浮条从左到右：🔍 搜索剪贴板 / ✏️ 编辑 / 📌 钉住 / ↑ 回到顶部。
-/// 行交互 = 单击预览、双击粘贴（specs/14 F9）
-
-/// 浮动窗行：紧凑单行（缩略图 28pt + 一行摘要）
-/// 行交互（specs/14 F9/C9，whatsNew 实证 `0xb57d56`）：**单击=预览、双击=粘贴**；
-/// 悬停预览走协调器 `.floatingPreview` 源（总开关 hoverPreviewInFloatingClipboardEnabled）。
