@@ -600,17 +600,18 @@ public final class StatsDataProvider {
             } else {
                 key = path
             }
-            var acc = groups[key] ?? Acc()
-            if acc.displayName.isEmpty {
-                acc.displayName = bundle.map { appDisplayName(bundle: $0) }
+            // 在字典内追加，避免局部 Acc 与字典共享 kids 时逐次复制已有子进程。
+            if groups[key, default: Acc()].displayName.isEmpty {
+                groups[key, default: Acc()].displayName = bundle.map { appDisplayName(bundle: $0) }
                     ?? String(cString: FSStatsProcName(&item))
-                acc.iconPath = bundle ?? path
+                groups[key, default: Acc()].iconPath = bundle ?? path
             }
-            acc.cpu += item.cpu; acc.mem += item.mem
-            acc.r += item.disk_r; acc.w += item.disk_w
-            acc.kids.append(ChildRec(idx: i, pid: item.pid,
-                                     cpu: item.cpu, mem: item.mem, r: item.disk_r, w: item.disk_w))
-            groups[key] = acc
+            groups[key, default: Acc()].cpu += item.cpu
+            groups[key, default: Acc()].mem += item.mem
+            groups[key, default: Acc()].r += item.disk_r
+            groups[key, default: Acc()].w += item.disk_w
+            groups[key, default: Acc()].kids.append(ChildRec(idx: i, pid: item.pid,
+                cpu: item.cpu, mem: item.mem, r: item.disk_r, w: item.disk_w))
         }
         // 组内子进程按当前维度降序（同样分桶，避免展开后行序抖动）
         func sortChildren(_ list: inout [StatsProcItem]) {

@@ -141,17 +141,18 @@ public final class NetworkFlowTracker {
             // 速率 × 间隔 = 这一档里该 App 实际收发的字节
             let downBytes = downRate * interval
             let upBytes = upRate * interval
-            guard downBytes + upBytes > 0 || apps[item.groupKey] != nil else { continue }
-            var state = apps[item.groupKey] ?? AppState(name: item.name,
-                                                        iconPath: item.iconPath,
-                                                        liveDown: 0, liveUp: 0,
-                                                        samples: [])
-            state.name = item.name
-            if !item.iconPath.isEmpty { state.iconPath = item.iconPath }
-            state.liveDown = downRate
-            state.liveUp = upRate
-            state.samples.append(Sample(at: t, down: downBytes, up: upBytes))
-            apps[item.groupKey] = state
+            let key = item.groupKey
+            guard downBytes + upBytes > 0 || apps[key] != nil else { continue }
+            if apps[key] == nil {
+                apps[key] = AppState(name: item.name, iconPath: item.iconPath,
+                                     liveDown: 0, liveUp: 0, samples: [])
+            }
+            apps[key]?.name = item.name
+            if !item.iconPath.isEmpty { apps[key]?.iconPath = item.iconPath }
+            apps[key]?.liveDown = downRate
+            apps[key]?.liveUp = upRate
+            // 直接追加到字典内的数组，避免每次读取局部 state 后复制整段历史。
+            apps[key]?.samples.append(Sample(at: t, down: downBytes, up: upBytes))
             if apps.count > 200 { trimApps() }
         }
         prune(t)
