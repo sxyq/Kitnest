@@ -419,22 +419,16 @@ public struct ClipboardTableHostView: NSViewRepresentable {
     /// 页面是否激活（非主页 = 面板切到性能监测/中转站时禁用 hover 追踪，防幽灵预览）
     var isActive: Bool = true
     var onCopy: (ClipboardItem) -> Void
-    var onEdit: (ClipboardItem) -> Void
-    var onSummarize: (ClipboardItem) -> Void
 
     public init(manager: ClipboardManager,
                 scrollProxy: ClipboardTableScrollProxy,
                 isActive: Bool = true,
                 onCopy: @escaping (ClipboardItem) -> Void,
-                onEdit: @escaping (ClipboardItem) -> Void,
-                onSummarize: @escaping (ClipboardItem) -> Void,
                 personalization: Personalization = .shared) {
         self.manager = manager
         self.scrollProxy = scrollProxy
         self.isActive = isActive
         self.onCopy = onCopy
-        self.onEdit = onEdit
-        self.onSummarize = onSummarize
         self.personalization = personalization
     }
 
@@ -608,8 +602,6 @@ public struct ClipboardTableHostView: NSViewRepresentable {
                     item: item,
                     isHighlighted: hovered,
                     onCopy: { self.owner.onCopy(item) },
-                    onEdit: { self.owner.onEdit(item) },
-                    onSummarize: { self.owner.onSummarize(item) },
                     personalization: self.owner.personalization
                 ))
             }

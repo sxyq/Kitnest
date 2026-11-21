@@ -25,7 +25,6 @@ public struct ClipboardSectionView: View {
     ///  仍在接收 mouseMoved，会在性能页/中转站页上误弹预览）
     @ObservedObject private var pagePresenter = MonitorCenterPresenter.shared
 
-    @Stored private var summaryState = SummaryState()
     // 注意：裸 swiftc 自检无 SwiftUIMacros 插件，@State 不可用（CONTRACT §7.4）→ 用 @Stored
     @Stored private var scrollProxy = ClipboardTableScrollProxy()
 
@@ -89,11 +88,6 @@ public struct ClipboardSectionView: View {
             ServiceLocator.panelPreview?.prepareForPanelAppear()
             manager.reload(reset: true)
         }
-        .alert(summaryState.title, isPresented: $summaryState.isPresented) {
-            Button("好") { summaryState.reset() }
-        } message: {
-            Text(summaryState.message)
-        }
     }
 
     // MARK: 头部
@@ -130,7 +124,7 @@ public struct ClipboardSectionView: View {
                 LazyVStack(spacing: 2) {
                     ForEach(displayedPreviewItems) { item in
                         ClipboardRow(item: item, isHighlighted: item.id == (previewSelection?.wrappedValue ?? previewSelectedID),
-                                     onCopy: { selectPreview(item) }, onEdit: { selectPreview(item) }, onSummarize: { selectPreview(item) },
+                                     onCopy: { selectPreview(item) },
                                      personalization: effectivePersonalization)
                             .frame(height: appearance.statsRowHeight)
                             .contentShape(Rectangle())
@@ -163,10 +157,6 @@ public struct ClipboardSectionView: View {
                                        scrollProxy: scrollProxy,
                                        isActive: isPageActive,
                                        onCopy: { manager.copy($0) },
-                                       onEdit: { ClipboardItemEditWindowRecord.open(for: $0) },
-                                       onSummarize: { item in
-                                           Task { await runSummary(for: item) }
-                                       },
                                        personalization: effectivePersonalization)
                     // v91（2026-10-20 用户：「日历与剪贴板没有统一宽度」）：
                     // 此前只锁高度，NSScrollView 的固有宽度参与布局 → 表格比
@@ -176,31 +166,6 @@ public struct ClipboardSectionView: View {
         }
     }
 
-    // MARK: AI 摘要
-
-    private func runSummary(for item: ClipboardItem) async {
-        do {
-            let summary = try await ClipboardSummaryExecutionCoordinator.shared.summarize(item)
-            summaryState.show(title: "AI 摘要", message: summary)
-        } catch {
-            summaryState.show(title: "摘要失败", message: error.localizedDescription)
-        }
-    }
-}
-
-// MARK: - 摘要提示状态
-
-private struct SummaryState {
-    var isPresented = false
-    var title = ""
-    var message = ""
-
-    mutating func show(title: String, message: String) {
-        self.title = title; self.message = message; self.isPresented = true
-    }
-    mutating func reset() {
-        self.title = ""; self.message = ""; self.isPresented = false
-    }
 }
 
 // MARK: - 过滤栏（05 号规格 1.3 + specs/14 §3.6：九类型项 + 回顶按钮）
@@ -445,21 +410,16 @@ public struct ClipboardRow: View {
     /// 是否处于 hover 高亮态（由表格宿主设置）
     public let isHighlighted: Bool
     public let onCopy: () -> Void
-    public let onEdit: () -> Void
-    public let onSummarize: () -> Void
 
     @ObservedObject private var tagStore = TagStore.shared
 
     public init(item: ClipboardItem,
                 isHighlighted: Bool,
                 onCopy: @escaping () -> Void,
-                onEdit: @escaping () -> Void,
-                onSummarize: @escaping () -> Void,
                 personalization: Personalization = .shared) {
         self.item = item
         self.isHighlighted = isHighlighted
-        self.onCopy = onCopy; self.onEdit = onEdit
-        self.onSummarize = onSummarize
+        self.onCopy = onCopy
         self.personalization = personalization
     }
 

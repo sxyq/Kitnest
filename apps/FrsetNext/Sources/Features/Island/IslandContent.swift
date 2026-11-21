@@ -605,7 +605,7 @@ private struct IslandRecentRow: View, Identifiable {
 
 
     var body: some View {
-        ClipboardRow(item: previewItem, isHighlighted: false, onCopy: {}, onEdit: {}, onSummarize: {})
+        ClipboardRow(item: previewItem, isHighlighted: false, onCopy: {})
     }
 }
 
