@@ -42,26 +42,26 @@ Core,Core/Motion/GenieMesh.swift,-,genieSubdivide,func,171,KEEP,2026-11-19：已
 Core,Core/Motion/GenieMesh.swift,-,genieBuild,func,226,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；genieMesh:302,332 调用"
 Core,Core/Motion/GenieMesh.swift,-,genieMesh,func,275,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；GenieWarp.swift:64 渲染主路径
 Core,Core/Motion/GenieMesh.swift,-,geniePhases,func,336,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；GenieWarp.swift:371 时序日志
-Core,Core/Motion/GenieWarp.swift,GenieFrameRenderer,render,func,29,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:307,318 逐帧预渲染"
-Core,Core/Motion/GenieWarp.swift,GenieFrameRenderer,drawTriangle,func,129,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；render:116,119 拆两三角形"
-Core,Core/Motion/GenieWarp.swift,GenieWarp,duration,func,216,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；把已有配置0.18/0.22/0.28秒按min(0.44,max(0.28,0.28+(configured-0.18)))映射为280/320/380ms，开合共用此播放时长，输出限制为280…440ms"
-Core,Core/Motion/GenieWarp.swift,GenieWarp,playIn,func,235,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；PanelController.swift:273 调用
-Core,Core/Motion/GenieWarp.swift,GenieWarp,playOut,func,243,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；PanelController.swift:362 调用
-Core,Core/Motion/GenieWarp.swift,GenieWarp,cancel,func,248,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；PanelController:207,342 / play:258"
-Core,Core/Motion/GenieWarp.swift,GenieWarp,play,func,267,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；playIn与playOut共用入口；同一窗口反向请求交switchDirection复用现有帧序列，新动画采用probe.genieDuration或duration(for:)并预渲染后交startLeg；现有展开/收起日志追加self.duration×1000的实际播放毫秒
-Core,Core/Motion/GenieWarp.swift,GenieWarp,currentPosition,func,472,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v244 反向播放：当前播放位置
-Core,Core/Motion/GenieWarp.swift,GenieWarp,startLeg,func,480,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v244 新增：从指定帧播一腿，playIn/playOut/switchDirection 调用
-Core,Core/Motion/GenieWarp.swift,GenieWarp,switchDirection,func,528,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v244 新增：反向复用帧序列；play() 打断分支调用
-Core,Core/Motion/GenieWarp.swift,GenieWarp,stopWatchdog,func,543,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；cancel:227 / finish:413
-Core,Core/Motion/GenieWarp.swift,GenieWarp,finish,func,548,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；watchdog Timer:399 回调
-Core,Core/Motion/GenieWarp.swift,GenieWarp,teardownOverlay,func,581,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；cancel:228 / finish:417
-Core,Core/Motion/GenieWarp.swift,GenieWarp,isBlank,func,590,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v246 空白帧兜底
-Core,Core/Motion/GenieWarp.swift,GenieWarp,easeExponent,func,609,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v244 新增：缓动指数读取，帧采样循环外调用
-Core,Core/Motion/GenieWarp.swift,GenieWarp,pixelScale,func,616,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:291,300 帧内存预算"
-Core,Core/Motion/GenieWarp.swift,GenieWarp,downscale,func,625,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:293 快照降采样
-Core,Core/Motion/GenieWarp.swift,GenieWarp,heldProgress,func,639,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:305 probe.genieHold 定格
-Core,Core/Motion/GenieWarp.swift,GenieWarp,snapshot,func,645,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:246,251 抓窗口快照"
-Core,Core/Motion/GenieWarp.swift,GenieWarp,local,func,671,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:273,274 坐标换算"
+Core,Core/Motion/GenieWarp.swift,GenieFrameRenderer,render,func,29,KEEP,2026-11-21：play按12–48帧调用；每网格行以integral源矩形裁切同一CGImage，直接绘制两片三角形，不再逐行生成临时裁剪图
+Core,Core/Motion/GenieWarp.swift,GenieFrameRenderer,drawTriangle,func,132,KEEP,2026-11-21：render传入原快照与该行源区域；仿射变换后按源矩形和目标三角形双重裁切，保持相邻梯形片覆盖
+Core,Core/Motion/GenieWarp.swift,GenieWarp,duration,func,221,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；把已有配置0.18/0.22/0.28秒按min(0.44,max(0.28,0.28+(configured-0.18)))映射为280/320/380ms，开合共用此播放时长，输出限制为280…440ms"
+Core,Core/Motion/GenieWarp.swift,GenieWarp,playIn,func,240,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；PanelController.swift:273 调用
+Core,Core/Motion/GenieWarp.swift,GenieWarp,playOut,func,248,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；PanelController.swift:362 调用
+Core,Core/Motion/GenieWarp.swift,GenieWarp,cancel,func,253,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；PanelController:207,342 / play:258"
+Core,Core/Motion/GenieWarp.swift,GenieWarp,play,func,272,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；playIn与playOut共用入口；同一窗口反向请求交switchDirection复用现有帧序列，新动画采用probe.genieDuration或duration(for:)并预渲染后交startLeg；现有展开/收起日志追加self.duration×1000的实际播放毫秒
+Core,Core/Motion/GenieWarp.swift,GenieWarp,currentPosition,func,477,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v244 反向播放：当前播放位置
+Core,Core/Motion/GenieWarp.swift,GenieWarp,startLeg,func,485,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v244 新增：从指定帧播一腿，playIn/playOut/switchDirection 调用
+Core,Core/Motion/GenieWarp.swift,GenieWarp,switchDirection,func,533,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v244 新增：反向复用帧序列；play() 打断分支调用
+Core,Core/Motion/GenieWarp.swift,GenieWarp,stopWatchdog,func,548,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；cancel:227 / finish:413
+Core,Core/Motion/GenieWarp.swift,GenieWarp,finish,func,553,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；watchdog Timer:399 回调
+Core,Core/Motion/GenieWarp.swift,GenieWarp,teardownOverlay,func,586,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；cancel:228 / finish:417
+Core,Core/Motion/GenieWarp.swift,GenieWarp,isBlank,func,595,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v246 空白帧兜底
+Core,Core/Motion/GenieWarp.swift,GenieWarp,easeExponent,func,614,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v244 新增：缓动指数读取，帧采样循环外调用
+Core,Core/Motion/GenieWarp.swift,GenieWarp,pixelScale,func,621,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:291,300 帧内存预算"
+Core,Core/Motion/GenieWarp.swift,GenieWarp,downscale,func,630,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:293 快照降采样
+Core,Core/Motion/GenieWarp.swift,GenieWarp,heldProgress,func,644,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:305 probe.genieHold 定格
+Core,Core/Motion/GenieWarp.swift,GenieWarp,snapshot,func,650,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:246,251 抓窗口快照"
+Core,Core/Motion/GenieWarp.swift,GenieWarp,local,func,676,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:273,274 坐标换算"
 Core,Core/Motion/PanelMotion.swift,PanelMotion,animation,func,34,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v243 新增：PanelRootView:704/735、MonitorDetailView:101 调用
 Core,Core/Motion/PanelMotion.swift,PanelMotion,transition,func,39,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v243 新增：panel 四处 page transition 调用
 Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,init,init,31,KEEP,2026-11-20：私有构造仅供shared单例，原启动轮询与手动更新共用同一清单及待安装交接
