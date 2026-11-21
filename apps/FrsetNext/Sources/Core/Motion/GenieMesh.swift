@@ -42,7 +42,6 @@ enum GenieEdge {
 
 /// 网格结果：columns × rows 个顶点，每顶点 4 个 CGFloat（local x, local y, screen x, screen y）
 struct GenieMesh {
-    var columns: Int
     var rows: Int
     var points: [CGFloat]
 
@@ -268,8 +267,8 @@ private func genieBuild(_ buffer: [CGFloat],
         }
     }
     return vertical
-        ? GenieMesh(columns: 2, rows: count, points: points)
-        : GenieMesh(columns: count, rows: 2, points: points)
+        ? GenieMesh(rows: count, points: points)
+        : GenieMesh(rows: 2, points: points)
 }
 
 /// progress：0 = 完整窗口，1 = 完全收进图标
