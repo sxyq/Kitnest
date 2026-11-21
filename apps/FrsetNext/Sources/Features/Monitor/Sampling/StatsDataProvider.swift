@@ -535,17 +535,15 @@ public final class StatsDataProvider {
     /// 抬高输出上限不增加扫描成本，却能保证「聚合后的排名」完整（大 App 不再被 64 截断）。
     ///
     /// v191：`private` → 模块内可见。网络常驻统计（NetworkFlowTracker 的后台节拍）
-    /// 需要在不打开监测页时也读 nettop 缓存；procBuffer 本身有锁，两个调用方串行安全。
+    /// 需要在不打开监测页时也读 nettop 缓存；两个调用方均在 MonitorSampler 采样队列执行。
     static func readProcList(kind: Int, max: Int) -> [StatsProcItem] {
         // v129（内存）：sampleMax 640→512——C 层 FRSET_PROC_CAP=512（v128 起），
         // 640 的输出缓冲纯浪费：每次调用 640×612B≈392KB → 313KB，且每周期
         // 3 kind + 1 net 共 4 次调用（峰值 152MB 的 churn 源之一）。
         // 输出缓冲改静态复用：313KB 每周期 4 次 malloc/free 是 malloc zone
         // 碎片化的主要推手（footprint 里表现为 non-object 小块+脏页滞留）；
-        // refresh 与 NetworkFlowTracker 共用此缓冲和上轮组序，整段聚合持锁。
+        // refresh 与 NetworkFlowTracker 在同一采样队列共用此缓冲和上轮组序。
         let sampleMax = 512   // 恒等于 procBuffer 容量（C 层 FRSET_PROC_CAP=512 也截断在此）
-        procBufferLock.lock()
-        defer { procBufferLock.unlock() }
         let ptr = procBuffer
         // kind 3 = 网络：走 nettop 后台差分（frset_net_top，字段 disk_r/disk_w = 下载/上传）
         let n = (kind == 3) ? frset_net_top(ptr, Int32(sampleMax))
@@ -664,12 +662,11 @@ public final class StatsDataProvider {
         return result
     }
 
-    /// 各指标的上一轮组序；与进程缓冲共用 procBufferLock。
+    /// 各指标的上一轮组序；只在 MonitorSampler 采样队列访问。
     private static var lastOrders: [Int: [String: Int]] = [:]
 
     // v129（内存）：frset_proc_t 输出缓冲静态复用（512×612B≈313KB，见 readProcList）
     private static let procBuffer = UnsafeMutablePointer<frset_proc_t>.allocate(capacity: 512)
-    private static let procBufferLock = NSLock()
 
     /// 可执行路径 → 宿主 `.app` 路径，截到第一个 ".app" 为止。
     /// 例：`/Applications/Google Chrome.app/Contents/Frameworks/…/Helper` → `/Applications/Google Chrome.app`

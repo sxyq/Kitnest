@@ -2486,31 +2486,31 @@ Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,rate,func,41
 Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,clamp,func,420,KEEP,2026-11-20：CPU、内存压力和电池利用率使用共同的0至1范围，避免非有限值进入显示
 Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,uint64Value,func,425,KEEP,2026-11-20：从 IOKit Statistics 中读取读写累计字节，并桥接 NSNumber 或 UInt64；缺值为零
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,History,init,init,36,KEEP,2026-11-20：为空时发布初始历史，构建两份快照缓存及清空历史后的空快照；图表按字段读取
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setIslandActive,func,64,KEEP,2026-11-20：IslandContent 仅正式监测组件可见时更新此位，离开关闭；变化后重排定时并在进入时立即请求一帧
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setPanelActive,func,71,KEEP,2026-11-20：MonitorPopoutWindow 显示标记可见，面板收起和关闭清除此位；不改变主面板状态
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setHomePanelActive,func,82,KEEP,2026-11-20：PanelController 的性能页与主面板退出分别设置进入和离开，不改变监测独立窗状态
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setSettingsActive,func,89,KEEP,2026-11-20：SettingsWindowController 按遮挡通知报告监测设置页可见，StatusBarController 退出时清除此位
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,init,init,114,KEEP,2026-11-20：shared 唯一构造；主队列接收保存、导入及恢复默认的原偏好通知，同时重排监测采样和后台流量定时器
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,deinit,deinit,127,KEEP,2026-11-20：释放时移除偏好通知观察者并取消尚未执行的定时采样项
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,start,func,134,KEEP,2026-11-20：MonitorModule 启动时调用；已有定时任务即返回，否则先应用偏好，再复用立即刷新
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,stop,func,142,KEEP,2026-11-20：总开关关闭时取消并清除排队任务，暂停 C 层连通性与进程统计，并在主队列更新运行状态
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,refresh,func,156,KEEP,2026-11-20：启动和四种正式界面进入时调用；在采样队列读已保存总开关，开启时才直接采样一帧
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,applyPreferences,func,166,KEEP,2026-11-20：偏好变化与可见性变化共用；更新温度条件，总开关关闭时停止，否则按可见状态选择设定间隔或至少5秒
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,scheduleNext,func,186,KEEP,2026-11-20：取消旧定时任务，在采样队列延时执行；执行前读取总开关，采样后按当前界面可见性安排下一帧
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,sampleOnce,func,211,KEEP,2026-11-20：优先使用有效 C 快照，补深层指标及时间轴；轮换同一组历史缓冲，在 MonitorExtra 的锁内合并峰值，主队列发布当前值与历史
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,resetHistory,func,346,KEEP,2026-11-20：监测设置的清空按钮调用，锁内重置环形缓冲与两份快照，重置补充指标后发布空历史
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setIslandActive,func,65,KEEP,2026-11-20：IslandContent 仅正式监测组件可见时更新此位，离开关闭；变化后重排定时并在进入时立即请求一帧
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setPanelActive,func,72,KEEP,2026-11-20：MonitorPopoutWindow 显示标记可见，面板收起和关闭清除此位；不改变主面板状态
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setHomePanelActive,func,83,KEEP,2026-11-20：PanelController 的性能页与主面板退出分别设置进入和离开，不改变监测独立窗状态
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setSettingsActive,func,90,KEEP,2026-11-20：SettingsWindowController 按遮挡通知报告监测设置页可见，StatusBarController 退出时清除此位
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,init,init,115,KEEP,2026-11-20：shared 唯一构造；主队列接收保存、导入及恢复默认的原偏好通知，同时重排监测采样和后台流量定时器
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,deinit,deinit,128,KEEP,2026-11-20：释放时移除偏好通知观察者并取消尚未执行的定时采样项
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,start,func,135,KEEP,2026-11-20：MonitorModule 启动时调用；已有定时任务即返回，否则先应用偏好，再复用立即刷新
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,stop,func,143,KEEP,2026-11-20：总开关关闭时取消并清除排队任务，暂停 C 层连通性与进程统计，并在主队列更新运行状态
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,refresh,func,157,KEEP,2026-11-20：启动和四种正式界面进入时调用；在采样队列读已保存总开关，开启时才直接采样一帧
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,applyPreferences,func,167,KEEP,2026-11-20：偏好变化与可见性变化共用；更新温度条件，总开关关闭时停止，否则按可见状态选择设定间隔或至少5秒
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,scheduleNext,func,187,KEEP,2026-11-20：取消旧定时任务，在采样队列延时执行；执行前读取总开关，采样后按当前界面可见性安排下一帧
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,sampleOnce,func,212,KEEP,2026-11-20：优先使用有效 C 快照，补深层指标及时间轴；轮换同一组历史缓冲，在 MonitorExtra 的锁内合并峰值，主队列发布当前值与历史
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,resetHistory,func,347,KEEP,2026-11-20：监测设置的清空按钮调用，锁内重置环形缓冲与两份快照，重置补充指标后发布空历史
 Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,init,init,72,KEEP,2026-11-20：shared 唯一构造，从空应用及网卡历史开始；启动由 MonitorModule 决定
 Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,applyKeepAlivePreference,func,88,KEEP,2026-11-20：MonitorModule 启动和 MonitorSampler 原偏好观察者共用；两个开关均开启时首采并启用 5 秒定时器，任一关闭时取消
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,backgroundTick,func,105,KEEP,2026-11-20：由首拍及定时器执行，读取既有 nettop 缓存与有效 C 网卡快照，分别交两个累计入口
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,ingestApps,func,120,KEEP,2026-11-21：后台定时器与StatsDataProvider共用原时间及总量判重；持锁在apps字典内直接更新元数据与追加历史，移除局部AppState共享samples再写回造成的数组复制；600秒裁剪及超200保留120项沿原实现
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,ingestNIC,func,160,KEEP,2026-11-20：NetworkPulse 及后台定时器输入整机上下行速率，间隔不足 0.4 秒跳过，整机总量供未归属流量计算
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,snapshot,func,189,KEEP,2026-11-20：正式监测网络页读取；锁内裁剪并取得快照，锁外累计并按总字节排序，保留实际覆盖时长
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,reset,func,225,KEEP,2026-11-20：设置页清空正式监测历史时加锁进入 resetLocked
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,resetLocked,func,232,KEEP,2026-11-20：手动清空及应用或网卡采样间断超过 120 秒时清除历史和计时状态
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,prune,func,243,KEEP,2026-11-20：读写历史共用 600 秒截止；网卡移除旧读数，应用部分过期裁去前段、全部过期移除项目
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,trimApps,func,256,KEEP,2026-11-20：应用数超过 200 时按窗口累计字节排序并保留前 120 个，限制常驻历史
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,sanitize,func,262,KEEP,2026-11-20：应用与网卡共用，把非有限、非正及超上限的速率转成零
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowIcon,icon,func,277,KEEP,2026-11-20：正式流量图根据可执行路径取得图标；按路径缓存最多 64 项，设置预设预览不访问图标
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,backgroundTick,func,105,KEEP,2026-11-21：首拍及5秒定时器只向MonitorSampler现有采样队列派发；任务内读取偏好，启用时读取nettop及有效网卡快照并交两个累计入口；与refresh串行共用进程缓冲和排序次序，不在主线程聚合或等待采样锁
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,ingestApps,func,122,KEEP,2026-11-21：后台定时器与StatsDataProvider共用原时间及总量判重；持锁在apps字典内直接更新元数据与追加历史，移除局部AppState共享samples再写回造成的数组复制；600秒裁剪及超200保留120项沿原实现
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,ingestNIC,func,162,KEEP,2026-11-20：NetworkPulse 及后台定时器输入整机上下行速率，间隔不足 0.4 秒跳过，整机总量供未归属流量计算
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,snapshot,func,191,KEEP,2026-11-20：正式监测网络页读取；锁内裁剪并取得快照，锁外累计并按总字节排序，保留实际覆盖时长
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,reset,func,227,KEEP,2026-11-20：设置页清空正式监测历史时加锁进入 resetLocked
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,resetLocked,func,234,KEEP,2026-11-20：手动清空及应用或网卡采样间断超过 120 秒时清除历史和计时状态
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,prune,func,245,KEEP,2026-11-20：读写历史共用 600 秒截止；网卡移除旧读数，应用部分过期裁去前段、全部过期移除项目
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,trimApps,func,258,KEEP,2026-11-20：应用数超过 200 时按窗口累计字节排序并保留前 120 个，限制常驻历史
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,sanitize,func,264,KEEP,2026-11-20：应用与网卡共用，把非有限、非正及超上限的速率转成零
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowIcon,icon,func,279,KEEP,2026-11-20：正式流量图根据可执行路径取得图标；按路径缓存最多 64 项，设置预设预览不访问图标
 Monitor,Features/Monitor/Sampling/NetworkPulse.swift,NetworkPulse,activate,func,43,KEEP,MonitorDetailView.swift:636 onAppear
 Monitor,Features/Monitor/Sampling/NetworkPulse.swift,NetworkPulse,deactivate,func,57,KEEP,MonitorDetailView.swift:637 onDisappear
 Monitor,Features/Monitor/Sampling/NetworkPulse.swift,NetworkPulse,sample,func,64,KEEP,activate:47 首帧 + 定时器:49
@@ -2519,22 +2519,22 @@ Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsProcItem,init,ini
 Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsSnapshot,init,init,170,KEEP,storage 初值 StatsDataProvider.swift:180
 Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,init,init,216,KEEP,私有 init，shared:174
 Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,refresh,func,234,KEEP,2026-11-21：MonitorSampler.sampleOnce在采样队列调用；逐项核实9组C同步输出不保留地址后改用局部标量或结构体传址，成功及失败判定与分档节拍保持；GPU型号缓存及连通历史双缓冲沿用，名称查询省去未读取的分组输出
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,readProcList,func,539,KEEP,2026-11-21：refresh及网络backgroundTick共用带锁512项缓冲；按原宿主路径分组，在字典内累加指标与追加kids，去除局部Acc造成的逐次数组复制；原分桶排序和前8组子进程明细保持
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,appBundlePath,func,676,KEEP,readProcList:598、BatteryEnergy.swift:121
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,appDisplayName,func,686,KEEP,readProcList:613、BatteryEnergy.swift:124
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,readFans,func,707,KEEP,refresh:523
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,primaryInterfaceName,func,734,KEEP,refresh:451
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,genericSensorName,func,747,KEEP,refresh:483 未收录键回落名
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,railFamilyName,func,759,KEEP,refresh:480、sensorDisplayName:807
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,sensorDisplayName,func,772,KEEP,2026-11-21：MonitorWidgetsPane传感器选择器调用；官方名优先，其次供电轨和首字母类别；frset_sensor_name接受nil分组输出，移除无读取变量而不改显示名
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,voltage,func,795,KEEP,MonitorDetailView.swift:1176
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,amperage,func,800,KEEP,MonitorDetailView.swift:1177
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,watts,func,805,KEEP,MonitorDetailView.swift:1178
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,wattHours,func,810,KEEP,MonitorDetailView.swift:1179
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,rpm,func,815,KEEP,MonitorDetailView:1021、StatsModulePanels:1258
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,ms,func,820,KEEP,MonitorDetailView:723/724、StatsModulePanels:1016/1017
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,capacity,func,825,KEEP,BatteryPanel.swift:221、224
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,remaining,func,830,KEEP,BatteryPanel.swift:100 预计剩余时间
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,readProcList,func,539,KEEP,2026-11-21：refresh及网络backgroundTick已统一在MonitorSampler采样队列，移除原缓冲锁；仍复用512项缓冲及上轮组序，按原宿主路径分组并在字典内累加指标与追加kids；原分桶排序和前8组子进程明细保持
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,appBundlePath,func,673,KEEP,readProcList:598、BatteryEnergy.swift:121
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,appDisplayName,func,683,KEEP,readProcList:613、BatteryEnergy.swift:124
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,readFans,func,704,KEEP,refresh:523
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,primaryInterfaceName,func,731,KEEP,refresh:451
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,genericSensorName,func,744,KEEP,refresh:483 未收录键回落名
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,railFamilyName,func,756,KEEP,refresh:480、sensorDisplayName:807
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,sensorDisplayName,func,769,KEEP,2026-11-21：MonitorWidgetsPane传感器选择器调用；官方名优先，其次供电轨和首字母类别；frset_sensor_name接受nil分组输出，移除无读取变量而不改显示名
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,voltage,func,792,KEEP,MonitorDetailView.swift:1176
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,amperage,func,797,KEEP,MonitorDetailView.swift:1177
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,watts,func,802,KEEP,MonitorDetailView.swift:1178
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,wattHours,func,807,KEEP,MonitorDetailView.swift:1179
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,rpm,func,812,KEEP,MonitorDetailView:1021、StatsModulePanels:1258
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,ms,func,817,KEEP,MonitorDetailView:723/724、StatsModulePanels:1016/1017
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,capacity,func,822,KEEP,BatteryPanel.swift:221、224
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,remaining,func,827,KEEP,BatteryPanel.swift:100 预计剩余时间
 Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,module,func,20,KEEP,openMonitor:266
 Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,start,func,39,KEEP,MonitorModule.swift:32；开关观察者:178 重启
 Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,stop,func,160,KEEP,MonitorModule.swift:51；开关观察者:181 立即停

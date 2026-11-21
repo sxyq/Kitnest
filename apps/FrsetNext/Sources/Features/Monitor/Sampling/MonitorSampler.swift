@@ -42,7 +42,8 @@ public final class MonitorSampler: ObservableObject {
     private static let perfProbe = ProcessInfo.processInfo.environment["FRSET_PERF_PROBE"] != nil
 
     private let reader = MonitorReader()
-    private let samplingQueue = DispatchQueue(label: "com.frset.monitor.sampler", qos: .utility)
+    // 深层采样与常驻网络聚合共用，避免网络定时器在主线程读取进程。
+    let samplingQueue = DispatchQueue(label: "com.frset.monitor.sampler", qos: .utility)
     private let lock = NSLock()
 
     private var buffers = Buffers()

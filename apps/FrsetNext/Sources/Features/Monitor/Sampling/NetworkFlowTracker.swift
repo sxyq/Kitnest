@@ -103,14 +103,16 @@ public final class NetworkFlowTracker {
     }
 
     private func backgroundTick() {
-        guard MonitorPreferences.isEnabled, MonitorPreferences.networkKeepAlive else { return }
-        // 分应用：C 层 nettop 后台线程的缓存（线程本身由 StatsDataProvider 保活）
-        let items = StatsDataProvider.readProcList(kind: 3, max: 8)
-        if !items.isEmpty { ingestApps(items) }
-        // 整机：C 层 1s 更新的瞬时速率 × 5s 节拍 ≈ 这一段实际收发字节
-        let snapshot = g_snap
-        if snapshot.valid != 0 {
-            ingestNIC(down: snapshot.netDownBps, up: snapshot.netUpBps)
+        MonitorSampler.shared.samplingQueue.async {
+            guard MonitorPreferences.isEnabled, MonitorPreferences.networkKeepAlive else { return }
+            // 与 refresh 在同一采样队列读取 nettop 缓存，定时器只负责派发。
+            let items = StatsDataProvider.readProcList(kind: 3, max: 8)
+            if !items.isEmpty { self.ingestApps(items) }
+            // 整机：C 层 1s 更新的瞬时速率 × 5s 节拍 ≈ 这一段实际收发字节
+            let snapshot = g_snap
+            if snapshot.valid != 0 {
+                self.ingestNIC(down: snapshot.netDownBps, up: snapshot.netUpBps)
+            }
         }
     }
 
