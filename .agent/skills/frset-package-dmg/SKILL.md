@@ -14,7 +14,7 @@ agent_created: true
 /Users/sunyiyang/Desktop/Project/frset-rebuild/apps/FrsetNext/package_dmg.sh
 ```
 
-脚本自含：拷贝 App → 生成 安装说明.txt → hdiutil UDZO 压缩 → 挂载 codesign 校验 → 卸载 → 输出 ~/Desktop/Kitnest-1.0.0.dmg（约 42MB）。
+脚本对 App 副本执行 `strip -x`、用固定 FrsetDev 身份重签，再生成安装说明、用 ULMO 压缩并挂载验证完整签名。安装版保留诊断符号，默认输出 ~/Desktop/Kitnest-1.0.0.dmg。
 
 验收：输出「✓ 签名校验通过」+「✓ DMG 已打包」。
 
