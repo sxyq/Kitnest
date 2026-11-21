@@ -25,11 +25,15 @@ App,App/FrsetNextApp.swift,AppDelegate,applicationWillTerminate,func,109,KEEP,NS
 App,App/FrsetNextApp.swift,AppDelegate,applicationShouldHandleReopen,func,119,KEEP,NSApplicationDelegate 回调；点 Dock/重开时显示主面板
 App,App/FrsetNextApp.swift,AppDelegate,updateDockPresence,func,129,KEEP,applicationDidFinishLaunching 注册 NSWindow 键状态/关闭通知；函数统计可见标题窗后在 regular 与 accessory 策略间切换
 App,App/FrsetNextApp.swift,AppDelegate,application,func,146,KEEP,NSApplicationDelegate回调；文件URL与kitnest://深链分流，入站URL日志只保留scheme和host，不记录路径、参数或文件名
-Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,isEnabled,func,49,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；统一事件入口按独立场景开关取值，总强度由perform后续处理
-Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,load,func,51,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；从haptic.configuration读取独立Codable偏好，设置草稿与真实事件共用
-Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,persist,func,60,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；设置保存把强度与禁用事件集合编码到原UserDefaults，不影响刘海配置
-Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,perform,func,66,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；所有业务事件唯一触觉入口，读取场景偏好后交给公共系统反馈模式
-Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,preview,func,73,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；设置试听和正式事件共用系统调用，关闭不调用，其余每次仅请求一次离散反馈
+Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,init,init,78,KEEP,2026-11-21：v270 显式空 init 保留 HapticConfiguration() 调用点（设置页恢复默认、解码回落），与新增加密字段共存
+Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,init,init,82,KEEP,2026-11-21：v270 显式空 init 保留 HapticConfiguration() 调用点（设置页恢复默认、解码回落），与新增加密字段共存
+Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,isEnabled,func,90,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；统一事件入口按独立场景开关取值，总强度由perform后续处理
+Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,load,func,92,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；从haptic.configuration读取独立Codable偏好，设置草稿与真实事件共用
+Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,persist,func,101,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；设置保存把强度与禁用事件集合编码到原UserDefaults，不影响刘海配置
+Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,perform,func,108,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；所有业务事件唯一触觉入口，读取场景偏好后交给公共系统反馈模式
+Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,simulate,func,119,KEEP,2026-11-21：v270 设置页「模拟所选场景」——只发一次与草稿强度对应的系统模式，不执行任何业务动作；HapticSettingsPane 调用
+Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,emit,func,124,KEEP,2026-11-21：v270 统一出口——perform/simulate 共用；先记 pattern+event 再请求 NSHapticFeedbackManager；perform:100 / simulate:121 调用
+Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,patternName,func,132,KEEP,2026-11-21：v270 日志可读名（alignment/generic/levelChange），emit:126 调用
 Core,Core/Motion/GenieMesh.swift,GenieRect,offsetBy,func,33,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；GenieWarp.swift:283-284 调用
 Core,Core/Motion/GenieMesh.swift,GenieMesh,localY,func,49,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；GenieWarp.swift:87,88 调用"
 Core,Core/Motion/GenieMesh.swift,GenieMesh,screenY,func,51,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；GenieWarp.swift:70,83,84 调用"
@@ -2334,59 +2338,62 @@ Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,selectDate,
 Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,moveDate,func,1097,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；正式日历前后日期与月份导航更新同一选中日期并沿用原事件缓存
 Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,reload,func,1104,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；出现、每周首日、授权态及EventKit变更通知共用；完整页读monthDays后reloadEvents，组件只读事件
 Island,Features/Island/IslandContent.swift,IslandLiveCalendarContent,reloadEvents,func,1109,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；完整月历优先复用选中CalendarDay.events，组件或未找到日期时按当天起止向CalendarService.events查询
-Island,Features/Island/IslandController.swift,IslandController,init,init,78,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；保存传入或.load的唯一配置和previewOnly；设置预览给180×28pt示例刘海，正式几何由position读屏幕
-Island,Features/Island/IslandController.swift,IslandController,surfaceAnimation,func,144,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；Surface及设置预览共用几何时序，减少动态用120ms easeOut，否则展开280ms/收起240ms无回弹spring
-Island,Features/Island/IslandController.swift,IslandController,apply,func,154,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；设置保存与组件排序共用，正式实例persist失败返回原因，成功替换配置并按enabled启停；预览只更新内存
-Island,Features/Island/IslandController.swift,IslandController,beginLayoutEditing,func,179,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；以当前配置建立布局草稿并进入首页编辑，保持刘海展开；已保存配置在编辑过程中保持原样
-Island,Features/Island/IslandController.swift,IslandController,updateLayout,func,188,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；接收有效网格位置或尺寸变化，仅更新当前布局草稿，不调用持久化或启动业务模块
-Island,Features/Island/IslandController.swift,IslandController,finishLayoutEditing,func,203,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；从当前配置合并四项布局字段；保存失败保留草稿和原因，成功后通知设置预览并退出编辑
-Island,Features/Island/IslandController.swift,IslandController,cancelLayoutEditing,func,213,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；丢弃布局草稿、恢复正式配置展示，并结束编辑交互；收起窗口沿用此入口
-Island,Features/Island/IslandController.swift,IslandController,setWidgetVisible,func,219,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；通过现有 hiddenWidgets 在编辑草稿中移出或重新加入组件，不删除功能入口
-Island,Features/Island/IslandController.swift,IslandController,beginInteraction,func,226,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；文件拖入拖出、格拖放及媒体滑杆操作置interacting，取消待收回工作
-Island,Features/Island/IslandController.swift,IslandController,endInteraction,func,227,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；交互结束重新读取指针，仍在外且非显式展开时按配置collapseDelay安排收回
-Island,Features/Island/IslandController.swift,IslandController,turnPage,func,247,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；底部翻页、Option方向键和横向滚动按IslandPage.tabs循环切换唯一page
-Island,Features/Island/IslandController.swift,IslandController,turnComponentPage,func,254,KEEP,现有页面草稿将组件页码限制在0至componentPageCount减1；当前尚无调用方
-Island,Features/Island/IslandController.swift,IslandController,selectPage,func,258,KEEP,turnPage和goBack复用可见页选择；记忆模式按显示器身份保存实际页面，保存错误交feedback
-Island,Features/Island/IslandController.swift,IslandController,selectDeepLinkPage,func,265,KEEP,2026-11-21：kitnest://island?page=...使用；任务页沿原selectPage策略更新，功能详情页仅切换当前显示页，不覆盖固定或记忆页配置
-Island,Features/Island/IslandController.swift,IslandController,rememberPage,func,270,KEEP,2026-11-20：主线草稿页面变化与selectPage共用；正式记忆模式且当前屏幕页面发生变化时写入lastPageByDisplay，持久化成功再发布配置，失败显示原提示
-Island,Features/Island/IslandController.swift,IslandController,applyOpeningPage,func,284,KEEP,现有草稿按固定页或屏幕记忆挑选可见页，并以remember=false交selectPage；当前尚无调用方
-Island,Features/Island/IslandController.swift,IslandController,setComponentPageCount,func,292,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；画布排列完成后同步唯一首页组件页数，尺寸或显隐调整时将当前页保持在已有页内
-Island,Features/Island/IslandController.swift,IslandController,goBack,func,297,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；刘海详情返回原四入口，组件页与各页选择保留在同一控制器
-Island,Features/Island/IslandController.swift,IslandController,resumeAfterOutside,func,299,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；外部文件选择结束或取消后复用正式打开方法，恢复原页和已保存的工具输入
-Island,Features/Island/IslandController.swift,IslandController,bindRecordScroll,func,301,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；记录列表原生滚动窗绑定后恢复实际偏移；滚动通知只保存控制器值，不发布整页或另建滚动服务
-Island,Features/Island/IslandController.swift,IslandController,releaseRecordScroll,func,317,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；切页、收回结束和窗口停止时移除记录滚动通知，保留偏移供同一列表返回恢复
-Island,Features/Island/IslandController.swift,IslandController,changeTrack,func,323,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；演示tracks按步长循环更新track并把seek归零；当前源码未找到调用，正式媒体send走NowPlayingController
-Island,Features/Island/IslandController.swift,IslandController,refreshClipboard,func,328,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；expand前独立取最近一条正文前24字符压平为摘要；预览取IslandSample标题
-Island,Features/Island/IslandController.swift,IslandController,copyLatest,func,334,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；收起态剪贴板快捷操作独立fetch最近一项交ClipboardManager.copy(autoPaste:false)，空列表给反馈，预览不写系统剪贴板
-Island,Features/Island/IslandController.swift,IslandController,copyDate,func,344,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；收起态日历快捷操作把当天ISO年月日交copyText并反馈，预览只改feedback
-Island,Features/Island/IslandController.swift,IslandController,activatePeek,func,349,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；收起态图标按peeksQuickActions执行复制或展开指定页，关闭快捷操作时统一打开peek.page
-Island,Features/Island/IslandController.swift,IslandController,surfaceDidChange,func,374,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；材质更新回传动画中实际size/radius，重算命中轮廓；到收起目标才卸内容、缩panel、归还焦点及执行afterCollapse，真实刘海无图标时隐藏外壳
-Island,Features/Island/IslandController.swift,IslandController,performOutside,func,400,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；截图、工具文件面板和正式外窗入口在展开时保存afterCollapse并收回，几何完成后执行；预览仅反馈
-Island,Features/Island/IslandController.swift,IslandController,start,func,407,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；App启动和apply启用时仅正式且enabled实例show，不启动设置预览窗口
-Island,Features/Island/IslandController.swift,IslandController,open,func,412,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；菜单栏、深链和键盘入口，禁用时打开刘海设置，否则show并expand(takeFocus:true)
-Island,Features/Island/IslandController.swift,IslandController,open,func,416,KEEP,菜单栏、深链和键盘入口，禁用时打开刘海设置，否则show并expand(takeFocus:true)
-Island,Features/Island/IslandController.swift,IslandController,openIsland,func,420,KEEP,2026-11-21：公开open()与open(page:)共用；未指定目标时应用固定/记忆展开策略，深链指定目标时保留该页并展开，不再被默认页策略覆盖
-Island,Features/Island/IslandController.swift,IslandController,show,func,432,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；首次创建唯一透明非激活IslandPanel、事件监听和屏幕通知，装IslandRootView；后续复用窗口定位，空图标的真实刘海收起态不留可见外壳
-Island,Features/Island/IslandController.swift,IslandController,refreshDisplays,func,473,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；显示参数或Space变化时更新目标及入口，只移动已有业务窗口，指定离线沿原选择临时主屏
-Island,Features/Island/IslandController.swift,IslandController,refreshEntries,func,486,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；每个启用逻辑显示目标仅持有绘制入口的NSPanel，当前屏沿用原舞台，不创建正文订阅或采样
-Island,Features/Island/IslandController.swift,IslandController,activateDisplay,func,518,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；点击屏幕入口明确迁移并保持展开，已有预览时保留其键盘焦点和会话
-Island,Features/Island/IslandController.swift,IslandController,move,func,532,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；迁移原面板及原预览窗口，保持hosting view和业务输入，绕开取消布局草稿的collapse
-Island,Features/Island/IslandController.swift,IslandController,position,func,557,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；优先摄像头屏幕两侧auxiliaryTop区域求真实刘海中心宽高，无刘海用180×28入口；动画舞台不提前缩小，到收起态才按像素对齐缩到入口尺寸
-Island,Features/Island/IslandController.swift,IslandController,updateNotchMetrics,func,587,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；读取当前屏幕两侧辅助区域与安全高度作为硬件刘海尺寸；无刘海屏幕使用紧凑顶部入口
-Island,Features/Island/IslandController.swift,IslandController,expand,func,597,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；取消待收回，首次展开前保存AppBootstrap划词结果、刷新摘要并挂内容；正式舞台扩大后显示，takeFocus请求键盘焦点
-Island,Features/Island/IslandController.swift,IslandController,collapse,func,615,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；收回先关闭来源panel的共用预览并取消悬停任务，清显式展开及采样、归还firstResponder，动画末由surfaceDidChange卸载内容
-Island,Features/Island/IslandController.swift,IslandController,stop,func,632,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；apply禁用时collapse并隐藏panel，移除本实例事件和屏幕通知后释放唯一窗口
-Island,Features/Island/IslandController.swift,IslandController,installMonitors,func,652,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；首次show挂全局/本地指针及按下事件，外部点击收回；窗内水平滚动累计超过36pt切页，交互结束统一endInteraction
-Island,Features/Island/IslandController.swift,IslandController,updatePointer,func,729,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；按实际可见动画轮廓判断鼠标并设置ignoresMouseEvents；摄像头区域悬停按配置延时展开，进入共享预览仍算在内，非显式且非交互离开才延时收回
-Island,Features/Island/IslandController.swift,IslandController,entry,func,809,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；鼠标事件只在缓存逻辑屏幕入口矩形命中，不在每次移动重新读取UUID或创建视图
-Island,Features/Island/IslandController.swift,IslandController,containsEntry,func,817,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；预览点外处理识别刘海入口点击，跨屏迁移时不提前关闭预览
-Island,Features/Island/IslandController.swift,IslandEntryView,init,init,824,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；正式单例与原设置预览构造配置和目标缓存；轻量入口view构造点击回调且不支持归档恢复
-Island,Features/Island/IslandController.swift,IslandEntryView,init,init,851,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；正式单例与原设置预览构造配置和目标缓存；轻量入口view构造点击回调且不支持归档恢复
-Island,Features/Island/IslandController.swift,IslandEntryView,mouseDown,func,852,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；轻量入口的本地点击转交唯一controller选择显示目标，不持有业务状态
-Island,Features/Island/IslandController.swift,IslandEntryView,hitTest,func,853,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；菜单栏搜索短条的图标和文字共用入口点击区域，事件交回同一控制器迁移原工作台
-Island,Features/Island/IslandController.swift,IslandEntryView,accessibilityPerformPress,func,854,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；菜单栏轻量入口通过辅助功能按下动作调用同一activate回调
-Island,Features/Island/IslandController.swift,IslandEntryView,draw,func,855,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；其他屏幕仅绘制黑色入口和短标记，不挂载完整SwiftUI正文
-Island,Features/Island/IslandController.swift,IslandPanel,performKeyEquivalent,func,868,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandPanel接Esc收回、Cmd+O展开、Option左右翻页及Cmd数字选所有页面并展开，其余交AppKit
+Island,Features/Island/IslandController.swift,IslandController,init,init,83,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；保存传入或.load的唯一配置和previewOnly；设置预览给180×28pt示例刘海，正式几何由position读屏幕
+Island,Features/Island/IslandController.swift,IslandController,surfaceAnimation,func,151,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；Surface及设置预览共用几何时序，减少动态用120ms easeOut，否则展开280ms/收起240ms无回弹spring
+Island,Features/Island/IslandController.swift,IslandController,apply,func,163,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；设置保存与组件排序共用，正式实例persist失败返回原因，成功替换配置并按enabled启停；预览只更新内存
+Island,Features/Island/IslandController.swift,IslandController,beginLayoutEditing,func,188,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；以当前配置建立布局草稿并进入首页编辑，保持刘海展开；已保存配置在编辑过程中保持原样
+Island,Features/Island/IslandController.swift,IslandController,updateLayout,func,197,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；接收有效网格位置或尺寸变化，仅更新当前布局草稿，不调用持久化或启动业务模块
+Island,Features/Island/IslandController.swift,IslandController,finishLayoutEditing,func,212,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；从当前配置合并四项布局字段；保存失败保留草稿和原因，成功后通知设置预览并退出编辑
+Island,Features/Island/IslandController.swift,IslandController,cancelLayoutEditing,func,222,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；丢弃布局草稿、恢复正式配置展示，并结束编辑交互；收起窗口沿用此入口
+Island,Features/Island/IslandController.swift,IslandController,setWidgetVisible,func,228,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；通过现有 hiddenWidgets 在编辑草稿中移出或重新加入组件，不删除功能入口
+Island,Features/Island/IslandController.swift,IslandController,beginInteraction,func,235,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；文件拖入拖出、格拖放及媒体滑杆操作置interacting，取消待收回工作
+Island,Features/Island/IslandController.swift,IslandController,endInteraction,func,236,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；交互结束重新读取指针，仍在外且非显式展开时按配置collapseDelay安排收回
+Island,Features/Island/IslandController.swift,IslandController,turnPage,func,256,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；底部翻页、Option方向键和横向滚动按IslandPage.tabs循环切换唯一page
+Island,Features/Island/IslandController.swift,IslandController,turnComponentPage,func,264,KEEP,现有页面草稿将组件页码限制在0至componentPageCount减1；当前尚无调用方
+Island,Features/Island/IslandController.swift,IslandController,selectPage,func,268,KEEP,turnPage和goBack复用可见页选择；记忆模式按显示器身份保存实际页面，保存错误交feedback
+Island,Features/Island/IslandController.swift,IslandController,selectDeepLinkPage,func,279,KEEP,2026-11-21：kitnest://island?page=...使用；任务页沿原selectPage策略更新，功能详情页仅切换当前显示页，不覆盖固定或记忆页配置
+Island,Features/Island/IslandController.swift,IslandController,rememberPage,func,284,KEEP,2026-11-20：主线草稿页面变化与selectPage共用；正式记忆模式且当前屏幕页面发生变化时写入lastPageByDisplay，持久化成功再发布配置，失败显示原提示
+Island,Features/Island/IslandController.swift,IslandController,applyOpeningPage,func,298,KEEP,现有草稿按固定页或屏幕记忆挑选可见页，并以remember=false交selectPage；当前尚无调用方
+Island,Features/Island/IslandController.swift,IslandController,setComponentPageCount,func,306,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；画布排列完成后同步唯一首页组件页数，尺寸或显隐调整时将当前页保持在已有页内
+Island,Features/Island/IslandController.swift,IslandController,goBack,func,311,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；刘海详情返回原四入口，组件页与各页选择保留在同一控制器
+Island,Features/Island/IslandController.swift,IslandController,openMonitorDetail,func,328,KEEP,2026-11-21：v270 首页监测卡点击→对应指标详情：写 monitorSelection.module、page=.monitor 由 didSet 记录来源页、设底部提示并触发一次离散触觉；IslandMonitorChart 点击调用
+Island,Features/Island/IslandController.swift,IslandController,stepMonitorDetail,func,340,KEEP,2026-11-21：v270 详情内左右切指标（全局 ⌥←/→、面板横滑共用），到边界不循环；installMonitors 横滑分支与热键调用
+Island,Features/Island/IslandController.swift,IslandController,resumeAfterOutside,func,355,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；外部文件选择结束或取消后复用正式打开方法，恢复原页和已保存的工具输入
+Island,Features/Island/IslandController.swift,IslandController,bindRecordScroll,func,357,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；记录列表原生滚动窗绑定后恢复实际偏移；滚动通知只保存控制器值，不发布整页或另建滚动服务
+Island,Features/Island/IslandController.swift,IslandController,releaseRecordScroll,func,373,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；切页、收回结束和窗口停止时移除记录滚动通知，保留偏移供同一列表返回恢复
+Island,Features/Island/IslandController.swift,IslandController,changeTrack,func,379,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；演示tracks按步长循环更新track并把seek归零；当前源码未找到调用，正式媒体send走NowPlayingController
+Island,Features/Island/IslandController.swift,IslandController,refreshClipboard,func,384,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；expand前独立取最近一条正文前24字符压平为摘要；预览取IslandSample标题
+Island,Features/Island/IslandController.swift,IslandController,copyLatest,func,390,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；收起态剪贴板快捷操作独立fetch最近一项交ClipboardManager.copy(autoPaste:false)，空列表给反馈，预览不写系统剪贴板
+Island,Features/Island/IslandController.swift,IslandController,copyDate,func,400,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；收起态日历快捷操作把当天ISO年月日交copyText并反馈，预览只改feedback
+Island,Features/Island/IslandController.swift,IslandController,activatePeek,func,405,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；收起态图标按peeksQuickActions执行复制或展开指定页，关闭快捷操作时统一打开peek.page
+Island,Features/Island/IslandController.swift,IslandController,surfaceDidChange,func,430,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；材质更新回传动画中实际size/radius，重算命中轮廓；到收起目标才卸内容、缩panel、归还焦点及执行afterCollapse，真实刘海无图标时隐藏外壳
+Island,Features/Island/IslandController.swift,IslandController,performOutside,func,456,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；截图、工具文件面板和正式外窗入口在展开时保存afterCollapse并收回，几何完成后执行；预览仅反馈
+Island,Features/Island/IslandController.swift,IslandController,start,func,463,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；App启动和apply启用时仅正式且enabled实例show，不启动设置预览窗口
+Island,Features/Island/IslandController.swift,IslandController,open,func,468,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；菜单栏、深链和键盘入口，禁用时打开刘海设置，否则show并expand(takeFocus:true)
+Island,Features/Island/IslandController.swift,IslandController,open,func,472,KEEP,菜单栏、深链和键盘入口，禁用时打开刘海设置，否则show并expand(takeFocus:true)
+Island,Features/Island/IslandController.swift,IslandController,openIsland,func,476,KEEP,2026-11-21：公开open()与open(page:)共用；未指定目标时应用固定/记忆展开策略，深链指定目标时保留该页并展开，不再被默认页策略覆盖
+Island,Features/Island/IslandController.swift,IslandController,show,func,488,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；首次创建唯一透明非激活IslandPanel、事件监听和屏幕通知，装IslandRootView；后续复用窗口定位，空图标的真实刘海收起态不留可见外壳
+Island,Features/Island/IslandController.swift,IslandController,refreshDisplays,func,529,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；显示参数或Space变化时更新目标及入口，只移动已有业务窗口，指定离线沿原选择临时主屏
+Island,Features/Island/IslandController.swift,IslandController,refreshEntries,func,542,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；每个启用逻辑显示目标仅持有绘制入口的NSPanel，当前屏沿用原舞台，不创建正文订阅或采样
+Island,Features/Island/IslandController.swift,IslandController,activateDisplay,func,574,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；点击屏幕入口明确迁移并保持展开，已有预览时保留其键盘焦点和会话
+Island,Features/Island/IslandController.swift,IslandController,move,func,588,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；迁移原面板及原预览窗口，保持hosting view和业务输入，绕开取消布局草稿的collapse
+Island,Features/Island/IslandController.swift,IslandController,position,func,613,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；优先摄像头屏幕两侧auxiliaryTop区域求真实刘海中心宽高，无刘海用180×28入口；动画舞台不提前缩小，到收起态才按像素对齐缩到入口尺寸
+Island,Features/Island/IslandController.swift,IslandController,updateNotchMetrics,func,643,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；读取当前屏幕两侧辅助区域与安全高度作为硬件刘海尺寸；无刘海屏幕使用紧凑顶部入口
+Island,Features/Island/IslandController.swift,IslandController,expand,func,653,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；取消待收回，首次展开前保存AppBootstrap划词结果、刷新摘要并挂内容；正式舞台扩大后显示，takeFocus请求键盘焦点
+Island,Features/Island/IslandController.swift,IslandController,revealContent,func,674,KEEP,2026-11-21：v270 展开后延 80ms、再 220ms 淡入正文；expand 调用，收起由 collapse 的 120ms 淡出先行
+Island,Features/Island/IslandController.swift,IslandController,collapse,func,682,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；收回先关闭来源panel的共用预览并取消悬停任务，清显式展开及采样、归还firstResponder，动画末由surfaceDidChange卸载内容
+Island,Features/Island/IslandController.swift,IslandController,stop,func,701,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；apply禁用时collapse并隐藏panel，移除本实例事件和屏幕通知后释放唯一窗口
+Island,Features/Island/IslandController.swift,IslandController,installMonitors,func,721,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；首次show挂全局/本地指针及按下事件，外部点击收回；窗内水平滚动累计超过36pt切页，交互结束统一endInteraction
+Island,Features/Island/IslandController.swift,IslandController,updatePointer,func,801,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；按实际可见动画轮廓判断鼠标并设置ignoresMouseEvents；摄像头区域悬停按配置延时展开，进入共享预览仍算在内，非显式且非交互离开才延时收回
+Island,Features/Island/IslandController.swift,IslandController,entry,func,881,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；鼠标事件只在缓存逻辑屏幕入口矩形命中，不在每次移动重新读取UUID或创建视图
+Island,Features/Island/IslandController.swift,IslandController,containsEntry,func,889,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；预览点外处理识别刘海入口点击，跨屏迁移时不提前关闭预览
+Island,Features/Island/IslandController.swift,IslandEntryView,init,init,896,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；正式单例与原设置预览构造配置和目标缓存；轻量入口view构造点击回调且不支持归档恢复
+Island,Features/Island/IslandController.swift,IslandEntryView,init,init,923,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；正式单例与原设置预览构造配置和目标缓存；轻量入口view构造点击回调且不支持归档恢复
+Island,Features/Island/IslandController.swift,IslandEntryView,mouseDown,func,924,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；轻量入口的本地点击转交唯一controller选择显示目标，不持有业务状态
+Island,Features/Island/IslandController.swift,IslandEntryView,hitTest,func,925,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；菜单栏搜索短条的图标和文字共用入口点击区域，事件交回同一控制器迁移原工作台
+Island,Features/Island/IslandController.swift,IslandEntryView,accessibilityPerformPress,func,926,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；菜单栏轻量入口通过辅助功能按下动作调用同一activate回调
+Island,Features/Island/IslandController.swift,IslandEntryView,draw,func,927,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；其他屏幕仅绘制黑色入口和短标记，不挂载完整SwiftUI正文
+Island,Features/Island/IslandController.swift,IslandPanel,performKeyEquivalent,func,940,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandPanel接Esc收回、Cmd+O展开、Option左右翻页及Cmd数字选所有页面并展开，其余交AppKit
 Island,Features/Island/IslandDisplay.swift,IslandDisplay,entrySize,func,17,KEEP,2026-11-20：主线草稿入口尺寸属性与entryFrame共用；真实刘海读左右安全区间距和顶部安全高度，普通屏沿配置宽度及28pt高度
 Island,Features/Island/IslandDisplay.swift,IslandDisplay,entryFrame,func,24,KEEP,2026-11-20：主线草稿入口刷新与鼠标命中共用；真实刘海按安全区居中，普通屏按左中右位置及配置宽度定位，沿逻辑点和frame负坐标计算
 Island,Features/Island/IslandDisplay.swift,IslandDisplay,init,init,40,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；由NSScreen读取显示ID并转换系统UUID，镜像屏统一采用源屏的稳定身份和几何
@@ -2419,17 +2426,17 @@ Island,Features/Island/IslandSettings.swift,IslandConfiguration,load,func,261,KE
 Island,Features/Island/IslandSettings.swift,IslandConfiguration,persist,func,275,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；正式IslandController.apply把当前Codable配置编码存入唯一island.configuration键，编码错误传回设置保存
 Island,Features/Island/IslandSettings.swift,IslandMetric,format,func,445,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；图表、指标卡和统计共用单位格式，百分比/KB/s取0小数，GiB/W取1小数并带unit
 Island,Features/Island/IslandSettings.swift,Array,islandMove,func,451,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；设置顺序按钮、键盘和指标拖放从既有数组移除item后插到目标索引，不创建第二份排序状态
-Island,Features/Island/IslandSurface.swift,IslandMorph,body,func,152,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandMorph以同一size/progress补间驱动圆角、材质遮罩、内容透明度和命中；IslandGlow按共享鼠标位置只在卡片内绘制径向背景及边框亮光
-Island,Features/Island/IslandSurface.swift,IslandOutline,path,func,203,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandOutline在连续圆角矩形顶端补矩形，使可见上沿贴顶，材质mask与controller命中轮廓共用
-Island,Features/Island/IslandSurface.swift,IslandMaterialHost,makeNSView,func,230,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandMaterial用当前solid创建唯一原生材质视图，不在每帧重建玻璃
-Island,Features/Island/IslandSurface.swift,IslandMaterialHost,updateNSView,func,233,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；动画几何更新仅在radius变化时请求layout，并把当前size/radius回报controller.surfaceDidChange
-Island,Features/Island/IslandSurface.swift,IslandMaterialView,init,init,245,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandMaterialView创建固定darkAqua、followsWindowFocus=false的正式LiquidGlass并加轮廓mask；coder初始化明确不可用
-Island,Features/Island/IslandSurface.swift,IslandMaterialView,init,init,255,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandMaterialView创建固定darkAqua、followsWindowFocus=false的正式LiquidGlass并加轮廓mask；coder初始化明确不可用
-Island,Features/Island/IslandSurface.swift,IslandMaterialView,layout,func,256,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；仅bounds或radius变化时更新玻璃frame和mask，关闭CALayer隐式动画，上角移出屏幕保持顶边贴合及底部曲率
-Island,Features/Island/IslandSurface.swift,IslandButtonStyle,makeBody,func,276,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandButtonStyle把label、按压态、help及提示对齐交IslandButtonBody，所有刘海按钮复用悬停与焦点绘制
-Island,Features/Island/IslandSurface.swift,IslandCollapsedView,button,func,338,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；收起态按peekOrder与可见集合生成图标，点击交activatePeek，配置决定是否带72pt数值或38pt纯图标，功耗订阅正式采样
-Island,Features/Island/IslandSurface.swift,IslandCollapsedView,value,func,358,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；收起态标签返回复制、播放/暂停和当天日期，功耗读已有sample.powerWatts，设置预览显示8.6W
-Island,Features/Island/IslandSurface.swift,IslandPeekMediaValue,updateVisibility,func,389,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；收起态媒体使用独立消费者复用系统播放器，展开或移除时释放读取任务，模拟不采集
+Island,Features/Island/IslandSurface.swift,IslandMorph,body,func,175,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandMorph以同一size/progress补间驱动圆角、材质遮罩、内容透明度和命中；IslandGlow按共享鼠标位置只在卡片内绘制径向背景及边框亮光
+Island,Features/Island/IslandSurface.swift,IslandOutline,path,func,229,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandOutline在连续圆角矩形顶端补矩形，使可见上沿贴顶，材质mask与controller命中轮廓共用
+Island,Features/Island/IslandSurface.swift,IslandMaterialHost,makeNSView,func,256,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandMaterial用当前solid创建唯一原生材质视图，不在每帧重建玻璃
+Island,Features/Island/IslandSurface.swift,IslandMaterialHost,updateNSView,func,259,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；动画几何更新仅在radius变化时请求layout，并把当前size/radius回报controller.surfaceDidChange
+Island,Features/Island/IslandSurface.swift,IslandMaterialView,init,init,271,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandMaterialView创建固定darkAqua、followsWindowFocus=false的正式LiquidGlass并加轮廓mask；coder初始化明确不可用
+Island,Features/Island/IslandSurface.swift,IslandMaterialView,init,init,281,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandMaterialView创建固定darkAqua、followsWindowFocus=false的正式LiquidGlass并加轮廓mask；coder初始化明确不可用
+Island,Features/Island/IslandSurface.swift,IslandMaterialView,layout,func,282,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；仅bounds或radius变化时更新玻璃frame和mask，关闭CALayer隐式动画，上角移出屏幕保持顶边贴合及底部曲率
+Island,Features/Island/IslandSurface.swift,IslandButtonStyle,makeBody,func,302,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandButtonStyle把label、按压态、help及提示对齐交IslandButtonBody，所有刘海按钮复用悬停与焦点绘制
+Island,Features/Island/IslandSurface.swift,IslandCollapsedView,button,func,364,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；收起态按peekOrder与可见集合生成图标，点击交activatePeek，配置决定是否带72pt数值或38pt纯图标，功耗订阅正式采样
+Island,Features/Island/IslandSurface.swift,IslandCollapsedView,value,func,384,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；收起态标签返回复制、播放/暂停和当天日期，功耗读已有sample.powerWatts，设置预览显示8.6W
+Island,Features/Island/IslandSurface.swift,IslandPeekMediaValue,updateVisibility,func,415,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；收起态媒体使用独立消费者复用系统播放器，展开或移除时释放读取任务，模拟不采集
 Island,Features/Island/IslandToolboxContent.swift,IslandToolboxShortcuts,shortcut,func,38,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；首页五档快捷目录只选择正式已启用工具并打开同一详情，小卡片保留主要入口
 Island,Features/Island/IslandToolboxContent.swift,IslandToolboxContent,init,init,66,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；Root传唯一controller、预览标志和selectedTool绑定，保留onFileDialog回调让系统文件面板期间不卸输入页
 Island,Features/Island/IslandToolboxContent.swift,IslandToolboxContent,directory,func,115,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；全部功能目录按query匹配页面标题及已启用工具名称/关键字/描述，category筛工具；回车选首项、按钮更新page或selectedTool
@@ -2650,7 +2657,7 @@ Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,date,func,1025,KE
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,27,KEEP,2026-11-20：shared唯一程序化构造1080×720窗口、最小860×560，关闭保留窗口；原生所需coder入口拒绝归档构造，正式入口为私有init
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,44,KEEP,2026-11-20：shared唯一程序化构造1080×720窗口、最小860×560，关闭保留窗口；原生所需coder入口拒绝归档构造，正式入口为私有init
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,show,func,46,KEEP,2026-11-20：监测详情按钮与storage深链共用已有窗口；按参数扫描或延迟发下钻/提示词通知，下钻消费端统一退出分类显示
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageBodyLayout,listMask,func,102,KEEP,待补证据：新增函数，尚未逐个读源码填写
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageBodyLayout,listMask,func,102,KEEP,2026-11-21：v268 统一正文几何——listBounds 减 seamOutline（左移 seam 的共享轮廓）生成清单遮罩；与 leftPane 行宽同一条轮廓
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageSwipeRegion,makeNSView,func,114,KEEP,2026-11-20：根视图嵌入背景手势区时创建SwipeView，传入共用navigateHistory闭包，不创建业务存储
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageSwipeRegion,updateNSView,func,118,KEEP,2026-11-20：Representable刷新只更新enabled和导航闭包，保留既有NSView及事件监听器
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,init,init,136,KEEP,2026-11-20：makeNSView通过init(onNavigate:)保存导航并零frame创建，实际尺寸交SwiftUI；所需coder构造无归档入口
@@ -2662,7 +2669,7 @@ Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,deinit,dei
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,refreshDiskSpace,func,275,KEEP,2026-11-20：出现、应用激活和indexRevision变化时读取可用空间、完全磁盘访问状态及数据卷f_bfree已用量，展示复用保存值
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,statusLine,func,302,KEEP,2026-11-20：header消费快照范围、扫描日期、节点数与字节，截断时列maxNodes上限；本地日期格式沿StorageFormat
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,openFullDiskAccessSettings,func,332,KEEP,2026-11-20：页头与存储设置去授权按钮共用固定系统设置URL，通过NSWorkspace打开完全磁盘访问页面
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,miniStat,func,518,KEEP,待补证据：新增函数，尚未逐个读源码填写
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,miniStat,func,518,KEEP,2026-11-21：v268 顶部第一层并排小指标（标签10pt+等宽数值13pt），替代原 headline 两行说明；header 第一行三处调用
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,toolbarButton,func,529,KEEP,2026-11-20：mapControls的扫描、工作记录和设置按钮共用样式，图标标题及action由调用方提供
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,leftPane,func,631,KEEP,2026-11-20：根布局沿地图轮廓采样，LazyVStack只建可见候选行，按画布坐标计算行宽；点击只改变selectedPaths
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,candidateWidth,func,668,KEEP,2026-11-20：leftPane逐行以中心水平线与轮廓边求交，取最左交点作候选右界，未交返回0，调用处限制最终宽非负
@@ -3278,7 +3285,7 @@ Settings,Features/Settings/Panes/HapticSettingsPane.swift,HapticSettingsDraft,in
 Settings,Features/Settings/Panes/HapticSettingsPane.swift,HapticSettingsDraft,save,func,24,KEEP,编码成功后更新触觉保存快照，失败返回具体原因并保留草稿；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/HapticSettingsPane.swift,HapticSettingsDraft,discard,func,32,KEEP,取消仅将本页草稿恢复已保存强度和场景开关；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/HapticSettingsPane.swift,HapticSettingsDraft,restoreDefaults,func,33,KEEP,本页恢复默认只更新草稿，经既有保存按钮应用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/HapticSettingsPane.swift,HapticSettingsContent,eventSection,func,119,KEEP,按统一事件枚举生成场景名称说明和独立开关，三类场景复用相同行组件；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/HapticSettingsPane.swift,HapticSettingsContent,eventSection,func,143,KEEP,按统一事件枚举生成场景名称说明和独立开关，三类场景复用相同行组件；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,init,init,33,KEEP,草稿加载唯一配置并建立previewOnly控制器，预览排序回调只同步widgetSizes/widgetOrder/metricOrder到草稿；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,isDirty,func,61,KEEP,按刘海四页所属字段判断草稿变动，画布页包含未完成的布局编辑；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,save,func,66,KEEP,SettingsDraftEditor保存交正式IslandController.apply，失败返回原因，成功才更新saved与脏态通知；2026-11-19人工复核：保留，源码与调用/系统入口已核阅

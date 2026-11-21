@@ -16,9 +16,18 @@ struct IslandSurface<Content: View>: View {
         VStack(spacing: Theme.Space.sm) {
             header
             tabs
-            content().frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            content()
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                // v270：页面切换只动内容（10–16pt 横移 + 淡入），外壳尺寸不跟着变。
+                .id(controller.page)
+                .transition(.asymmetric(
+                    insertion: .offset(x: CGFloat(controller.pageSlide) * 12).combined(with: .opacity),
+                    removal: .offset(x: CGFloat(-controller.pageSlide) * 8).combined(with: .opacity)))
             pager
         }
+        .animation(reduceMotion ? .easeInOut(duration: 0.10)
+                                : .timingCurve(0.4, 0, 0.2, 1, duration: 0.20),
+                   value: controller.page)
         .islandGlowScene(enabled: controller.glowEnabled && controller.expanded && controller.previewVisible && !controller.editingLayout)
         .padding(.horizontal, IslandLayout.horizontalInset)
         .padding(.top, controller.notchHeight + 6)
@@ -95,17 +104,14 @@ struct IslandSurface<Content: View>: View {
 
     private var pager: some View {
         HStack(spacing: 8) {
-            Text(controller.feedback).font(.system(size: Theme.TextSize.caption)).foregroundStyle(.secondary).lineLimit(1)
+            Text(pagerHint).font(.system(size: Theme.TextSize.caption)).foregroundStyle(.secondary).lineLimit(1)
             Spacer(minLength: 0)
                 Button {
                     if (controller.page == .home || controller.page == .custom) && controller.componentPageCount > 1 { controller.turnComponentPage(-1) }
                     else { controller.turnPage(-1) }
                 } label: { Image(systemName: "chevron.left").frame(width: 24, height: 22) }
                 .buttonStyle(IslandButtonStyle()).accessibilityLabel("上一页")
-            Text((controller.page == .home || controller.page == .custom) && controller.componentPageCount > 1
-                 ? "组件 \(controller.componentPage + 1) / \(controller.componentPageCount)"
-                 : controller.configuration.visiblePages.firstIndex(of: controller.page)
-                    .map { "页面 \($0 + 1) / \(controller.configuration.visiblePages.count)" } ?? "详情")
+            Text(pagerLabel)
                 .font(.system(size: Theme.TextSize.caption)).monospacedDigit().foregroundStyle(.secondary)
                 Button {
                     if (controller.page == .home || controller.page == .custom) && controller.componentPageCount > 1 { controller.turnComponentPage(1) }
@@ -113,6 +119,23 @@ struct IslandSurface<Content: View>: View {
                 } label: { Image(systemName: "chevron.right").frame(width: 24, height: 22) }
                 .buttonStyle(IslandButtonStyle()).accessibilityLabel("下一页")
         }.frame(height: 20)
+    }
+
+    /// 详情页底部提示固定为「切换指标 / Esc 返回」，避免深链进入时还显示整页切页文案。
+    private var pagerHint: String {
+        controller.page == .monitor ? "左右切换指标 · Esc 返回上一页" : controller.feedback
+    }
+
+    /// 详情页显示当前指标名；其余显示组件页码或页面序号。
+    private var pagerLabel: String {
+        if controller.page == .monitor {
+            return MonitorCenterPresenter.shared.monitorSelection.module.displayName
+        }
+        if (controller.page == .home || controller.page == .custom) && controller.componentPageCount > 1 {
+            return "组件 \(controller.componentPage + 1) / \(controller.componentPageCount)"
+        }
+        return controller.configuration.visiblePages.firstIndex(of: controller.page)
+            .map { "页面 \($0 + 1) / \(controller.configuration.visiblePages.count)" } ?? "详情"
     }
 
     private var tabs: some View {
@@ -154,9 +177,12 @@ private struct IslandMorph: AnimatableModifier {
         let radius = IslandLayout.collapsedRadius + (IslandLayout.corner - IslandLayout.collapsedRadius) * phase
         let outline = IslandOutline(radius: radius)
         let reveal = reduceMotion ? phase : min(1, max(0, (phase - 0.2) / 0.8))
+        // v270：真实面板用 controller 的独立正文透明度（延后淡入 / 先淡出）；
+        // 设置页预览没有 expand 时序，继续用几何进度。
+        let bodyOpacity = controller.previewOnly ? reveal : min(reveal, controller.contentOpacity)
         content
             .compositingGroup()
-            .opacity(reveal)
+            .opacity(bodyOpacity)
             .offset(y: reduceMotion ? 0 : -Theme.Space.sm * (1 - phase))
             .allowsHitTesting(controller.expanded && reveal > 0.5)
             .accessibilityHidden(!controller.expanded)

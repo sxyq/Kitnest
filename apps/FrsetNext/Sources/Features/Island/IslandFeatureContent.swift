@@ -485,9 +485,8 @@ struct IslandMonitorFullContent: View {
     }
 
     private var presentation: MonitorPresentation {
-        var order = controller.metricOrder.compactMap { MonitorModuleID(rawValue: $0.rawValue) }
-        let index = order.firstIndex(of: .power) ?? order.count
-        order.insert(contentsOf: [.disk, .sensors], at: index)
+        // v270：与 controller.monitorDetailOrder 同源，卡片点进来的指标和详情顺序一致。
+        let order = controller.monitorDetailOrder
         let colors = Dictionary(uniqueKeysWithValues: controller.metricOrder.map {
             (MonitorModuleID(rawValue: $0.rawValue)!, controller.configuration.color(for: $0))
         })
