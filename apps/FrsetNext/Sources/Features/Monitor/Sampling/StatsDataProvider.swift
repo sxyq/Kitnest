@@ -643,21 +643,24 @@ public final class StatsDataProvider {
         result.reserveCapacity(Swift.min(max, ordered.count))
         for entry in ordered.prefix(max) {
             let acc = entry.acc
-            var kids: [StatsProcItem] = acc.kids.map { rec in
-                var raw = ptr[rec.idx]
-                return StatsProcItem(pid: rec.pid,
-                                     name: String(cString: FSStatsProcName(&raw)),
-                                     cpu: rec.cpu, memBytes: rec.mem,
-                                     diskRead: rec.r, diskWrite: rec.w,
-                                     iconPath: acc.iconPath)
+            var kids: [StatsProcItem] = []
+            if acc.kids.count > 1 {
+                kids = acc.kids.map { rec in
+                    var raw = ptr[rec.idx]
+                    return StatsProcItem(pid: rec.pid,
+                                         name: String(cString: FSStatsProcName(&raw)),
+                                         cpu: rec.cpu, memBytes: rec.mem,
+                                         diskRead: rec.r, diskWrite: rec.w,
+                                         iconPath: acc.iconPath)
+                }
+                sortChildren(&kids)
             }
-            sortChildren(&kids)
             result.append(StatsProcItem(pid: acc.kids.first?.pid ?? 0, name: acc.displayName,
                                         cpu: acc.cpu, memBytes: acc.mem,
                                         diskRead: acc.r, diskWrite: acc.w,
                                         pids: acc.kids.map(\.pid),
                                         iconPath: acc.iconPath,
-                                        children: kids.count > 1 ? kids : []))
+                                        children: kids))
         }
         return result
     }
