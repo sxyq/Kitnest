@@ -28,6 +28,7 @@
 // 采样 tick 生命周期（frset_stats_tick.m）
 void FSStatsTickStart(void);
 void FSStatsTickStop(void);
+void FSStatsReadCPU(frset_cpu_t *out);
 
 // 点击部件回调桥：module = CPU0 内存1 GPU2 磁盘3 网络4 传感器5 电池6
 typedef void (*FSBarOpenMonitorFn)(int module);

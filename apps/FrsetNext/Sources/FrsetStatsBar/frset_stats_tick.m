@@ -154,6 +154,8 @@ void frset_power_sample(frset_power_t *out) {
 
 // ---- 采样状态（对应注入版 FSStatsView 的 ivars，只留 tick 需要的）----
 static frset_cpu_t     s_cpu;
+static pthread_mutex_t s_cpuLock = PTHREAD_MUTEX_INITIALIZER;
+static BOOL            s_hasCPU;
 static frset_mem_t     s_mem;
 static frset_net_t     s_net;
 static frset_disk_t    s_disk;
@@ -233,9 +235,20 @@ static int collectTemps(frset_sensor_t *src, int n, frset_sensor_t *out, int max
 }
 
 // ============ tick：采样 → g_snap（逻辑与注入版 FSStatsView.tick 一致）============
+// CPU 集群详情与菜单栏共用一帧。菜单栏停用时，详情沿用原来的直接采样。
+void FSStatsReadCPU(frset_cpu_t *out) {
+    pthread_mutex_lock(&s_cpuLock);
+    if (s_hasCPU) *out = s_cpu;
+    else frset_cpu_sample(out);
+    pthread_mutex_unlock(&s_cpuLock);
+}
+
 static void statsTick(void) {
     s_tickCount++;
+    pthread_mutex_lock(&s_cpuLock);
     frset_cpu_sample(&s_cpu);
+    s_hasCPU = s_cpu.core_count > 0;
+    pthread_mutex_unlock(&s_cpuLock);
     frset_mem_sample(&s_mem);
     /* v128（CPU 优化）：网络/磁盘/电池降为 1s 采样（0.5s tick 的隔拍执行）。
        状态栏主显示是 CPU/内存（保持 0.5s）；这三项是次要读数，1s 采样与部件默认
@@ -355,6 +368,9 @@ void FSStatsTickStart(void) {
 
 void FSStatsTickStop(void) {
     if (s_tickTimer) { [s_tickTimer invalidate]; s_tickTimer = nil; }
+    pthread_mutex_lock(&s_cpuLock);
+    s_hasCPU = NO;
+    pthread_mutex_unlock(&s_cpuLock);
     frset_smc_close();
     NSLog(@"[FrsetStatsBar] 采样 tick 停止");
 }

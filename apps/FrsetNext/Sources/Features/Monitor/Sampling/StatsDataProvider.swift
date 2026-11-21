@@ -4,7 +4,7 @@ import SystemConfiguration   // SCDynamicStore：主接口 BSD 名
 // MARK: - STATS 深数据提供者（监测面板消费）
 //
 // 数据来源：FrsetStatsBar ObjC/C 模块的采集层（frset_stats_data.h，经桥接头直调）。
-// 与菜单栏引擎（合并条）各自采样——引擎服务 g_snap/部件，本提供者服务 SwiftUI 面板详情行。
+// 本提供者服务 SwiftUI 面板详情行，CPU 集群优先复用菜单栏引擎采样。
 //
 // 接入方式：MonitorSampler.sampleOnce() 在后台采样队列调用 refresh()（内部按成本节流），
 // 视图经 `StatsDataProvider.shared.current` 只读快照（与 MonitorExtra 同款旁路模式，
@@ -286,16 +286,15 @@ public final class StatsDataProvider {
         mark("gpu")
 
         // ---- CPU 集群拓扑（sysctl perflevel；Intel 返回非 0）----
-        // v128：含 host_processor_info 自采（系统调用），隐藏时并入 slow 档
+        // 隐藏时并入 slow 档。
         if heavyDue {
             var superCores: Int32 = 0, effCores: Int32 = 0, medCores: Int32 = 0
             if frset_cpu_clusters(&superCores, &effCores, &medCores) == 0 {
                 snap.cpuSuperCores = Int(superCores)
                 snap.cpuEffCores = Int(effCores)
                 snap.cpuMedCores = Int(medCores)
-                // 集群占用（per_core 按集群顺序排列；需本层自采 CPU——C 层差分内部维护）
                 var cpu = frset_cpu_t()
-                frset_cpu_sample(&cpu)
+                FSStatsReadCPU(&cpu)
                 var superUsage = 0.0, effUsage = 0.0, medUsage = 0.0
                 frset_cpu_cluster_usage(&cpu, superCores, effCores, medCores,
                                         &superUsage, &effUsage, &medUsage)
