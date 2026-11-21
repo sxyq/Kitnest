@@ -490,11 +490,6 @@ final class DiskIndexScanner {
         Int64(st.st_blocks) * 512
     }
 
-    /// 子目录名称用于递归；文件只保留本层最大的有限候选。
-    private struct DirEntry {
-        let name: String
-    }
-
     private struct FileEntry {
         let name: String
         let size: Int64
@@ -534,7 +529,7 @@ final class DiskIndexScanner {
         let kind = matched ?? inheritedKind
         let origin = matched == nil ? inheritedOrigin : path
 
-        var subdirs: [DirEntry] = []
+        var subdirs: [String] = []
         var fileBytes: Int64 = 0
         var files: [FileEntry] = []
         var st = stat()
@@ -552,13 +547,12 @@ final class DiskIndexScanner {
                 String(cString: raw.baseAddress!.assumingMemoryBound(to: CChar.self))
             }
             if name == "." || name == ".." { continue }
-            let full = path == "/" ? "/" + name : path + "/" + name
             let dtype = ent.pointee.d_type
 
             if dtype == dtDir {
-                subdirs.append(DirEntry(name: name))
+                subdirs.append(name)
             } else if dtype == dtReg {
-                guard lstat(full, &st) == 0 else { skipped += 1; continue }
+                guard lstat(path == "/" ? "/" + name : path + "/" + name, &st) == 0 else { skipped += 1; continue }
                 let bytes = Self.physicalSize(st)
                 fileBytes += bytes
                 retainFile(name, size: bytes, in: &files)
@@ -568,11 +562,11 @@ final class DiskIndexScanner {
                 continue
             } else {
                 // DT_UNKNOWN（网络卷 / 部分文件系统）：退回 lstat 判断
-                guard lstat(full, &st) == 0 else { skipped += 1; continue }
+                guard lstat(path == "/" ? "/" + name : path + "/" + name, &st) == 0 else { skipped += 1; continue }
                 let mode = st.st_mode & ifmt
                 if mode == iflnk { skipped += 1; continue }
                 if mode == ifdir {
-                    subdirs.append(DirEntry(name: name))
+                    subdirs.append(name)
                 } else {
                     let bytes = Self.physicalSize(st)
                     fileBytes += bytes
@@ -585,6 +579,7 @@ final class DiskIndexScanner {
             // 实测会把面板刷成幻灯片。1 万条一次（约 250ms）足够看清进度。
             if counter % 10_000 == 0 {
                 let c = counter
+                let full = path == "/" ? "/" + name : path + "/" + name
                 DispatchQueue.main.async { progress(c, full) }
             }
             if counter >= Self.maxNodes { break }
@@ -603,9 +598,9 @@ final class DiskIndexScanner {
         var summary = DiskDataCategory.Accumulator()
         summary.add(kind: kind, path: origin, bytes: fileBytes)
         if depth < Self.maxDepth {
-            for e in subdirs {
+            for name in subdirs {
                 if counter >= Self.maxNodes { break }
-                if let child = walk(path == "/" ? "/" + e.name : path + "/" + e.name,
+                if let child = walk(path == "/" ? "/" + name : path + "/" + name,
                                     depth: depth + 1,
                                     inheritedKind: kind,
                                     inheritedOrigin: origin,
