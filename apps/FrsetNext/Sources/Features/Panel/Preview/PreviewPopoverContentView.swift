@@ -310,13 +310,14 @@ struct PreviewTextViewRepresentable: NSViewRepresentable {
 
 struct PreviewTextContentView: View {
     let text: String
+    @ObservedObject private var personalization = Personalization.shared
 
     var body: some View {
         PreviewTextViewRepresentable(
             attributedText: NSAttributedString(
                 string: text,
                 attributes: [
-                    .font: NSFont.systemFont(ofSize: 19.5),   // 13 × 1.5（整体文本放大，2026-10-18）
+                    .font: NSFont.systemFont(ofSize: 19.5 * personalization.clipboardPreviewScale),
                     .foregroundColor: NSColor.labelColor
                 ]))
     }
@@ -460,6 +461,7 @@ private struct PreviewLoadingIndicator: View {
 struct PreviewMarkdownTextView: View {
     let model: PreviewPopoverContentModel
     var showsTOC = true
+    @ObservedObject private var personalization = Personalization.shared
     @Stored private var rendered: NSAttributedString?
     @Stored private var headings: [MarkdownHeading] = []
     @Stored private var sourceSegments: [(rendered: NSRange, source: NSRange)] = []
@@ -487,7 +489,7 @@ struct PreviewMarkdownTextView: View {
                 ProgressView("正在排版…").controlSize(.small)
             }
         }
-        .task(id: model.sessionID) {
+        .task(id: "\(model.sessionID.uuidString)-\(personalization.clipboardPreviewScale)") {
             let text = model.inlineText
             let parsed = await Task.detached(priority: .userInitiated) {
                 PreviewMarkdownRenderer.renderBody(text)

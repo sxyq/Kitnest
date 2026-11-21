@@ -99,7 +99,7 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
                 }
                 let font = kind == .code
                     ? NSFont.monospacedSystemFont(ofSize: CGFloat(CodePreviewPreferences.fontSize), weight: .regular)
-                    : NSFont.systemFont(ofSize: 19.5)
+                    : NSFont.systemFont(ofSize: 19.5 * Personalization.shared.clipboardPreviewScale)
                 body = NSAttributedString(string: text, attributes: [.font: font])
             }
             let limit: CGFloat = kind == .code || sidebar > 0 ? 760 : 640

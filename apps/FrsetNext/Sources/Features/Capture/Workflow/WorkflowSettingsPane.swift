@@ -15,8 +15,13 @@ struct WorkflowSettingsPane: View {
 }
 
 final class WorkflowSettingsDraft: SettingsEditableDraft {
-    @Published var workflows = WorkflowStore.load()
-    private var saved = WorkflowStore.load()
+    @Published var workflows: [CaptureWorkflow]
+    private var saved: [CaptureWorkflow]
+    init() {
+        let workflows = WorkflowStore.load()
+        self.workflows = workflows
+        self.saved = workflows
+    }
     var isDirty: Bool { workflows != saved }
     func save() -> String? {
         if let reason = WorkflowStore.save(workflows) { return reason }

@@ -47,6 +47,7 @@ final class QuickTutorialController: ObservableObject {
     @Published private(set) var message = ""
     private var timer: Timer?
     private var observers: [NSObjectProtocol] = []
+    private var clipboardOpenRetry: DispatchWorkItem?
 
     private init() {
         selected = defaults.string(forKey: selectionKey).flatMap(QuickTutorial.init(rawValue:))
@@ -183,13 +184,34 @@ final class QuickTutorialController: ObservableObject {
     }
 
     func openClipboard() {
-        guard clipboardSampleSaved else { return }
+        guard clipboardSampleSaved else { retryOpenClipboard(attempt: 0); return }
+        clipboardOpenRetry?.cancel(); clipboardOpenRetry = nil
         setStep(3, for: .clipboard)
         message = "在列表找到示例并点击复制；看到完成提示后回到 Kitnest。"
         WelcomeWindowController.shared.close()
         NSApp.activate(ignoringOtherApps: true)
         MonitorCenterPresenter.shared.selectHome()
         ServiceLocator.panel?.show()
+    }
+
+    /// v266：示例刚写进系统剪贴板时，历史落库有几百毫秒延迟。
+    /// 旧实现直接 return —— 用户点「打开剪贴板」毫无反应，以为教程坏了。
+    /// 现在最多等 2 秒（8×250ms），仍没有就明确说缺什么。
+    private func retryOpenClipboard(attempt: Int) {
+        clipboardOpenRetry?.cancel()
+        guard attempt < 8 else {
+            clipboardOpenRetry = nil
+            message = "没有等到示例进入历史。确认剪贴板监听已开启，或手动复制示例文本后再点「打开剪贴板」。"
+            return
+        }
+        message = "示例还在写入剪贴板历史，稍等一下…"
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            if self.clipboardSampleSaved { self.openClipboard() }
+            else { self.retryOpenClipboard(attempt: attempt + 1) }
+        }
+        clipboardOpenRetry = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
     }
 
     func startScreenshot() {

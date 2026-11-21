@@ -65,7 +65,11 @@ hdiutil create -volname "$APP_NAME 1.0.0" -srcfolder "$STAGE" -ov -format ULMO "
 
 # 挂载校验
 VOL=$(hdiutil attach "$OUT" -nobrowse -readonly -plist | python3 -c 'import plistlib, sys; print(next(e["mount-point"] for e in plistlib.loads(sys.stdin.buffer.read())["system-entities"] if "mount-point" in e))')
-codesign -v "$VOL/$APP_NAME.app" && echo "✓ 签名校验通过"
+if ! codesign -v --deep --strict "$VOL/$APP_NAME.app"; then
+  hdiutil detach "$VOL" -quiet
+  exit 1
+fi
 hdiutil detach "$VOL" -quiet
+echo "✓ 签名校验通过"
 ls -lh "$OUT"
 echo "✓ DMG 已打包：$OUT"

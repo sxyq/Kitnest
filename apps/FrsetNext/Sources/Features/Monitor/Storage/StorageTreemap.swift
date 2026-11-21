@@ -162,13 +162,24 @@ private struct DiskTileDrawing<Label: View>: View {
     let tiles: [DiskTile]
     let selectedID: String?
     let hoveredID: String?
+    /// v267：按住的块鼓得更多——「点下去液面被压了一个坑，松手弹回来」。
+    let pressedID: String?
     let label: Label
 
     var body: some View {
         Canvas { context, _ in
             for tile in tiles {
-                let path = tile.localHitPath
                 let emphasized = selectedID == tile.id || hoveredID == tile.id
+                let pressed = pressedID == tile.id
+                // v266：悬停块按中心微鼓 1.5%，像液面被手指压了一下再回弹；
+                // 只作用于绘制，命中路径保持不动，避免指针在边缘抖动。
+                // v267：按住时鼓 6%，松手回到悬停态，配合描边形成按压反馈。
+                let bulge: CGFloat = pressed ? 1.06 : emphasized ? 1.015 : 1
+                let path = bulge != 1 ? tile.localHitPath.applying(
+                    CGAffineTransform(translationX: tile.labelCenter.x, y: tile.labelCenter.y)
+                        .scaledBy(x: bulge, y: bulge)
+                        .translatedBy(x: -tile.labelCenter.x, y: -tile.labelCenter.y)
+                ) : tile.localHitPath
                 var drawing = context
                 drawing.translateBy(x: tile.frame.minX, y: tile.frame.minY)
                 var content = drawing
@@ -186,7 +197,9 @@ private struct DiskTileDrawing<Label: View>: View {
                         content.stroke(path.applying(transform), with: .color(.primary.opacity(0.10)), lineWidth: 1)
                     }
                 }
-                if emphasized {
+                if pressed {
+                    drawing.stroke(path, with: .color(Theme.accent), lineWidth: 2)
+                } else if emphasized {
                     drawing.stroke(path, with: .color(Theme.accent), lineWidth: 1.5)
                 }
                 if let symbol = context.resolveSymbol(id: tile.id) { content.draw(symbol, at: tile.labelCenter) }
@@ -197,21 +210,39 @@ private struct DiskTileDrawing<Label: View>: View {
     }
 }
 
+/// v267：块按压样式。只把 isPressed 透传出去，外观保持 plain。
+private struct TilePressStyle: ButtonStyle {
+    let onPress: (Bool) -> Void
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .onChange(of: configuration.isPressed) { pressed in onPress(pressed) }
+    }
+}
+
 struct StorageMapShape: Shape {
+    /// v266：左侧弧线重画。
+    ///
+    /// 用户原话：「改善与左侧列表衔接的弧线」。旧路径从 (0,0.84) 用
+    /// c2=(0.52,0.55) 收口，切线几乎垂直——顶部 40pt 看着像一刀切下来的直边，
+    /// 和下面的弧接不上。现在：
+    /// · 主弧收口控制点压到 (0.32,0.22)，整条边是连续外凸的液面；
+    /// · 顶端再用一段 65×27pt 的四分之一圆收进顶边，去掉左上尖角
+    ///   （目录卡左缘与图顶同宽，这个圆角正好藏在卡片下沿）。
     func path(in rect: CGRect) -> Path {
         var path = Path()
         let point: (CGFloat, CGFloat) -> CGPoint = {
             CGPoint(x: rect.minX + $0 * rect.width, y: rect.minY + $1 * rect.height)
         }
-        path.move(to: point(0.48, 0))
+        path.move(to: point(0.50, 0))
         path.addLine(to: point(0.91, 0))
         path.addCurve(to: point(1, 0.09), control1: point(0.96, 0), control2: point(1, 0.04))
         path.addLine(to: point(1, 0.91))
         path.addCurve(to: point(0.91, 1), control1: point(1, 0.96), control2: point(0.96, 1))
-        path.addLine(to: point(0, 1))
-        // 2026-11-12：按用户橙线，从整个窗口的左下方连续弯到上方中部。
+        path.addLine(to: point(0.03, 1))
+        path.addCurve(to: point(0, 0.965), control1: point(0.008, 1), control2: point(0, 0.985))
         path.addLine(to: point(0, 0.84))
-        path.addCurve(to: point(0.48, 0), control1: point(0.28, 0.80), control2: point(0.52, 0.55))
+        path.addCurve(to: point(0.40, 0.055), control1: point(0.24, 0.80), control2: point(0.32, 0.22))
+        path.addQuadCurve(to: point(0.50, 0), control: point(0.44, 0))
         path.closeSubpath()
         return path
     }
@@ -220,8 +251,9 @@ struct StorageMapShape: Shape {
 struct StorageTreemap: View {
 
     let node: DiskNode
+    let selectedID: String?
     /// 目录块点击 → 下钻
-    let onDrill: (DiskNode) -> Void
+    let onDrill: (DiskNode, UnitPoint) -> Void
     /// 文件 / 折叠块点击 → 选中（底部详情 + 删除）
     let onSelect: (DiskNode) -> Void
     /// 点空白处 = 返回上一级（v228：用户「进去之后没有快速返回的方式」）
@@ -229,8 +261,9 @@ struct StorageTreemap: View {
     /// 根层的磁盘可用空间（字节）。子目录不混入全盘可用空间。
     var freeSpace: Int64? = nil
     var indexRevision: Int = 0
-    @Stored private var selectedID: String?
     @Stored private var hoveredID: String?
+    /// 本工程 @State 宏不可用，按项目约定用 @Stored（StateCompat）。
+    @Stored private var pressedID: String?
 
     var body: some View {
         GeometryReader { geo in
@@ -253,7 +286,7 @@ struct StorageTreemap: View {
                         .contentShape(Rectangle())
                         .onTapGesture { onBack?() }
                     DiskTileDrawing(tiles: tiles,
-                        selectedID: selectedID, hoveredID: hoveredID,
+                        selectedID: selectedID, hoveredID: hoveredID, pressedID: pressedID,
                         label: ForEach(tiles) { tile in
                             if tile.labelPointCount >= 3 {
                                 label(tile, ink: tile.isFreeSpace ? .primary : contentColor(tile.ratio)).tag(tile.id)
@@ -261,7 +294,7 @@ struct StorageTreemap: View {
                         })
                         .allowsHitTesting(false)
                     ForEach(tiles) { tile in
-                        tileView(tile)
+                        tileView(tile, in: geo.size)
                     }
                 }
                 .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
@@ -281,22 +314,31 @@ struct StorageTreemap: View {
         }
         .background(StorageMapShape().fill(Color.primary.opacity(0.03)))
         .clipShape(StorageMapShape())
-        .onChange(of: indexRevision) { _ in selectedID = nil; hoveredID = nil }
+        .onChange(of: indexRevision) { _ in hoveredID = nil; pressedID = nil }
     }
 
-    private func tileView(_ t: DiskTile) -> some View {
+    private func tileView(_ t: DiskTile, in size: CGSize) -> some View {
         let tileFrame = t.frame
         return Button {
             if t.isFreeSpace { onBack?(); return }
-            selectedID = t.id
-            if t.node.canDrill { onDrill(t.node) } else { onSelect(t.node) }
+            if t.node.canDrill {
+                let anchor = UnitPoint(x: (tileFrame.minX + t.labelCenter.x) / size.width,
+                                       y: (tileFrame.minY + t.labelCenter.y) / size.height)
+                onDrill(t.node, anchor)
+            } else {
+                onSelect(t.node)
+            }
         } label: {
             // 命中区域独立于逐帧绘制，邻块挤压不改变按钮边界。
             Color.clear
                 .frame(width: tileFrame.width, height: tileFrame.height)
                 .contentShape(t.localHitPath)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(TilePressStyle { pressing in
+            // v267：按压反馈直接取 Button 自身的 isPressed，不额外挂手势抢点击。
+            if pressing { if pressedID != t.id { pressedID = t.id } }
+            else if pressedID == t.id { pressedID = nil }
+        })
         .position(x: tileFrame.midX, y: tileFrame.midY)
         .accessibilityLabel("\(t.node.name)，\(StorageFormat.bytes(t.node.size))")
         .accessibilityHint(t.isFreeSpace ? "返回上一级" : t.node.canDrill ? "进入查看子项" : "显示文件详情")
@@ -318,7 +360,10 @@ struct StorageTreemap: View {
         let bounds = t.labelBounds
         let w = bounds.width
         let h = bounds.height
-        if (t.isFreeSpace || inR > 44), w > 90, h > 50 {
+        // v266：单子项目录（如 Users 下只有 sunyiyang）那一块几乎占满整图，
+        // 但内切圆可能落在细长分片上，旧规则会退化成一个小点。面积够大时优先出字。
+        let roomy = w > 220 && h > 120
+        if (t.isFreeSpace || inR > 44 || roomy), w > 90, h > 50 {
             VStack(spacing: 2) {
                 Text(t.node.name)
                     .font(.system(size: 11.5, weight: .medium))
@@ -330,8 +375,8 @@ struct StorageTreemap: View {
                     .opacity(0.78)
             }
             .foregroundStyle(ink)
-            .frame(width: t.isFreeSpace ? min(w * 0.5, 160) : min(w * 0.78, inR * 1.7))
-        } else if inR > 24 {
+            .frame(width: t.isFreeSpace ? min(w * 0.5, 160) : min(w * 0.78, max(inR * 1.7, 180)))
+        } else if inR > 24 || roomy {
             Text(StorageFormat.shortBytes(t.node.size))
                 .font(.system(size: 11).monospacedDigit())
                 .foregroundStyle(ink.opacity(0.9))

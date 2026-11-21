@@ -36,6 +36,9 @@ pkill -f "Kitnest.app/Contents/MacOS/Kitnest"; sleep 2; open -a /Applications/Ki
 ```
 kitnest://panel?page=home                 主面板
 kitnest://settings?pane=monitor           设置页（monitor / monitor.widgets / about）
+kitnest://settings?pane=clipboard.appearance  剪贴板预览字号
+kitnest://clipdesk                        独立剪贴板工作台
+kitnest://storage                         存储管理（读取现有索引）
 kitnest://statistics                      使用统计
 kitnest://cloudlink?url=<URL>&action=download   直驱网盘解析下载（测试矩阵用）
 kitnest://toast?text=测试                 全局提示
@@ -57,10 +60,16 @@ print(''.join(open(p,errors='replace').readlines()[-8:]))"
 - 前后采样用 `top -pid <PID> -l 8 -s 2 -stats pid,cpu,mem -n 1`，排除首笔，另用 `footprint <PID> -f bytes -s` 记录当前与进程峰值字节；同时记主机 CPU 空闲率。UI操作和源码工具查询不与测量窗口交叠。
 - `cua.getApp(路径)` 在应用退出后会再次启动它；退出是否成功用进程状态确认，再切换下一版。CPU窗原Motion日志包含帧数、刷新率、播放时长和缓动，可与实际画面一并对照。
 
+- 剪贴板正文改动用独立工作台搜索已有纯文本、Markdown 和 JSON；主面板失焦会自动收起。字号保存后可在设置页重开核对。
+- 存储管理使用现有索引验证目录进退。两指横滑从色块区域开始；带 phase 的触控板与无 phase 的横向滚动都识别，一次手势只切一层（260ms 静默才重新计数）。
 - 收藏状态以 SQLite `resource_favorites` 为共享来源；剪贴板另外同步写 `clipboard_items.is_favorite`。核对其他入口时从状态栏「查看收藏…」或命令面板打开收藏窗。
-- 悬浮球界面目录复用 `IslandWidget`；显示开关、组件顺序、格子尺寸、列数及逐屏位置均由「设置 → 入口与交互 → 悬浮球」读取。
+- 悬浮球界面目录复用 `IslandWidget`；显示开关、组件顺序、宽高、格子尺寸、列数、默认页及逐屏记忆均由「设置 → 入口与交互 → 悬浮球」读取。
+- 悬浮球从球面拖动，释放后左右贴边，半隐藏露16pt；快捷窗底部箭头切页。关闭刘海入口后再打开媒体、日历等组件，确认共用内容窗仍展示真实业务。临时启用或改布局前记录对应偏好，结束后仅恢复这些键。
 - 悬浮球触发截图后，恢复依赖截图取消或动作条关闭回调；不要用固定计时器推断截图结束。
 - 在线翻译分别查看 Apple 本机 Provider 与 AI/360 在线 Provider；在线 Provider 首次请求会展示授权说明。仅用成功结果提示里的 Provider 名称确认实际服务。
+- 工作流首次打开使用 `kitnest://settings?pane=workflow`；没有保存文件时，示例应直接显示「已保存」，不能因重复生成 UUID 出现未操作的脏草稿。
+- Linear 工作流仅 `data.issueCreate.success=true` 作为成功；业务失败沿现有失败步骤提示与重试入口。真实调用需要用户的 Team ID 与凭证。
+- 2026-11-21安装版用现有更新探针读取真实发布地址且不提供SHA-256，日志记录提示「更新包缺少有效的 SHA-256 或未使用 HTTPS，已取消安装」，visible=true；探针键读取后自删。
 
 ### 屏幕录制授权
 
