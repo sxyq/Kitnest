@@ -6,11 +6,14 @@ set -e
 APP_NAME="${KITNEST_APP_NAME:-Kitnest}"
 APP="/Applications/$APP_NAME.app"
 OUT="${KITNEST_DMG_OUTPUT:-$HOME/Desktop/Kitnest-1.0.0.dmg}"
-STAGE=$(mktemp -d /tmp/frset_dmg.XXXXXX)
+SIGNING_IDENTITY="2EFBEE27CEFEF9F60C03BA222A972127D9286542"
 
 [ -d "$APP" ] || { echo "✗ 找不到 $APP（先跑 build.sh）"; exit 1; }
-rm -rf "$STAGE" && mkdir -p "$STAGE"
+STAGE=$(mktemp -d /tmp/frset_dmg.XXXXXX)
+trap 'rm -rf "$STAGE"' EXIT
 cp -R "$APP" "$STAGE/"
+xcrun strip -x "$STAGE/$APP_NAME.app/Contents/MacOS/$APP_NAME"
+codesign --force -s "$SIGNING_IDENTITY" "$STAGE/$APP_NAME.app" >/dev/null
 
 cat > "$STAGE/安装说明.txt" <<'TXT'
 Kitnest 安装说明
@@ -58,12 +61,15 @@ Kitnest 安装说明
 TXT
 
 rm -f "$OUT"
-hdiutil create -volname "$APP_NAME 1.0.0" -srcfolder "$STAGE" -ov -format UDZO "$OUT" >/dev/null
-rm -rf "$STAGE"
+hdiutil create -volname "$APP_NAME 1.0.0" -srcfolder "$STAGE" -ov -format ULMO "$OUT" >/dev/null
 
 # 挂载校验
 VOL=$(hdiutil attach "$OUT" -nobrowse -readonly -plist | python3 -c 'import plistlib, sys; print(next(e["mount-point"] for e in plistlib.loads(sys.stdin.buffer.read())["system-entities"] if "mount-point" in e))')
-codesign -v "$VOL/$APP_NAME.app" && echo "✓ 签名校验通过"
+if ! codesign -v --deep --strict "$VOL/$APP_NAME.app"; then
+  hdiutil detach "$VOL" -quiet
+  exit 1
+fi
 hdiutil detach "$VOL" -quiet
+echo "✓ 签名校验通过"
 ls -lh "$OUT"
 echo "✓ DMG 已打包：$OUT"
