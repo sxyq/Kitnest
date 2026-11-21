@@ -9,6 +9,10 @@ final class ArchiveDefaultApplication: ObservableObject {
     @Published private(set) var enabled = false
     @Published private(set) var changing = false
     @Published private(set) var applicationName = ""
+    /// 文案用：去掉 .app 后缀，读起来像应用名而不是路径
+    var applicationDisplayName: String {
+        applicationName.hasSuffix(".app") ? String(applicationName.dropLast(4)) : applicationName
+    }
     @Published private(set) var errorMessage: String?
 
     func refresh() {
@@ -69,12 +73,12 @@ struct ArchiveOpenBehaviorOptions: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             SettingsRow(title: "双击时快速解压",
-                        subtitle: "开启后双击压缩包会立刻解压到所在文件夹，跳过浏览步骤。按住 Shift 双击可临时改用浏览。") {
+                        subtitle: "双击直接解压到当前文件夹，按住 Shift 可浏览。") {
                 Toggle("双击时快速解压", isOn: $directExtract)
                     .labelsHidden().toggleStyle(.switch)
             }
             SettingsRow(title: "原包处理",
-                        subtitle: "直接解压完成后对原压缩包的处理：保留不动，或移入废纸篓（可恢复）。") {
+                        subtitle: "解压后原包保留或移入废纸篓。") {
                 Picker("原包处理", selection: $trashOriginal) {
                     Text("保留原包").tag(false)
                     Text("移到废纸篓").tag(true)
@@ -82,7 +86,7 @@ struct ArchiveOpenBehaviorOptions: View {
                 .labelsHidden().pickerStyle(.segmented).frame(width: 190)
                 .disabled(!directExtract)
             }
-            Text("DMG、ISO 等镜像格式不受此设置影响，始终以浏览方式打开。")
+            Text("DMG、ISO 始终浏览")
                 .font(.system(size: 11)).foregroundStyle(.secondary)
         }
     }
@@ -97,12 +101,12 @@ struct ArchiveHoverPreviewOptions: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             SettingsRow(title: "开启悬浮预览",
-                        subtitle: "在归档列表里悬停条目约 1 秒，自动解出临时副本并弹出预览；关闭后不预解任何条目。") {
+                        subtitle: "悬停约 1 秒弹出条目预览。") {
                 Toggle("开启悬浮预览", isOn: $hoverEnabled)
                     .labelsHidden().toggleStyle(.switch)
             }
             SettingsRow(title: "可预览大小上限",
-                        subtitle: "按解压后的条目大小计算，包含上限；超过上限的条目不预解。") {
+                        subtitle: "按解压后的大小计算。") {
                 Picker("可预览大小上限", selection: $sizeLimitMB) {
                     Text("10 MB").tag(10)
                     Text("50 MB").tag(50)
@@ -124,7 +128,7 @@ struct ArchiveProgressWindowOptions: View {
 
     var body: some View {
         SettingsRow(title: "保持置顶",
-                    subtitle: "任务队列浮窗始终显示在其他窗口之上；关闭后按普通窗口层级显示。") {
+                    subtitle: "浮窗始终在最前。") {
             Toggle("保持置顶", isOn: $keepOnTop)
                 .labelsHidden().toggleStyle(.switch)
         }
@@ -180,65 +184,65 @@ struct ArchiveDefaultApplicationOption: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             VStack(alignment: .leading, spacing: 5) {
-                Label("双击打开与解压", systemImage: "archivebox")
+                Label("ZIP 关联", systemImage: "archivebox")
                     .font(.system(size: 12, weight: .medium))
                 Toggle("ZIP 使用 Kitnest 打开", isOn: Binding(
                     get: { association.enabled }, set: { association.setEnabled($0) }))
                     .toggleStyle(.switch)
                     .disabled(association.changing)
-                Text(association.changing ? "正在更改…" : "当前默认应用：\(association.applicationName)")
+                Text(association.changing ? "正在更改…" : "当前打开方式：\(association.applicationDisplayName)")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
-                Text("启用后双击 ZIP 会在 Kitnest 中浏览与解压；关闭后恢复先前应用。")
+                Text("关闭后回到原来的应用。")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
                 HStack {
-                    Button("定位当前 ZIP 应用") {
+                    Button("定位 ZIP 应用") {
                         if let application = NSWorkspace.shared.urlForApplication(toOpen: .zip) {
                             NSWorkspace.shared.activateFileViewerSelecting([application])
                         }
                     }
-                    Button("定位系统归档工具") {
+                    Button("定位归档工具") {
                         if let application = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.archiveutility") {
                             NSWorkspace.shared.activateFileViewerSelecting([application])
                         }
                     }
                 }
                 .buttonStyle(.link)
-                Text("其他格式：访达选中压缩包 → 显示简介 → 打开方式 → 全部更改。")
+                Text("其他格式：显示简介 → 打开方式 → 全部更改")
                     .font(.system(size: 11)).foregroundStyle(.secondary)
             }
             Divider().opacity(0.6)
             VStack(alignment: .leading, spacing: 5) {
                 Label("Finder 服务", systemImage: "folder")
                     .font(.system(size: 12, weight: .medium))
-                Text("压缩：选中文件 → 右键 → 服务 → 用 Kitnest 压缩。系统原有的「压缩」不变。")
+                Text("压缩：右键 → 服务 → 用 Kitnest 压缩")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                Text("解压：选中归档 → 右键 → 服务 → 解压到此处 / 解压到…")
+                Text("解压：右键 → 服务 → 解压到此处 / 解压到…")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                Text("复制路径与终端打开：Finder 选中文件或目录 → 右键 → 服务 →「用 Kitnest 复制路径」或「用 Kitnest 在终端打开」。请在系统设置 → 键盘 → 键盘快捷键 → 服务中分别启用这两项。")
+                Text("复制路径、终端打开：右键 → 服务，默认未启用")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
-                Button("打开系统键盘设置") {
+                Button("打开键盘设置") {
                     if !NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.keyboard")!) {
-                        Toast.show("无法打开系统键盘设置，请从系统设置进入键盘 → 键盘快捷键 → 服务", isWarning: true)
+                        Toast.show("无法打开键盘设置", isWarning: true)
                     }
                 }
                 .buttonStyle(.link)
             }
             Divider()
-            Text("加密压缩 · 新建窗口默认值").font(.headline)
+            Text("新建压缩包默认值").font(.headline)
             Toggle("默认启用密码保护", isOn: $passwordEnabled)
                 .toggleStyle(.checkbox)
             Toggle("7z 默认加密文件名", isOn: $encryptFileNames)
                 .toggleStyle(.checkbox)
-            Text("即时保存，下次新建时生效；密码每次输入。ZIP 仅加密内容，7z 可同时隐藏文件名，TAR.GZ 不支持加密。")
+            Text("密码每次输入。ZIP 只加密内容，7z 还能隐藏文件名，TAR.GZ 不支持。")
                 .font(.system(size: 11)).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if let error = association.errorMessage {

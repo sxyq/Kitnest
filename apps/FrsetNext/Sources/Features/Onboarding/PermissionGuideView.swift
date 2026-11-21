@@ -148,10 +148,6 @@ private struct PermissionCard: View {
                     Spacer()
                     statusBadge
                 }
-                Text(kind.purpose)
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
                 FlowHStack(spacing: 5, lineSpacing: 4) {
                     ForEach(kind.features, id: \.self) { f in
                         Text(f)

@@ -547,18 +547,18 @@ Archive,Features/Archive/Core/ArchiveFlowRecommender.swift,ArchiveFlowRecommende
 Archive,Features/Archive/Core/ArchiveFlowRecommender.swift,ArchiveFlowRecommender,mountDMG,func,296,KEEP,recommend:112 闭包捕获（含 .dmg）
 Archive,Features/Archive/Core/ArchiveFlowRecommender.swift,ArchiveFlowBar,init,init,346,KEEP,BrowserWindow:854 构造 FlowBar
 Archive,Features/Archive/Core/ArchiveFlowRecommender.swift,ArchiveFlowBar,chip,func,393,KEEP,body:369 渲染每个推荐胶囊
-Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveDefaultApplication,refresh,func,14,KEEP,2026-11-18：教程权限及归档设置视图出现和App激活调用；读NSWorkspace实际ZIP默认应用同步enabled与名称；不在刷新时更改系统关联
-Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveDefaultApplication,setEnabled,func,20,KEEP,2026-11-18：共用Toggle setter调用；开启保存原bundleID并设置自身；关闭恢复保存应用或系统归档工具；异步完成回主线程刷新实际结果及错误；安装脚本只注册应用
-Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveQuickExtract,isDirectEligible,func,140,KEEP,2026-11-22：v273 ArcZip 1.2.5 对齐——DMG/ISO 始终浏览（extraction.opening.browse_formats 同款）；FrsetNextApp.application(open:) 调用
-Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveQuickExtract,run,func,144,KEEP,2026-11-22：v273 双击直接解压——list 列举→冲突检测→extract 到所在文件夹→可选 recycle 原包；冲突/无法列举回退 ArchiveBrowserWindowController.show；FrsetNextApp 调用
-Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,extractHere,func,281,KEEP,2026-11-18：Info.plist同名NSServices selector及AppDelegate稳定provider；筛选输入归档逐个解到源父目录；错误Toast；Core默认覆盖同名文件待后续统一解压交互
-Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,extractTo,func,302,KEEP,2026-11-18：Info.plist同名服务回调；NSOpenPanel选目录后全部归档交Core.extract；取消写服务错误；当前同名文件覆盖语义同extractHere待处理
-Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,openArchive,func,333,KEEP,2026-11-18：Info.plist同名服务回调；筛选归档后逐个交正式BrowserWindowController.show；控制器按标准路径复用已有窗口
-Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,compress,func,346,KEEP,2026-11-18：Info.plist同名服务回调；提取真实文件URL并交既有CreateWindowController.show；空输入写服务error；不另建压缩执行链
-Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,copyPaths,func,356,KEEP,2026-11-18：Info.plist注册系统回调；fileURLs标准化后逐行写绝对路径到general；空输入及写入失败同时给服务error与Toast；成功显示实际数量
-Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,openInTerminal,func,376,KEEP,2026-11-18：Info.plist注册系统回调；文件换父目录目录保留并去重；NSWorkspace按目录交Terminal；元数据和应用缺失及启动错误包含具体路径并回主线程反馈
-Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,fileURLs,func,429,KEEP,2026-11-18：compress和路径复制及终端打开直接调用；archives间接调用；仅接受pasteboard文件URL并标准化；NSServices入口由系统调用
-Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,archives,func,436,KEEP,2026-11-18：openArchive及两个解压服务共用；fileURLs结果按Core.isArchive扩展名筛选；无重复服务实现
+Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveDefaultApplication,refresh,func,18,KEEP,2026-11-18：教程权限及归档设置视图出现和App激活调用；读NSWorkspace实际ZIP默认应用同步enabled与名称；不在刷新时更改系统关联
+Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveDefaultApplication,setEnabled,func,24,KEEP,2026-11-18：共用Toggle setter调用；开启保存原bundleID并设置自身；关闭恢复保存应用或系统归档工具；异步完成回主线程刷新实际结果及错误；安装脚本只注册应用
+Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveQuickExtract,isDirectEligible,func,144,KEEP,2026-11-22：v273 ArcZip 1.2.5 对齐——DMG/ISO 始终浏览（extraction.opening.browse_formats 同款）；FrsetNextApp.application(open:) 调用
+Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveQuickExtract,run,func,148,KEEP,2026-11-22：v273 双击直接解压——list 列举→冲突检测→extract 到所在文件夹→可选 recycle 原包；冲突/无法列举回退 ArchiveBrowserWindowController.show；FrsetNextApp 调用
+Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,extractHere,func,285,KEEP,2026-11-18：Info.plist同名NSServices selector及AppDelegate稳定provider；筛选输入归档逐个解到源父目录；错误Toast；Core默认覆盖同名文件待后续统一解压交互
+Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,extractTo,func,306,KEEP,2026-11-18：Info.plist同名服务回调；NSOpenPanel选目录后全部归档交Core.extract；取消写服务错误；当前同名文件覆盖语义同extractHere待处理
+Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,openArchive,func,337,KEEP,2026-11-18：Info.plist同名服务回调；筛选归档后逐个交正式BrowserWindowController.show；控制器按标准路径复用已有窗口
+Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,compress,func,350,KEEP,2026-11-18：Info.plist同名服务回调；提取真实文件URL并交既有CreateWindowController.show；空输入写服务error；不另建压缩执行链
+Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,copyPaths,func,360,KEEP,2026-11-18：Info.plist注册系统回调；fileURLs标准化后逐行写绝对路径到general；空输入及写入失败同时给服务error与Toast；成功显示实际数量
+Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,openInTerminal,func,380,KEEP,2026-11-18：Info.plist注册系统回调；文件换父目录目录保留并去重；NSWorkspace按目录交Terminal；元数据和应用缺失及启动错误包含具体路径并回主线程反馈
+Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,fileURLs,func,433,KEEP,2026-11-18：compress和路径复制及终端打开直接调用；archives间接调用；仅接受pasteboard文件URL并标准化；NSServices入口由系统调用
+Archive,Features/Archive/Core/ArchiveServices.swift,ArchiveServicesProvider,archives,func,440,KEEP,2026-11-18：openArchive及两个解压服务共用；fileURLs结果按Core.isArchive扩展名筛选；无重复服务实现
 Archive,Features/Archive/Core/ArchiveSourceHandling.swift,ArchiveSourceHandling,offerCleanup,func,28,KEEP,2026-11-17：创建窗口成功完成并关闭后调用；源为空或输出在源目录内则返回；按既有ask和keep及trash偏好进入询问或系统废纸篓；不直接删除源文件
 Archive,Features/Archive/Core/ArchiveSourceHandling.swift,ArchiveSourceHandling,ask,func,47,KEEP,2026-11-17：offerCleanup在ask模式调用；弹窗默认保留原文件；仅勾记住才保存选择；选择移到废纸篓后交同一recycle
 Archive,Features/Archive/Core/ArchiveSourceHandling.swift,ArchiveSourceHandling,recycle,func,68,KEEP,2026-11-17：offerCleanup与ask调用；NSWorkspace.recycle异步回收明确源URL；主线程按系统错误或成功数量显示结果；用户可从废纸篓恢复
@@ -3486,15 +3486,15 @@ Settings,Features/Settings/Shell/SettingsPanes.swift,MenuBarSettingsDraft,restor
 Settings,Features/Settings/Shell/SettingsPanes.swift,MenuBarSettingsDraft,discard,func,88,KEEP,重新读取图标存储、引擎小猫配置与七项入口偏好，替换草稿并更新 saved；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsPanes.swift,MenuBarSettingsDraft,save,func,94,KEEP,先验证自定义 SF Symbol，变更小猫时调用 FSBarSaveConfiguration；只应用变化的图标/符号/入口键，发入口通知并刷新正式图标和小猫，失败返回具体原因；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,appearanceSection,func,217,KEEP,基础设置页共用正式外观预览与单页保存栏；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,appearanceChoices,func,297,KEEP,通用外观四选 Picker 双向绑定当前 AppearanceSettingsDraft.appearance；正式主题只由 shared scope 的 save 调用 AppearanceManager.apply；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,entryRow,func,356,KEEP,常规菜单栏设置行把指定入口开关双向绑定 draft.flags[key]，不直接写 Preferences；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,formRow,func,367,KEEP,本文件:61/66/70 等行布局；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,appearanceTitle,func,388,KEEP,本文件:138 卡片标题；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsPanes.swift,AboutSettingsPane,aboutContent,func,420,KEEP,关于页把更新地址纳入草稿，查看更新等即时动作单独呈现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsPanes.swift,AboutSettingsPane,aboutButton,func,504,KEEP,本文件:498/500 双按钮；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsPanes.swift,TagManagementSheet,createTag,func,610,KEEP,本文件:608 onSubmit/609 按钮；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsPanes.swift,TagManagementSheet,saveRename,func,618,KEEP,标签管理表单回车与保存按钮调用store.rename，失败提示并保留编辑，成功清editingTagID及名称草稿
-Settings,Features/Settings/Shell/SettingsPanes.swift,IgnoredAppsEditor,init,init,637,KEEP,MenuBarSettingsDraft 读取当前图标样式/自定义符号、Bar_MainIconCat 与七项入口标记，保存值组合供 isDirty 比较；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,appearanceChoices,func,295,KEEP,通用外观四选 Picker 双向绑定当前 AppearanceSettingsDraft.appearance；正式主题只由 shared scope 的 save 调用 AppearanceManager.apply；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,entryRow,func,354,KEEP,常规菜单栏设置行把指定入口开关双向绑定 draft.flags[key]，不直接写 Preferences；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,formRow,func,365,KEEP,本文件:61/66/70 等行布局；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsPanes.swift,GeneralSettingsPane,appearanceTitle,func,386,KEEP,本文件:138 卡片标题；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsPanes.swift,AboutSettingsPane,aboutContent,func,418,KEEP,关于页把更新地址纳入草稿，查看更新等即时动作单独呈现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsPanes.swift,AboutSettingsPane,aboutButton,func,502,KEEP,本文件:498/500 双按钮；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsPanes.swift,TagManagementSheet,createTag,func,608,KEEP,本文件:608 onSubmit/609 按钮；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsPanes.swift,TagManagementSheet,saveRename,func,616,KEEP,标签管理表单回车与保存按钮调用store.rename，失败提示并保留编辑，成功清editingTagID及名称草稿
+Settings,Features/Settings/Shell/SettingsPanes.swift,IgnoredAppsEditor,init,init,635,KEEP,MenuBarSettingsDraft 读取当前图标样式/自定义符号、Bar_MainIconCat 与七项入口标记，保存值组合供 isDirty 比较；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,init,init,36,KEEP,SettingsRootView 同时观察传入 SettingsUIState 和其 editingSession，内容树通过 environmentObject 共用该会话，按 generation 和窗口可见性重建预览；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,panePage,func,263,KEEP,设置页统一纵向ScrollView显示滚动条，内容水平34pt/垂直18pt内边距并靠左撑满；monitorWidgets分发也经过此入口，使所有模块卡及底部保存区可整页滚动访问；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsSidebarView.swift,CaptureSettingsBlock,init,init,56,KEEP,将旧深链/搜索的 0…4 下标映射回 CaptureSettingsBlock，维持现有入口定位；2026-11-19人工复核：保留，源码与调用/系统入口已核阅

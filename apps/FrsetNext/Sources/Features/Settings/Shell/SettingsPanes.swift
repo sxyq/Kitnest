@@ -227,8 +227,6 @@ struct GeneralSettingsPane: View {
     private var permissionsSection: some View {
         VStack(spacing: 12) {
             SettingsGroupBox {
-                Text("系统权限即时操作，独立于偏好草稿保存与取消。")
-                    .font(.system(size: 11)).foregroundStyle(.secondary)
                 ForEach(PermissionKind.allCases) { kind in
                     SettingsRow(icon: kind.symbol, title: kind.title, subtitle: kind.purpose) {
                         Text(permissions.status(kind).label).foregroundStyle(permissions.status(kind).tint)

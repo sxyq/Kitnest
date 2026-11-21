@@ -116,7 +116,7 @@ struct SettingsRootView: View {
             }
             if let hint = state.selection.openHint {
                 HStack(spacing: 5) {
-                    Image(systemName: "command")
+                    Image(systemName: "info.circle")
                         .font(.system(size: 9.5, weight: .semibold))
                     Text(hint)
                         .font(.system(size: 11.5))
@@ -208,7 +208,7 @@ struct SettingsRootView: View {
                     SettingsSection("进度窗口") {
                         SettingsGroupBox { ArchiveProgressWindowOptions() }
                     }
-                    SettingsSection("系统关联与 Finder 服务 · 即时操作") {
+                    SettingsSection("系统关联与 Finder 服务") {
                         SettingsGroupBox { ArchiveDefaultApplicationOption() }
                     }
                 }
@@ -283,7 +283,7 @@ struct SettingsRootView: View {
     }
 
     private var diagnostics: some View {
-        SettingsSection("运行诊断 · 即时操作") {
+        SettingsSection("运行诊断") {
             SettingsGroupBox {
                 SettingsRow(title: "诊断资料", subtitle: "导出运行日志与使用记录；不改变当前设置") {
                     Button("导出诊断…") { DiagnosticsExporter.export() }
