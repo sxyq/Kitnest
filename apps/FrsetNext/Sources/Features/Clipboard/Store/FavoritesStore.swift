@@ -245,8 +245,9 @@ private struct FavoritesView: View {
                                       remove: { ClipboardManager.shared.toggleFavorite(item) }))
         }
 
-        let selection: AppBootstrap.SelectionResult = .failure(.init(message: ""))
-        let commands = CommandCatalog.build(selection: selection) + CommandCatalog.buildSlash()
+        let commands = references.contains(where: { $0.kind == .command })
+            ? CommandCatalog.build(selection: .failure(.init(message: ""))) + CommandCatalog.buildSlash()
+            : []
         for reference in references {
             switch reference.kind {
             case .clipboard:

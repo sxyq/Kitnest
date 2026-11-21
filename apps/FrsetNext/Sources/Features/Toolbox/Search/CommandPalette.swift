@@ -418,7 +418,7 @@ final class CommandPaletteState: ObservableObject {
         // 并预留容量——refilter 在每次按键防抖后执行，是本文件真正的热路径。
         // v128（流畅度）：复核无 O(n²)——单趟匹配 O(n) + 排序 O(n log n)，n≈40。
         // 但结果无变化时也会写 @Published 触发整列表重绘（40 行 CommandRowView），
-        // 故比对 id 序列后只在真变化时发布（40 条 String 比对远比 40 行重绘便宜）。
+        // 故比对可见元数据后只在真变化时发布，语言变化也会更新标题与说明。
         var scored: [(item: CommandItem, score: Int)] = []
         scored.reserveCapacity(all.count)
         for item in all {
@@ -430,9 +430,12 @@ final class CommandPaletteState: ObservableObject {
         publish(scored.map { $0.item })
     }
 
-    /// 结果发布（id 序列不变则不触发整列表重绘）
+    /// 结果发布：顺序与显示内容均未变化时复用现有列表。
     private func publish(_ next: [CommandItem]) {
-        if next.map(\.id) != items.map(\.id) {
+        if !next.elementsEqual(items, by: {
+            $0.id == $1.id && $0.title == $1.title && $0.subtitle == $1.subtitle
+                && $0.systemImage == $1.systemImage && $0.kind == $1.kind
+        }) {
             items = next
         }
     }
