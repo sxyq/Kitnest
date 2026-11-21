@@ -38,6 +38,7 @@ FUNC_KINDS = ("func", "init", "deinit", "subscript")
 
 # 已重命名：台账旧名 → 现名
 RENAMES = {
+    ("Features/StatusBar/StatusBarMenuBuilder.swift", "StatusBarMenuBuilder", "customIconSubmenu"): "customIconItem",
     ("Features/AI/Views/AICredentialJournal.swift", "AICredentialJournalStore", "loadAll"): "decodeLines",
     ("Features/TransferDock/UI/TransferDockLoginView.swift", "Coordinator", "checkCookies"): "check",
 }
