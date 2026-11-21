@@ -352,8 +352,8 @@ private struct RecordingSettingsContent: View {
                 .font(.system(size: 12.5))
                 .lineLimit(1)
                 .frame(width: 92, alignment: .leading)
+            Spacer(minLength: 12)
             content()
-            Spacer(minLength: 0)
         }
         .padding(.vertical, 7)
         .background(targetField == title ? Theme.accent.opacity(0.08) : Color.clear)

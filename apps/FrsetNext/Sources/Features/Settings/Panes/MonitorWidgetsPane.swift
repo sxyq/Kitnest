@@ -274,8 +274,8 @@ private struct MonitorWidgetsContent: View {
     private func optionRow<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         HStack(spacing: 12) {
             Text(title).font(.system(size: 12)).foregroundStyle(.secondary).frame(width: 96, alignment: .leading)
+            Spacer(minLength: 12)
             content()
-            Spacer(minLength: 0)
         }.frame(minHeight: 26)
     }
     private func boolBinding(_ key: String, _ value: Bool) -> Binding<Bool> {

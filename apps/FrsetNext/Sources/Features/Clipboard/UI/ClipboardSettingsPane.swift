@@ -106,16 +106,11 @@ public struct ClipboardSettingsPane: View {
             case .appearance:
                 AppearanceSettingsEditor(scope: .clipboardAppearance) { draft in
                     SettingsGroupBox {
-                        HStack(alignment: .top, spacing: 14) {
+                        SettingsPreviewColumns {
                             AppearancePreviewBlock(scope: .clipboardList, draft: draft)
-                                .frame(maxWidth: .infinity, alignment: .topLeading)
-                            Rectangle()
-                                .fill(Color.primary.opacity(0.08))
-                                .frame(width: 0.5)
-                                .padding(.vertical, 4)
+                        } controls: {
                             PersonalizationSettingsView(part: .clipboardAppearance,
                                                         draft: draft, compact: true)
-                                .frame(width: 270, alignment: .topLeading)
                         }
                     }
                 }

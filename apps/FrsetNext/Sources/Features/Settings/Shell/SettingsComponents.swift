@@ -186,6 +186,78 @@ struct SettingsGroupBox<Content: View>: View {
     }
 }
 
+/// 预览在左、控件在右的两栏。剪贴板外观页先用，其余外观页统一走这里。
+/// 左列吃剩余宽度（预览按自身上限缩放），右列固定宽度，控件不会被压扁或越界。
+struct SettingsPreviewColumns<Preview: View, Controls: View>: View {
+    var controlsWidth: CGFloat = 270
+    let preview: Preview
+    let controls: Controls
+
+    init(controlsWidth: CGFloat = 270,
+         @ViewBuilder preview: () -> Preview,
+         @ViewBuilder controls: () -> Controls) {
+        self.controlsWidth = controlsWidth
+        self.preview = preview()
+        self.controls = controls()
+    }
+
+    var body: some View {
+        SettingsPreviewColumnsLayout(controlsWidth: controlsWidth) {
+            preview
+            controls
+            Rectangle().fill(Color.primary.opacity(0.08))
+        }
+    }
+}
+
+/// 预览左、控件右；可用宽度不足时自动改成上下排。
+/// 用 Layout 而不是 HStack + ViewThatFits：ViewThatFits 按理想宽度判断，
+/// 预览的固定宽度会让它在 820 宽窗口仍选两栏，把右列挤出卡片。
+private struct SettingsPreviewColumnsLayout: Layout {
+    var controlsWidth: CGFloat = 270
+    var previewWidth: CGFloat = 350
+    var spacing: CGFloat = 14
+    var breakpoint: CGFloat = 650
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? breakpoint
+        guard subviews.count == 3 else { return .zero }
+        if width >= breakpoint {
+            let preview = subviews[0].sizeThatFits(.init(width: previewWidth, height: nil))
+            let controls = subviews[1].sizeThatFits(.init(width: controlsWidth, height: nil))
+            return CGSize(width: width, height: max(preview.height, controls.height))
+        }
+        let preview = subviews[0].sizeThatFits(.init(width: width, height: nil))
+        let controls = subviews[1].sizeThatFits(.init(width: min(320, width), height: nil))
+        return CGSize(width: width,
+                      height: preview.height + spacing + 0.5 + spacing + controls.height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize,
+                       subviews: Subviews, cache: inout ()) {
+        guard subviews.count == 3 else { return }
+        let width = bounds.width
+        if width >= breakpoint {
+            subviews[0].place(at: CGPoint(x: bounds.minX, y: bounds.minY),
+                              proposal: .init(width: previewWidth, height: nil))
+            let controlsX = bounds.maxX - controlsWidth
+            subviews[1].place(at: CGPoint(x: controlsX, y: bounds.minY),
+                              proposal: .init(width: controlsWidth, height: nil))
+            subviews[2].place(at: CGPoint(x: controlsX - spacing, y: bounds.minY),
+                              proposal: .init(width: 0.5, height: bounds.height))
+        } else {
+            subviews[0].place(at: CGPoint(x: bounds.minX, y: bounds.minY),
+                              proposal: .init(width: width, height: nil))
+            let previewHeight = subviews[0].sizeThatFits(.init(width: width, height: nil)).height
+            let ruleY = bounds.minY + previewHeight + spacing
+            subviews[2].place(at: CGPoint(x: bounds.minX, y: ruleY),
+                              proposal: .init(width: width, height: 0.5))
+            subviews[1].place(at: CGPoint(x: bounds.minX, y: ruleY + 0.5 + spacing),
+                              proposal: .init(width: min(320, width), height: nil))
+        }
+    }
+}
+
 /// 分隔线（行与行之间）
 struct SettingsDivider: View {
     var body: some View {

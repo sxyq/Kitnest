@@ -48,7 +48,7 @@ struct RecordingAppearancePreview: View {
                     .resizable().aspectRatio(contentMode: .fit)
                     .frame(maxWidth: 480)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.control))
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityLabel("录屏预览，使用正式叠加绘制和固定摄像头、按键、点击示意")
             }
             Text("摄像头、按键与点击均为固定示意；这里不启动录制或输入采集。")

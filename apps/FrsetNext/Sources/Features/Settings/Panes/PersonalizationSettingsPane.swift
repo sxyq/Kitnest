@@ -268,6 +268,7 @@ struct PersonalizationSettingsView: View {
             }
         }
         .padding(.vertical, 4)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// 主面板布局与页面。
@@ -520,7 +521,7 @@ struct PersonalizationSettingsView: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .frame(width: 300)
+                .frame(width: compact ? 250 : 300)
             }
             Text("框选完成后弹出的小面板。三种排布的功能完全一样，只是紧凑程度和子项展开方式不同；"
                  + "预览实时切换，保存后用于下一次框选。")
@@ -596,22 +597,40 @@ struct PersonalizationSettingsView: View {
     /// 通知条：时长 + 定位
     private var toastRow: some View {
         settingRow("通知条") {
-            HStack(spacing: 10) {
-                Picker("", selection: $p.toastDuration) {
-                    Text("2 秒").tag(TimeInterval(2))
-                    Text("3 秒").tag(TimeInterval(3))
-                    Text("5 秒").tag(TimeInterval(5))
+            if compact {
+                VStack(spacing: 6) {
+                    Picker("", selection: $p.toastDuration) {
+                        Text("2 秒").tag(TimeInterval(2))
+                        Text("3 秒").tag(TimeInterval(3))
+                        Text("5 秒").tag(TimeInterval(5))
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    Picker("", selection: $p.toastFollowPanel) {
+                        Text("跟随主面板").tag(true)
+                        Text("屏幕中线偏下").tag(false)
+                    }
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
                 }
-                .pickerStyle(.segmented)
-                .frame(width: 150)
-                .labelsHidden()
-                Picker("", selection: $p.toastFollowPanel) {
-                    Text("跟随主面板").tag(true)
-                    Text("屏幕中线偏下").tag(false)
+            } else {
+                HStack(spacing: 10) {
+                    Picker("", selection: $p.toastDuration) {
+                        Text("2 秒").tag(TimeInterval(2))
+                        Text("3 秒").tag(TimeInterval(3))
+                        Text("5 秒").tag(TimeInterval(5))
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 150)
+                    .labelsHidden()
+                    Picker("", selection: $p.toastFollowPanel) {
+                        Text("跟随主面板").tag(true)
+                        Text("屏幕中线偏下").tag(false)
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 180)
+                    .labelsHidden()
                 }
-                .pickerStyle(.segmented)
-                .frame(width: 180)
-                .labelsHidden()
             }
         }
     }
@@ -664,21 +683,38 @@ struct PersonalizationSettingsView: View {
     }
 
     /// 一条滑块（音量条样式：标签 + 滑杆 + 数值）
-    private func glassSlider(_ title: String,
-                             value: Binding<Double>,
-                             range: ClosedRange<Double>,
-                             format: @escaping (Double) -> String) -> some View {
-        HStack(spacing: 8) {
-            Text(title)
-                .font(.system(size: 11))
-                .frame(width: 54, alignment: .leading)
-                .foregroundStyle(.secondary)
-            Slider(value: value, in: range)
-                .frame(width: 190)
-            Text(format(value.wrappedValue))
-                .font(.system(size: 11).monospacedDigit())
-                .foregroundStyle(.secondary)
-                .frame(width: 40, alignment: .leading)
+    @ViewBuilder private func glassSlider(_ title: String,
+                                          value: Binding<Double>,
+                                          range: ClosedRange<Double>,
+                                          format: @escaping (Double) -> String) -> some View {
+        if compact {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Text(title)
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Spacer(minLength: 8)
+                    Text(format(value.wrappedValue))
+                        .font(.system(size: 11).monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+                Slider(value: value, in: range)
+                    .frame(maxWidth: .infinity)
+            }
+        } else {
+            HStack(spacing: 8) {
+                Text(title)
+                    .font(.system(size: 11))
+                    .frame(width: 96, alignment: .leading)
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 12)
+                Slider(value: value, in: range)
+                    .frame(width: 190)
+                Text(format(value.wrappedValue))
+                    .font(.system(size: 11).monospacedDigit())
+                    .foregroundStyle(.secondary)
+                    .frame(width: 40, alignment: .leading)
+            }
         }
     }
 
@@ -731,13 +767,16 @@ struct PersonalizationSettingsView: View {
         }
     }
 
-    /// 恢复默认
+    /// 恢复默认：页脚动作，整行居中，不和上面的设置行混在一起。
     private var resetRow: some View {
-        settingRow("") {
+        HStack {
+            Spacer()
             Button("恢复全部个性化默认") { session.restoreAllDefaults() }
-            .buttonStyle(.link)
-            .font(.system(size: 11))
+                .buttonStyle(.link)
+                .font(.system(size: 11))
+            Spacer()
         }
+        .padding(.vertical, 2)
     }
 
     // MARK: 骨架
@@ -749,15 +788,18 @@ struct PersonalizationSettingsView: View {
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                 content()
+                    .frame(maxWidth: .infinity, alignment: .trailing)
             }
         } else {
+            // 统一的两列：标签贴左、控件贴右。以前 content 后面才放 Spacer，
+            // 控件会紧贴标签、右边留一大片空，和「外观」那种右对齐行对不上。
             HStack(alignment: .center, spacing: 12) {
                 Text(title)
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .frame(width: 96, alignment: .leading)
+                Spacer(minLength: 12)
                 content()
-                Spacer(minLength: 0)
             }
         }
     }
@@ -1004,7 +1046,7 @@ struct AppearancePreviewBlock: View {
                 Picker("代表场景", selection: $draft.previewScene) {
                     ForEach(scenes, id: \.self) { Text($0.rawValue).tag($0) }
                 }
-                .pickerStyle(.segmented).labelsHidden().frame(width: 300)
+                .pickerStyle(.segmented).labelsHidden().frame(maxWidth: 300)
             }
             GeometryReader { viewport in
                 let size = previewSize
@@ -1030,7 +1072,7 @@ struct AppearancePreviewBlock: View {
                                 .clipShape(RoundedRectangle(cornerRadius: theme.cornerRadius))
                         }
                     }
-                    .frame(width: viewport.size.width, height: size.height + 12, alignment: .center)
+                    .frame(width: viewport.size.width, height: size.height + 12, alignment: .leading)
             }
             .frame(height: previewSize.height + 12)
             .background(alignment: .center) {

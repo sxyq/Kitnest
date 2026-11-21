@@ -2437,6 +2437,8 @@ EVIDENCE.update({
     ("Core/Haptics/TrackpadActuator.swift", "actuate"): "业务事件与设置试听的唯一敲击点；直连失败时关掉重开再试一次，仍失败交公开接口",
     ("Core/Haptics/TrackpadActuator.swift", "ensureOpen"): "按需创建并打开马达；睡眠唤醒后句柄失效时由 actuate 关闭重开",
     ("Core/Haptics/TrackpadActuator.swift", "builtInTrackpadID"): "从 IORegistry 取内建且 ActuationSupported 的触控板 Multitouch ID，避开外接设备",
+    ("Features/Settings/Shell/SettingsComponents.swift", "sizeThatFits"): "预览/控件/分隔三子视图；内容宽≥650 时返回两栏高度（预览350、控件270），不足时返回上下排总高",
+    ("Features/Settings/Shell/SettingsComponents.swift", "placeSubviews"): "两栏把预览贴左、控件贴右、分隔居中；窄窗改上下排，控件限宽320，避免挤出卡片",
     ("Features/Island/IslandController.swift", "turnComponentPage"): "现有页面草稿将组件页码限制在0至componentPageCount减1；当前尚无调用方",
     ("Features/Island/IslandController.swift", "selectPage"): "turnPage和goBack复用可见页选择；记忆模式按显示器身份保存实际页面，保存错误交feedback",
     ("Features/Island/IslandController.swift", "applyOpeningPage"): "现有草稿按固定页或屏幕记忆挑选可见页，并以remember=false交selectPage；当前尚无调用方",

@@ -166,17 +166,21 @@ struct GeneralSettingsPane: View {
             case .notifications:
                 AppearanceSettingsEditor(scope: .notification) { draft in
                     SettingsGroupBox {
-                        AppearancePreviewBlock(scope: .notification, draft: draft)
-                        SettingsDivider()
-                        PersonalizationSettingsView(part: .notification, draft: draft)
+                        SettingsPreviewColumns {
+                            AppearancePreviewBlock(scope: .notification, draft: draft)
+                        } controls: {
+                            PersonalizationSettingsView(part: .notification, draft: draft, compact: true)
+                        }
                     }
                 }
             case .captureToolbar:
                 AppearanceSettingsEditor(scope: .captureToolbar) { draft in
                     SettingsGroupBox {
-                        AppearancePreviewBlock(scope: .captureToolbar, draft: draft)
-                        SettingsDivider()
-                        PersonalizationSettingsView(part: .captureToolbar, draft: draft)
+                        SettingsPreviewColumns {
+                            AppearancePreviewBlock(scope: .captureToolbar, draft: draft)
+                        } controls: {
+                            PersonalizationSettingsView(part: .captureToolbar, draft: draft, compact: true)
+                        }
                     }
                 }
             }
@@ -217,9 +221,11 @@ struct GeneralSettingsPane: View {
     private func appearanceSection(_ part: PersonalizationSettingsPart) -> some View {
         AppearanceSettingsEditor(scope: part) { draft in
             SettingsGroupBox {
-                AppearancePreviewBlock(scope: .mainPanel, draft: draft)
-                SettingsDivider()
-                PersonalizationSettingsView(part: part, draft: draft)
+                SettingsPreviewColumns {
+                    AppearancePreviewBlock(scope: .mainPanel, draft: draft)
+                } controls: {
+                    PersonalizationSettingsView(part: part, draft: draft, compact: true)
+                }
             }
         }
     }
@@ -248,11 +254,11 @@ struct GeneralSettingsPane: View {
         AppearanceSettingsEditor(scope: .mainPanel) { draft in
             SettingsSection("") {
                 SettingsGroupBox {
-                    AppearancePreviewBlock(scope: .mainPanel, draft: draft)
-                        .padding(.vertical, 6)
-                    SettingsDivider()
-                    PersonalizationSettingsView(part: .mainPanel, draft: draft)
-                        .padding(.vertical, 6)
+                    SettingsPreviewColumns {
+                        AppearancePreviewBlock(scope: .mainPanel, draft: draft)
+                    } controls: {
+                        PersonalizationSettingsView(part: .mainPanel, draft: draft, compact: true)
+                    }
                 }
             }
         }
@@ -263,11 +269,11 @@ struct GeneralSettingsPane: View {
         AppearanceSettingsEditor(scope: .floatingWindow) { draft in
             SettingsSection("") {
                 SettingsGroupBox {
-                    AppearancePreviewBlock(scope: .floatingWindow, draft: draft)
-                        .padding(.vertical, 6)
-                    SettingsDivider()
-                    PersonalizationSettingsView(part: .floatingWindow, draft: draft)
-                        .padding(.vertical, 6)
+                    SettingsPreviewColumns {
+                        AppearancePreviewBlock(scope: .floatingWindow, draft: draft)
+                    } controls: {
+                        PersonalizationSettingsView(part: .floatingWindow, draft: draft, compact: true)
+                    }
                 }
             }
         }
@@ -278,12 +284,20 @@ struct GeneralSettingsPane: View {
         AppearanceSettingsEditor(scope: .shared) { draft in
             SettingsSection("") {
                 SettingsGroupBox {
-                    AppearancePreviewBlock(scope: .mainPanel, draft: draft)
-                    SettingsDivider()
-                    formRow(L10n.t("Appearance"), height: 48) { appearanceChoices(draft) }
-                    SettingsDivider()
-                    PersonalizationSettingsView(part: .shared, draft: draft)
-                        .padding(.vertical, 6)
+                    SettingsPreviewColumns {
+                        AppearancePreviewBlock(scope: .mainPanel, draft: draft)
+                    } controls: {
+                        VStack(alignment: .leading, spacing: 10) {
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text(L10n.t("Appearance"))
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(.secondary)
+                                appearanceChoices(draft)
+                            }
+                            SettingsDivider()
+                            PersonalizationSettingsView(part: .shared, draft: draft, compact: true)
+                        }
+                    }
                 }
             }
         }
@@ -298,9 +312,11 @@ struct GeneralSettingsPane: View {
                 Text(appearanceTitle(mode)).tag(mode)
             }
         }
-        .pickerStyle(.segmented)
+        // 两栏的右列只有 270pt，四段控件至少 315pt 会顶出卡片；
+        // 这里用菜单，四项都点得到，也不会越界。
+        .pickerStyle(.menu)
         .labelsHidden()
-        .frame(width: 300)
+        .frame(maxWidth: .infinity, alignment: .trailing)
     }
 
     private var menuBarSection: some View {
