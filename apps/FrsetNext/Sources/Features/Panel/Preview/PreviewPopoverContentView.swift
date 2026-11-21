@@ -1123,6 +1123,7 @@ private enum PreviewFileThumbCache {
     static let store: NSCache<NSString, NSImage> = {
         let c = NSCache<NSString, NSImage>()
         c.countLimit = 60
+        c.totalCostLimit = 32 * 1024 * 1024
         return c
     }()
 }
@@ -1229,7 +1230,10 @@ private struct PreviewFileThumb: View {
         Task {
             let img = await PreviewFileThumbnailLoader.decode(path: p)
             if let img {
-                PreviewFileThumbCache.store.setObject(img, forKey: p as NSString)
+                let cost = img.representations.reduce(0) {
+                    max($0, $1.pixelsWide * $1.pixelsHigh * 4)
+                }
+                PreviewFileThumbCache.store.setObject(img, forKey: p as NSString, cost: cost)
             }
             await MainActor.run { image = img }
         }

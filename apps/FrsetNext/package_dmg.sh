@@ -6,11 +6,15 @@ set -e
 APP_NAME="${KITNEST_APP_NAME:-Kitnest}"
 APP="/Applications/$APP_NAME.app"
 OUT="${KITNEST_DMG_OUTPUT:-$HOME/Desktop/Kitnest-1.0.0.dmg}"
+SIGNING_IDENTITY="2EFBEE27CEFEF9F60C03BA222A972127D9286542"
 STAGE=$(mktemp -d /tmp/frset_dmg.XXXXXX)
 
 [ -d "$APP" ] || { echo "✗ 找不到 $APP（先跑 build.sh）"; exit 1; }
 rm -rf "$STAGE" && mkdir -p "$STAGE"
 cp -R "$APP" "$STAGE/"
+xcrun strip -x "$STAGE/$APP_NAME.app/Contents/MacOS/$APP_NAME"
+codesign --force -s "$SIGNING_IDENTITY" "$STAGE/$APP_NAME.app" >/dev/null
+codesign -v --deep --strict "$STAGE/$APP_NAME.app"
 
 cat > "$STAGE/安装说明.txt" <<'TXT'
 Kitnest 安装说明
@@ -58,7 +62,7 @@ Kitnest 安装说明
 TXT
 
 rm -f "$OUT"
-hdiutil create -volname "$APP_NAME 1.0.0" -srcfolder "$STAGE" -ov -format UDZO "$OUT" >/dev/null
+hdiutil create -volname "$APP_NAME 1.0.0" -srcfolder "$STAGE" -ov -format ULMO "$OUT" >/dev/null
 rm -rf "$STAGE"
 
 # 挂载校验
