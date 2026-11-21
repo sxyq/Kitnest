@@ -63,13 +63,18 @@ struct SettingsSection<Content: View>: View {
     @Stored private var isExpanded: Bool
     let title: String
     let collapsible: Bool
+    /// v274（用户：「预览不需要自动折叠，所有的这种界面都不需要自动折叠」）：
+    /// 预览类区块常驻展开——保留标题与右侧摘要，但不给折叠入口。
+    let alwaysExpanded: Bool
     let summary: String?
     let content: Content
 
     init(_ title: String, collapsible: Bool = false, expanded: Bool = false,
-         summary: String? = nil, @ViewBuilder content: () -> Content) {
+         alwaysExpanded: Bool = false, summary: String? = nil,
+         @ViewBuilder content: () -> Content) {
         self.title = title
         self.collapsible = collapsible
+        self.alwaysExpanded = alwaysExpanded
         self.summary = summary
         self._isExpanded = Stored(wrappedValue: expanded)
         self.content = content()
@@ -79,7 +84,17 @@ struct SettingsSection<Content: View>: View {
         // v273：title 为空时不画标题行——二级页的页头已经有大标题，
         // 段内再写一遍同名的会形成「标题下又一个同名标题」的重复。
         VStack(alignment: .leading, spacing: title.isEmpty ? 0 : 8) {
-            if collapsible {
+            if alwaysExpanded {
+                HStack(spacing: 7) {
+                    Text(title).font(.system(size: 12, weight: .semibold))
+                    Spacer(minLength: 8)
+                    if let summary {
+                        Text(summary).font(.system(size: 11)).foregroundStyle(.secondary)
+                    }
+                }
+                .frame(minHeight: 24)
+                content
+            } else if collapsible {
                 Button { isExpanded.toggle() } label: {
                     HStack(spacing: 7) {
                         Image(systemName: isExpanded ? "chevron.down" : "chevron.right")

@@ -201,7 +201,7 @@ private struct IslandSettingsContent: View {
     }
 
     private var preview: some View {
-        SettingsSection("实时预览", collapsible: true, expanded: part != .activation,
+        SettingsSection("实时预览", alwaysExpanded: true,
                         summary: "交互演示") {
             IslandSettingsPreview(draft: draft, controller: draft.previewController)
         }
@@ -343,7 +343,7 @@ private struct IslandSettingsContent: View {
     }
 
     private var entryPreviews: some View {
-        SettingsSection("入口预览", collapsible: true, summary: "刘海屏与普通屏") {
+        SettingsSection("入口预览", alwaysExpanded: true, summary: "刘海屏与普通屏") {
             HStack(alignment: .top, spacing: 12) {
                 IslandEntryPreview(hasNotch: true, size: displays.first(where: \.hasNotch)?.entrySize)
                 IslandEntryPreview(hasNotch: false, size: CGSize(width: 180, height: 28))

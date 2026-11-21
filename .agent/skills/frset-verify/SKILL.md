@@ -21,6 +21,21 @@ screencapture -x -o -l<窗id> /tmp/shot.png
 - 判断对齐/间距：裁左右边缘窄条对比，或目视缩放图
 - 截完用 Read 工具查看图片确认效果
 
+### 1.1 动效验证（录屏 + 逐帧，2026-11-22 v274）
+
+单张截图看不出「有没有动画」——弹簧可能被合并成单帧跳变，也可能被系统「减弱动态效果」吃掉。
+
+```bash
+screencapture -x -v -V 8 -R <x>,<y>,<w>,<h> /tmp/loop.mov
+rm -rf /tmp/frames && mkdir -p /tmp/frames
+ffmpeg -v error -i /tmp/loop.mov -vf fps=30 /tmp/frames/f%04d.png
+# 用 PIL 统计目标图标/色块像素：帧间应出现小→大→过冲→稳态，而不是 0→满值
+defaults read com.apple.universalaccess reduceMotion   # 1 = 系统已减弱动态效果
+```
+
+设置页通知条预览的稳定判据：弹入 77→450→533→586（过冲）→530；隐藏 474→261→0。
+若只有 0→满值，先查 `reduceMotion`，再查 `withAnimation` 的两帧是否被合并。
+
 ## 2. defaults 探针（非交互触发）
 
 ```bash

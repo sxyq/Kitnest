@@ -253,7 +253,7 @@ private struct RecordingSettingsContent: View {
                         .font(.system(size: 11)).foregroundStyle(.secondary)
                 }
 
-                SettingsSection("录屏效果预览", collapsible: true, summary: "模拟效果") {
+                SettingsSection("录屏效果预览", alwaysExpanded: true, summary: "模拟效果") {
                     RecordingAppearancePreview(values: draft.values)
                 }
                 .padding(.vertical, 10)

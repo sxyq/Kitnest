@@ -989,7 +989,7 @@ struct AppearancePreviewBlock: View {
     private var usesDesktopWallpaper: Bool { needsWallpaper && draft.previewScene != .background }
 
     var body: some View {
-        SettingsSection("效果预览", collapsible: true, expanded: scope == .clipboardList,
+        SettingsSection("效果预览", alwaysExpanded: true,
                         summary: "模拟效果") {
             VStack(alignment: .leading, spacing: 10) {
             HStack {
@@ -1089,15 +1089,27 @@ struct AppearancePreviewBlock: View {
             if !isVisible { return }
             withAnimation(reduceMotion ? nil : .easeOut(duration: duration)) { revealed = true }
         }
-        .task(id: "\(toastReplay)-\(isVisible)-\(reduceMotion)") { @MainActor in
-            if scope != .notification || !isVisible { return }
+        .task(id: "\(toastReplay)-\(isVisible)") { @MainActor in
+            // v274（用户：「它的这个没有展示它的一个效果」）：预览要连续演示，
+            // 不能播一次就只剩壁纸。隐藏后先等一帧真正落地再弹入——false→true
+            // 挤在同一帧时 SwiftUI 会合并更新，弹簧 scale 根本看不到。
+            // 不按 reduceMotion 降级：正式通知条（Toast.swift）固定走 springBouncy，
+            // 预览必须复现真实观感，否则系统开了「减弱动态效果」就永远看不到弹入。
+            guard scope == .notification, isVisible else { return }
             toastState.isVisible = false
-            await Task.yield()
-            if Task.isCancelled { return }
-            withAnimation(reduceMotion ? nil : Theme.Motion.springBouncy) { toastState.isVisible = true }
-            do { try await Task.sleep(nanoseconds: UInt64(p.toastDuration * 1_000_000_000)) }
-            catch { return }
-            withAnimation(reduceMotion ? nil : Theme.Motion.springBouncy) { toastState.isVisible = false }
+            do { try await Task.sleep(nanoseconds: 120_000_000) } catch { return }
+            while !Task.isCancelled {
+                withAnimation(Theme.Motion.springBouncy) {
+                    toastState.isVisible = true
+                }
+                do { try await Task.sleep(nanoseconds: UInt64(p.toastDuration * 1_000_000_000)) }
+                catch { return }
+                withAnimation(Theme.Motion.springBouncy) {
+                    toastState.isVisible = false
+                }
+                do { try await Task.sleep(nanoseconds: 900_000_000) }
+                catch { return }
+            }
         }
         .onDisappear {
             toastState.isVisible = false
@@ -1116,7 +1128,7 @@ struct AppearancePreviewBlock: View {
         case .clipboard: return "固定模拟记录；展示草稿的布局、卡片和详情。"
         case .clipboardList: return "固定模拟记录；密度、缩略图和徽章按真实界面展示。"
         case .captureToolbar: return "正式动作条组件；这里只演示外观，不执行截图操作。"
-        case .notification: return "显示 \(Int(p.toastDuration)) 秒 · \(p.toastFollowPanel ? "跟随主面板" : "屏幕中线偏下")"
+        case .notification: return "显示 \(Int(p.toastDuration)) 秒 · \(p.toastFollowPanel ? "跟随主面板" : "屏幕中线偏下") · 循环演示"
         }
     }
 
