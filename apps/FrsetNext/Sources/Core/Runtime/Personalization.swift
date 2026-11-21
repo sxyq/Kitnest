@@ -186,7 +186,12 @@ public final class Personalization: ObservableObject {
         NotificationCenter.default.post(name: Self.didChangeNotification, object: nil)
     }
 
-    private func copyValues(from source: Personalization) {
+    /// 把另一份草稿的全部字段原地覆盖到当前实例。
+    ///
+    /// 设置页的草稿对象**不能换实例**：`PersonalizationSettingsView` 在 init 时就把
+    /// `draft.personalization` 存成 @ObservedObject，换实例后控件仍写旧对象、预览读新对象，
+    /// 表现就是「点字号/强调色没反应」。这里用原地覆盖，实例身份始终不变。
+    func copyValues(from source: Personalization) {
         accentColor = source.accentColor
         fontScale = source.fontScale
         density = source.density

@@ -107,15 +107,15 @@ Core,Core/Runtime/Personalization.swift,DraftField,init,init,167,KEEP,2026-11-19
 Core,Core/Runtime/Personalization.swift,Personalization,makeDefaultDraft,func,174,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；AppearanceSettingsDraft.restoreDefaults 调用：创建不装载偏好、不会持久写入的 Personalization，按模块 DraftField 取其出厂值
 Core,Core/Runtime/Personalization.swift,Personalization,applyDraft,func,176,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；模块保存传入明确的DraftField列表，在isLoading期间只复制该模块字段，随后flushPersist(keys:)只写这些偏好并发外观变化通知，避免覆盖其他页已保存值
 Core,Core/Runtime/Personalization.swift,Personalization,reloadFromDefaults,func,184,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；配置导入后从已有偏好重载全局外观并通知正式窗口，沿用同一单例
-Core,Core/Runtime/Personalization.swift,Personalization,copyValues,func,189,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；makeDraft共用完整外观复制入口，同步强调色、字号、密度、圆角、动画、悬停预览、材质、徽章、缩略图、通知、分隔线、Midnight、背景和玻璃参数共20项
-Core,Core/Runtime/Personalization.swift,Personalization,persist,func,226,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；全部 @Published didSet 调用
-Core,Core/Runtime/Personalization.swift,Personalization,flushPendingPersist,func,235,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；FrsetNextApp.swift:99 退出兜底
-Core,Core/Runtime/Personalization.swift,Personalization,flushPersist,func,267,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；persist:164 / flushPendingPersist:173
-Core,Core/Runtime/Personalization.swift,Personalization,migratedPreviewScale,func,285,KEEP,2026-11-21：v266 预览字号四档上移；读取 ui.clipboard.previewScale 与版本键，旧 0.9/1.0/1.1/1.25 一次性映射到 1.0/1.25/1.5/1.5 并写回版本 2；调用点 load:323
-Core,Core/Runtime/Personalization.swift,Personalization,load,func,305,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；init:146 调用
-Core,Core/Runtime/Personalization.swift,Personalization,color,func,388,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；load:209 / PersonalizationSettingsPane:786
-Core,Core/Runtime/Personalization.swift,Personalization,hex,func,398,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；accentColorHex:269 / Pane:203
-Core,Core/Runtime/Personalization.swift,Personalization,resetAll,func,420,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；PersonalizationSettingsPane.swift:765
+Core,Core/Runtime/Personalization.swift,Personalization,copyValues,func,194,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；makeDraft共用完整外观复制入口，同步强调色、字号、密度、圆角、动画、悬停预览、材质、徽章、缩略图、通知、分隔线、Midnight、背景和玻璃参数共20项
+Core,Core/Runtime/Personalization.swift,Personalization,persist,func,231,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；全部 @Published didSet 调用
+Core,Core/Runtime/Personalization.swift,Personalization,flushPendingPersist,func,240,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；FrsetNextApp.swift:99 退出兜底
+Core,Core/Runtime/Personalization.swift,Personalization,flushPersist,func,272,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；persist:164 / flushPendingPersist:173
+Core,Core/Runtime/Personalization.swift,Personalization,migratedPreviewScale,func,290,KEEP,2026-11-21：v266 预览字号四档上移；读取 ui.clipboard.previewScale 与版本键，旧 0.9/1.0/1.1/1.25 一次性映射到 1.0/1.25/1.5/1.5 并写回版本 2；调用点 load:323
+Core,Core/Runtime/Personalization.swift,Personalization,load,func,310,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；init:146 调用
+Core,Core/Runtime/Personalization.swift,Personalization,color,func,393,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；load:209 / PersonalizationSettingsPane:786
+Core,Core/Runtime/Personalization.swift,Personalization,hex,func,403,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；accentColorHex:269 / Pane:203
+Core,Core/Runtime/Personalization.swift,Personalization,resetAll,func,425,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；PersonalizationSettingsPane.swift:765
 Core,Core/Runtime/Preferences.swift,Preferences,init,init,10,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；static shared:6 构造
 Core,Core/Runtime/Preferences.swift,Preferences,value,func,16,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；binding:107 / 计算属性:91
 Core,Core/Runtime/Preferences.swift,Preferences,set,func,20,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；binding:108 / 计算属性 setter:92
@@ -1423,28 +1423,28 @@ Capture,Features/Capture/Pin/PinChrome.swift,PinMenuPanel,dismiss,func,450,KEEP,
 Capture,Features/Capture/Pin/PinChrome.swift,PinMenuPanel,reload,func,462,KEEP,2026-11-20：入栈和返回按当前entries刷新高度，推入播放横移动画，未限制新frame
 Capture,Features/Capture/Pin/PinChrome.swift,PinMenuPanel,layoutPanel,func,483,KEEP,2026-11-20：首次呈现按锚点上下空间和主屏边界定位，多屏目标选择待改
 Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,init,init,46,KEEP,2026-11-19：设置预览与缩略样式实例调用；在本地场景接正式子视图回调，不触碰真实钉图、剪贴板或窗口
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,init,init,91,KEEP,2026-11-19：NSView coder构造必需覆写；预览只经init(interactive:)程序创建
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,accessibilityPerformPress,func,93,KEEP,2026-11-19：辅助功能Press派发；有window则请求场景第一响应者，window缺失返回false
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,becomeFirstResponder,func,94,KEEP,2026-11-19：AppKit第一响应者获取回调；图层加系统强调边框并成功
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,resignFirstResponder,func,99,KEEP,2026-11-19：AppKit失去第一响应者回调；仅清焦点边框
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,keyDown,func,100,KEEP,2026-11-19：第一响应者键盘事件派发；方向键移动、加减缩放、归零、显控制条或隐藏并清气泡，其余super
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,update,func,118,KEEP,2026-11-19：外观草稿onChange调用；同步正式PinImageView及工具栏透明偏好，外观变更时重显控制条并排版
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,layout,func,136,KEEP,2026-11-19：NSView布局派发；按可用区域限制尺寸，位置边界夹紧，仅偏移且magnet启用时调用正式吸附几何
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,hitTest,func,163,KEEP,2026-11-19：AppKit命中派发；只允许交互场景接收鼠标，图片和状态标签路由至场景拖动
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,updateTrackingAreas,func,169,KEEP,2026-11-19：AppKit布局/窗口显示派发；先移旧追踪区，交互模式仅建可视区覆盖追踪
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,mouseEntered,func,178,KEEP,2026-11-19：trackingArea进入调用；恢复图像显现并重启控制条显示时长
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,mouseMoved,func,182,KEEP,2026-11-19：trackingArea移动调用；重用showChrome延时隐藏逻辑
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,mouseExited,func,183,KEEP,2026-11-19：trackingArea离开调用；取消Task并立即隐藏工具和气泡
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,mouseDown,func,189,KEEP,2026-11-19：NSResponder鼠标按下派发；获取焦点，双击复位，仅单击记录起始点并显示工具
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,mouseDragged,func,196,KEEP,2026-11-19：AppKit拖动派发；基于起点增量更新offset并请求布局/反馈
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,scrollWheel,func,203,KEEP,2026-11-19：AppKit滚轮派发；deltaY换算缩放并限55%–115%
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,magnify,func,206,KEEP,2026-11-19：AppKit触控板放大事件派发；缩放增量限55%–115%
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,setScale,func,209,KEEP,2026-11-19：滚轮、magnify和工具条复位调用；只改演示scale，反馈后显示控制条
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,feedback,func,215,KEEP,2026-11-19：全部演示动作闭包调用；只更新本地状态标签
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,showBubble,func,216,KEEP,2026-11-19：按钮气泡闭包与窗口Esc调用；移除旧view后按可选模型重建正式PinBubbleView
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,showChrome,func,222,KEEP,2026-11-19：进入/移动/键盘及气泡调用；取消旧自动隐藏任务，偏好时长大于0才建MainActor Task，悬停保留工具条
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,stop,func,237,KEEP,2026-11-19：关闭演示按钮及移出窗口调用；取消Task、清图层动画与气泡
-Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,viewDidMoveToWindow,func,242,KEEP,2026-11-19：NSView窗口挂接变化派发；脱离window时调用stop释放计时器与场景动画
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,init,init,90,KEEP,2026-11-19：NSView coder构造必需覆写；预览只经init(interactive:)程序创建
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,accessibilityPerformPress,func,92,KEEP,2026-11-19：辅助功能Press派发；有window则请求场景第一响应者，window缺失返回false
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,becomeFirstResponder,func,93,KEEP,2026-11-19：AppKit第一响应者获取回调；图层加系统强调边框并成功
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,resignFirstResponder,func,98,KEEP,2026-11-19：AppKit失去第一响应者回调；仅清焦点边框
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,keyDown,func,99,KEEP,2026-11-19：第一响应者键盘事件派发；方向键移动、加减缩放、归零、显控制条或隐藏并清气泡，其余super
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,update,func,117,KEEP,2026-11-19：外观草稿onChange调用；同步正式PinImageView及工具栏透明偏好，外观变更时重显控制条并排版
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,layout,func,135,KEEP,2026-11-19：NSView布局派发；按可用区域限制尺寸，位置边界夹紧，仅偏移且magnet启用时调用正式吸附几何
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,hitTest,func,162,KEEP,2026-11-19：AppKit命中派发；只允许交互场景接收鼠标，图片和状态标签路由至场景拖动
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,updateTrackingAreas,func,168,KEEP,2026-11-19：AppKit布局/窗口显示派发；先移旧追踪区，交互模式仅建可视区覆盖追踪
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,mouseEntered,func,177,KEEP,2026-11-19：trackingArea进入调用；恢复图像显现并重启控制条显示时长
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,mouseMoved,func,181,KEEP,2026-11-19：trackingArea移动调用；重用showChrome延时隐藏逻辑
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,mouseExited,func,182,KEEP,2026-11-19：trackingArea离开调用；取消Task并立即隐藏工具和气泡
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,mouseDown,func,188,KEEP,2026-11-19：NSResponder鼠标按下派发；获取焦点，双击复位，仅单击记录起始点并显示工具
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,mouseDragged,func,195,KEEP,2026-11-19：AppKit拖动派发；基于起点增量更新offset并请求布局/反馈
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,scrollWheel,func,202,KEEP,2026-11-19：AppKit滚轮派发；deltaY换算缩放并限55%–115%
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,magnify,func,205,KEEP,2026-11-19：AppKit触控板放大事件派发；缩放增量限55%–115%
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,setScale,func,208,KEEP,2026-11-19：滚轮、magnify和工具条复位调用；只改演示scale，反馈后显示控制条
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,feedback,func,214,KEEP,2026-11-19：全部演示动作闭包调用；只更新本地状态标签
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,showBubble,func,215,KEEP,2026-11-19：按钮气泡闭包与窗口Esc调用；移除旧view后按可选模型重建正式PinBubbleView
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,showChrome,func,221,KEEP,2026-11-19：进入/移动/键盘及气泡调用；取消旧自动隐藏任务，偏好时长大于0才建MainActor Task，悬停保留工具条
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,stop,func,236,KEEP,2026-11-19：关闭演示按钮及移出窗口调用；取消Task、清图层动画与气泡
+Capture,Features/Capture/Pin/PinSettingsPreview.swift,PinPreviewScene,viewDidMoveToWindow,func,241,KEEP,2026-11-19：NSView窗口挂接变化派发；脱离window时调用stop释放计时器与场景动画
 Capture,Features/Capture/Pin/PinWindow.swift,PinStyle,sampledBorderColor,func,68,KEEP,PinWindow.swift:590 init 内调用
 Capture,Features/Capture/Pin/PinWindow.swift,PinAppearance,init,init,114,KEEP,PinAppearance.init建立单图外观值；PinImageView.init接收图像/尺寸/外观并一次取样描边色，正式PinnedScreenshotContentView继承它并挂控制条和鼠标追踪，预览使用同一图像基类
 Capture,Features/Capture/Pin/PinWindow.swift,PinAppearance,preset,func,141,KEEP,动作条四形态：经典/无边框/卡片/强调，数值与设置页预设一致，只影响这一张
@@ -3237,11 +3237,11 @@ Recording,Features/Recording/RecordingSettingsPane.swift,RecordingSettingsDraft,
 Recording,Features/Recording/RecordingSettingsPane.swift,RecordingSettingsDraft,applyEffects,func,69,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；共用录屏显示字段提交，只写相对已保存值变化的光标摄像头位置比例按键和点击开关
 Recording,Features/Recording/RecordingSettingsPane.swift,RecordingSettingsDraft,copyEffects,func,77,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；在同一录屏草稿内复制六项显示字段，避免默认保存或取消覆盖采样和输出参数
 Recording,Features/Recording/RecordingSettingsPane.swift,RecordingSettingsContent,refreshCameras,func,94,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；仅录屏页出现时枚举已有摄像头供配置选择，不启动录制
-Recording,Features/Recording/RecordingSettingsPane.swift,RecordingSettingsContent,row,func,348,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；RecordingSettingsContent 复用 92pt 单行标题列，右侧放实际控件和弹性留白，供帧率、音频、摄像头和键鼠叠加设置使用
-Recording,Features/Recording/RecordingSettingsPane.swift,RecordingSettingsContent,appName,func,363,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；排除应用列表按 bundleID 查找安装的应用并读取显示名称，无法定位时直接显示 bundleID
-Recording,Features/Recording/RecordingSettingsPane.swift,RecordingSettingsContent,addExcludedApp,func,370,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；应用选择器从 /Applications 多选 .app，把各 Bundle 的唯一标识去重追加到 draft.values.excluded，保存前不改 RecordingOptions
-Recording,Features/Recording/RecordingSettingsPane.swift,RecordingSettingsContent,removeExcluded,func,387,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；从 draft.values.excluded 移除指定 bundleID，排除行为在统一保存后才应用
-Recording,Features/Recording/RecordingSettingsPane.swift,RecordingSettingsContent,chooseDirectory,func,391,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；录屏目录选择器选文件夹后直接更新 savePath 和 RecordingOptions.saveDirectory；目录设置继续独立生效
+Recording,Features/Recording/RecordingSettingsPane.swift,RecordingSettingsContent,row,func,344,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；RecordingSettingsContent 复用 92pt 单行标题列，右侧放实际控件和弹性留白，供帧率、音频、摄像头和键鼠叠加设置使用
+Recording,Features/Recording/RecordingSettingsPane.swift,RecordingSettingsContent,appName,func,359,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；排除应用列表按 bundleID 查找安装的应用并读取显示名称，无法定位时直接显示 bundleID
+Recording,Features/Recording/RecordingSettingsPane.swift,RecordingSettingsContent,addExcludedApp,func,366,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；应用选择器从 /Applications 多选 .app，把各 Bundle 的唯一标识去重追加到 draft.values.excluded，保存前不改 RecordingOptions
+Recording,Features/Recording/RecordingSettingsPane.swift,RecordingSettingsContent,removeExcluded,func,383,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；从 draft.values.excluded 移除指定 bundleID，排除行为在统一保存后才应用
+Recording,Features/Recording/RecordingSettingsPane.swift,RecordingSettingsContent,chooseDirectory,func,387,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；录屏目录选择器选文件夹后直接更新 savePath 和 RecordingOptions.saveDirectory；目录设置继续独立生效
 Recording,Features/Recording/ScreenRecorder.swift,-,init,init,65,KEEP,2026-11-20：保存本次选项、像素尺寸、区域原点、缩放、输出文件和既有流回调队列；写盘及暂停使用该队列
 Recording,Features/Recording/ScreenRecorder.swift,-,prepareWriter,func,78,KEEP,2026-11-20：注册采集输出后创建目录及 H.264 与可选 AAC 音轨；开启摄像头或键鼠叠加时才创建像素缓冲适配器，普通帧直接写入
 Recording,Features/Recording/ScreenRecorder.swift,-,setPaused,func,136,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；ScreenRecorder.pause/resume将paused变更交管线串行queue，视频和所选音频回调据此丢弃暂停帧
@@ -3277,12 +3277,12 @@ Settings,Features/Settings/Panes/CurtainSettingsPane.swift,CurtainSettingsPane,i
 Settings,Features/Settings/Panes/CurtainSettingsPane.swift,CurtainSettingsDraft,save,func,50,KEEP,图帘草稿先在快捷键变更时注册组合键，失败返回占用/系统原因；成功写完八项图帘偏好才发 curtainPreferencesChanged，再记录 saved；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/CurtainSettingsPane.swift,CurtainSettingsDraft,discard,func,69,KEEP,取消图帘编辑只将 values 恢复为 saved，正式控制器不接收偏好变化通知；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/CurtainSettingsPane.swift,CurtainSettingsDraft,restoreDefaults,func,70,KEEP,把图帘草稿置为关闭、经典样式、12秒、8张、140pt、帘线随卡缩放及自动上架，关闭悬停唤出并取 AppBootstrap 默认快捷键；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/CurtainSettingsPane.swift,CurtainSettingsContent,row,func,291,KEEP,图帘设置页统一行（74pt 标题列 + 控件 + 说明）；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/CurtainSettingsPane.swift,CurtainPreview,makeNSView,func,312,KEEP,CurtainPreview 创建承载正式画布的 CurtainPreviewScene；CurtainRopeThumb 创建正式 CurtainRopeView 展示样式，两者不建立图帘窗口；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/CurtainSettingsPane.swift,CurtainPreview,updateNSView,func,313,KEEP,CurtainPreview 向场景传 Values 和辅助功能状态；CurtainRopeThumb 更新 rope style 并清除 geometry，使绳线按正式绘制路径刷新；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/CurtainSettingsPane.swift,CurtainPreview,dismantleNSView,func,316,KEEP,图帘大场景卸载时调用 stop，取消自动收起、移开收起及示范任务，停止卡片摆动；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/CurtainSettingsPane.swift,CurtainRopeThumb,makeNSView,func,321,KEEP,CurtainPreview 创建承载正式画布的 CurtainPreviewScene；CurtainRopeThumb 创建正式 CurtainRopeView 展示样式，两者不建立图帘窗口；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/CurtainSettingsPane.swift,CurtainRopeThumb,updateNSView,func,322,KEEP,CurtainPreview 向场景传 Values 和辅助功能状态；CurtainRopeThumb 更新 rope style 并清除 geometry，使绳线按正式绘制路径刷新；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/CurtainSettingsPane.swift,CurtainSettingsContent,row,func,286,KEEP,图帘设置页统一行（74pt 标题列 + 控件 + 说明）；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/CurtainSettingsPane.swift,CurtainPreview,makeNSView,func,307,KEEP,CurtainPreview 创建承载正式画布的 CurtainPreviewScene；CurtainRopeThumb 创建正式 CurtainRopeView 展示样式，两者不建立图帘窗口；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/CurtainSettingsPane.swift,CurtainPreview,updateNSView,func,308,KEEP,CurtainPreview 向场景传 Values 和辅助功能状态；CurtainRopeThumb 更新 rope style 并清除 geometry，使绳线按正式绘制路径刷新；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/CurtainSettingsPane.swift,CurtainPreview,dismantleNSView,func,311,KEEP,图帘大场景卸载时调用 stop，取消自动收起、移开收起及示范任务，停止卡片摆动；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/CurtainSettingsPane.swift,CurtainRopeThumb,makeNSView,func,316,KEEP,CurtainPreview 创建承载正式画布的 CurtainPreviewScene；CurtainRopeThumb 创建正式 CurtainRopeView 展示样式，两者不建立图帘窗口；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/CurtainSettingsPane.swift,CurtainRopeThumb,updateNSView,func,317,KEEP,CurtainPreview 向场景传 Values 和辅助功能状态；CurtainRopeThumb 更新 rope style 并清除 geometry，使绳线按正式绘制路径刷新；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,export,func,17,KEEP,2026-11-20：数据帮助与关于页按钮共用NSSavePanel；取消直接返回，确认后后台写包，成功才提示并记录统计及定位文件，失败沿原提示
 Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,writeBundle,func,48,KEEP,2026-11-20：后台在目标同卷生成资料与ZIP；每份日志一次读取同时写原文和摘录，所有读写失败抛给export；ditto成功后rename原子替换目标，defer清自建目录
 Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,usageRows,func,105,KEEP,2026-11-20：writeBundle直接消费StatisticsManager.exportAll返回的日期事件数量，保留原全量统计及CSV列序
@@ -3348,43 +3348,43 @@ Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,ColorKeyControl,displa
 Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,ColorKeyControl,swatch,func,692,KEEP,本文件:748 色块预览；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,ColorKeyControl,color,func,722,KEEP,本文件:773/787 hex 转色；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,ColorKeyControl,hex,func,732,KEEP,本文件:775 取色转 hex；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,AppearanceSettingsDraft,init,init,31,KEEP,AppearanceSettingsDraft.init 接收模块 scope 并订阅个性化/悬浮窗草稿；AppearanceSettingsEditor 和 PersonalizationSettingsView 接收 scope/draft；原生窗口按钮 Coordinator.init 保存场景 onPress 回调；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,AppearanceSettingsDraft,observeChanges,func,57,KEEP,合并 personalization 与 floating 的 objectWillChange 并转发到外观草稿，使缓存编辑器和正式预览同步重绘，不再通过 previewRevision 重建内容；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,AppearanceSettingsDraft,save,func,74,KEEP,按 scope 只应用该页面板、悬浮窗、动作条或主题字段，再经 Personalization.applyDraft 写该模块 DraftField；synchronize 失败保留草稿并返回原因，成功更新保存快照；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,AppearanceSettingsDraft,discard,func,114,KEEP,调用 reloadSavedValues(preservingOwned:false) 重新读取应用保存值，再更新 savedPersonalization 和该模块 savedValues，取消当前页编辑；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,AppearanceSettingsDraft,refreshUnownedValues,func,121,KEEP,页面重新出现时调用 reloadSavedValues(preservingOwned:true)，读取其他页面已保存值，同时保留当前模块尚未保存的字段；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,AppearanceSettingsDraft,reloadSavedValues,func,123,KEEP,从 shared 复制最新外观，preservingOwned=true 时再覆回当前模块 DraftField；仅刷新非本模块的面板、动作条、主题与悬浮窗设置；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,AppearanceSettingsDraft,restoreDefaults,func,147,KEEP,只把该 scope 的 DraftField 改为 makeDefaultDraft 值；面板恢复400pt及默认页序，悬浮窗恢复网格/中档/0.52分隔，动作条恢复pillBar，通用主题恢复system；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,AppearanceSettingsEditor,init,init,180,KEEP,AppearanceSettingsDraft.init 接收模块 scope 并订阅个性化/悬浮窗草稿；AppearanceSettingsEditor 和 PersonalizationSettingsView 接收 scope/draft；原生窗口按钮 Coordinator.init 保存场景 onPress 回调；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,PersonalizationSettingsView,init,init,248,KEEP,AppearanceSettingsDraft.init 接收模块 scope 并订阅个性化/悬浮窗草稿；AppearanceSettingsEditor 和 PersonalizationSettingsView 接收 scope/draft；原生窗口按钮 Coordinator.init 保存场景 onPress 回调；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,PersonalizationSettingsView,segmentOrderRow,func,351,KEEP,本文件:79 ForEach 分段行；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,PersonalizationSettingsView,binding,func,385,KEEP,本文件:148 Toggle 绑定；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,PersonalizationSettingsView,glassSlider,func,686,KEEP,本文件:500-509 四滑块；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,PersonalizationSettingsView,resetGlass,func,721,KEEP,本文件:495 恢复默认按钮；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,PersonalizationSettingsView,settingRow,func,784,KEEP,本文件 body 全页行布局；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,PersonalizationSettingsView,presetColor,func,807,KEEP,本文件:190/202 预设色；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,PersonalizationSettingsView,pickBackgroundImage,func,812,KEEP,本文件:746 选择图片按钮；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,SegmentDropDelegate,dropEntered,func,832,KEEP,DropDelegate 协议；本文件:166 注册；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,SegmentDropDelegate,dropUpdated,func,841,KEEP,DropDelegate 协议；本文件:166 注册；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,SegmentDropDelegate,performDrop,func,845,KEEP,DropDelegate 协议；本文件:166 注册；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,AppearancePreviewVisibilityKey,reduce,func,959,KEEP,保存外观预览与settingsPreviewViewport相交的可见值；消费方离屏恢复revealed，开合任务标识不含isVisible，滚动重新进入不会触发重播；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,AppearancePreviewWallpaper,image,func,966,KEEP,AppearancePreviewWallpaper 按当前桌面壁纸 URL 缓存图像，经 ImageIO 生成最大1024像素缩略图，供背景预览使用，不重复解码相同 URL；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,Coordinator,init,init,1278,KEEP,AppearanceSettingsDraft.init 接收模块 scope 并订阅个性化/悬浮窗草稿；AppearanceSettingsEditor 和 PersonalizationSettingsView 接收 scope/draft；原生窗口按钮 Coordinator.init 保存场景 onPress 回调；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,Coordinator,press,func,1279,KEEP,原生红黄绿按钮仅调用场景onPress触发重播；通用预览在viewport内按minWidth居中，超宽横向滚动，无整块宽度或toolbarStyle隐式动画；openReplay=0初始静止，手动重播或开合设置变化触发播放；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,PreviewWindowChrome,makeCoordinator,func,1282,KEEP,为 PreviewWindowChrome 创建保存 onPress 的协调器，三颗原生窗口按钮共用其 press 回调；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,PreviewWindowChrome,makeNSView,func,1284,KEEP,PreviewWindowChrome 向内嵌 NSView 添加 macOS 标准关闭/最小化/缩放按钮，统一绑定 Coordinator.press，仅作用预览场景；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,PreviewWindowChrome,updateNSView,func,1297,KEEP,更新 PreviewWindowChrome 的协调器 onPress 为最新场景闭包，保留三颗原生按钮实例；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,AppearanceSettingsDraft,init,init,30,KEEP,AppearanceSettingsDraft.init 接收模块 scope 并订阅个性化/悬浮窗草稿；AppearanceSettingsEditor 和 PersonalizationSettingsView 接收 scope/draft；原生窗口按钮 Coordinator.init 保存场景 onPress 回调；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,AppearanceSettingsDraft,observeChanges,func,56,KEEP,合并 personalization 与 floating 的 objectWillChange 并转发到外观草稿，使缓存编辑器和正式预览同步重绘，不再通过 previewRevision 重建内容；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,AppearanceSettingsDraft,save,func,73,KEEP,按 scope 只应用该页面板、悬浮窗、动作条或主题字段，再经 Personalization.applyDraft 写该模块 DraftField；synchronize 失败保留草稿并返回原因，成功更新保存快照；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,AppearanceSettingsDraft,discard,func,113,KEEP,调用 reloadSavedValues(preservingOwned:false) 重新读取应用保存值，再更新 savedPersonalization 和该模块 savedValues，取消当前页编辑；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,AppearanceSettingsDraft,refreshUnownedValues,func,120,KEEP,页面重新出现时调用 reloadSavedValues(preservingOwned:true)，读取其他页面已保存值，同时保留当前模块尚未保存的字段；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,AppearanceSettingsDraft,reloadSavedValues,func,122,KEEP,从 shared 复制最新外观，preservingOwned=true 时再覆回当前模块 DraftField；仅刷新非本模块的面板、动作条、主题与悬浮窗设置；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,AppearanceSettingsDraft,restoreDefaults,func,148,KEEP,只把该 scope 的 DraftField 改为 makeDefaultDraft 值；面板恢复400pt及默认页序，悬浮窗恢复网格/中档/0.52分隔，动作条恢复pillBar，通用主题恢复system；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,AppearanceSettingsEditor,init,init,181,KEEP,AppearanceSettingsDraft.init 接收模块 scope 并订阅个性化/悬浮窗草稿；AppearanceSettingsEditor 和 PersonalizationSettingsView 接收 scope/draft；原生窗口按钮 Coordinator.init 保存场景 onPress 回调；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,PersonalizationSettingsView,init,init,249,KEEP,AppearanceSettingsDraft.init 接收模块 scope 并订阅个性化/悬浮窗草稿；AppearanceSettingsEditor 和 PersonalizationSettingsView 接收 scope/draft；原生窗口按钮 Coordinator.init 保存场景 onPress 回调；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,PersonalizationSettingsView,segmentOrderRow,func,346,KEEP,本文件:79 ForEach 分段行；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,PersonalizationSettingsView,binding,func,380,KEEP,本文件:148 Toggle 绑定；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,PersonalizationSettingsView,glassSlider,func,666,KEEP,本文件:500-509 四滑块；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,PersonalizationSettingsView,resetGlass,func,701,KEEP,本文件:495 恢复默认按钮；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,PersonalizationSettingsView,settingRow,func,761,KEEP,本文件 body 全页行布局；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,PersonalizationSettingsView,presetColor,func,784,KEEP,本文件:190/202 预设色；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,PersonalizationSettingsView,pickBackgroundImage,func,789,KEEP,本文件:746 选择图片按钮；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,SegmentDropDelegate,dropEntered,func,809,KEEP,DropDelegate 协议；本文件:166 注册；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,SegmentDropDelegate,dropUpdated,func,818,KEEP,DropDelegate 协议；本文件:166 注册；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,SegmentDropDelegate,performDrop,func,822,KEEP,DropDelegate 协议；本文件:166 注册；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,AppearancePreviewVisibilityKey,reduce,func,936,KEEP,保存外观预览与settingsPreviewViewport相交的可见值；消费方离屏恢复revealed，开合任务标识不含isVisible，滚动重新进入不会触发重播；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,AppearancePreviewWallpaper,image,func,943,KEEP,AppearancePreviewWallpaper 按当前桌面壁纸 URL 缓存图像，经 ImageIO 生成最大1024像素缩略图，供背景预览使用，不重复解码相同 URL；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,Coordinator,init,init,1207,KEEP,AppearanceSettingsDraft.init 接收模块 scope 并订阅个性化/悬浮窗草稿；AppearanceSettingsEditor 和 PersonalizationSettingsView 接收 scope/draft；原生窗口按钮 Coordinator.init 保存场景 onPress 回调；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,Coordinator,press,func,1208,KEEP,原生红黄绿按钮仅调用场景onPress触发重播；通用预览在viewport内按minWidth居中，超宽横向滚动，无整块宽度或toolbarStyle隐式动画；openReplay=0初始静止，手动重播或开合设置变化触发播放；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,PreviewWindowChrome,makeCoordinator,func,1211,KEEP,为 PreviewWindowChrome 创建保存 onPress 的协调器，三颗原生窗口按钮共用其 press 回调；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,PreviewWindowChrome,makeNSView,func,1213,KEEP,PreviewWindowChrome 向内嵌 NSView 添加 macOS 标准关闭/最小化/缩放按钮，统一绑定 Coordinator.press，仅作用预览场景；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,PreviewWindowChrome,updateNSView,func,1226,KEEP,更新 PreviewWindowChrome 的协调器 onPress 为最新场景闭包，保留三颗原生按钮实例；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/PinSettingsPane.swift,PinSettingsPane,init,init,16,KEEP,SettingsRootView.swift:106 构造本页；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/PinSettingsPane.swift,PinSettingsDraft,save,func,31,KEEP,将 PinAppearance 草稿中的描边宽度/颜色、圆角、阴影、吸附、不透明度及控制条隐藏时长写到 PinStyle，随后记录 saved 并刷新未保存标记；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/PinSettingsPane.swift,PinSettingsDraft,discard,func,44,KEEP,取消钉图编辑仅将 appearance 恢复为 saved，实时场景读取恢复后的值；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/PinSettingsPane.swift,PinSettingsDraft,restoreDefaults,func,45,KEEP,把钉图 appearance 草稿改为 PinAppearance.defaults，统一保存前不改变 PinStyle；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PinSettingsPane.swift,PinSettingsContent,row,func,244,KEEP,钉图细项复用 74pt 标题列和控件行，供描边、圆角、阴影、不透明度、吸附和控制条时长使用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PinSettingsPane.swift,PinSettingsContent,shortcut,func,256,KEEP,钉图快捷键说明以等宽键帽和操作标题显示，供拖动、缩放及复位提示复用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PinSettingsPane.swift,PinSettingsContent,isActive,func,270,KEEP,四张钉图预设卡按草稿描边宽度、颜色、圆角及阴影判断选中，两个数值差在 0.01 内视为一致；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PinSettingsPane.swift,PinSettingsContent,apply,func,277,KEEP,预设卡动作只调用 draft.appearance.applyPreset，实时更新同一正式图像组件而不写全局 PinStyle；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PinSettingsPane.swift,PinLivePreview,makeNSView,func,313,KEEP,PinLivePreview 为大场景及缩略预设创建 PinPreviewScene，interactive 参数决定是否挂控制条和交互；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PinSettingsPane.swift,PinLivePreview,updateNSView,func,314,KEEP,将当前PinAppearance与系统降低透明度传给既有PinPreviewScene，复用图像和控制条，不再传无用reduceMotion参数；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/PinSettingsPane.swift,PinLivePreview,dismantleNSView,func,317,KEEP,SwiftUI移除钉图场景时调用stop，取消控制条隐藏任务并移除图层动画及气泡；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PinSettingsPane.swift,PinSettingsContent,row,func,239,KEEP,钉图细项复用 74pt 标题列和控件行，供描边、圆角、阴影、不透明度、吸附和控制条时长使用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PinSettingsPane.swift,PinSettingsContent,shortcut,func,251,KEEP,钉图快捷键说明以等宽键帽和操作标题显示，供拖动、缩放及复位提示复用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PinSettingsPane.swift,PinSettingsContent,isActive,func,265,KEEP,四张钉图预设卡按草稿描边宽度、颜色、圆角及阴影判断选中，两个数值差在 0.01 内视为一致；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PinSettingsPane.swift,PinSettingsContent,apply,func,272,KEEP,预设卡动作只调用 draft.appearance.applyPreset，实时更新同一正式图像组件而不写全局 PinStyle；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PinSettingsPane.swift,PinLivePreview,makeNSView,func,308,KEEP,PinLivePreview 为大场景及缩略预设创建 PinPreviewScene，interactive 参数决定是否挂控制条和交互；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PinSettingsPane.swift,PinLivePreview,updateNSView,func,309,KEEP,将当前PinAppearance与系统降低透明度传给既有PinPreviewScene，复用图像和控制条，不再传无用reduceMotion参数；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/PinSettingsPane.swift,PinLivePreview,dismantleNSView,func,312,KEEP,SwiftUI移除钉图场景时调用stop，取消控制条隐藏任务并移除图层动画及气泡；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/SearchSettingsPane.swift,SearchDisplayDraft,init,init,44,KEEP,SearchDisplayDraft 用 shared.makeDraft 获取非持久引擎管理器并恢复分类值，订阅服务变化；SearchSettingsContent 观察同一草稿和服务，统一缓存标识为 searchDisplay；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/SearchSettingsPane.swift,SearchDisplayDraft,save,func,59,KEEP,统一保存先处理未完成的自定义引擎新增/编辑表单，返回具体格式或写入原因；成功 applyDraft 引擎后写三项分类开关并刷新脏状态；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/SearchSettingsPane.swift,SearchDisplayDraft,discard,func,79,KEEP,取消时清空未完成新增/编辑表单，从共享服务恢复引擎及行为值，再按偏好键是否存在读取三项分类，保留显式 false；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
@@ -3504,7 +3504,7 @@ Settings,Features/Settings/Shell/SettingsPanes.swift,TagManagementSheet,createTa
 Settings,Features/Settings/Shell/SettingsPanes.swift,TagManagementSheet,saveRename,func,632,KEEP,标签管理表单回车与保存按钮调用store.rename，失败提示并保留编辑，成功清editingTagID及名称草稿
 Settings,Features/Settings/Shell/SettingsPanes.swift,IgnoredAppsEditor,init,init,651,KEEP,MenuBarSettingsDraft 读取当前图标样式/自定义符号、Bar_MainIconCat 与七项入口标记，保存值组合供 isDirty 比较；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,init,init,36,KEEP,SettingsRootView 同时观察传入 SettingsUIState 和其 editingSession，内容树通过 environmentObject 共用该会话，按 generation 和窗口可见性重建预览；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,panePage,func,263,KEEP,设置页统一纵向ScrollView显示滚动条，内容水平34pt/垂直18pt内边距并靠左撑满；monitorWidgets分发也经过此入口，使所有模块卡及底部保存区可整页滚动访问；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,panePage,func,250,KEEP,设置页统一纵向ScrollView显示滚动条，内容水平34pt/垂直18pt内边距并靠左撑满；monitorWidgets分发也经过此入口，使所有模块卡及底部保存区可整页滚动访问；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsSidebarView.swift,CaptureSettingsBlock,init,init,56,KEEP,将旧深链/搜索的 0…4 下标映射回 CaptureSettingsBlock，维持现有入口定位；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSearchEntry,matches,func,74,KEEP,本文件:203 搜索过滤；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,groupHeader,func,148,KEEP,渲染一级目录并把点击映射到该组首个二级页；2026-11-19人工复核：保留，源码与调用/系统入口已核阅

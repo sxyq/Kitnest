@@ -133,16 +133,11 @@ private struct CurtainSettingsContent: View {
     // MARK: 预览
 
     private var previewSection: some View {
-        SettingsSection("预览", alwaysExpanded: true, summary: "模拟效果") {
+        SettingsSection("预览", alwaysExpanded: true) {
             SettingsGroupBox {
                 CurtainPreview(values: draft.values)
                     .frame(height: enabled ? 216 : 72)
                     .padding(.vertical, 4)
-                Text("悬停展开正式卡片与按钮；场景内演示截图、唤出、收起和 ⌘ 缩放，按钮不写文件。")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 6)
-                    .padding(.bottom, 6)
             }
         }
     }

@@ -201,8 +201,7 @@ private struct IslandSettingsContent: View {
     }
 
     private var preview: some View {
-        SettingsSection("实时预览", alwaysExpanded: true,
-                        summary: "交互演示") {
+        SettingsSection("实时预览", alwaysExpanded: true) {
             IslandSettingsPreview(draft: draft, controller: draft.previewController)
         }
         .id(part)
@@ -335,15 +334,13 @@ private struct IslandSettingsContent: View {
                     }
                 }
               }
-            Text("状态按当前草稿显示，保存后应用；指定屏幕离线时临时使用主屏，重新连接后恢复；镜像屏共用一个入口，所有屏幕共用单一工作台。")
-                .font(.system(size: 11)).foregroundStyle(.secondary)
             }
             .id(draft.configuration.displayScope)
         }
     }
 
     private var entryPreviews: some View {
-        SettingsSection("入口预览", alwaysExpanded: true, summary: "刘海屏与普通屏") {
+        SettingsSection("入口预览", alwaysExpanded: true) {
             HStack(alignment: .top, spacing: 12) {
                 IslandEntryPreview(hasNotch: true, size: displays.first(where: \.hasNotch)?.entrySize)
                 IslandEntryPreview(hasNotch: false, size: CGSize(width: 180, height: 28))
@@ -671,8 +668,6 @@ private struct IslandSettingsPreview: View {
                     .font(.system(size: 11)).monospacedDigit().foregroundStyle(.secondary)
             }
             IslandSettingsPreviewViewport(controller: controller)
-            Text("固定演示内容 · 点击编辑布局调整位置与尺寸；完成只更新草稿，保存后应用")
-                .font(.system(size: 11)).foregroundStyle(.secondary)
         }
     }
 }

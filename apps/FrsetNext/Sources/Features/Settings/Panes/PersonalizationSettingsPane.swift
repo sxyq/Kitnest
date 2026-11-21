@@ -18,7 +18,6 @@ final class AppearanceSettingsDraft: SettingsEditableDraft {
     @Published var segmentTransfer = Preferences.shared.value(PanelSegments.transferKey, default: false)
     @Published var segmentCast = Preferences.shared.value(PanelSegments.castKey, default: false)
     @Published var pageOrder = PanelSegments.order
-    @Published var previewScene = AppearancePreviewBlock.Scene.regular
     @Published var previewSelectedItemID: String? = "appearance-note"
     @Published var floating = FloatingClipDeskStore(settingsPreview: true) {
         didSet { observeChanges() }
@@ -125,7 +124,9 @@ final class AppearanceSettingsDraft: SettingsEditableDraft {
         if preservingOwned {
             for field in scope.personalizationFields { field.copy(current, personalization) }
         }
-        personalization = current
+        // 原地刷新，不换实例：控件在 init 时捕获了 draft.personalization，
+        // 换实例会让控件写旧对象、预览读新对象，点击看起来完全没反应。
+        personalization.copyValues(from: current)
         if !preservingOwned || scope != .mainPanel {
             panelWidth = Preferences.shared.value(Preferences.Keys.panelWidth, default: 400.0)
             segmentHome = Preferences.shared.value(PanelSegments.homeKey, default: true)
@@ -338,12 +339,6 @@ struct PersonalizationSettingsView: View {
                 }
                 .frame(width: 210)
             }
-            Text("拖动左侧「≡」调整顶部顺序；勾掉的分段不出现，也不会创建对应视图——不占内存。"
-                 + "全部关闭时面板只显示一句提示。中转/投屏还要「常规 → 功能 → 文件中转」"
-                 + "与「设置 → 文件中转 → 启用文件中转」都开启才会出现。")
-                .font(.system(size: 11))
-                .foregroundStyle(Theme.tertiaryText)
-                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -500,10 +495,6 @@ struct PersonalizationSettingsView: View {
                 .frame(width: 250)
                 .labelsHidden()
             }
-            Text("切换后预览重播开合；保存后应用于窗口动画。")
-                .font(.system(size: 10))
-                .foregroundStyle(Theme.tertiaryText)
-                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -523,11 +514,6 @@ struct PersonalizationSettingsView: View {
                 .labelsHidden()
                 .frame(width: compact ? 250 : 300)
             }
-            Text("框选完成后弹出的小面板。三种排布的功能完全一样，只是紧凑程度和子项展开方式不同；"
-                 + "预览实时切换，保存后用于下一次框选。")
-                .font(.system(size: 11))
-                .foregroundStyle(Theme.tertiaryText)
-                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -673,12 +659,6 @@ struct PersonalizationSettingsView: View {
                 String(format: "%.0f%%", $0 * 100)
             }
 
-            Text("底衬不透明度越大，底衬越不透明；磨砂是底衬之上的霜感；"
-                 + "卡片亮度是卡片与窗口底之间的明度台阶（层与层的距离）；"
-                 + "描边是玻璃边缘那圈发丝亮边。")
-                .font(.system(size: 11))
-                .foregroundStyle(Theme.tertiaryText)
-                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -741,9 +721,6 @@ struct PersonalizationSettingsView: View {
                         .frame(width: 40, alignment: .leading)
                 }
             }
-            Text("仅在 Midnight 外观生效：背景、卡片和正文的冷蓝色调旋转 −30°～+30°，保持饱和度与亮度。")
-                .font(.system(size: 11)).foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -984,16 +961,6 @@ private enum AppearancePreviewWallpaper {
 
 struct AppearancePreviewBlock: View {
     enum Scope { case mainPanel, floatingWindow, clipboard, clipboardList, captureToolbar, notification }
-    enum Scene: String, CaseIterable {
-        case regular = "常规", longContent = "长内容", image = "图片", background = "背景"
-        var selectedItemID: String {
-            switch self {
-            case .regular, .background: return "appearance-note"
-            case .longContent: return "appearance-long"
-            case .image: return "appearance-image"
-            }
-        }
-    }
     let scope: Scope
     @ObservedObject var draft: AppearanceSettingsDraft
 
@@ -1015,39 +982,16 @@ struct AppearancePreviewBlock: View {
     @Stored private var isVisible = true
     @Stored private var toolbarFeedback: String?
 
-    private var scenes: [Scene] {
-        switch scope {
-        case .mainPanel, .clipboard, .clipboardList: return Scene.allCases
-        case .floatingWindow: return [.regular, .background]
-        case .captureToolbar, .notification: return []
-        }
-    }
     private var previewItems: [ClipboardItem] {
         SettingsPreviewSamples.clipboardItems
     }
     private var needsWallpaper: Bool {
-        (p.material == .vibrancy || draft.previewScene == .background) && !reduceTransparency
+        p.material == .vibrancy && !reduceTransparency
     }
-    private var usesDesktopWallpaper: Bool { needsWallpaper && draft.previewScene != .background }
 
     var body: some View {
-        SettingsSection("效果预览", alwaysExpanded: true,
-                        summary: "模拟效果") {
-            VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Spacer(minLength: 0)
-                Button("重播") {
-                    if scope == .notification { toastReplay &+= 1 }
-                    else { openReplay &+= 1 }
-                }.buttonStyle(.link)
-                Text("模拟数据 · 外观实时更新").font(.system(size: 11)).foregroundStyle(.secondary)
-            }
-            if !scenes.isEmpty {
-                Picker("代表场景", selection: $draft.previewScene) {
-                    ForEach(scenes, id: \.self) { Text($0.rawValue).tag($0) }
-                }
-                .pickerStyle(.segmented).labelsHidden().frame(maxWidth: 300)
-            }
+        SettingsSection("效果预览", alwaysExpanded: true) {
+            VStack(alignment: .leading, spacing: 8) {
             GeometryReader { viewport in
                 let size = previewSize
                 let width = min(size.width, max(0, viewport.size.width - 12))
@@ -1082,7 +1026,6 @@ struct AppearancePreviewBlock: View {
                             viewport))
                 }
             }
-            Text(caption).font(.system(size: 11)).foregroundStyle(.secondary)
             if scope == .captureToolbar, let toolbarFeedback {
                 Text(toolbarFeedback).font(.system(size: 11)).foregroundStyle(.secondary)
             }
@@ -1092,7 +1035,7 @@ struct AppearancePreviewBlock: View {
             if !$0 { revealed = true }
         }
         .onAppear {
-            if usesDesktopWallpaper { wallpaper = AppearancePreviewWallpaper.image() }
+            if needsWallpaper { wallpaper = AppearancePreviewWallpaper.image() }
             if scope == .captureToolbar {
                 toolbarModel.style = CaptureToolbarStyle(rawValue: draft.toolbarStyle)!
                 toolbarModel.preview = CaptureAppearanceSample.image
@@ -1104,10 +1047,9 @@ struct AppearancePreviewBlock: View {
                 toastState.icon = "checkmark"
             }
         }
-        .onChange(of: usesDesktopWallpaper) { needed in
+        .onChange(of: needsWallpaper) { needed in
             wallpaper = needed ? AppearancePreviewWallpaper.image() : nil
         }
-        .onChange(of: draft.previewScene) { draft.previewSelectedItemID = $0.selectedItemID }
         .onChange(of: draft.toolbarStyle) { style in
             if scope == .captureToolbar { toolbarModel.style = CaptureToolbarStyle(rawValue: style)! }
         }
@@ -1161,17 +1103,6 @@ struct AppearancePreviewBlock: View {
             }
         }
         .id(scope)
-    }
-
-    private var caption: String {
-        switch scope {
-        case .mainPanel: return "固定模拟记录，不读取或写入真实剪贴板。"
-        case .floatingWindow: return "窗口共用这套材质，使用性能监测界面展示效果。"
-        case .clipboard: return "固定模拟记录；展示草稿的布局、卡片和详情。"
-        case .clipboardList: return "固定模拟记录；密度、缩略图和徽章按真实界面展示。"
-        case .captureToolbar: return "正式动作条组件；这里只演示外观，不执行截图操作。"
-        case .notification: return "显示 \(Int(p.toastDuration)) 秒 · \(p.toastFollowPanel ? "跟随主面板" : "屏幕中线偏下") · 循环演示"
-        }
     }
 
     private var previewColorScheme: ColorScheme {
@@ -1258,9 +1189,7 @@ struct AppearancePreviewBlock: View {
     }
 
     @ViewBuilder private var wallpaperBackground: some View {
-        if draft.previewScene == .background {
-            Image(nsImage: SettingsPreviewSamples.image).resizable().scaledToFill()
-        } else if let image = wallpaper {
+        if let image = wallpaper {
             Image(nsImage: image).resizable().scaledToFill()
         } else {
             Color(nsColor: .windowBackgroundColor)

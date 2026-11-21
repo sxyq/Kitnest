@@ -141,10 +141,6 @@ private struct RecordingSettingsContent: View {
                 }
                 .padding(.vertical, 9)
 
-                Text("开始、暂停与停止立即执行，使用已保存参数。下方参数仅写草稿；预览不采集屏幕或摄像头。")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
-                    .padding(.bottom, 8)
             }
         }
     }
@@ -253,7 +249,7 @@ private struct RecordingSettingsContent: View {
                         .font(.system(size: 11)).foregroundStyle(.secondary)
                 }
 
-                SettingsSection("录屏效果预览", alwaysExpanded: true, summary: "模拟效果") {
+                SettingsSection("录屏效果预览", alwaysExpanded: true) {
                     RecordingAppearancePreview(values: draft.values)
                 }
                 .padding(.vertical, 10)

@@ -924,7 +924,7 @@ EVIDENCE.update({
     ("Core/Runtime/Personalization.swift", "applyDraft"):
         "模块保存传入明确的DraftField列表，在isLoading期间只复制该模块字段，随后flushPersist(keys:)只写这些偏好并发外观变化通知，避免覆盖其他页已保存值",
     ("Core/Runtime/Personalization.swift", "copyValues"):
-        "makeDraft共用完整外观复制入口，同步强调色、字号、密度、圆角、动画、悬停预览、材质、徽章、缩略图、通知、分隔线、Midnight、背景和玻璃参数共20项",
+        "makeDraft共用完整外观复制入口，同步强调色、字号、密度、圆角、动画、悬停预览、材质、徽章、缩略图、通知、分隔线、Midnight、背景和玻璃参数共20项；设置页刷新草稿时也用它原地覆盖，保持实例身份",
     ("Core/UI/AppearanceTheme.swift", "baseBackground"):
         "AppearanceThemeModifier 与 Theme.windowSurface(for:midnight:) 调用：将指定 Personalization.midnightHueShift 传给 h，生成 Midnight 窗口基色；静态属性继续传 shared",
     ("Core/UI/AppearanceTheme.swift", "cardBackground"):
@@ -1255,7 +1255,7 @@ EVIDENCE.update({
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "refreshUnownedValues"):
         "页面重新出现时调用 reloadSavedValues(preservingOwned:true)，读取其他页面已保存值，同时保留当前模块尚未保存的字段",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "reloadSavedValues"):
-        "从 shared 复制最新外观，preservingOwned=true 时再覆回当前模块 DraftField；仅刷新非本模块的面板、动作条、主题与悬浮窗设置",
+        "从 shared 复制最新外观，preservingOwned=true 时再覆回当前模块 DraftField；写入用 copyValues 原地覆盖，不换 personalization 实例，避免控件抓住旧对象后点击无效",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "restoreDefaults"):
         "只把该 scope 的 DraftField 改为 makeDefaultDraft 值；面板恢复400pt及默认页序，悬浮窗恢复网格/中档/0.52分隔，动作条恢复pillBar，通用主题恢复system",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "reduce"):

@@ -41,8 +41,6 @@ struct RecordingAppearancePreview: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("效果预览 · 固定示意画面")
-                .font(.system(size: 11)).foregroundStyle(.secondary)
             if let cachedFrame {
                 Image(nsImage: cachedFrame)
                     .resizable().aspectRatio(contentMode: .fit)

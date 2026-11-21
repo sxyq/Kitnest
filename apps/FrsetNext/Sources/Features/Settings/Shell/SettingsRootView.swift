@@ -100,35 +100,22 @@ struct SettingsRootView: View {
     private var currentTitle: String { state.selection.title }
 
     private var header: some View {
-        // v273：标题下方统一挂一行「打开方式」。用户改完设置却不知道按哪个键把功能
-        // 叫出来，是这次反馈的核心；提示来自 `SettingsPage.openHint`，每个二级页必答，
-        // 所以不会再漏页。没有入口的页（关于 / 使用手册）返回 nil，自动不占位。
-        VStack(alignment: .leading, spacing: 3) {
-            if let group = state.selection.group {
-                Text(group.title).font(.system(size: 10.5)).foregroundStyle(.secondary)
-            }
-            HStack(spacing: 8) {
-                Text(currentTitle)
-                    .font(.system(size: 16, weight: .semibold))
-                if editingSession.isDirty(page: state.selection) {
-                    Text("未保存").font(.system(size: 11)).foregroundStyle(.secondary)
-                }
-            }
-            if let hint = state.selection.openHint {
-                HStack(spacing: 5) {
-                    Image(systemName: "info.circle")
-                        .font(.system(size: 9.5, weight: .semibold))
-                    Text(hint)
-                        .font(.system(size: 11.5))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
-                .foregroundStyle(Theme.tertiaryText)
+        // v275（用户：「窗口上面的那个小字全部删掉」）：页头只留当前页标题。
+        // 分组名在侧栏已经高亮，功能说明放界面里就是噪音；未保存状态改用一个小圆点，
+        // 和侧栏保持同一套标记（页脚仍写明保存状态）。
+        HStack(spacing: 7) {
+            Text(currentTitle)
+                .font(.system(size: 16, weight: .semibold))
+            if editingSession.isDirty(page: state.selection) {
+                Circle()
+                    .fill(Color.orange)
+                    .frame(width: 5, height: 5)
+                    .accessibilityLabel("未保存")
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 34)
-        .frame(height: 66)
+        .frame(height: 52)
     }
 
     // MARK: - 内容分发（v272：一个二级页 = 一个 View）
