@@ -46,19 +46,18 @@ enum HapticIntensity: String, Codable, CaseIterable, Sendable {
         }
     }
 
-    var systemMode: String {
+    /// 直连马达的波形编号：3 轻、4 中、6 重（HapticKey 同款）。
+    /// 公开接口的 pattern 只在手指贴着触控板时有效，直连不受此限制。
+    var actuationID: Int32? {
         switch self {
-        case .off: return "关闭"
-        case .light: return "对齐（alignment）"
-        case .medium: return "档位变化（levelChange）"
-        case .strong: return "通用（generic）"
+        case .off: return nil
+        case .light: return 3
+        case .medium: return 4
+        case .strong: return 6
         }
     }
 
-    /// v271：按真实感知强度映射。macOS 三种模式的实际触感排序是
-    /// alignment（极轻）< levelChange（中）< generic（明显），
-    /// 旧版把 medium/strong 接反了，且默认「轻」= alignment 在触控板上几乎无感
-    /// （用户原话：「我对这部分进行测试呀，但是我没有感受到」）。
+    /// 公开接口回落用。直连不可用时才会走到这里。
     var pattern: NSHapticFeedbackManager.FeedbackPattern? {
         switch self {
         case .off: return nil
@@ -128,65 +127,57 @@ struct HapticConfiguration: Codable, Equatable {
 }
 
 enum HapticFeedback {
-    /// 真实业务完成点调用。总开关关闭、场景关闭、强度为「关闭」时都不发请求。
+    /// 连续拖拽会让网格吸附每帧都请求一次，加一道最小间隔，避免连成机关枪。
+    private static var lastPerformAt: TimeInterval = 0
+    private static let minimumInterval: TimeInterval = 0.06
+
+    /// 真实业务完成点调用。总开关关闭、场景关闭、强度为「关闭」时都不发。
     static func perform(_ event: HapticEvent) {
         let configuration = HapticConfiguration.load()
         guard configuration.enabled, configuration.intensity != .off,
               configuration.isEnabled(event) else { return }
-        emit(configuration.intensity, event: event.debugName)
-    }
-
-    /// 设置页「模拟所选场景」：用草稿强度发同样的系统模式。
-    ///
-    /// 系统 API 是 void——它不能证明业务动作成功，硬件是否振动也无法程序化
-    /// 确认。UI 文案按「模拟触觉模式」表述。
-    /// v272（用户：「是一点感觉没有的，你现在好像没有正确的触发」）：
-    /// NSHapticFeedbackManager 只在 App 处于前台激活时真正产生触感，
-    /// 后台请求被系统静默丢弃——而 Kitnest 大量交互发生在不激活 App 的
-    /// 浮动面板上，这正是「日志有请求、手上没感觉」的最可能根因。
-    /// 模拟按钮是用户主动点击的验证动作：先显式激活 App，再连发 3 次
-    /// （间隔 0.18s）——单次可能被吞，三连发只要硬件支持一定感觉得到。
-    static func simulate(event: HapticEvent, intensity: HapticIntensity) {
-        guard intensity != .off else { return }
+        let intensity = configuration.intensity
         DispatchQueue.main.async {
-            if !NSApp.isActive { NSApp.activate(ignoringOtherApps: true) }
-            for i in 0..<3 {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.18 * Double(i)) {
-                    emit(intensity, event: "simulate:\(event.debugName)#\(i + 1)")
-                }
-            }
+            let now = Date.timeIntervalSinceReferenceDate
+            guard now - lastPerformAt >= minimumInterval else { return }
+            lastPerformAt = now
+            emit(intensity, event: event.debugName)
         }
     }
 
-    /// v272：启动探针——`defaults write com.sxyq.frsetnext probe.haptic -bool true`
-    /// 后重启 App，激活 2.5s 后自动模拟一次。用于无鼠标环境验证触觉链路
-    /// （项目探针惯例，probe.* 键用完删）。
+    /// 设置页里点开关、换强度时立刻敲一下，用户不用去猜有没有生效。
+    static func preview(_ intensity: HapticIntensity) {
+        guard intensity != .off else { return }
+        emit(intensity, event: "preview")
+    }
+
+    /// 设置页「试听」：按草稿强度敲一次，不改任何业务状态。
+    static func simulate(event: HapticEvent, intensity: HapticIntensity) {
+        guard intensity != .off else { return }
+        emit(intensity, event: "simulate:\(event.debugName)")
+    }
+
+    /// 启动探针——`defaults write com.sxyq.frsetnext probe.haptic -bool true`
+    /// 后重启，2.5s 后按真实业务路径敲一次（走配置、走节流）；用完删键。
     static func fireProbeIfRequested() {
         guard UserDefaults.standard.bool(forKey: "probe.haptic") else { return }
-        Log.info("Haptics", "探针：检测到 probe.haptic，2.5s 后模拟（先激活 App）")
+        Log.info("Haptics", "探针：检测到 probe.haptic，2.5s 后按真实事件触发")
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-            simulate(event: .gridMove, intensity: HapticConfiguration.load().intensity)
+            perform(.gridMove)
         }
     }
 
     private static func emit(_ intensity: HapticIntensity, event: String) {
-        guard let pattern = intensity.pattern else { return }
-        // 诊断：请求时的激活状态。前台要求不满足时系统静默丢请求，
-        // 这一行就是「日志有、感觉无」的直接证据。
-        let state = NSApp.isActive ? "active" : "inactive"
-        let front = NSWorkspace.shared.frontmostApplication?.localizedName ?? "nil"
-        Log.info("Haptics", "请求触觉 pattern=\(patternName(pattern)) event=\(event) app=\(state) front=\(front)")
-        DispatchQueue.main.async {
-            NSHapticFeedbackManager.defaultPerformer.perform(pattern, performanceTime: .now)
+        guard let actuation = intensity.actuationID else { return }
+        let fire = {
+            // 先走私有马达：脱离触摸也能响，后台窗口同样有效。
+            // 失败（无内建触控板 / 系统改动）再回落公开接口，至少前台还有救。
+            let direct = TrackpadActuator.shared.actuate(id: actuation)
+            Log.info("Haptics", "触觉 \(event) 强度=\(intensity.rawValue) 波形=\(actuation) 直连=\(direct ? "ok" : "fallback")")
+            if !direct, let pattern = intensity.pattern {
+                NSHapticFeedbackManager.defaultPerformer.perform(pattern, performanceTime: .now)
+            }
         }
-    }
-
-    private static func patternName(_ pattern: NSHapticFeedbackManager.FeedbackPattern) -> String {
-        switch pattern {
-        case .alignment: return "alignment"
-        case .generic: return "generic"
-        case .levelChange: return "levelChange"
-        default: return "other"
-        }
+        if Thread.isMainThread { fire() } else { DispatchQueue.main.async(execute: fire) }
     }
 }

@@ -40,126 +40,93 @@ private struct HapticSettingsContent: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             controls
-            HStack(alignment: .top, spacing: 20) {
-                usage.frame(width: 180)
-                VStack(alignment: .leading, spacing: 20) {
-                    eventSection("交互确认", description: "主动完成操作时反馈。", events: [
-                        .gridMove, .gridResize, .layoutSaved, .copy
-                    ])
-                    eventSection("任务状态", description: "任务完成、录制及设备状态变化。", events: [
-                        .screenshot, .ocr, .recordingStarted, .recordingSaved,
-                        .transferCompleted, .downloadCompleted, .aiCompleted, .searchCompleted,
-                        .deviceConnected, .deviceDisconnected
-                    ])
-                    eventSection("提醒与控制", description: "操作异常与主动媒体控制。", events: [
-                        .operationFailed, .transferFailed, .mediaPlayPause, .volumeBoundary
-                    ])
-                }
-                .frame(minWidth: 360, maxWidth: .infinity, alignment: .leading)
-            }
+            eventSection("布局与复制", events: [
+                .gridMove, .gridResize, .layoutSaved, .copy
+            ])
+            eventSection("截图、录制与传输", events: [
+                .screenshot, .ocr, .recordingStarted, .recordingSaved,
+                .transferCompleted, .downloadCompleted, .transferFailed
+            ])
+            eventSection("AI、搜索与设备", events: [
+                .aiCompleted, .searchCompleted, .deviceConnected, .deviceDisconnected
+            ])
+            eventSection("提醒与媒体", events: [
+                .operationFailed, .mediaPlayPause, .volumeBoundary
+            ])
         }
     }
 
     private var controls: some View {
-        SettingsSection("总开关、强度与试听") {
+        SettingsSection("总开关与强度") {
             SettingsGroupBox {
-                VStack(alignment: .leading, spacing: 10) {
-                    // v270：总开关独立于强度——关掉后不再发任何触觉请求，场景选择保留。
-                    SettingsRow(title: "启用触觉反馈",
-                                subtitle: "关闭后所有业务事件都不再请求触觉；独立场景开关与强度会保留") {
-                        Toggle("启用触觉反馈", isOn: $draft.configuration.enabled)
-                            .labelsHidden()
-                            .toggleStyle(.switch)
-                            .controlSize(.small)
-                    }
-                    Divider().opacity(0.5)
-                    HStack(spacing: 16) {
-                        Picker("全局强度", selection: $draft.configuration.intensity) {
-                            ForEach(HapticIntensity.allCases, id: \.self) { intensity in
-                                Text(intensity.title).tag(intensity)
-                            }
-                        }
-                        .pickerStyle(.segmented)
+                SettingsRow(title: "启用触觉反馈",
+                            subtitle: "关闭后所有场景都不再触发") {
+                    Toggle("启用触觉反馈", isOn: $draft.configuration.enabled)
                         .labelsHidden()
-                        .frame(width: 240)
-                        .disabled(!draft.configuration.enabled)
-                        Spacer(minLength: 0)
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
+                        .onChange(of: draft.configuration.enabled) { enabled in
+                            if enabled { HapticFeedback.preview(draft.configuration.intensity) }
+                        }
+                }
+                SettingsDivider()
+                SettingsRow(title: "强度") {
+                    Picker("全局强度", selection: $draft.configuration.intensity) {
+                        ForEach(HapticIntensity.allCases, id: \.self) { intensity in
+                            Text(intensity.title).tag(intensity)
+                        }
                     }
-                    HStack(spacing: 12) {
+                    .pickerStyle(.segmented)
+                    .labelsHidden()
+                    .frame(width: 220)
+                    .disabled(!draft.configuration.enabled)
+                    .onChange(of: draft.configuration.intensity) { intensity in
+                        if draft.configuration.enabled { HapticFeedback.preview(intensity) }
+                    }
+                }
+                SettingsDivider()
+                SettingsRow(title: "试听场景") {
+                    HStack(spacing: 8) {
                         Picker("模拟场景", selection: $previewEvent) {
                             ForEach(HapticEvent.allCases, id: \.self) { event in
                                 Text(event.setting.title).tag(event)
                             }
                         }
-                        .frame(width: 260)
-                        Button("模拟所选场景") {
+                        .labelsHidden()
+                        .frame(width: 180)
+                        Button("试听") {
                             HapticFeedback.simulate(event: previewEvent,
                                                     intensity: draft.configuration.intensity)
                         }
+                        .controlSize(.small)
                         .disabled(!draft.configuration.enabled
                                   || draft.configuration.intensity == .off
                                   || !draft.configuration.isEnabled(previewEvent))
-                        Spacer(minLength: 0)
                     }
-                    // 明确告诉用户：这里只是模拟系统模式，不代表业务动作发生，也不代表硬件已确认。
-                    Text(sceneStatusLine)
-                        .font(.system(size: 11))
-                        .foregroundStyle(Theme.secondaryText)
-                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(.vertical, 6)
             }
         }
     }
 
-    /// 当前选中场景的真实状态：是否启用、会用哪种系统模式、以及为什么可能没感觉。
-    private var sceneStatusLine: String {
-        let config = draft.configuration
-        let mode = config.intensity.systemMode
-        if !config.enabled { return "\(previewEvent.setting.title)：总开关已关闭，不会发出触觉请求。" }
-        if !config.isEnabled(previewEvent) { return "\(previewEvent.setting.title)：该场景已关闭，业务发生时不会触发。" }
-        if config.intensity == .off { return "\(previewEvent.setting.title)：强度为「关闭」，不会发出触觉请求。" }
-        return "\(previewEvent.setting.title)：已启用 · 模拟模式 \(mode)。"
-            + "「模拟所选场景」会把 Kitnest 调到前台并连发三次该模式（间隔 0.18 秒），不执行任何业务动作；"
-            + "系统只在 App 处于前台时才真正产生触感，后台请求会被静默丢弃；"
-            + "连发三次仍无触感，说明触控板不支持 Force Touch 触觉（属硬件限制）；"
-            + "真实业务事件的触感同样要求 Kitnest 在前台，从浮动面板触发时可能被系统吞掉。"
-    }
-
-    private var usage: some View {
-        SettingsSection("使用说明", collapsible: true) {
-            VStack(alignment: .leading, spacing: 12) {
-                Label("Force Touch 触控板", systemImage: "hand.tap")
-                    .font(.system(size: 12, weight: .medium))
-                Text("请将手指放在支持触觉反馈的触控板上模拟；实际触感由系统和设备决定。")
-                Text("轻、中、强分别对应对齐、档位变化、通用三种系统模式（感知强度依次递增）；系统不提供连续振幅调节。")
-                Text("总开关、每项场景开关与强度都会影响真实业务事件；保存后立即生效。")
-                Text("「模拟所选场景」只验证系统模式是否有请求发出，不能证明业务动作成功，也不能证明你确实感觉到了振动。")
-            }
-            .font(.system(size: 11))
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
-    private func eventSection(_ title: String, description: String, events: [HapticEvent]) -> some View {
+    private func eventSection(_ title: String, events: [HapticEvent]) -> some View {
         SettingsSection(title, collapsible: true, expanded: true, summary: "\(events.count) 个场景") {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(description).font(.system(size: 11)).foregroundStyle(.secondary)
-                SettingsGroupBox {
-                    ForEach(events, id: \.self) { event in
-                        SettingsRow(title: event.setting.title, subtitle: event.setting.detail) {
-                            Toggle(event.setting.title, isOn: Binding(
-                                get: { draft.configuration.isEnabled(event) },
-                                set: { enabled in
-                                    if enabled { draft.configuration.disabledEvents.remove(event) }
-                                    else { draft.configuration.disabledEvents.insert(event) }
+            SettingsGroupBox {
+                ForEach(Array(events.enumerated()), id: \.element) { index, event in
+                    if index > 0 { SettingsDivider() }
+                    SettingsRow(title: event.setting.title, subtitle: event.setting.detail) {
+                        Toggle(event.setting.title, isOn: Binding(
+                            get: { draft.configuration.isEnabled(event) },
+                            set: { enabled in
+                                if enabled { draft.configuration.disabledEvents.remove(event) }
+                                else { draft.configuration.disabledEvents.insert(event) }
+                                if draft.configuration.enabled, draft.configuration.intensity != .off {
+                                    HapticFeedback.preview(draft.configuration.intensity)
                                 }
-                            ))
-                            .labelsHidden()
-                            .toggleStyle(.switch)
-                            .controlSize(.small)
-                        }
+                            }
+                        ))
+                        .labelsHidden()
+                        .toggleStyle(.switch)
+                        .controlSize(.small)
                     }
                 }
             }
