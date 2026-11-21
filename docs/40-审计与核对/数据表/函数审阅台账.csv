@@ -2016,7 +2016,7 @@ Clipboard,Features/Clipboard/Store/FavoritesStore.swift,FavoritesStore,refresh,f
 Clipboard,Features/Clipboard/Store/FavoritesStore.swift,FavoritesWindowController,init,init,163,KEEP,构造共享收藏 store 时读取 resource_favorites；控制器构造时保留唯一窗口实例
 Clipboard,Features/Clipboard/Store/FavoritesStore.swift,FavoritesWindowController,show,func,165,KEEP,创建或重新呈现可调整大小的全局收藏窗，并激活应用
 Clipboard,Features/Clipboard/Store/FavoritesStore.swift,FavoritesView,reload,func,229,KEEP,合并剪贴板、暂存文件、工具、命令和网页引用；失效资源移除并提供打开动作
-Clipboard,Features/Clipboard/Store/FavoritesStore.swift,FavoritesView,rebuildEntries,func,238,KEEP,将后台快照映射为剪贴板、文件、工具、命令与网页条目并更新收藏窗口列表
+Clipboard,Features/Clipboard/Store/FavoritesStore.swift,FavoritesView,rebuildEntries,func,238,KEEP,收藏查询回调按原顺序生成五类条目；仅含命令引用时构建命令目录供原ID查找与执行
 Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,init,init,21,KEEP,2026-11-17：shared唯一创建；复用DatabaseManager的clipboard连接和本类锁；不另开数据库或定时器
 Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,refresh,func,25,KEEP,2026-11-17：Manager启动与备份恢复及标签设置调用；数据库锁覆盖读取两表到mapping替换；与Repository.delete保持数据库锁后索引锁顺序；主线程发布tags
 Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,attachTags,func,57,KEEP,2026-11-17：Repository.fetch及item调用；持锁对当前结果做字典查找而不逐条查询；Repository.delete成功后同步移除mapping避免旧标签重新附着
@@ -3079,11 +3079,11 @@ Panel,Features/Panel/Preview/PanelPreviewPreferences.swift,PreviewPopoverDataBri
 Panel,Features/Panel/Preview/PanelPreviewPreferences.swift,PreviewPopoverDataBridge,saveOCRText,func,74,KEEP,PanelRootView:212、PreviewPopoverContentView:892
 Panel,Features/Panel/Preview/PanelPreviewPreferences.swift,PreviewPopoverDataBridge,recognizeImage,func,79,KEEP,PreviewPopoverContentView:886 重新识别
 Panel,Features/Panel/Preview/PanelPreviewPreferences.swift,PreviewPopoverDataBridge,richTextAttributed,func,88,KEEP,PreviewPopoverContentModel:152/163
-Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,init,init,37,KEEP,static shared :17 构造
-Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,loadImage,func,49,KEEP,PreviewPopoverContentView:932 起异步加载图片
-Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,detectQRCode,func,93,KEEP,PreviewPopoverContentView:950
-Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,cacheKey,func,104,KEEP,loadImage :53 调用
-Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,decode,func,109,KEEP,loadImage 解码队列 :75
+Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,init,init,37,KEEP,shared单例构造；图片解码缓存限定32项和64MiB解码像素成本
+Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,loadImage,func,50,KEEP,两个预览调用共用ImageIO缩略/全图解码；同键在途请求共用回调且缓存按像素成本受64MiB上限约束
+Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,detectQRCode,func,97,KEEP,PreviewPopoverContentView:950
+Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,cacheKey,func,108,KEEP,loadImage区分同一路径的缩略与全图缓存项
+Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,decode,func,113,KEEP,loadImage沿专用解码队列调用ImageIO下采样，缩略最长边320pt×屏幕倍率、全图上限1600pt×倍率
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,s,func,53,KEEP,内部字号缩放辅助，全文 20+ 处调用
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderBody,func,60,KEEP,PreviewPopoverContentView:389/511
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,parseSourced,func,88,KEEP,renderBody :93 与 parse :118
@@ -3133,22 +3133,22 @@ Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,isD
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,fileInfo,func,976,KEEP,按showsName和showsPath控制文件名及路径显示，路径使用model.displayPath或真实路径并交ClipboardManager复制；usesWindowChrome传入showsQuickLook控制快速查看按钮，打开、Finder和压缩仍作用真实文件，设置预览仅反馈
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,isArchivePath,func,1029,KEEP,调用方 :995、:1036、:1044
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileView,fileContent,func,1054,KEEP,文件夹与归档共用FileContainerPreview；完整文本按Markdown、JSON、代码或纯文本复用正式组件，读取失败显示原因，图片共用长图滚动，其余文档交独立DocumentInlinePreview
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumbnailLoader,decode,func,1132,KEEP,PreviewFileThumbnailLoader按FilePreviewBuilder.imageExtensions共用图片类型表，图片直接解码，PDF及其余文件保留既有缩略图路径，取消另一份图片扩展名列表
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumbnailLoader,renderPDF,func,1149,KEEP,decode:1110 的 PDF 分支调用
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumbnailLoader,qlThumbnail,func,1172,KEEP,decode:1113 兜底返回
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumb,load,func,1223,KEEP,onAppear :1219 调用
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,show,func,1248,KEEP,调用方 :992（快速查看按钮）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,numberOfPreviewItems,func,1259,KEEP,QLPreviewPanelDataSource 协议；:1253 设 dataSource
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,previewPanel,func,1261,KEEP,QLPreviewPanelDataSource 协议回调
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,acceptsPreviewPanelControl,func,1265,KEEP,QLPreviewPanel 控制权回调；覆写 NSObject 方法
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,beginPreviewPanelControl,func,1267,KEEP,QLPreviewPanel 控制权回调（接管时设 dataSource）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,endPreviewPanelControl,func,1272,KEEP,QLPreviewPanel 控制权回调；空实现仍为协议要求
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,tidy,func,1300,KEEP,调用方 :793、:889
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,attributed,func,1356,KEEP,调用方 :749（OCR 文本区块）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,shouldMerge,func,1368,KEEP,调用方 :1340（tidy 循环内）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,merge,func,1381,KEEP,调用方 :1341（tidy 循环内）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,squeezeSpaces,func,1389,KEEP,调用方 :1349（tidy 收尾）
-Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,FileIconResolver,icon,func,1429,KEEP,调用方 :1213；FileHoverPreview.swift:69、:104
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumbnailLoader,decode,func,1133,KEEP,PreviewFileThumb.load异步调用；图片复用带64MiB缓存预算的PreviewImageLoader，PDF和QL仍沿原缩略路径
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumbnailLoader,renderPDF,func,1150,KEEP,decode的PDF分支后台渲染首面2倍尺寸，结果写入32MiB像素成本上限的共享缩略缓存
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumbnailLoader,qlThumbnail,func,1173,KEEP,decode非图片和PDF分支调用；QuickLook按512pt与2倍缩放请求
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewFileThumb,load,func,1224,KEEP,onAppear调用；先同步返回现有缓存，未命中沿decode异步生成，并按最大图像表示的实际像素字节写入32MiB缓存
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,show,func,1252,KEEP,调用方 :992（快速查看按钮）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,numberOfPreviewItems,func,1263,KEEP,QLPreviewPanelDataSource 协议；:1253 设 dataSource
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,previewPanel,func,1265,KEEP,QLPreviewPanelDataSource 协议回调
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,acceptsPreviewPanelControl,func,1269,KEEP,QLPreviewPanel 控制权回调；覆写 NSObject 方法
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,beginPreviewPanelControl,func,1271,KEEP,QLPreviewPanel 控制权回调（接管时设 dataSource）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,QuickLookPresenter,endPreviewPanelControl,func,1276,KEEP,QLPreviewPanel 控制权回调；空实现仍为协议要求
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,tidy,func,1304,KEEP,调用方 :793、:889
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,attributed,func,1360,KEEP,调用方 :749（OCR 文本区块）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,shouldMerge,func,1372,KEEP,调用方 :1340（tidy 循环内）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,merge,func,1385,KEEP,调用方 :1341（tidy 循环内）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,OCRTextTidy,squeezeSpaces,func,1393,KEEP,调用方 :1349（tidy 收尾）
+Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,FileIconResolver,icon,func,1433,KEEP,调用方 :1213；FileHoverPreview.swift:69、:104
 Recording,Features/Recording/RecordingCompositor.swift,RecordingCompositor,keyOverlay,func,16,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；按传入 RecordedKey 绘制最多四个键帽并按时间淡出；预览可传 reduceTransparency=true 将键帽底从 0.82 改为不透明
 Recording,Features/Recording/RecordingCompositor.swift,RecordingCompositor,clickOverlay,func,73,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；按传入 progress 和左右键在 160×160 画布绘制中心点及两圈扩散环；降低透明度时使用不透明填色和环线
 Recording,Features/Recording/RecordingCompositor.swift,RecordingCompositor,composite,func,107,KEEP,2026-11-19：已逐函数阅读完整实现并核对模块调用、SwiftUI/AppKit事件、ScreenCaptureKit/AVCapture回调及探针入口；ScreenRecorder 正式视频帧与 RecordingAppearancePreview 共用 CIImage 合成：按位置/比例叠摄像头、按区域原点及 pixelScale 定位点击环，最后把最多四键键帽条居中置于底部
@@ -3618,7 +3618,7 @@ Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,init,in
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,toggleSlashMode,func,367,KEEP,2026-11-20：搜索栏斜杠按钮在空查询与斜杠之间切换，再调用同一refilter更新结果
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,refreshLanguage,func,376,KEEP,语言通知到达时用本窗口原选区重建普通及斜杠命令目录，再沿原搜索词refilter；不重建窗口或清输入
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,refilter,func,383,KEEP,2026-11-20：输入变化先重置选中项；斜杠按完全前缀和模糊分数排序，普通按标题匹配，空查询直接发布原目录
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,publish,func,434,KEEP,2026-11-20：refilter共用结果出口，仅id序列变化时写Published列表，避免同一目录重复绘制
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,publish,func,434,KEEP,refilter共用结果出口；逐项比较ID和四项展示字段，语言变化会替换旧标题和说明，省去两份ID数组
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,move,func,443,KEEP,2026-11-20：键盘上下键只在非空结果内夹取选中索引，列表监听随后滚动到该项
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,executeSelected,func,448,KEEP,2026-11-20：回车和点击共用；取有效选中项后先关闭原面板，再执行该项保存的业务动作
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcher,makeNSView,func,651,KEEP,2026-11-20：SwiftUI宿主首次创建KeyEventCatcherView并传当前处理闭包；监视器由视图挂窗时安装
