@@ -53,6 +53,10 @@ print(''.join(open(p,errors='replace').readlines()[-8:]))"
 
 ## 5. 本次入口与任务链
 
+- 性能审阅包使用 `open -a /Applications/KitnestAudit.app 'kitnest://monitor?module=cpu'` 指定目标；普通 `open kitnest://…` 会按系统默认分发，可能启动另一安装副本。共用应用标识的两版必须串行运行。
+- 前后采样用 `top -pid <PID> -l 8 -s 2 -stats pid,cpu,mem -n 1`，排除首笔，另用 `footprint <PID> -f bytes -s` 记录当前与进程峰值字节；同时记主机 CPU 空闲率。UI操作和源码工具查询不与测量窗口交叠。
+- `cua.getApp(路径)` 在应用退出后会再次启动它；退出是否成功用进程状态确认，再切换下一版。CPU窗原Motion日志包含帧数、刷新率、播放时长和缓动，可与实际画面一并对照。
+
 - 收藏状态以 SQLite `resource_favorites` 为共享来源；剪贴板另外同步写 `clipboard_items.is_favorite`。核对其他入口时从状态栏「查看收藏…」或命令面板打开收藏窗。
 - 悬浮球界面目录复用 `IslandWidget`；显示开关、组件顺序、格子尺寸、列数及逐屏位置均由「设置 → 入口与交互 → 悬浮球」读取。
 - 悬浮球触发截图后，恢复依赖截图取消或动作条关闭回调；不要用固定计时器推断截图结束。
