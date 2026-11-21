@@ -64,9 +64,10 @@ struct GeniePhases {
     var slideLength: CGFloat // 滑时长 ms
 }
 
-private let genieCapacity = 1200
 private let genieTolerance: CGFloat = 0.6
 private let genieMaxCalls = 64
+// 每次细分写一个三元组；另需首点、颈点与尾点各一个三元组。
+private let genieCapacity = 3 * (genieMaxCalls + 3)
 
 private func genieEase(_ cosine: CGFloat) -> CGFloat { cosine * -0.5 + 0.5 }
 
