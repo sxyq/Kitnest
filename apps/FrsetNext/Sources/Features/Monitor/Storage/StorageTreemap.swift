@@ -162,17 +162,22 @@ private struct DiskTileDrawing<Label: View>: View {
     let tiles: [DiskTile]
     let selectedID: String?
     let hoveredID: String?
+    /// v267：按住的块鼓得更多——「点下去液面被压了一个坑，松手弹回来」。
+    let pressedID: String?
     let label: Label
 
     var body: some View {
         Canvas { context, _ in
             for tile in tiles {
                 let emphasized = selectedID == tile.id || hoveredID == tile.id
+                let pressed = pressedID == tile.id
                 // v266：悬停块按中心微鼓 1.5%，像液面被手指压了一下再回弹；
                 // 只作用于绘制，命中路径保持不动，避免指针在边缘抖动。
-                let path = emphasized ? tile.localHitPath.applying(
+                // v267：按住时鼓 6%，松手回到悬停态，配合描边形成按压反馈。
+                let bulge: CGFloat = pressed ? 1.06 : emphasized ? 1.015 : 1
+                let path = bulge != 1 ? tile.localHitPath.applying(
                     CGAffineTransform(translationX: tile.labelCenter.x, y: tile.labelCenter.y)
-                        .scaledBy(x: 1.015, y: 1.015)
+                        .scaledBy(x: bulge, y: bulge)
                         .translatedBy(x: -tile.labelCenter.x, y: -tile.labelCenter.y)
                 ) : tile.localHitPath
                 var drawing = context
@@ -192,7 +197,9 @@ private struct DiskTileDrawing<Label: View>: View {
                         content.stroke(path.applying(transform), with: .color(.primary.opacity(0.10)), lineWidth: 1)
                     }
                 }
-                if emphasized {
+                if pressed {
+                    drawing.stroke(path, with: .color(Theme.accent), lineWidth: 2)
+                } else if emphasized {
                     drawing.stroke(path, with: .color(Theme.accent), lineWidth: 1.5)
                 }
                 if let symbol = context.resolveSymbol(id: tile.id) { content.draw(symbol, at: tile.labelCenter) }
@@ -200,6 +207,15 @@ private struct DiskTileDrawing<Label: View>: View {
         } symbols: {
             label
         }
+    }
+}
+
+/// v267：块按压样式。只把 isPressed 透传出去，外观保持 plain。
+private struct TilePressStyle: ButtonStyle {
+    let onPress: (Bool) -> Void
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .onChange(of: configuration.isPressed) { pressed in onPress(pressed) }
     }
 }
 
@@ -246,6 +262,8 @@ struct StorageTreemap: View {
     var freeSpace: Int64? = nil
     var indexRevision: Int = 0
     @Stored private var hoveredID: String?
+    /// 本工程 @State 宏不可用，按项目约定用 @Stored（StateCompat）。
+    @Stored private var pressedID: String?
 
     var body: some View {
         GeometryReader { geo in
@@ -268,7 +286,7 @@ struct StorageTreemap: View {
                         .contentShape(Rectangle())
                         .onTapGesture { onBack?() }
                     DiskTileDrawing(tiles: tiles,
-                        selectedID: selectedID, hoveredID: hoveredID,
+                        selectedID: selectedID, hoveredID: hoveredID, pressedID: pressedID,
                         label: ForEach(tiles) { tile in
                             if tile.labelPointCount >= 3 {
                                 label(tile, ink: tile.isFreeSpace ? .primary : contentColor(tile.ratio)).tag(tile.id)
@@ -296,7 +314,7 @@ struct StorageTreemap: View {
         }
         .background(StorageMapShape().fill(Color.primary.opacity(0.03)))
         .clipShape(StorageMapShape())
-        .onChange(of: indexRevision) { _ in hoveredID = nil }
+        .onChange(of: indexRevision) { _ in hoveredID = nil; pressedID = nil }
     }
 
     private func tileView(_ t: DiskTile, in size: CGSize) -> some View {
@@ -316,7 +334,11 @@ struct StorageTreemap: View {
                 .frame(width: tileFrame.width, height: tileFrame.height)
                 .contentShape(t.localHitPath)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(TilePressStyle { pressing in
+            // v267：按压反馈直接取 Button 自身的 isPressed，不额外挂手势抢点击。
+            if pressing { if pressedID != t.id { pressedID = t.id } }
+            else if pressedID == t.id { pressedID = nil }
+        })
         .position(x: tileFrame.midX, y: tileFrame.midY)
         .accessibilityLabel("\(t.node.name)，\(StorageFormat.bytes(t.node.size))")
         .accessibilityHint(t.isFreeSpace ? "返回上一级" : t.node.canDrill ? "进入查看子项" : "显示文件详情")

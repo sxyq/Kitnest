@@ -147,7 +147,8 @@ private struct StorageSwipeRegion: NSViewRepresentable {
                 }
                 // 一次手势只跳一层：命中后吞掉本手势余下事件（含回扫方向），
                 // 松开后新起一次手势才继续 —— 「连续往返」仍逐层跟手，但不会一跳多级。
-                if dx >= 32 {
+                // v267：阈值 32→28pt，轻扫更容易触发，轴判定仍要求横向占比 1.2 倍。
+                if dx >= 28 {
                     self.swipeDidNavigate = true
                     let direction = self.delta.width > 0 ? -1 : 1
                     self.delta = .zero
@@ -173,6 +174,9 @@ struct StorageManagerRootView: View {
     @Stored private var directoryHistory: [[DiskNode]] = [[]]
     @Stored private var historyIndex = 0
     @Stored private var mapMotion: (anchor: UnitPoint, offset: CGFloat) = (.center, 0)
+    /// v267：果冻系数。1 = 原状；切层瞬间压到 0.965（纵向 1.035）再弹回。
+    /// 本工程 @State 宏不可用（SwiftUIMacros 缺失），按项目约定用 @Stored 兼容层。
+    @Stored private var jelly: CGFloat = 1
     private var stack: [DiskNode] { directoryHistory[historyIndex] }
     @Stored private var selectedPaths: Set<String> = []
     @Stored private var detailNode: DiskNode?
@@ -860,6 +864,9 @@ struct StorageManagerRootView: View {
             .animation(reduceMotion ? nil : Theme.Motion.fast, value: detailNode?.id)
             }
             .clipShape(StorageMapShape())
+            // v267：果冻回弹。切层时整张液面先被「压扁」再弹回，
+            // X/Y 反向、低阻尼——和 0.55 涨开叠加后能看出两次回弹。
+            .scaleEffect(x: jelly, y: 2 - jelly, anchor: mapMotion.anchor)
             .animation(reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.55), value: currentNode?.id)
         }
     }
@@ -936,6 +943,7 @@ struct StorageManagerRootView: View {
             directoryHistory = (0...path.count).map { Array(path.prefix($0)) }
         }
         historyIndex = path.count
+        jellyPulse()
     }
 
     private func navigateHistory(by direction: Int) {
@@ -943,6 +951,14 @@ struct StorageManagerRootView: View {
         guard directoryHistory.indices.contains(next) else { return }
         mapMotion = (direction > 0 ? .trailing : .leading, direction > 0 ? 28 : -28)
         historyIndex = next
+        jellyPulse()
+    }
+
+    /// v267：先无动画压扁，再低阻尼弹回——「Q 弹」的关键是两次回弹而不是一次淡入。
+    private func jellyPulse() {
+        guard !reduceMotion else { return }
+        jelly = 0.965
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.4)) { jelly = 1 }
     }
 
     // MARK: 让 Agent 清理（v212）
