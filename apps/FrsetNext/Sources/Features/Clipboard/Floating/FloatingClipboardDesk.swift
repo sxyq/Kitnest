@@ -79,9 +79,6 @@ public enum FloatingClipCardSize: String, CaseIterable, Sendable {
 // MARK: - 数据源
 
 /// 悬浮工作台的数据源：按「分类 + 搜索词」查 SQLite，主线程发布结果。
-///
-/// 为什么不复用 `FloatingClipboardStore`：那个只取最近 12 条且没有分类/搜索查询能力；
-/// 这里要的是"能在几万条历史里立刻找到那一条"，必须走 `ClipboardRepository` 的 SQL 过滤。
 public final class FloatingClipDeskStore: ObservableObject {
 
     public static let shared = FloatingClipDeskStore()

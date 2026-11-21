@@ -139,47 +139,10 @@ public final class FloatingClipboardPanel: NSPanel {
     public override var canBecomeMain: Bool { false }
 }
 
-// MARK: - 浮动窗内容数据源（05 号规格 1.4：FloatingClipboardStore）
-
-/// 浮动窗的独立数据源：只维护"最近 N 条"，并订阅 ClipboardManager 的变更广播
+/// 向设置页发布浮动窗状态。
 public final class FloatingClipboardStore: ObservableObject {
-
-    @Published public private(set) var recentItems: [ClipboardItem] = []
     @Published public var isVisible: Bool = FloatingClipboardPinState.shared.isVisible
     @Published public var isPinned: Bool = FloatingClipboardPinState.shared.isPinned
-    /// 「搜索剪贴板」模式的过滤词（原版 ClipboardFilterBarView 的 FilterBar_Search）
-    @Published public var searchText: String = ""
-
-    /// 过滤后的列表（搜索词为空 = 全部最近条目）
-    public var filteredItems: [ClipboardItem] {
-        let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !q.isEmpty else { return recentItems }
-        return recentItems.filter { item in
-            let title = (item.aliasTitle?.isEmpty == false) ? item.aliasTitle! : (item.title ?? item.content ?? "")
-            return title.localizedCaseInsensitiveContains(q)
-                || (item.content?.localizedCaseInsensitiveContains(q) ?? false)
-        }
-    }
-
-    public static let recentLimit = 12
-
-    private var observer: NSObjectProtocol?
-
-    public init() {
-        observer = NotificationCenter.default.addObserver(
-            forName: ClipboardManager.itemsDidChangeNotification,
-            object: nil, queue: .main) { [weak self] _ in self?.refresh() }
-    }
-
-    deinit {
-        if let observer { NotificationCenter.default.removeObserver(observer) }
-    }
-
-    public func refresh() {
-        ClipboardManager.shared.recentItems(limit: Self.recentLimit) { [weak self] items in
-            self?.recentItems = items
-        }
-    }
 
     public func setVisible(_ visible: Bool) {
         isVisible = visible
