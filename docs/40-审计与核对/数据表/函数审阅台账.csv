@@ -3481,7 +3481,8 @@ Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSes
 Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,end,func,160,KEEP,设置窗口关闭时清空草稿实例和全部默认标记，并递增 generation，使下次打开重建内容与预览生命周期；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsDraftEditor,init,init,232,KEEP,SettingsEditingSession.init注册各类外观和八个模块工厂，新增transferLocal供本地暂存设置缓存；SettingsDraftEditor.init保存id、工厂及内容闭包，切页借用同一草稿；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsModule.swift,SettingsModule,start,func,14,KEEP,AppModule 协议；ModuleRegistry.startAll 派发；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsNavigation.swift,SettingsGroup,group,func,54,KEEP,由二级 SettingsPage 反查一级 SettingsGroup，统一驱动分组高亮与导航归属；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsNavigation.swift,SettingsGroup,section,func,90,KEEP,按页面反查所属二级小节；小节 ID 以一级目录名为前缀，跨目录唯一
+Settings,Features/Settings/Shell/SettingsNavigation.swift,SettingsGroup,group,func,94,KEEP,由二级 SettingsPage 反查一级 SettingsGroup，统一驱动分组高亮与导航归属；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsPanes.swift,StartupSettingsDraft,save,func,18,KEEP,先验证自定义 SF Symbol，变更小猫时调用 FSBarSaveConfiguration；只应用变化的图标/符号/入口键，发入口通知并刷新正式图标和小猫，失败返回具体原因；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsPanes.swift,StartupSettingsDraft,discard,func,35,KEEP,重新读取图标存储、引擎小猫配置与七项入口偏好，替换草稿并更新 saved；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsPanes.swift,StartupSettingsDraft,restoreDefaults,func,41,KEEP,菜单栏草稿恢复 logo、默认自定义符号、关闭小猫并启用七项入口，正式图标和入口不立即变化；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
@@ -3507,24 +3508,26 @@ Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,init,in
 Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,panePage,func,250,KEEP,设置页统一纵向ScrollView显示滚动条，内容水平34pt/垂直18pt内边距并靠左撑满；monitorWidgets分发也经过此入口，使所有模块卡及底部保存区可整页滚动访问；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsSidebarView.swift,CaptureSettingsBlock,init,init,56,KEEP,将旧深链/搜索的 0…4 下标映射回 CaptureSettingsBlock，维持现有入口定位；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSearchEntry,matches,func,74,KEEP,本文件:203 搜索过滤；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,groupHeader,func,148,KEEP,渲染一级目录并把点击映射到该组首个二级页；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,navRow,func,177,KEEP,本文件:127-136 分类行；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,navigate,func,277,KEEP,本文件:213 搜索结果点击；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,footerChip,func,366,KEEP,渲染设置侧栏底部的数据、关于、手册入口并更新当前二级页；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsUIState,init,init,27,KEEP,本文件:87 uiState 初始化；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsUIState,selectPane,func,33,KEEP,本文件:107 open(pane:) 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsUIState,reveal,func,44,KEEP,搜索模块链接及深链展开目标一级目录并定位二级页控件，与普通打开折叠行为分离；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsUIState,applyPaneMapping,func,52,KEEP,本文件:28/37 私有映射；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindow,performKeyEquivalent,func,132,KEEP,NSWindow override；AppKit 派发 Esc；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,init,init,152,KEEP,本文件:80 shared 单例；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,open,func,163,KEEP,FrsetNextApp.swift:24/148 等 22 处；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,close,func,200,KEEP,SettingsWindowControlling 协议 Registry.swift:92；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowWillClose,func,219,KEEP,原生关闭按钮回调将 isVisible 设为 false 并结束 editingSession，销毁未保存草稿和预览内容；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowDidMiniaturize,func,224,KEEP,设置窗口最小化时将 isVisible 设为 false，使 SettingsRootView 卸载预览内容，缓存草稿仍保留；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowDidDeminiaturize,func,228,KEEP,设置窗口恢复时将 isVisible 设为 true，重新挂载当前页并借用原缓存草稿；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowDidChangeOcclusionState,func,232,KEEP,用window.isVisible且未最小化更新uiState.isVisible，使临时遮挡下设置内容和预览状态保持挂载；仅monitorModule或monitorSettings页按真正occlusionState.visible调用MonitorSampler.setSettingsActive暂停或恢复采样，其他页不启动监测；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowDidChangeScreen,func,242,KEEP,更新设置窗最小尺寸以匹配进入屏幕的可见区域；窗口根视图仍由同一自适应容器布局
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,ensureWindow,func,250,KEEP,本文件:104 open 内调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,groupHeader,func,160,KEEP,渲染一级目录并把点击映射到该组首个二级页；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,sectionHeader,func,198,KEEP,渲染二级小节标题（缩进22、11.5pt）并切换展开；拆过小节的目录下页面行缩进38，形成三级层次
+Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,navRow,func,226,KEEP,本文件:127-136 分类行；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,navigate,func,326,KEEP,本文件:213 搜索结果点击；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,footerChip,func,415,KEEP,渲染设置侧栏底部的数据、关于、手册入口并更新当前二级页；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsUIState,init,init,29,KEEP,本文件:87 uiState 初始化；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsUIState,expandAncestors,func,36,KEEP,把选中页的一级目录与二级小节一起放进展开集合，深链/搜索落地时直接看到页面行
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsUIState,selectPane,func,42,KEEP,本文件:107 open(pane:) 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsUIState,reveal,func,53,KEEP,搜索模块链接及深链展开目标一级目录并定位二级页控件，与普通打开折叠行为分离；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsUIState,applyPaneMapping,func,61,KEEP,本文件:28/37 私有映射；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindow,performKeyEquivalent,func,141,KEEP,NSWindow override；AppKit 派发 Esc；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,init,init,161,KEEP,本文件:80 shared 单例；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,open,func,172,KEEP,FrsetNextApp.swift:24/148 等 22 处；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,close,func,210,KEEP,SettingsWindowControlling 协议 Registry.swift:92；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowWillClose,func,229,KEEP,原生关闭按钮回调将 isVisible 设为 false 并结束 editingSession，销毁未保存草稿和预览内容；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowDidMiniaturize,func,234,KEEP,设置窗口最小化时将 isVisible 设为 false，使 SettingsRootView 卸载预览内容，缓存草稿仍保留；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowDidDeminiaturize,func,238,KEEP,设置窗口恢复时将 isVisible 设为 true，重新挂载当前页并借用原缓存草稿；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowDidChangeOcclusionState,func,242,KEEP,用window.isVisible且未最小化更新uiState.isVisible，使临时遮挡下设置内容和预览状态保持挂载；仅monitorModule或monitorSettings页按真正occlusionState.visible调用MonitorSampler.setSettingsActive暂停或恢复采样，其他页不启动监测；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowDidChangeScreen,func,252,KEEP,更新设置窗最小尺寸以匹配进入屏幕的可见区域；窗口根视图仍由同一自适应容器布局
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,ensureWindow,func,260,KEEP,本文件:104 open 内调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleStore,select,func,91,KEEP,调用方 MenuBarIconStyle.swift:260（@objc selectIconStyle）
 StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleStore,setRevealsCustomOption,func,107,KEEP,调用方同文件 :272/:282（@objc hide/restoreIconOption）
 StatusBar,Features/StatusBar/MenuBarIconStyle.swift,RotatingLayerView,init,init,141,KEEP,调用方 startFan:471 实例化旋转视图

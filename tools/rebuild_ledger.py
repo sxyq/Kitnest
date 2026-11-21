@@ -703,7 +703,13 @@ EVIDENCE.update({
     ("Features/Settings/Shell/SettingsSidebarView.swift", "init"):
         "将旧深链/搜索的 0…4 下标映射回 CaptureSettingsBlock，维持现有入口定位",
     ("Features/Settings/Shell/SettingsSidebarView.swift", "groupHeader"):
-        "渲染一级目录并把点击映射到该组首个二级页",
+        "渲染一级目录；点击只展开/收起，展开时顺带展开当前页所在小节（没有则第一节），避免只看到小节名",
+    ("Features/Settings/Shell/SettingsSidebarView.swift", "sectionHeader"):
+        "渲染二级小节标题（缩进22、11.5pt）并切换展开；拆过小节的目录下页面行缩进38，形成三级层次",
+    ("Features/Settings/Shell/SettingsNavigation.swift", "section"):
+        "按页面反查所属二级小节；小节 ID 以一级目录名为前缀，跨目录唯一",
+    ("Features/Settings/Shell/SettingsWindowController.swift", "expandAncestors"):
+        "把选中页的一级目录与二级小节一起放进展开集合，深链/搜索落地时直接看到页面行",
     ("Features/Settings/Shell/SettingsSidebarView.swift", "footerChip"):
         "渲染设置侧栏底部的数据、关于、手册入口并更新当前二级页",
 })

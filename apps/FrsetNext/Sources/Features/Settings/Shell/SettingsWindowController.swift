@@ -16,9 +16,11 @@ final class SettingsUIState: ObservableObject {
     @Published var isVisible = false
     @Published var selectedPaneID: String
     @Published var detailPaneID: String?
-    /// 侧边栏选中项 = 二级页（v272：常规/剪贴板/文件中转也各自拆成多页）
+    /// 侧边栏选中项 = 页面（v277：侧栏为 目录 › 小节 › 页 三级，条目多的目录才拆小节）
     @Published var selection: SettingsPage = .generalStart
     @Published var expandedGroups: Set<SettingsGroup> = []
+    /// 三级结构里展开的二级小节（键见 SettingsPage.sectionID）。
+    @Published var expandedSections: Set<String> = []
     @Published var navigationRevision = 0
     var pageScrollOffsets: [SettingsPage: CGFloat] = [:]
     /// 搜索框与外部切页共用；保留已有搜索探针初值。
@@ -27,6 +29,13 @@ final class SettingsUIState: ObservableObject {
     init(selectedPaneID: String = "general") {
         self.selectedPaneID = selectedPaneID
         applyPaneMapping(selectedPaneID)
+        expandAncestors(of: selection)
+    }
+
+    /// 选中页所在的一级目录与二级小节一起展开，深链落地时不会只看到组标题。
+    private func expandAncestors(of page: SettingsPage) {
+        if let group = page.group { expandedGroups.insert(group) }
+        if let id = page.sectionID { expandedSections.insert(id) }
     }
 
     /// 旧 pane id → 侧边栏位置映射（含多合一分类的内部子页）
@@ -45,7 +54,7 @@ final class SettingsUIState: ObservableObject {
         selection = page.canonical
         detailPaneID = field
         query = ""
-        if let group = selection.group { expandedGroups.insert(group) }
+        expandAncestors(of: selection)
         navigationRevision += 1
     }
 
@@ -175,6 +184,7 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
             }
         } else {
             uiState.expandedGroups = []
+            uiState.expandedSections = []
             uiState.detailPaneID = nil
             uiState.query = ""
         }

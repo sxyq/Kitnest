@@ -1,6 +1,14 @@
 import SwiftUI
 
-/// 一级目录只控制展开；页面、搜索及旧链接共用二级归属。
+/// 三级结构里的二级分组：一级目录（如「入口与交互」）下面的可折叠小节。
+/// 只有页面多的目录才分小节；页面少的目录保持「一级 → 二级页」两层。
+struct SettingsSidebarSection: Identifiable, Hashable {
+    let id: String
+    let title: String
+    let pages: [SettingsPage]
+}
+
+/// 侧栏三级：一级目录 → 二级小节 → 三级页面；选中、搜索与旧链接仍以页面为单位。
 enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
     case general, haptics, appearance, entryInteraction, clipboard, transfer, capture, searchAI, tools, monitor, data
     var id: String { rawValue }
@@ -51,6 +59,38 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
         case .data: return [.configTransfer, .diagnostics, .about]
         }
     }
+    /// 三级分组：只给条目多的目录拆小节，避免两三条也硬套一层。
+    var sections: [SettingsSidebarSection] {
+        switch self {
+        case .entryInteraction:
+            return [
+                .init(id: "entryInteraction.panel", title: "主面板",
+                      pages: [.generalPanel, .panelBackground]),
+                .init(id: "entryInteraction.menuBar", title: "菜单栏与快捷键",
+                      pages: [.generalMenuBar, .menuBarArrangement, .monitorWidgets, .shortcuts]),
+                .init(id: "entryInteraction.island", title: "刘海工作台",
+                      pages: [.island, .islandPeeks, .islandCanvas, .islandMaterial]),
+                .init(id: "entryInteraction.floating", title: "悬浮窗",
+                      pages: [.floatingBall, .clipboardFloating]),
+            ]
+        case .capture:
+            return [
+                .init(id: "capture.shot", title: "截图",
+                      pages: [.capture(.capture), .ocr, .watermark, .captureActions]),
+                .init(id: "capture.pin", title: "钉图与图帘",
+                      pages: [.capture(.pin), .capture(.curtain)]),
+                .init(id: "capture.record", title: "录制与自动化",
+                      pages: [.capture(.recording), .capture(.workflow)]),
+            ]
+        default:
+            return []
+        }
+    }
+
+    func section(containing page: SettingsPage) -> SettingsSidebarSection? {
+        sections.first { $0.pages.contains(page.canonical) }
+    }
+
     static func group(of page: SettingsPage) -> SettingsGroup {
         allCases.first { $0.pages.contains(page.canonical) } ?? .general
     }
@@ -125,6 +165,18 @@ enum SettingsPage: Hashable {
     }
     var systemImage: String { self == .manual ? "book.closed" : SettingsGroup.group(of: self).systemImage }
     var group: SettingsGroup? { self == .manual ? nil : SettingsGroup.group(of: self) }
+    /// 所属二级小节（只对拆过小节的目录有值）。
+    var section: SettingsSidebarSection? { group?.section(containing: self) }
+    /// 侧栏展开状态用的键：一级目录 + 二级小节。
+    var sectionID: String? { section?.id }
+    /// 面包屑/搜索展示用：一级 › 二级 › 三级。
+    var path: String {
+        var parts: [String] = []
+        if let group { parts.append(group.title) }
+        if let section { parts.append(section.title) }
+        parts.append(title)
+        return parts.joined(separator: " › ")
+    }
     var openHint: String? {
         switch canonical {
         case .haptics: return "全局强度与分场景开关"

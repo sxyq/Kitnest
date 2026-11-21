@@ -133,8 +133,20 @@ struct SettingsSidebarView: View {
             ForEach(SettingsGroup.allCases) { group in
                 groupHeader(group)
                 if state.expandedGroups.contains(group) {
-                    ForEach(group.pages, id: \.self) { page in
-                        navRow(page).id(page)
+                    if group.sections.isEmpty {
+                        ForEach(group.pages, id: \.self) { page in
+                            navRow(page).id(page)
+                        }
+                    } else {
+                        // 三级：一级目录 → 二级小节 → 三级页面。
+                        ForEach(group.sections) { section in
+                            sectionHeader(section)
+                            if state.expandedSections.contains(section.id) {
+                                ForEach(section.pages, id: \.self) { page in
+                                    navRow(page, leading: 38).id(page)
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -148,8 +160,17 @@ struct SettingsSidebarView: View {
     private func groupHeader(_ group: SettingsGroup) -> some View {
         let expanded = state.expandedGroups.contains(group)
         return Button {
-            if expanded { state.expandedGroups.remove(group) }
-            else { state.expandedGroups.insert(group) }
+            if expanded {
+                state.expandedGroups.remove(group)
+            } else {
+                state.expandedGroups.insert(group)
+                // 展开目录时顺手展开一节：优先当前页所在小节，否则第一节。
+                // 否则点开一级目录只看到四个小节名，还要再点一次才见页面。
+                if !group.sections.isEmpty {
+                    let target = group.section(containing: state.selection) ?? group.sections.first
+                    if let target { state.expandedSections.insert(target.id) }
+                }
+            }
         } label: {
             HStack(spacing: 7) {
                 Image(systemName: group.systemImage)
@@ -173,8 +194,36 @@ struct SettingsSidebarView: View {
         .padding(.top, 8)
     }
 
-    /// 二级页轻量缩进行，保留单行选中反馈。
-    private func navRow(_ page: SettingsPage) -> some View {
+    /// 二级小节：可折叠标题行，比一级目录轻、比页面行重。
+    private func sectionHeader(_ section: SettingsSidebarSection) -> some View {
+        let expanded = state.expandedSections.contains(section.id)
+        return Button {
+            if expanded { state.expandedSections.remove(section.id) }
+            else { state.expandedSections.insert(section.id) }
+        } label: {
+            HStack(spacing: 5) {
+                Image(systemName: expanded ? "chevron.down" : "chevron.right")
+                    .font(.system(size: 8, weight: .semibold))
+                    .frame(width: 10)
+                Text(section.title)
+                    .font(.system(size: 11.5, weight: .medium))
+                    .foregroundStyle(Color.primary.opacity(0.62))
+                    .lineLimit(1)
+                Spacer(minLength: 0)
+            }
+            .padding(.leading, 22)
+            .padding(.trailing, 8)
+            .frame(height: 23)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(expanded ? "收起\(section.title)" : "展开\(section.title)")
+        .accessibilityValue(expanded ? "已展开" : "已收起")
+        .padding(.top, 3)
+    }
+
+    /// 三级页轻量缩进行，保留单行选中反馈。
+    private func navRow(_ page: SettingsPage, leading: CGFloat = 24) -> some View {
         let selected = state.selection == page
         return Button {
             state.detailPaneID = nil
@@ -191,7 +240,7 @@ struct SettingsSidebarView: View {
                         .accessibilityLabel("未保存")
                 }
             }
-            .padding(.leading, 24)
+            .padding(.leading, leading)
             .padding(.trailing, 8)
             .frame(height: 25)
             .background {
@@ -256,7 +305,7 @@ struct SettingsSidebarView: View {
                             .font(.system(size: 12.5))
                             .foregroundStyle(Color.primary.opacity(0.9))
                             .lineLimit(1)
-                        Text(entry.area)
+                        Text(entry.selection.path)
                             .font(.system(size: 10))
                             .foregroundStyle(Theme.tertiaryText)
                             .lineLimit(1)
@@ -283,7 +332,7 @@ struct SettingsSidebarView: View {
     private static let searchIndex: [SettingsSearchEntry] =
         SettingsGroup.allCases.flatMap { group in
             group.pages.map { page in
-                SettingsSearchEntry(title: page.title, area: group.title + " › " + page.title,
+                SettingsSearchEntry(title: page.title, area: page.path,
                     keywords: page.openHint ?? "", selection: page)
             }
         } + [
