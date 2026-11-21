@@ -36,7 +36,7 @@ enum VoronoiTreemap {
         // 归一化后 k=0.3 只要 17 轮就把误差压到 0.3%（实测）。
         let unit = CGRect(x: 0, y: 0, width: 1, height: 1)
         let outline = StorageMapShape().path(in: unit)
-        let base = basePolygon()
+        let base = sampledPoints(outline, spacing: 0.035)
         let triangles = triangulate(base)
         let baseArea = area(base)
         // v232：arcFirst = 参考图那种半弧排布（第一块固定左上，其余沿弧线铺开 + 斥力松弛）
@@ -94,10 +94,6 @@ enum VoronoiTreemap {
             }
             return path.applying(transform)
         }
-    }
-
-    private static func basePolygon() -> [CGPoint] {
-        sampledPoints(StorageMapShape().path(in: CGRect(x: 0, y: 0, width: 1, height: 1)), spacing: 0.035)
     }
 
     /// 半弧布点（v232，参考图）：第一块（可用空间）固定在左上，
