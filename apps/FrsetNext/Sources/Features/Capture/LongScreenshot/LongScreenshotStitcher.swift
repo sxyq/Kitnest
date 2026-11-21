@@ -25,18 +25,23 @@ struct LongShotRGBA {
     let w: Int
     let h: Int
     var bytes: [UInt8]
+    /// v269：保留抓帧的原始色彩空间。旧实现一律写 DeviceRGB，
+    /// 等于把 P3/显示器 profile 的数值当 sRGB 用——成图整体偏灰/偏艳。
+    let colorSpace: CGColorSpace
 
     /// 用 malloc 分配上下文内存（&array 桥接指针生命周期不保证，合成后内容会脱节）
-    private static func drawToBuffer(_ image: CGImage, w: Int, h: Int) -> [UInt8] {
+    private static func drawToBuffer(_ image: CGImage, w: Int, h: Int,
+                                     space: CGColorSpace) -> [UInt8] {
         let count = w * h * 4
         let ptr = UnsafeMutableRawPointer.allocate(byteCount: count, alignment: 64)
         defer { ptr.deallocate() }
         memset(ptr, 0, count)
         if let ctx = CGContext(data: ptr, width: w, height: h,
                                bitsPerComponent: 8, bytesPerRow: w * 4,
-                               space: CGColorSpaceCreateDeviceRGB(),
+                               space: space,
                                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) {
-            ctx.interpolationQuality = .low
+            // 1:1 搬运不需要插值；只有宽度修正那条路径才需要 .high。
+            ctx.interpolationQuality = .none
             ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
         }
         return Array(UnsafeRawBufferPointer(start: ptr, count: count))
@@ -44,9 +49,11 @@ struct LongShotRGBA {
 
     init(image: CGImage) {
         let w = image.width, h = image.height
+        let space = image.colorSpace ?? CGColorSpaceCreateDeviceRGB()
         self.w = w
         self.h = h
-        self.bytes = Self.drawToBuffer(image, w: w, h: h)
+        self.colorSpace = space
+        self.bytes = Self.drawToBuffer(image, w: w, h: h, space: space)
     }
 
 }
@@ -101,6 +108,8 @@ final class LongScreenshotStitcher {
     private(set) var canvasHeight = 0
     /// 画布像素（RGBA，行优先；长度恒为 canvasWidth*canvasHeight*4）
     private var bytes: [UInt8] = []
+    /// 画布色彩空间（取首帧；换取色空间会让整幅偏色）
+    private var canvasColorSpace = CGColorSpaceCreateDeviceRGB()
     /// 画布灰度（行优先；长度恒为 canvasWidth*canvasHeight）——对齐用，避免逐次重算
     private var gray: [UInt8] = []
     /// 画布每行灰度均值（对齐粗搜用）
@@ -144,7 +153,7 @@ final class LongScreenshotStitcher {
         var copy = Array(bytes[0..<need])
         let ctx = CGContext(data: &copy, width: canvasWidth, height: canvasHeight,
                             bitsPerComponent: 8, bytesPerRow: canvasWidth * 4,
-                            space: CGColorSpaceCreateDeviceRGB(),
+                            space: canvasColorSpace,
                             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
         guard let img = ctx?.makeImage() else { return nil }
         cachedImage = img
@@ -233,6 +242,7 @@ final class LongScreenshotStitcher {
         // ① 首帧：直接作为画布
         if bytes.isEmpty {
             bytes = fb.bytes
+            canvasColorSpace = fb.colorSpace
             gray = fg
             rowMeans = fRowMeans
             canvasWidth = fb.w
@@ -467,7 +477,7 @@ final class LongScreenshotStitcher {
         guard width > 0, image.height > 0,
               let ctx = CGContext(data: nil, width: width, height: image.height,
                                   bitsPerComponent: 8, bytesPerRow: width * 4,
-                                  space: CGColorSpaceCreateDeviceRGB(),
+                                  space: image.colorSpace ?? CGColorSpaceCreateDeviceRGB(),
                                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
         ctx.interpolationQuality = .high
         ctx.draw(image, in: CGRect(x: 0, y: 0, width: width, height: image.height))

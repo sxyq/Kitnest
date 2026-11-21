@@ -1207,34 +1207,36 @@ Capture,Features/Capture/LongScreenshot/LongScreenshotMotionCrop.swift,LongScree
 Capture,Features/Capture/LongScreenshot/LongScreenshotMotionCrop.swift,LongScreenshotMotionCrop,similar,func,118,KEEP,2026-11-19：Session检测连续帧运动范围调用；以交并比≥0.8决定相邻检测是否一致
 Capture,Features/Capture/LongScreenshot/LongScreenshotMotionCrop.swift,LongScreenshotMotionCrop,columnMeans,func,126,KEEP,2026-11-19：movingColumns吸附运动区边界调用；抽样行算全分辨率每列灰度均值
 Capture,Features/Capture/LongScreenshot/LongScreenshotMotionCrop.swift,LongScreenshotMotionCrop,gray,func,143,KEEP,2026-11-19：movingColumns两次低分辨率转换及columnMeans调用；CGContext以灰度格式重采样，建图失败返回nil
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotEditorDocumentView,init,init,15,KEEP,2026-11-19：PreviewController.show为每张CGImage创建文档；初始frame采用图像像素尺寸并设imageRect全bounds
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotEditorDocumentView,init,init,22,KEEP,2026-11-19：NSView required coder构造；类由PreviewController代码创建且coder入口标fatalError
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotEditorDocumentView,draw,func,26,KEEP,2026-11-19：NSView系统绘制回调；填深灰底并在当前CGContext按imageRect绘制CGImage
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotEditorDocumentView,fitCentered,func,40,KEEP,2026-11-19：容器layout按scrollView.contentSize调用；按容器宽放大最多2倍或缩图，更新document尺寸并水平居中，不更改scroll偏移
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotImageScrollView,init,init,63,KEEP,2026-11-19：EditorContainerView构造调用；开双向滚动与放大，documentView指向长图文档
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotImageScrollView,init,init,73,KEEP,2026-11-19：NSScrollView required coder构造；编辑器通过document参数程序化构造，保留原不可用nib入口
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotEditorContainerView,init,init,98,KEEP,2026-11-19：EditorWindow构造调用；建立scroll与三闭包按钮，并初次布局
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotEditorContainerView,init,init,122,KEEP,2026-11-19：NSView required coder构造；窗口只使用代码初始化并保留协议签名
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotEditorContainerView,layout,func,124,KEEP,2026-11-19：AppKit布局回调；重排滚动区与工具条，按内容尺寸适配文档并仅在尺寸就绪时首次滚到图顶
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotEditorContainerView,layoutEditor,func,144,KEEP,2026-11-19：init与layout共用；工具条贴底，滚动区占余高，三按钮按窗口宽度从右排布
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotEditorContainerView,debugPerformButtons,func,159,KEEP,2026-11-19：PreviewController probe.longshotClick动态调试分支调用；依次performClick保存/复制/关闭按钮
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotEditorContainerView,debugHitReport,func,168,KEEP,2026-11-19：PreviewController probe.longshotHit分支调用；报告按钮命中view类型及窗口上方遮挡窗口号
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,FirstMouseButton,acceptsFirstMouse,func,184,KEEP,2026-11-19：NSButton首次鼠标事件覆写派发；返回true使非key窗口首击直接激活按钮
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,ClosureButtonAction,init,init,190,KEEP,2026-11-19：bind每个工具栏动作构造；持有单一handler闭包供ObjC target-action桥接
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,ClosureButtonAction,bind,func,192,KEEP,2026-11-19：EditorContainerView循环三按钮调用；绑定button.target/action，并由associated object持有target
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,ClosureButtonAction,fire,func,199,KEEP,2026-11-19：NSButton target-action经#selector派发；执行持有的保存/复制/关闭闭包
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotEditorWindow,init,init,208,KEEP,2026-11-19：PreviewController.show构造；按图像宽高及屏可视尺寸算窗体并装EditorContainerView与统一Chrome
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotPreviewController,init,init,251,KEEP,2026-11-19：shared单例静态构造；NSObject初始化且持有唯一编辑窗口
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotPreviewController,show,func,253,KEEP,2026-11-19：Session完成和诊断演示调用；先关旧窗，建新长图文档及保存/复制/关闭动作，再激活呈现
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotPreviewController,windowWillClose,func,337,KEEP,2026-11-19：NSWindowDelegate关闭回调；仅关闭当前EditorWindow时清控制器强引用
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,init,init,373,KEEP,2026-11-19：Coordinator.startSession及debugShow构造；浮动不激活点击穿透面板，默认屏幕捕获排除并装玻璃、图像及尺寸标签
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,update,func,433,KEEP,2026-11-19：Session.onPreview主Actor回调和debugShow调用；解位置槽，裁画布顶部适配卡片尺寸，动画定位并仅首次orderFront
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,slotMaxHeight,func,488,KEEP,2026-11-19：update限制可见图片高度调用；从side/above/below槽位取可用高度
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,slotOrigin,func,494,KEEP,2026-11-19：update求目标窗frame调用；按三种槽位将左下坐标top锚点换窗口origin
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,debugShow,func,505,KEEP,2026-11-19：CaptureModule长图预览演示深链调用；保存静态debugInstance并显示合成图
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,resolveSlot,func,514,KEEP,2026-11-19：update每帧定位调用；按选区所属屏幕依右/左/上/下找不相交可用槽位，无足够空间收起
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,clampX,func,554,KEEP,2026-11-19：resolveSlot上下方卡片调用；限制卡片横坐标于屏幕可见范围
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,screen,func,559,KEEP,2026-11-19：resolveSlot定位调用；选与框区相交面积最大的显示屏，否则主屏/首屏
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotEditorDocumentView,init,init,17,KEEP,2026-11-19：PreviewController.show为每张CGImage创建文档；初始frame采用图像像素尺寸并设imageRect全bounds
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotEditorDocumentView,init,init,24,KEEP,2026-11-19：NSView required coder构造；类由PreviewController代码创建且coder入口标fatalError
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotEditorDocumentView,nativePointSize,func,33,KEEP,2026-11-21：v269 长截图预览 1 图像像素=1 设备像素——按 window.backingScaleFactor 折算点尺寸；fitCentered:96 / draw:74 调用
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotEditorDocumentView,draw,func,45,KEEP,2026-11-19：NSView系统绘制回调；填深灰底并在当前CGContext按imageRect绘制CGImage
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotEditorDocumentView,fitCentered,func,60,KEEP,2026-11-19：容器layout按scrollView.contentSize调用；按容器宽放大最多2倍或缩图，更新document尺寸并水平居中，不更改scroll偏移
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotEditorDocumentView,viewDidChangeBackingProperties,func,80,KEEP,2026-11-21：v269 跨屏（1x↔2x）拖动后重新折算点尺寸——置 enclosingScrollView 父容器 needsLayout，由 fitCentered 重算
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotImageScrollView,init,init,91,KEEP,2026-11-19：EditorContainerView构造调用；开双向滚动与放大，documentView指向长图文档
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotImageScrollView,init,init,101,KEEP,2026-11-19：NSScrollView required coder构造；编辑器通过document参数程序化构造，保留原不可用nib入口
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotEditorContainerView,init,init,126,KEEP,2026-11-19：EditorWindow构造调用；建立scroll与三闭包按钮，并初次布局
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotEditorContainerView,init,init,150,KEEP,2026-11-19：NSView required coder构造；窗口只使用代码初始化并保留协议签名
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotEditorContainerView,layout,func,152,KEEP,2026-11-19：AppKit布局回调；重排滚动区与工具条，按内容尺寸适配文档并仅在尺寸就绪时首次滚到图顶
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotEditorContainerView,layoutEditor,func,172,KEEP,2026-11-19：init与layout共用；工具条贴底，滚动区占余高，三按钮按窗口宽度从右排布
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotEditorContainerView,debugPerformButtons,func,187,KEEP,2026-11-19：PreviewController probe.longshotClick动态调试分支调用；依次performClick保存/复制/关闭按钮
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotEditorContainerView,debugHitReport,func,196,KEEP,2026-11-19：PreviewController probe.longshotHit分支调用；报告按钮命中view类型及窗口上方遮挡窗口号
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,FirstMouseButton,acceptsFirstMouse,func,212,KEEP,2026-11-19：NSButton首次鼠标事件覆写派发；返回true使非key窗口首击直接激活按钮
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,ClosureButtonAction,init,init,218,KEEP,2026-11-19：bind每个工具栏动作构造；持有单一handler闭包供ObjC target-action桥接
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,ClosureButtonAction,bind,func,220,KEEP,2026-11-19：EditorContainerView循环三按钮调用；绑定button.target/action，并由associated object持有target
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,ClosureButtonAction,fire,func,227,KEEP,2026-11-19：NSButton target-action经#selector派发；执行持有的保存/复制/关闭闭包
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotEditorWindow,init,init,236,KEEP,2026-11-19：PreviewController.show构造；按图像宽高及屏可视尺寸算窗体并装EditorContainerView与统一Chrome
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotPreviewController,init,init,279,KEEP,2026-11-19：shared单例静态构造；NSObject初始化且持有唯一编辑窗口
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotPreviewController,show,func,281,KEEP,2026-11-19：Session完成和诊断演示调用；先关旧窗，建新长图文档及保存/复制/关闭动作，再激活呈现
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotPreviewController,windowWillClose,func,365,KEEP,2026-11-19：NSWindowDelegate关闭回调；仅关闭当前EditorWindow时清控制器强引用
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,init,init,401,KEEP,2026-11-19：Coordinator.startSession及debugShow构造；浮动不激活点击穿透面板，默认屏幕捕获排除并装玻璃、图像及尺寸标签
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,update,func,462,KEEP,2026-11-19：Session.onPreview主Actor回调和debugShow调用；解位置槽，裁画布顶部适配卡片尺寸，动画定位并仅首次orderFront
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,slotMaxHeight,func,517,KEEP,2026-11-19：update限制可见图片高度调用；从side/above/below槽位取可用高度
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,slotOrigin,func,523,KEEP,2026-11-19：update求目标窗frame调用；按三种槽位将左下坐标top锚点换窗口origin
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,debugShow,func,534,KEEP,2026-11-19：CaptureModule长图预览演示深链调用；保存静态debugInstance并显示合成图
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,resolveSlot,func,543,KEEP,2026-11-19：update每帧定位调用；按选区所属屏幕依右/左/上/下找不相交可用槽位，无足够空间收起
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,clampX,func,583,KEEP,2026-11-19：resolveSlot上下方卡片调用；限制卡片横坐标于屏幕可见范围
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,screen,func,588,KEEP,2026-11-19：resolveSlot定位调用；选与框区相交面积最大的显示屏，否则主屏/首屏
 Capture,Features/Capture/LongScreenshot/LongScreenshotSession.swift,LongScreenshotSession,samplingInterval,func,68,KEEP,2026-11-19：Coordinator日志及startSampling共用；按帧高估算间隔并限制60–200ms
 Capture,Features/Capture/LongScreenshot/LongScreenshotSession.swift,LongScreenshotSession,init,init,146,KEEP,2026-11-19：Coordinator.startSession构造；保留AppKit/CG选区坐标、显示器及窗口ID
 Capture,Features/Capture/LongScreenshot/LongScreenshotSession.swift,LongScreenshotSession,deinit,deinit,154,KEEP,2026-11-19：Coordinator结束时释放；清空事件处理器并取消采样timer
@@ -1249,19 +1251,19 @@ Capture,Features/Capture/LongScreenshot/LongScreenshotSession.swift,LongScreensh
 Capture,Features/Capture/LongScreenshot/LongScreenshotSession.swift,LongScreenshotSession,captureTick,func,282,KEEP,2026-11-19：首帧、DispatchSourceTimer及finish补采共用；检查停态、帧流新鲜度、有限同步回退、失败计数、运动裁切和拼接后回主线程派进度
 Capture,Features/Capture/LongScreenshot/LongScreenshotSession.swift,LongScreenshotSession,updateMotionCrop,func,410,KEEP,2026-11-19：captureTick每帧调用；连续运动列区间稳定后让stitcher重裁画布，后续帧只取该区域
 Capture,Features/Capture/LongScreenshot/LongScreenshotSession.swift,LongScreenshotSession,captureFrameSync,func,432,KEEP,2026-11-19：captureTick帧流不可用时调用；依系统探测选择legacy/SCK并按captureRect裁图，更新contentScale
-Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,LongShotRGBA,drawToBuffer,func,30,KEEP,2026-11-19：LongShotRGBA.init调用；分配对齐CGContext缓冲、绘图后复制为Array并释放临时指针
-Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,LongShotRGBA,init,init,45,KEEP,2026-11-19：append输入与LongScreenshotDiagnostics转缓冲；每帧生成RGBA副本供对齐和拼接
-Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,LongScreenshotStitcher,graySignature,func,158,KEEP,2026-11-19：append与旧Stitcher共用灰度缩略签名；输入缩至目标宽并生成DeviceGray像素
-Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,LongScreenshotStitcher,meanAbsDiff,func,174,KEEP,2026-11-19：append静帧筛选及旧Stitcher判定共用；尺寸取交集且隔点计算平均绝对灰差
-Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,LongScreenshotStitcher,append,func,201,KEEP,2026-11-19：Session.captureTick正式入口与长截图诊断深链共用；宽度归一、静帧判定、画布/锚帧NCC对齐、失败重同步和行上限后维护像素及灰度状态
-Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,LongScreenshotStitcher,recrop,func,365,KEEP,2026-11-19：Session运动裁切连续稳定后调用；同步裁RGBA/灰度画布、重算行均值并失效旧锚帧及图像缓存
-Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,LongScreenshotStitcher,strip,func,411,KEEP,2026-11-19：append的成功追加与两次重同步分支取新内容行；dx非零时逐像素平移并钳住边缘
-Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,LongScreenshotStitcher,appendStrip,func,438,KEEP,2026-11-19：append及重同步共用；几何增长保留RGBA容量，并逐行追加对应灰度及抽样均值
-Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,LongScreenshotStitcher,redraw,func,466,KEEP,2026-11-19：append只在帧宽与画布差不超过4px时归一宽度；超出失败不重绘
-Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,LongScreenshotStitcher,grayBuffer,func,479,KEEP,2026-11-19：append对归一帧一次生成BT.601近似灰度行缓冲，供投影和二维NCC共用
-Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,LongScreenshotStitcher,rowMeans,func,494,KEEP,2026-11-19：首帧、重裁及成功追加调用；每行最多抽样320点并保存均值供粗搜
-Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,LongScreenshotStitcher,isLowTexture,func,512,KEEP,2026-11-19：append无候选时检查跳过顶部后的行均值方差；短样本或低方差按空白处理
-Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,LongScreenshotStitcher,searchOffset,func,532,KEEP,2026-11-19：append分别以完整画布和最近成功帧调用；行投影粗搜及hint/prior候选后做二维NCC精校，更新共享诊断摘要
+Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,LongShotRGBA,drawToBuffer,func,33,KEEP,2026-11-19：LongShotRGBA.init调用；分配对齐CGContext缓冲、绘图后复制为Array并释放临时指针
+Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,LongShotRGBA,init,init,50,KEEP,2026-11-19：append输入与LongScreenshotDiagnostics转缓冲；每帧生成RGBA副本供对齐和拼接
+Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,LongScreenshotStitcher,graySignature,func,167,KEEP,2026-11-19：append与旧Stitcher共用灰度缩略签名；输入缩至目标宽并生成DeviceGray像素
+Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,LongScreenshotStitcher,meanAbsDiff,func,183,KEEP,2026-11-19：append静帧筛选及旧Stitcher判定共用；尺寸取交集且隔点计算平均绝对灰差
+Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,LongScreenshotStitcher,append,func,210,KEEP,2026-11-19：Session.captureTick正式入口与长截图诊断深链共用；宽度归一、静帧判定、画布/锚帧NCC对齐、失败重同步和行上限后维护像素及灰度状态
+Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,LongScreenshotStitcher,recrop,func,375,KEEP,2026-11-19：Session运动裁切连续稳定后调用；同步裁RGBA/灰度画布、重算行均值并失效旧锚帧及图像缓存
+Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,LongScreenshotStitcher,strip,func,421,KEEP,2026-11-19：append的成功追加与两次重同步分支取新内容行；dx非零时逐像素平移并钳住边缘
+Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,LongScreenshotStitcher,appendStrip,func,448,KEEP,2026-11-19：append及重同步共用；几何增长保留RGBA容量，并逐行追加对应灰度及抽样均值
+Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,LongScreenshotStitcher,redraw,func,476,KEEP,2026-11-19：append只在帧宽与画布差不超过4px时归一宽度；超出失败不重绘
+Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,LongScreenshotStitcher,grayBuffer,func,489,KEEP,2026-11-19：append对归一帧一次生成BT.601近似灰度行缓冲，供投影和二维NCC共用
+Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,LongScreenshotStitcher,rowMeans,func,504,KEEP,2026-11-19：首帧、重裁及成功追加调用；每行最多抽样320点并保存均值供粗搜
+Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,LongScreenshotStitcher,isLowTexture,func,522,KEEP,2026-11-19：append无候选时检查跳过顶部后的行均值方差；短样本或低方差按空白处理
+Capture,Features/Capture/LongScreenshot/LongScreenshotStitcher.swift,LongScreenshotStitcher,searchOffset,func,542,KEEP,2026-11-19：append分别以完整画布和最近成功帧调用；行投影粗搜及hint/prior候选后做二维NCC精校，更新共享诊断摘要
 Capture,Features/Capture/LongScreenshot/Stitcher.swift,Stitcher,stitch,func,42,KEEP,2026-11-19：URL重载内部调用；至少两张且不超24张，统一宽度、逐对算重叠、分配画布并顺序绘制出长图
 Capture,Features/Capture/LongScreenshot/Stitcher.swift,Stitcher,stitch,func,106,KEEP,2026-11-19：CaptureSectionView后台拼接调用；逐URL解码，任一失败返回nil，再交CGImage重载
 Capture,Features/Capture/LongScreenshot/Stitcher.swift,Stitcher,detectOverlap,func,115,KEEP,2026-11-19：stitch逐相邻图调用；2%至60%全重叠候选逐项灰度签名比较，差值超22判无重叠
