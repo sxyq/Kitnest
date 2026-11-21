@@ -24,7 +24,8 @@ enum VoronoiTreemap {
     static func layout(weights: [CGFloat],
                        in rect: CGRect,
                        arcFirst: Bool = false,
-                       iterations: Int = 60) -> [Path] {
+                       iterations: Int = 60,
+                       outline override: Path? = nil) -> [Path] {
         guard !weights.isEmpty, rect.width > 8, rect.height > 8 else { return [] }
         let total = weights.reduce(0, +)
         guard total > 0 else { return [] }
@@ -35,7 +36,7 @@ enum VoronoiTreemap {
         // 实测同样的增益下最大误差高达 17 个百分点，最大块被压到目标的一半。
         // 归一化后 k=0.3 只要 17 轮就把误差压到 0.3%（实测）。
         let unit = CGRect(x: 0, y: 0, width: 1, height: 1)
-        let outline = StorageMapShape().path(in: unit)
+        let outline = override ?? StorageMapShape().path(in: unit)
         let base = sampledPoints(outline, spacing: 0.035)
         let triangles = triangulate(base)
         let baseArea = area(base)
@@ -224,7 +225,22 @@ enum VoronoiTreemap {
         return out
     }
 
-    private static func triangulate(_ polygon: [CGPoint]) -> [[CGPoint]] {
+    private static func triangulate(_ polygonIn: [CGPoint]) -> [[CGPoint]] {
+        // v274：轮廓现在带一段近垂直的直边，采样会生成一串**共线点**；
+        // 耳切在纯共线环上找不到凸耳会返回空 → 图块整块消失。
+        // 先剔除共线点再做耳切（面积不变，三角化更稳）。
+        var polygon = polygonIn
+        if polygon.count > 3 {
+            var cleaned: [CGPoint] = []
+            cleaned.reserveCapacity(polygon.count)
+            for i in polygon.indices {
+                let a = polygon[(i + polygon.count - 1) % polygon.count]
+                let b = polygon[i]
+                let c = polygon[(i + 1) % polygon.count]
+                if abs(cross(a, b, c)) > 1e-9 { cleaned.append(b) }
+            }
+            if cleaned.count >= 3 { polygon = cleaned }
+        }
         let orientation: CGFloat = signedArea(polygon) >= 0 ? 1 : -1
         var indices = Array(polygon.indices)
         var triangles: [[CGPoint]] = []

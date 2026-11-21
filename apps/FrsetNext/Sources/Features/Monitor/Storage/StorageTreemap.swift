@@ -43,7 +43,8 @@ enum DiskVoronoiLayout {
 
     /// - Parameter freeSpace: 根层的磁盘可用空间（字节），同样按实际字节分配面积。
     static func make(nodes: [DiskNode], in size: CGSize,
-                     parentPath: String, freeSpace: Int64? = nil, maxTiles: Int = 14) -> [DiskTile] {
+                     parentPath: String, freeSpace: Int64? = nil, maxTiles: Int = 14,
+                     contentTopRatio: CGFloat = 0) -> [DiskTile] {
         guard size.width > 12, size.height > 12, !nodes.isEmpty else { return [] }
         var list = nodes.filter { $0.size > 0 }.sorted { $0.size > $1.size }
 
@@ -89,7 +90,9 @@ enum DiskVoronoiLayout {
 
         let polys = VoronoiTreemap.layout(weights: weights,
                                           in: CGRect(origin: .zero, size: size),
-                                          arcFirst: freeNode != nil)
+                                          arcFirst: freeNode != nil,
+                                          outline: StorageTileShape(top: contentTopRatio)
+                                            .path(in: CGRect(x: 0, y: 0, width: 1, height: 1)))
         guard polys.count == list.count else { return [] }
 
         var tiles: [DiskTile] = []
@@ -152,9 +155,9 @@ private final class DiskLayoutCache {
     private var tiles: [DiskTile] = []
 
     func tiles(for node: DiskNode, size: CGSize, freeSpace: Int64? = nil,
-               indexRevision: Int) -> [DiskTile] {
+               indexRevision: Int, contentTopRatio: CGFloat = 0) -> [DiskTile] {
         let k = "\(node.id)|\(size.width)×\(size.height)|\(node.children.count)|\(node.size)"
-            + "|\(freeSpace ?? 0)|\(indexRevision)"
+            + "|\(freeSpace ?? 0)|\(indexRevision)|\(contentTopRatio)"
         if k == key { return tiles }
         var nodes = node.children
         if node.isDirectory, node.ownSize > 0 {
@@ -163,7 +166,8 @@ private final class DiskLayoutCache {
                                   foldedCount: 0, children: [], isAggregate: true))
         }
         let made = DiskVoronoiLayout.make(nodes: nodes, in: size,
-                                          parentPath: node.path, freeSpace: freeSpace)
+                                          parentPath: node.path, freeSpace: freeSpace,
+                                          contentTopRatio: contentTopRatio)
         key = k
         tiles = made
         return made
@@ -256,31 +260,49 @@ private struct TilePressStyle: ButtonStyle {
 }
 
 struct StorageMapShape: Shape {
-    /// v266：左侧弧线重画。
+    /// v274（用户：「整个方块按照我的曲线去占用」「右侧曲线连完整」「边切更清晰」）：
+    /// 液面外轮廓抬到按钮下方——顶边从 0.50W 起平直向右，左上先近垂直下落一小段，
+    /// 再按手绘曲线扫到左边缘 0.88H；右上/右下圆角从 0.09 收到 0.045，
+    /// 让「箭头」状的转折和边切更清楚。
     ///
-    /// 用户原话：「改善与左侧列表衔接的弧线」。旧路径从 (0,0.84) 用
-    /// c2=(0.52,0.55) 收口，切线几乎垂直——顶部 40pt 看着像一刀切下来的直边，
-    /// 和下面的弧接不上。现在：
-    /// · 主弧收口控制点压到 (0.32,0.22)，整条边是连续外凸的液面；
-    /// · 顶端再用一段 65×27pt 的四分之一圆收进顶边，去掉左上尖角
-    ///   （目录卡左缘与图顶同宽，这个圆角正好藏在卡片下沿）。
+    /// 顶边以上是按钮行（不再有独立卡片缝），顶边就是按钮区与内容区之间那条横线；
+    /// 深色图块仍从搜索/面包屑条下方开始（见 StorageTileShape 的 top 裁切）。
     func path(in rect: CGRect) -> Path {
         var path = Path()
         let point: (CGFloat, CGFloat) -> CGPoint = {
             CGPoint(x: rect.minX + $0 * rect.width, y: rect.minY + $1 * rect.height)
         }
         path.move(to: point(0.50, 0))
-        path.addLine(to: point(0.91, 0))
-        path.addCurve(to: point(1, 0.09), control1: point(0.96, 0), control2: point(1, 0.04))
-        path.addLine(to: point(1, 0.91))
-        path.addCurve(to: point(0.91, 1), control1: point(1, 0.96), control2: point(0.96, 1))
+        path.addLine(to: point(0.94, 0))
+        path.addCurve(to: point(1, 0.045), control1: point(0.975, 0), control2: point(1, 0.020))
+        path.addLine(to: point(1, 0.955))
+        path.addCurve(to: point(0.94, 1), control1: point(1, 0.980), control2: point(0.975, 1))
         path.addLine(to: point(0.03, 1))
         path.addCurve(to: point(0, 0.965), control1: point(0.008, 1), control2: point(0, 0.985))
-        path.addLine(to: point(0, 0.84))
-        path.addCurve(to: point(0.40, 0.055), control1: point(0.24, 0.80), control2: point(0.32, 0.22))
-        path.addQuadCurve(to: point(0.50, 0), control: point(0.44, 0))
+        path.addLine(to: point(0, 0.88))
+        // 左边界：先向右鼓出，再在搜索条左侧收成近垂直，最后直上顶边。
+        path.addCurve(to: point(0.46, 0.30),
+                      control1: point(0.30, 0.84), control2: point(0.43, 0.50))
+        path.addCurve(to: point(0.50, 0.14),
+                      control1: point(0.480, 0.25), control2: point(0.50, 0.19))
+        path.addLine(to: point(0.50, 0))
         path.closeSubpath()
         return path
+    }
+}
+
+/// 深色图块实际可占用的容器：外轮廓在 `top`（0...1，图框高度）以下的部分。
+/// 搜索/面包屑条所在的上沿留白不铺色块，但外轮廓与左侧曲线仍按 StorageMapShape 走。
+struct StorageTileShape: Shape {
+    var top: CGFloat = 0
+
+    func path(in rect: CGRect) -> Path {
+        let outer = StorageMapShape().path(in: rect)
+        let t = min(max(top, 0), 0.95)
+        guard t > 0 else { return outer }
+        let clip = CGRect(x: rect.minX, y: rect.minY + rect.height * t,
+                          width: rect.width, height: rect.height * (1 - t))
+        return Path(outer.cgPath.intersection(CGPath(rect: clip, transform: nil)))
     }
 }
 
@@ -299,6 +321,9 @@ struct StorageTreemap: View {
     /// 根层的磁盘可用空间（字节）。子目录不混入全盘可用空间。
     var freeSpace: Int64? = nil
     var indexRevision: Int = 0
+    /// v274：外轮廓已抬到按钮下方，深色图块仍从搜索/面包屑条下方开始。
+    /// 这个 inset（pt）就是外轮廓顶边到图块画布顶边的距离；0 = 铺满整个外轮廓。
+    var contentTop: CGFloat = 0
     /// v268：悬停状态恢复为「指针 + 活跃」二元组——压力场需要鼠标位置
     /// 连续跟随，离开时把 active 弹回 0（自然回弹，允许中途反向）。
     @Stored private var hover = (point: CGPoint.zero, id: Optional<String>.none, active: false)
@@ -308,7 +333,9 @@ struct StorageTreemap: View {
     var body: some View {
         GeometryReader { geo in
             let tiles = DiskLayoutCache.shared.tiles(for: node, size: geo.size,
-                                                     freeSpace: freeSpace, indexRevision: indexRevision)
+                                                     freeSpace: freeSpace, indexRevision: indexRevision,
+                                                     contentTopRatio: geo.size.height > 0
+                                                        ? contentTop / geo.size.height : 0)
             if tiles.isEmpty {
                 VStack(spacing: 6) {
                     Image(systemName: "square.dashed")
@@ -368,6 +395,13 @@ struct StorageTreemap: View {
         }
         .background(StorageMapShape().fill(Color.primary.opacity(0.03)))
         .clipShape(StorageMapShape())
+        // v274（用户：「边切需要进一步清晰」）：外轮廓改由这里画一条 1pt 实线，
+        // 不再依赖控件焦点环；焦点环会随键盘焦点出现/消失，边缘也发虚。
+        .overlay {
+            StorageMapShape()
+                .stroke(Theme.accent.opacity(0.42), lineWidth: 1)
+                .allowsHitTesting(false)
+        }
         .onChange(of: indexRevision) { _ in hover = (.zero, nil, false); pressedID = nil }
     }
 
@@ -393,6 +427,9 @@ struct StorageTreemap: View {
             if pressing { if pressedID != t.id { pressedID = t.id } }
             else if pressedID == t.id { pressedID = nil }
         })
+        // v274：图块按钮不参与键盘焦点——那圈蓝色焦点环会贴在外轮廓上，
+        // 和真正想要的「边切」混在一起，显得发虚。
+        .focusable(false)
         .position(x: tileFrame.midX, y: tileFrame.midY)
         .accessibilityLabel("\(t.node.name)，\(StorageFormat.bytes(t.node.size))")
         .accessibilityHint(t.isFreeSpace ? "返回上一级" : t.node.canDrill ? "进入查看子项" : "显示文件详情")

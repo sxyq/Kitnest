@@ -89,8 +89,15 @@ struct StorageBodyLayout {
     var tuck: CGFloat = 6
     /// 清单与液面之间的呼吸缝（同时是清单 leading 内边距）。
     var seam: CGFloat = 12
+    /// v274（用户：「整个方块按照我的曲线去占用」）：液面外轮廓整体向上抬，
+    /// 顶边落在三个按钮下方、搜索/面包屑条上方；深色图块仍从搜索条下方开始。
+    /// 96 = 顶边落在窗口 y≈112（按钮行底 ≈45，搜索卡顶 ≈128，中间留 16pt 横线）。
+    var mapLift: CGFloat = 96
+    /// 外轮廓顶边 → 深色图块画布顶边的浅色光条高度（搜索/面包屑卡所在）。
+    /// 81 = 搜索卡下沿（窗口 y≈193）相对轮廓顶边 112 的距离。
+    var tileInset: CGFloat = 81
 
-    var mapTop: CGFloat { max(0, controlsHeight - tuck) }
+    var mapTop: CGFloat { controlsHeight - tuck - mapLift }
     var mapSize: CGSize {
         CGSize(width: region.width, height: max(140, region.height - mapTop))
     }
@@ -102,9 +109,9 @@ struct StorageBodyLayout {
     var cardWidth: CGFloat { max(220, region.width * blobTopAnchor - 12) }
 
     var mapOutline: Path {
-        StorageMapShape().path(in: CGRect(x: 0, y: controlsHeight,
+        StorageMapShape().path(in: CGRect(x: 0, y: mapTop,
                                           width: region.width,
-                                          height: max(0, region.height - controlsHeight)))
+                                          height: max(0, mapSize.height)))
     }
     /// 遮罩与行宽共用的轮廓：整体轮廓左移 seam。
     var seamOutline: Path { mapOutline.offsetBy(dx: -seam, dy: 0) }
@@ -346,7 +353,10 @@ struct StorageManagerRootView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            header.fixedSize(horizontal: false, vertical: true)
+            header
+                .fixedSize(horizontal: false, vertical: true)
+                // v274：液面外轮廓抬进 header 区域，按钮与左侧标题必须压在它上面。
+                .zIndex(1)
             GeometryReader { region in
                 // v268：正文几何的唯一口径。卡片宽、图框、清单宽、遮罩与行宽
                 // 全部从同一个 layout 取值，遮罩和行右界用同一条 seam 轮廓，
@@ -354,13 +364,15 @@ struct StorageManagerRootView: View {
                 let layout = StorageBodyLayout(region: region.size)
                 let seamSampled = VoronoiTreemap.sampledPoints(layout.seamOutline, spacing: 12)
                 ZStack(alignment: .topLeading) {
-                    rightPane
+                    rightPane(contentTop: layout.tileInset)
                         .frame(width: layout.mapSize.width, height: layout.mapSize.height)
                         .overlay {
                             StorageSwipeRegion(enabled: !showDataCategories, onNavigate: navigateHistory(by:))
                                 .allowsHitTesting(false)
                         }
-                        .padding(.top, layout.mapTop)
+                        // v274：外轮廓顶边抬到按钮下方。用 offset 而不是 padding——
+                        // 负 padding 会改变兄弟视图的排版基准。
+                        .offset(y: layout.mapTop)
                     VStack(alignment: .leading, spacing: 8) {
                         candidateControls
                             .frame(width: layout.listWidth - layout.seam)
@@ -379,8 +391,10 @@ struct StorageManagerRootView: View {
                 }
                 .frame(width: region.size.width, height: region.size.height)
                 .coordinateSpace(name: "storageCanvas")
-                .clipped()
+                // v274：不再 clipped——液面要越过 GeometryReader 上沿伸进 header；
+                // 窗口级裁剪仍由最外层 .clipped() 负责。
             }
+            .zIndex(0)
         }
         // v268：fullSizeContentView 后内容从窗口最上沿开始；
         // 左列由 header 自身的 padding.top 24 让出红绿灯净空，这里只留一点边。
@@ -509,7 +523,8 @@ struct StorageManagerRootView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            // 工具条钉在窗口右上角第一行；红绿灯是 AppKit 控件且在左上，互不遮挡。
+            // v274（用户顶部箭头）：工具条再上移到与红绿灯同一行，
+            // 给液面外轮廓让出按钮下方那条横线；-20pt 取自截图里按钮行与窗口顶的距离。
             HStack(spacing: 6) {
                 toolbarButton("arrow.clockwise", store.snapshot == nil ? "建立索引" : "重新扫描") { store.rescan() }
                     .disabled(store.isScanning)
@@ -518,6 +533,7 @@ struct StorageManagerRootView: View {
             }
             .fixedSize()
             .frame(maxWidth: .infinity, alignment: .trailing)
+            .offset(y: -20)
         }
         .padding(.leading, 20)
         .padding(.trailing, 12)
@@ -791,7 +807,7 @@ struct StorageManagerRootView: View {
 
     // MARK: 正文画布（图形、清单遮罩和手势共用局部坐标）
 
-    private var rightPane: some View {
+    private func rightPane(contentTop: CGFloat) -> some View {
         GeometryReader { pane in
             ZStack(alignment: .topLeading) {
                 if showDataCategories, let issue = store.snapshot?.categorySummaryIssue {
@@ -826,7 +842,8 @@ struct StorageManagerRootView: View {
                                        else if !showDataCategories { navigateHistory(by: -1) }
                                    },
                                    freeSpace: !showDataCategories && stack.isEmpty ? diskFreeBytes : nil,
-                                   indexRevision: store.indexRevision)
+                                   indexRevision: store.indexRevision,
+                                   contentTop: contentTop)
                         .id(node.id)
                         // v266：Q 弹。旧版 0.82→1 的 springBouncy 太短，像淡入；
                         // 现在从被点块的中心涨开（0.55），回弹更慢更明显，

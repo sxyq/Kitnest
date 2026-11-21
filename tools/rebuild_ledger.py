@@ -859,7 +859,9 @@ EVIDENCE.update({
     ("Features/Monitor/Storage/StorageTreemap.swift", "func"):
         "PolygonAnimatableVector 的 + / - 实现 VectorArithmetic，逐顶点合成与相减动画向量",
     ("Features/Monitor/Storage/StorageTreemap.swift", "path"):
-        "StorageManagerRootView.rightPane 以 StorageMapShape 裁剪整栏，左缘曲线从左下连续接到上缘内收点",
+        "StorageMapShape 画液面外轮廓（v274：顶边抬到按钮下方，左上近垂直下落到搜索卡左侧再扫向左边缘）；StorageTileShape 用 top 裁掉搜索条上方的浅色光条，深色图块仍从搜索条下方开始",
+    ("Features/Monitor/Storage/StorageManagerWindow.swift", "rightPane"):
+        "v274：由 contentTop 把液面外轮廓抬到按钮下方、深色图块仍从搜索条下方开始；rightPane 承载 StorageTreemap 的下钻/返回/选中回调与详情浮层，尺寸取自 StorageBodyLayout.mapSize",
     ("Features/Monitor/Storage/StorageTreemap.swift", "liquidPoints"):
         "tileView 将 hoverPoint 周边的高斯压力施加到 Voronoi 顶点，减少动态效果时返回原多边形",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "makeNSView"):
