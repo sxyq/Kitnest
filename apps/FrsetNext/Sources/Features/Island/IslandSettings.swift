@@ -165,6 +165,8 @@ struct IslandConfiguration: Codable, Equatable {
     var hotspotWidths: [String: Int] = [:]
     var entryVisibilities: [String: IslandEntryVisibility] = [:]
     var entryTriggers: [String: IslandEntryTrigger] = [:]
+    /// v266：上次使用的屏幕。多屏时重启后回到同一块屏，而不是固定取第一块。
+    var lastActiveDisplayID: String? = nil
 
     var visiblePages: [IslandPage] {
         let ordered = pageOrder.filter { IslandPage.tabs.contains($0) }
@@ -183,7 +185,7 @@ struct IslandConfiguration: Codable, Equatable {
         case pageOrder, hiddenPages, openingPageMode, fixedPage, lastPageByDisplay, customPageName
         case customWidgetOrder, customWidgetSizes, customWidgetPositions, commonWidgetLimit
         case clipboardRecentLimit, clipboardFavoritesOnly, searchCategory, hotspots, peekPlacements
-        case hotspotWidths, entryVisibilities, entryTriggers
+        case hotspotWidths, entryVisibilities, entryTriggers, lastActiveDisplayID
     }
 
     init() {}
@@ -238,6 +240,7 @@ struct IslandConfiguration: Codable, Equatable {
         hotspotWidths = try values.decodeIfPresent([String: Int].self, forKey: .hotspotWidths) ?? hotspotWidths
         entryVisibilities = try values.decodeIfPresent([String: IslandEntryVisibility].self, forKey: .entryVisibilities) ?? entryVisibilities
         entryTriggers = try values.decodeIfPresent([String: IslandEntryTrigger].self, forKey: .entryTriggers) ?? entryTriggers
+        lastActiveDisplayID = try values.decodeIfPresent(String.self, forKey: .lastActiveDisplayID)
     }
 
     /// 返回保存的行 × 列档位；画布适配只影响 size(for:) 的显示结果。

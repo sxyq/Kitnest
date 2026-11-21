@@ -223,6 +223,7 @@ enum PersonalizationSettingsPart: String, CaseIterable {
         case .clipboardAppearance:
             return [.init(\.density, key: Preferences.Keys.uiListDensity),
                     .init(\.thumbOverride, key: Preferences.Keys.uiThumbSize),
+                    .init(\.clipboardPreviewScale, key: Preferences.Keys.uiClipboardPreviewScale),
                     .init(\.showSourceBadge, key: Preferences.Keys.uiSourceBadge)]
         case .notification:
             return [.init(\.toastDuration, key: Preferences.Keys.uiToastDuration),
@@ -298,6 +299,8 @@ struct PersonalizationSettingsView: View {
             densityRow
             Divider().opacity(0.5)
             thumbRow
+            Divider().opacity(0.5)
+            previewFontScaleRow
             Divider().opacity(0.5)
             badgeRow
         }
@@ -449,6 +452,22 @@ struct PersonalizationSettingsView: View {
             }
             .pickerStyle(.segmented)
             .frame(width: compact ? 230 : 250)
+            .labelsHidden()
+        }
+    }
+
+    /// 剪贴板预览正文独立字号，不改变列表行和窗口标题。
+    /// v266：整体上抬一档（100/125/150/180，默认 150）——用户反馈「文字仍然偏小」。
+    private var previewFontScaleRow: some View {
+        settingRow("预览字号") {
+            Picker("", selection: $p.clipboardPreviewScale) {
+                Text("100%").tag(CGFloat(1.0))
+                Text("125%").tag(CGFloat(1.25))
+                Text("150%").tag(CGFloat(1.5))
+                Text("180%").tag(CGFloat(1.8))
+            }
+            .pickerStyle(.segmented)
+            .frame(width: compact ? 210 : 230)
             .labelsHidden()
         }
     }

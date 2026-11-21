@@ -47,7 +47,11 @@ enum PreviewMarkdownRenderer {
     // MARK: 缩放（2026-10-18 用户需求：整体文本部分 = 原来的 1.5 倍）
     //
     // 所有字号 / 行距 / 段距统一乘此系数；调用方无需改任何数值。
-    static var scale: CGFloat = 1.5
+    static var scale: CGFloat {
+        let stored = UserDefaults.standard.double(forKey: Preferences.Keys.uiClipboardPreviewScale)
+        let previewScale = stored > 0 ? CGFloat(stored) : 1.5
+        return 1.5 * previewScale
+    }
 
     /// 字号/间距缩放辅助
     private static func s(_ value: CGFloat) -> CGFloat { value * scale }

@@ -221,6 +221,7 @@ final class JSONDocument: ObservableObject {
 
 struct JSONInspectorView: View {
     @ObservedObject private var document: JSONDocument
+    @ObservedObject private var personalization = Personalization.shared
     @Stored private var mode: JSONViewMode = .tree
     @Stored private var searchText: String = ""
     /// 树形搜索命中的节点路径（含其所有祖先，便于自动展开到命中处）
@@ -262,8 +263,8 @@ struct JSONInspectorView: View {
         case raw = "原始"
     }
 
-    private var fontSize: CGFloat { compact ? 11 : 12.5 }
-    private var rowHeight: CGFloat { compact ? 22 : 26 }
+    private var fontSize: CGFloat { (compact ? 11 : 12.5) * personalization.clipboardPreviewScale }
+    private var rowHeight: CGFloat { (compact ? 22 : 26) * personalization.clipboardPreviewScale }
     /// 左列（key）固定宽度：右侧值列越长越能看清，key 只做索引用
     private var keyWidth: CGFloat { compact ? 84 : 104 }
 

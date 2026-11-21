@@ -437,7 +437,11 @@ final class IslandController: NSObject, ObservableObject {
                 object: nil, queue: .main) { [weak self] _ in self?.refreshDisplays() }
         }
         displays = IslandDisplay.enabled(for: configuration)
-        if !displays.contains(where: { $0.id == activeDisplayID }) { activeDisplayID = displays.first?.id }
+        if !displays.contains(where: { $0.id == activeDisplayID }) {
+            // v266：优先回到上次使用的屏幕，其次才是第一块可用屏。
+            activeDisplayID = displays.first { $0.id == configuration.lastActiveDisplayID }?.id
+                ?? displays.first?.id
+        }
         guard activeDisplayID != nil else {
             panel?.orderOut(nil)
             for entry in entries.values { entry.orderOut(nil) }
@@ -530,7 +534,14 @@ final class IslandController: NSObject, ObservableObject {
         entryHoverWork?.cancel(); entryHoverWork = nil
         entryHoverID = nil
         let oldFrame = panel?.frame ?? .zero
+        let displayChanged = activeDisplayID != display.id
         activeDisplayID = display.id
+        // v266：把「最后停留的屏幕」写进配置。多屏用户重启后回到原屏，
+        // 不再固定弹到第一块屏幕（只在真正换屏时写，避免每次定位都落盘）。
+        if displayChanged, configuration.lastActiveDisplayID != display.id {
+            configuration.lastActiveDisplayID = display.id
+            try? configuration.persist()
+        }
         position(collapsed: !expanded && !showingContent)
         if let panel {
             MainPanelPreviewPopoverCoordinator.shared.movePreview(from: panel,

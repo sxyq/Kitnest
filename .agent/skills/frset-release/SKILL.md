@@ -71,7 +71,7 @@ bash tools/publish_update.sh $'[新增] 一句话\n[改进] 一句话\n[修复] 
 ```bash
 defaults write com.sxyq.frsetnext probe.updateInstall -bool YES
 defaults write com.sxyq.frsetnext probe.updateZip "file:///tmp/xxx.zip"   # 本地 zip
-defaults write com.sxyq.frsetnext probe.updateSha "<sha256>"              # 可选，不填跳过校验
+defaults write com.sxyq.frsetnext probe.updateSha "<sha256>"              # 自动安装必须提供；缺失时显示取消安装
 # 重启 App 后 3s 自动走整包更新；三键读取后自删，不会循环
 ```
 

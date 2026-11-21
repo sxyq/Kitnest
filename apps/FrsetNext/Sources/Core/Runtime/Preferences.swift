@@ -99,6 +99,8 @@ public final class Preferences: ObservableObject {
         public static let uiPanelMaterial = "ui.panel.material"        // solid / vibrancy
         public static let uiSourceBadge = "ui.clipboard.sourceBadge"   // 来源应用徽章显隐
         public static let uiThumbSize = "ui.clipboard.thumb"           // 44 / 56 / 72
+        public static let uiClipboardPreviewScale = "ui.clipboard.previewScale" // 1.0 / 1.25 / 1.5 / 1.8
+        public static let uiClipboardPreviewScaleVersion = "ui.clipboard.previewScaleVersion" // 2 = 新四档
         public static let uiToastDuration = "ui.toast.duration"        // 2 / 3 / 5 秒
         public static let uiToastPosition = "ui.toast.position"        // followPanel / screenCenter
         public static let uiBarDividerColor = "ui.bar.divider.color"   // hex，空 = 默认

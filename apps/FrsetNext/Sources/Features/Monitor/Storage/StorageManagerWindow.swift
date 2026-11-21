@@ -77,13 +77,15 @@ private struct StorageSwipeRegion: NSViewRepresentable {
     }
 
     final class SwipeView: NSView {
+        private enum Axis { case pending, horizontal, vertical }
+
         var enabled = true
         var onNavigate: (Int) -> Void
         private var swipeMonitor: Any?
-        private var swipeAccum: CGFloat = 0
-        private var verticalAccum: CGFloat = 0
+        private var delta = CGSize.zero
         private var swipeDidNavigate = false
-        private var swipeInside = false
+        private var swipeAxis: Axis?
+        private var lastEventAt: TimeInterval = 0
         private var hitPath = Path()
         private var hitBounds = CGRect.zero
 
@@ -108,36 +110,48 @@ private struct StorageSwipeRegion: NSViewRepresentable {
         private func installSwipeMonitor() {
             swipeMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
                 guard let self, self.enabled, let window = self.window, window.isVisible,
-                      event.window === window else { return event }
-                guard event.hasPreciseScrollingDeltas, !event.phase.isEmpty,
-                      event.momentumPhase.isEmpty else { return event }
+                      event.window === window, event.momentumPhase.isEmpty else { return event }
                 if self.bounds != self.hitBounds {
                     self.hitBounds = self.bounds
                     self.hitPath = StorageMapShape().path(in: self.bounds)
                 }
-                if event.phase.contains(.began) {
-                    self.swipeAccum = 0
-                    self.verticalAccum = 0
+                let now = ProcessInfo.processInfo.systemUptime
+                // v266：兼容两类输入。触控板带 phase；鼠标横向滚轮 / 部分驱动没有 phase，
+                // 用 260ms 静默当作新手势起点——旧实现只认 phase，这类设备完全划不动。
+                let phaseStart = event.phase.contains(.began) || event.phase.contains(.mayBegin)
+                let idleStart = event.phase.isEmpty && now - self.lastEventAt > 0.26
+                if phaseStart || idleStart {
+                    self.delta = .zero
                     self.swipeDidNavigate = false
                     let location = self.convert(event.locationInWindow, from: nil)
-                    // AppKit 将整次滚动送给起点所在视图，不能逐事件改换清单或图形归属。
-                    self.swipeInside = self.hitPath.contains(location)
+                    self.swipeAxis = self.hitPath.contains(location) ? .pending : nil
                 }
+                self.lastEventAt = now
                 if event.phase.contains(.ended) || event.phase.contains(.cancelled) {
-                    let handled = self.swipeInside && self.swipeDidNavigate
-                    self.swipeInside = false
+                    let handled = self.swipeAxis == .horizontal
+                    self.swipeAxis = nil
+                    self.swipeDidNavigate = false
                     return handled ? nil : event
                 }
-                guard self.swipeInside else { return event }
-                // 还原手指方向，系统自然滚动设置不改变「左退右进」。
-                let dx = event.scrollingDeltaX * (event.isDirectionInvertedFromDevice ? -1 : 1)
-                self.swipeAccum += dx
-                self.verticalAccum += event.scrollingDeltaY
+                guard let axis = self.swipeAxis, axis != .vertical else { return event }
                 if self.swipeDidNavigate { return nil }
-                guard abs(self.swipeAccum) > abs(self.verticalAccum) * 1.2 else { return event }
-                if abs(self.swipeAccum) >= 42 {
+                // 还原手指方向；系统「自然滚动」开关不改变「右滑返回 / 左滑前进」。
+                self.delta.width += event.scrollingDeltaX * (event.isDirectionInvertedFromDevice ? -1 : 1)
+                self.delta.height += event.scrollingDeltaY
+                let dx = abs(self.delta.width)
+                let dy = abs(self.delta.height)
+                if axis == .pending {
+                    guard max(dx, dy) >= 8 else { return event }
+                    self.swipeAxis = dx > dy * 1.2 ? .horizontal : .vertical
+                    guard self.swipeAxis == .horizontal else { return event }
+                }
+                // 一次手势只跳一层：命中后吞掉本手势余下事件（含回扫方向），
+                // 松开后新起一次手势才继续 —— 「连续往返」仍逐层跟手，但不会一跳多级。
+                if dx >= 32 {
                     self.swipeDidNavigate = true
-                    self.onNavigate(self.swipeAccum > 0 ? -1 : 1)
+                    let direction = self.delta.width > 0 ? -1 : 1
+                    self.delta = .zero
+                    self.onNavigate(direction)
                 }
                 return nil
             }
@@ -158,6 +172,7 @@ struct StorageManagerRootView: View {
     /// 每次实际进入的目录路径；游标两侧分别是返回、前进记录。
     @Stored private var directoryHistory: [[DiskNode]] = [[]]
     @Stored private var historyIndex = 0
+    @Stored private var mapMotion: (anchor: UnitPoint, offset: CGFloat) = (.center, 0)
     private var stack: [DiskNode] { directoryHistory[historyIndex] }
     @Stored private var selectedPaths: Set<String> = []
     @Stored private var detailNode: DiskNode?
@@ -170,11 +185,6 @@ struct StorageManagerRootView: View {
     @Stored private var showAgentSheet = false
     /// 深链下钻的待办：窗口刚显示时缓存可能还没读完（snapshot 为 nil），先记下来
     @Stored private var pendingDrill: String?
-    /// v229：首次打开时的手势提示（只提示一次）
-    /// 注意：本 target 的 Swift 工具链缺 SwiftUIMacros 插件，`@State` 编译不过，
-    /// 临时状态一律用 @AppStorage / @Stored 承载。
-    @AppStorage("storage.swipeHintShown") private var swipeHintShown = false
-    @AppStorage("storage.swipeHintVisible") private var showSwipeHint = false
 
     private var currentNode: DiskNode? {
         if showDataCategories, let snap = store.snapshot {
@@ -277,45 +287,51 @@ struct StorageManagerRootView: View {
     }
 
     var body: some View {
-        GeometryReader { viewport in
-            VStack(alignment: .leading, spacing: 8) {
-                header(width: viewport.size.width)
-                    .fixedSize(horizontal: false, vertical: true)
-                HStack(alignment: .bottom, spacing: 12) {
-                    candidateControls(width: viewport.size.width * 0.40 - 24)
-                        .glassCard(radius: Theme.Radius.card)
-                    Spacer(minLength: 0)
-                    mapControls
-                        .frame(width: viewport.size.width * 0.48 - 12)
-                }
-                .padding(.horizontal, 12)
-                .fixedSize(horizontal: false, vertical: true)
-                GeometryReader { region in
-                    let listSize = CGSize(width: region.size.width * 0.48, height: region.size.height * 0.84)
-                    let listBounds = Path(CGRect(origin: .zero, size: listSize))
-                    let mapOutline = StorageMapShape().path(in: CGRect(origin: .zero, size: region.size))
-                        .offsetBy(dx: -12, dy: 0)
-                    let listMask = Path(listBounds.cgPath.subtracting(mapOutline.cgPath))
-                    ZStack(alignment: .topLeading) {
+        VStack(alignment: .leading, spacing: 8) {
+            header.fixedSize(horizontal: false, vertical: true)
+            GeometryReader { region in
+                let controlsHeight: CGFloat = 68
+                // v266：目录卡与液态图**咬合**。图顶再上提 10pt 藏到卡片背后，
+                // 卡片（左缘同为 0.48W）正好盖住图顶那条直边与左上尖角，
+                // 露出的只有向下外扩的弧——两块看成一张连续的液面。
+                let mapTop = controlsHeight - 6
+                let mapSize = CGSize(width: region.size.width, height: region.size.height - mapTop)
+                let listSize = CGSize(width: region.size.width * 0.48,
+                                      height: controlsHeight + (region.size.height - controlsHeight) * 0.84)
+                // 清单遮罩按「卡片下沿」算轮廓：图可以躲到卡片后面，
+                // 但不能让遮罩提前啃掉候选卡右下角。
+                let mapOutline = StorageMapShape().path(in: CGRect(x: 0, y: controlsHeight,
+                                                                  width: region.size.width,
+                                                                  height: region.size.height - controlsHeight))
+                let listBounds = CGPath(rect: CGRect(origin: .zero, size: listSize), transform: nil)
+                let listMask = Path(listBounds.subtracting(mapOutline.offsetBy(dx: -12, dy: 0).cgPath))
+                ZStack(alignment: .topLeading) {
                     rightPane
-                    leftPane(canvas: region.size)
-                        .frame(width: listSize.width, height: listSize.height)
-                        .glassCard(radius: Theme.Radius.card)
-                        .mask(listMask)
-                        .contentShape(listMask)
-                        .padding(.leading, 12)
+                        .frame(width: mapSize.width, height: mapSize.height)
+                        .overlay {
+                            StorageSwipeRegion(enabled: !showDataCategories, onNavigate: navigateHistory(by:))
+                                .allowsHitTesting(false)
+                        }
+                        .padding(.top, mapTop)
+                    VStack(alignment: .leading, spacing: 8) {
+                        candidateControls
+                            .frame(width: listSize.width - 24)
+                            .glassCard(radius: Theme.Radius.card)
+                        leftPane(outline: mapOutline)
+                            .glassCard(radius: Theme.Radius.card)
                     }
-                    .frame(width: region.size.width, height: region.size.height)
-                    .coordinateSpace(name: "storageCanvas")
-                    .overlay {
-                        StorageSwipeRegion(enabled: !showDataCategories, onNavigate: {
-                            navigateHistory(by: $0)
-                        })
-                        .frame(width: region.size.width, height: region.size.height)
-                        .allowsHitTesting(false)
-                    }
-                    .clipped()
+                    .frame(width: listSize.width, height: listSize.height)
+                    .mask(listMask)
+                    .contentShape(listMask)
+                    .padding(.leading, 12)
+                    mapControls
+                        .frame(width: region.size.width * 0.50 - 12, height: controlsHeight)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .padding(.trailing, 12)
                 }
+                .frame(width: region.size.width, height: region.size.height)
+                .coordinateSpace(name: "storageCanvas")
+                .clipped()
             }
         }
         // 最小尺寸由 NSWindow 管理；正文再次设下限会挤出标题栏净空并裁掉顶部。
@@ -324,34 +340,7 @@ struct StorageManagerRootView: View {
         .onAppear {
             refreshDiskSpace()
             store.loadIfNeeded()
-            // 第一次打开时提示图形内的目录手势。
-            // 注意：onAppear 可能被调用多次，这里用 swipeHintShown 兜住，
-            // 不能在里面先写 showSwipeHint = false——第二次 onAppear 会把提示立刻清掉。
-            guard !swipeHintShown else { return }
-            swipeHintShown = true
-            showSwipeHint = true
-            DispatchQueue.main.asyncAfter(deadline: .now() + 3.2) {
-                showSwipeHint = false
-            }
         }
-        .overlay(alignment: .bottom) {
-            if showSwipeHint {
-                HStack(spacing: 8) {
-                    Image(systemName: "hand.draw")
-                        .font(.system(size: 13, weight: .medium))
-                    Text("目录内两指左滑返回，右滑前进")
-                        .font(.system(size: 11.5, weight: .medium))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 16)
-                .frame(height: 34)
-                .background(Capsule(style: .continuous).fill(Color.black.opacity(0.76)))
-                .padding(.bottom, 26)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-                .allowsHitTesting(false)
-            }
-        }
-        .animation(reduceMotion ? nil : Theme.Motion.fast, value: showSwipeHint)
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             refreshDiskSpace()
         }
@@ -401,6 +390,7 @@ struct StorageManagerRootView: View {
             else if showAgentSheet { showAgentSheet = false }
             else if showSettings { showSettings = false }
             else if showRecords { showRecords = false }
+            else if detailNode != nil { detailNode = nil }
             else if showDataCategories { showDataCategories = false }
             else if historyIndex > 0 { navigateHistory(by: -1) }
             else { StorageManagerWindowController.shared.close() }
@@ -421,8 +411,8 @@ struct StorageManagerRootView: View {
 
     // MARK: 顶部（大数字 + 说明 + 工具条）
 
-    private func header(width: CGFloat) -> some View {
-        HStack(alignment: .top, spacing: 18) {
+    private var header: some View {
+        HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(StorageFormat.shortBytes(cleanableBytes))
@@ -459,26 +449,19 @@ struct StorageManagerRootView: View {
                     }
                 }
             }
-            .frame(width: width * 0.44 - 20, alignment: .leading)
             Spacer(minLength: 8)
-            if let free = diskFreeBytes {
-                VStack(alignment: .trailing, spacing: 3) {
-                    Text("磁盘可用")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                    Text(StorageFormat.shortBytes(free))
-                        .font(.system(size: 24, weight: .light).monospacedDigit())
-                }
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
-                .help("整盘可用空间；进入目录后不混入该目录的面积比例")
-                .padding(.top, 6)
+            HStack(spacing: 6) {
+                toolbarButton("arrow.clockwise", store.snapshot == nil ? "建立索引" : "重新扫描") { store.rescan() }
+                    .disabled(store.isScanning)
+                toolbarButton("clock.arrow.circlepath", "工作记录") { showRecords = true }
+                toolbarButton("gearshape", "设置") { showSettings = true }
             }
+            .fixedSize()
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 14)
-        .padding(.bottom, 12)
+        .padding(.leading, 20)
+        .padding(.trailing, 12)
+        .padding(.top, 6)
+        .padding(.bottom, 4)
     }
 
     private var headline: String {
@@ -507,8 +490,8 @@ struct StorageManagerRootView: View {
 
     // MARK: 左栏（可清理清单）
 
-    private func candidateControls(width: CGFloat) -> some View {
-        return VStack(alignment: .leading, spacing: 0) {
+    private var candidateControls: some View {
+        VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
                 Text("清理候选 · \(candidates.count) 项")
                     .font(.system(size: 12, weight: .semibold))
@@ -527,7 +510,6 @@ struct StorageManagerRootView: View {
             }
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .frame(width: width)
 
             Divider()
             VStack(alignment: .leading, spacing: 8) {
@@ -586,15 +568,13 @@ struct StorageManagerRootView: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
             .background(Color.primary.opacity(0.03))
-            .frame(width: width)
 
             Divider()
         }
     }
 
-    private func leftPane(canvas: CGSize) -> some View {
-        let outline = VoronoiTreemap.sampledPoints(
-            StorageMapShape().path(in: CGRect(origin: .zero, size: canvas)), spacing: 12)
+    private func leftPane(outline: Path) -> some View {
+        let outline = VoronoiTreemap.sampledPoints(outline, spacing: 12)
         return VStack(alignment: .leading, spacing: 0) {
             if candidates.isEmpty {
                 VStack(spacing: 8) {
@@ -647,8 +627,8 @@ struct StorageManagerRootView: View {
     // MARK: 正文上方的目录操作区
 
     private var mapControls: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 8) {
                 Picker("查看", selection: $showDataCategories) {
                     Text("目录").tag(false)
                     Text("系统数据分类").tag(true)
@@ -657,18 +637,29 @@ struct StorageManagerRootView: View {
                 .pickerStyle(.menu)
                 .controlSize(.small)
                 .frame(width: 120)
-                Spacer(minLength: 0)
-                toolbarButton("arrow.clockwise", store.snapshot == nil ? "建立索引" : "重新扫描") { store.rescan() }
-                    .disabled(store.isScanning)
-                toolbarButton("clock.arrow.circlepath", "工作记录") { showRecords = true }
-                toolbarButton("gearshape", "设置") { showSettings = true }
+                if !showDataCategories {
+                    Text("两指横滑切换目录")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .help("在液态图上左右轻扫：一次手势只切一层，连续往返逐层跟手")
+                }
+                Spacer(minLength: 4)
+                if let node = currentNode {
+                    Text(StorageFormat.bytes(node.size))
+                        .font(.system(size: 11).monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .help(showDataCategories ? "面积按分类占用显示"
+                              : "面积按实际占用显示，单文件从 100 MB 起索引")
+                }
             }
-            .frame(height: 30)
+            .padding(.horizontal, 10)
+            .frame(height: 31)
 
-            // 目录按钮、快捷键、图形手势共用同一访问历史。
+            Divider().opacity(0.6)
+
             HStack(spacing: 6) {
                 if showDataCategories {
-                    Text("系统数据分类").font(.system(size: 11, weight: .medium))
                     Menu("分类") {
                         ForEach(store.snapshot?.dataCategories ?? []) { category in
                             Button("\(category.kind.title) · \(StorageFormat.bytes(category.bytes))") {
@@ -677,78 +668,61 @@ struct StorageManagerRootView: View {
                         }
                     }
                     .controlSize(.small)
+                    Text("选择分类查看目录与范围")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
                 } else {
-                ForEach([-1, 1], id: \.self) { direction in
-                    let enabled = directoryHistory.indices.contains(historyIndex + direction)
+                    ForEach([-1, 1], id: \.self) { direction in
+                        let enabled = directoryHistory.indices.contains(historyIndex + direction)
+                        Button {
+                            navigateHistory(by: direction)
+                        } label: {
+                            Image(systemName: direction < 0 ? "chevron.left" : "chevron.right")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(enabled ? Theme.accent : Theme.tertiaryText)
+                                .frame(width: 26, height: 26)
+                                .background(Circle().fill(Color.primary.opacity(enabled ? 0.08 : 0.03)))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!enabled)
+                        .help(direction < 0 ? "返回上一目录（Esc）" : "前进到下一目录")
+                        .keyboardShortcut(direction < 0 ? "[" : "]", modifiers: .command)
+                    }
+
                     Button {
-                        navigateHistory(by: direction)
+                        navigate(to: [])
                     } label: {
-                        Image(systemName: direction < 0 ? "chevron.left" : "chevron.right")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(enabled ? Theme.accent : Theme.tertiaryText)
-                            .frame(width: 28, height: 28)
-                            .background(Circle().fill(Color.primary.opacity(enabled ? 0.08 : 0.03)))
+                        Text("根")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(stack.isEmpty ? .secondary : Theme.accent)
                     }
                     .buttonStyle(.plain)
-                    .disabled(!enabled)
-                    .help(direction < 0 ? "返回上一目录（Esc / 两指左滑）" : "前进到下一目录（两指右滑）")
-                    .keyboardShortcut(direction < 0 ? "[" : "]", modifiers: .command)
-                }
+                    .disabled(stack.isEmpty)
 
-                Button {
-                    navigate(to: [])
-                } label: {
-                    Text("根")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(stack.isEmpty ? .secondary : Theme.accent)
-                }
-                .buttonStyle(.plain)
-                .disabled(stack.isEmpty)
-
-                ForEach(Array(stack.enumerated()), id: \.offset) { entry in
-                    let idx = entry.offset
-                    let node = entry.element
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 9))
-                        .foregroundStyle(Theme.tertiaryText)
-                    Button {
-                        navigate(to: Array(stack.prefix(idx + 1)))
-                    } label: {
-                        Text(node.name)
-                            .font(.system(size: 11, weight: idx == stack.count - 1 ? .medium : .regular))
-                            .foregroundStyle(idx == stack.count - 1 ? .secondary : Theme.accent)
-                            .lineLimit(1)
+                    ForEach(Array(stack.enumerated()), id: \.offset) { entry in
+                        let idx = entry.offset
+                        let node = entry.element
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 9))
+                            .foregroundStyle(Theme.tertiaryText)
+                        Button {
+                            navigate(to: Array(stack.prefix(idx + 1)))
+                        } label: {
+                            Text(node.name)
+                                .font(.system(size: 11, weight: idx == stack.count - 1 ? .medium : .regular))
+                                .foregroundStyle(idx == stack.count - 1 ? .secondary : Theme.accent)
+                                .lineLimit(1)
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(.plain)
                 }
-                }
-                Spacer(minLength: 4)
-                if let node = currentNode {
-                    Text(StorageFormat.bytes(node.size))
-                        .font(.system(size: 11).monospacedDigit())
-                        .foregroundStyle(Theme.tertiaryText)
-                        .help("本层合计")
-                }
+                Spacer(minLength: 0)
             }
             .padding(.horizontal, 10)
-            .frame(height: 36)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
-            .padding(.top, 6)
-            .animation(reduceMotion ? nil : Theme.Motion.fast, value: stack.count)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(showDataCategories ? "面积 = 本次索引的互斥分类占用"
-                     : stack.isEmpty ? "面积 = 已索引占用与磁盘可用空间" : "面积 = 本层各项占用")
-                Text(showDataCategories ? "选择分类查看目录与范围" : "大文件 ≥100 MB · 左滑返回 · 右滑前进")
-            }
-            .font(.system(size: 11))
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
-            .padding(.top, 6)
+            .frame(height: 33)
         }
+        .padding(.vertical, 1)
+        .glassCard(radius: Theme.Radius.card)
     }
 
     // MARK: 正文画布（图形、清单遮罩和手势共用局部坐标）
@@ -777,17 +751,28 @@ struct StorageManagerRootView: View {
                     .padding(24)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let node = currentNode {
-                    StorageTreemap(node: node,
-                                   onDrill: { child in
+                    StorageTreemap(node: node, selectedID: detailNode?.id,
+                                   onDrill: { child, origin in
                                        if showDataCategories { detailNode = child }
-                                       else { navigate(to: stack + [child]) }
+                                       else { navigate(to: stack + [child], origin: origin) }
                                    },
-                                   onSelect: { detailNode = $0 },
-                                   onBack: { if !showDataCategories { navigateHistory(by: -1) } },
+                                   onSelect: { detailNode = detailNode?.id == $0.id ? nil : $0 },
+                                   onBack: {
+                                       if detailNode != nil { detailNode = nil }
+                                       else if !showDataCategories { navigateHistory(by: -1) }
+                                   },
                                    freeSpace: !showDataCategories && stack.isEmpty ? diskFreeBytes : nil,
                                    indexRevision: store.indexRevision)
                         .id(node.id)
-                        .transition(.opacity)
+                        // v266：Q 弹。旧版 0.82→1 的 springBouncy 太短，像淡入；
+                        // 现在从被点块的中心涨开（0.55），回弹更慢更明显，
+                        // 退场同时缩到 0.94 —— 连续往返时看得出「液态收拢再鼓起来」。
+                        .transition(.asymmetric(
+                            insertion: .scale(scale: 0.55, anchor: mapMotion.anchor)
+                                .combined(with: .offset(x: mapMotion.offset))
+                                .combined(with: .opacity),
+                            removal: .scale(scale: 0.94, anchor: mapMotion.anchor)
+                                .combined(with: .opacity)))
                 } else {
                     VStack(spacing: 10) {
                         Image(systemName: "externaldrive")
@@ -872,9 +857,10 @@ struct StorageManagerRootView: View {
                 }
             }
             }
-            .animation(reduceMotion ? nil : Theme.Motion.fast, value: currentNode?.id)
             .animation(reduceMotion ? nil : Theme.Motion.fast, value: detailNode?.id)
             }
+            .clipShape(StorageMapShape())
+            .animation(reduceMotion ? nil : .spring(response: 0.42, dampingFraction: 0.55), value: currentNode?.id)
         }
     }
 
@@ -941,9 +927,11 @@ struct StorageManagerRootView: View {
         return current
     }
 
-    private func navigate(to path: [DiskNode]) {
+    private func navigate(to path: [DiskNode], origin: UnitPoint? = nil) {
         showDataCategories = false
         guard path.last?.id != stack.last?.id else { return }
+        let forward = path.count >= historyIndex
+        mapMotion = (origin ?? (forward ? .trailing : .leading), origin == nil ? (forward ? 28 : -28) : 0)
         if path.map(\.id) != stack.prefix(path.count).map(\.id) {
             directoryHistory = (0...path.count).map { Array(path.prefix($0)) }
         }
@@ -953,6 +941,7 @@ struct StorageManagerRootView: View {
     private func navigateHistory(by direction: Int) {
         let next = historyIndex + direction
         guard directoryHistory.indices.contains(next) else { return }
+        mapMotion = (direction > 0 ? .trailing : .leading, direction > 0 ? 28 : -28)
         historyIndex = next
     }
 

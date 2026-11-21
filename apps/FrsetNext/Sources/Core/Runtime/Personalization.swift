@@ -105,6 +105,7 @@ public final class Personalization: ObservableObject {
     @Published public var material: PersonalizationMaterial = .solid { didSet { persist() } }
     @Published public var showSourceBadge: Bool = true { didSet { persist() } }
     @Published public var thumbOverride: CGFloat? { didSet { persist() } }    // 44/56/72，nil=随密度
+    @Published public var clipboardPreviewScale: CGFloat = 1.5 { didSet { persist() } } // 1.0/1.25/1.5/1.8
     @Published public var toastDuration: TimeInterval = 3 { didSet { persist() } }   // 2/3/5
     @Published public var toastFollowPanel: Bool = false { didSet { persist() } }    // true=跟随主面板；默认屏幕中线偏下
     @Published public var barDividerColorHex: String = "" { didSet { persist() } }  // 空 = 默认
@@ -195,6 +196,7 @@ public final class Personalization: ObservableObject {
         material = source.material
         showSourceBadge = source.showSourceBadge
         thumbOverride = source.thumbOverride
+        clipboardPreviewScale = source.clipboardPreviewScale
         toastDuration = source.toastDuration
         toastFollowPanel = source.toastFollowPanel
         barDividerColorHex = source.barDividerColorHex
@@ -247,6 +249,7 @@ public final class Personalization: ObservableObject {
             Preferences.Keys.uiPanelMaterial: material.rawValue,
             Preferences.Keys.uiSourceBadge: showSourceBadge,
             Preferences.Keys.uiThumbSize: thumbOverride.map(Double.init),
+            Preferences.Keys.uiClipboardPreviewScale: Double(clipboardPreviewScale),
             Preferences.Keys.uiToastDuration: toastDuration,
             Preferences.Keys.uiToastPosition: toastFollowPanel,
             Preferences.Keys.uiBarDividerColor: barDividerColorHex,
@@ -274,6 +277,28 @@ public final class Personalization: ObservableObject {
         NotificationCenter.default.post(name: Self.didChangeNotification, object: nil)
     }
 
+    /// v266 预览字号迁移（用户：「文字仍然偏小，需要进一步放大」）。
+    ///
+    /// 旧四档 0.9/1.0/1.1/1.25 是在 19.5pt 基准上乘系数，最大只有 24.4pt；
+    /// 新四档 1.0/1.25/1.5/1.8 最大 35pt。旧值按「尽量大」上移，
+    /// 并用版本号保证只迁移一次——否则用户手动选 125% 会在下次启动被再抬一档。
+    private static func migratedPreviewScale(_ stored: CGFloat?) -> CGFloat {
+        let d = UserDefaults.standard
+        let version = d.integer(forKey: Preferences.Keys.uiClipboardPreviewScaleVersion)
+        guard let stored, stored > 0 else { return 1.5 }
+        var value = stored
+        if version < 2 {
+            switch stored {
+            case ..<0.95: value = 1.0
+            case ..<1.05: value = 1.25
+            case ..<1.18: value = 1.5
+            default:      value = 1.5
+            }
+            d.set(2, forKey: Preferences.Keys.uiClipboardPreviewScaleVersion)
+        }
+        return min(1.8, max(1.0, value))
+    }
+
     private func load() {
         let d = UserDefaults.standard
         isLoading = true
@@ -295,6 +320,15 @@ public final class Personalization: ObservableObject {
             ? true : d.bool(forKey: Preferences.Keys.uiSourceBadge)
         thumbOverride = d.object(forKey: Preferences.Keys.uiThumbSize) == nil
             ? nil : CGFloat(d.double(forKey: Preferences.Keys.uiThumbSize))
+        clipboardPreviewScale = Self.migratedPreviewScale(
+            d.object(forKey: Preferences.Keys.uiClipboardPreviewScale).map { _ in
+                CGFloat(d.double(forKey: Preferences.Keys.uiClipboardPreviewScale))
+            })
+        if d.object(forKey: Preferences.Keys.uiClipboardPreviewScale) == nil
+            || abs(d.double(forKey: Preferences.Keys.uiClipboardPreviewScale) - Double(clipboardPreviewScale)) > 0.001 {
+            // 迁移后立刻落盘：否则设置页把「默认值 vs 旧值」当成未保存改动（v266）。
+            d.set(Double(clipboardPreviewScale), forKey: Preferences.Keys.uiClipboardPreviewScale)
+        }
         toastDuration = d.object(forKey: Preferences.Keys.uiToastDuration) == nil
             ? 3 : d.double(forKey: Preferences.Keys.uiToastDuration)
         toastFollowPanel = d.object(forKey: Preferences.Keys.uiToastPosition) == nil
@@ -390,6 +424,7 @@ public final class Personalization: ObservableObject {
         material = .solid
         showSourceBadge = true
         thumbOverride = nil
+        clipboardPreviewScale = 1.5
         toastDuration = 3
         toastFollowPanel = false
         barDividerColorHex = ""

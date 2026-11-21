@@ -462,10 +462,16 @@ public final class CaptureWorkflowRunner {
             throw NSError(domain: "Workflow", code: code,
                           userInfo: [NSLocalizedDescriptionKey: "Linear \(code)"])
         }
-        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let errors = json["errors"] as? [[String: Any]], let first = errors.first {
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        if let errors = json?["errors"] as? [[String: Any]], let first = errors.first {
             throw NSError(domain: "Workflow", code: 1,
                           userInfo: [NSLocalizedDescriptionKey: "Linear: \(first["message"] ?? "")"])
+        }
+        guard let payload = json?["data"] as? [String: Any],
+              let issue = payload["issueCreate"] as? [String: Any],
+              issue["success"] as? Bool == true else {
+            throw NSError(domain: "Workflow", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: "Linear 未能创建 Issue"])
         }
     }
 

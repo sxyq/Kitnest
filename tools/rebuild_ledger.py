@@ -44,6 +44,8 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Features/Capture/Workflow/WorkflowSettingsPane.swift", "init"):
+        "2026-11-21：工作流设置草稿只读取一次配置，当前值与已保存值共用同一组UUID，首次示例不会因两次随机身份生成而被标成未保存",
     ("Features/Clipboard/Store/ClipboardManager.swift", "readAndIngest"):
         "2026-11-21：由poll及公开ingest入口调用一次；粘贴板读取失败时仅初次调用安排强制poll补读，可替换已有普通计数Timer且不续排补读，成功后的忽略规则和入库沿原实现",
     ("Features/Clipboard/UI/ClipboardTableHostView.swift", "deinit"):
@@ -1747,7 +1749,7 @@ EVIDENCE.update({
     ("Features/Capture/Workflow/CaptureWorkflow.swift", "createGitHubIssue"):
         "GitHub步骤按配置owner/repo及Bearer Token提交模板标题正文到issues端点，非2xx抛状态及响应前200字符",
     ("Features/Capture/Workflow/CaptureWorkflow.swift", "createLinearIssue"):
-        "Linear步骤以Team ID及API Key发送issueCreate GraphQL，标题正文复用上下文模板，HTTP或GraphQL错误向run传出",
+        "2026-11-21：Linear步骤提交issueCreate；HTTP、JSON和GraphQL错误交回run，只有data.issueCreate.success为true才继续后续步骤，否则沿原失败弹窗和单步重试处理",
     ("Features/Capture/Workflow/CaptureWorkflow.swift", "template"):
         "两个Issue步骤共用name/text/url/date替换，上传URL为空显示未上传，日期按本地yyyy-MM-dd HH:mm:ss格式",
     ("Features/Capture/Workflow/CaptureWorkflow.swift", "synchronousRequest"):
@@ -2742,8 +2744,12 @@ EVIDENCE.update({
         "创建或重新呈现可调整大小的全局收藏窗，并激活应用",
     ("Features/Clipboard/Store/FavoritesStore.swift", "reload"):
         "合并剪贴板、暂存文件、工具、命令和网页引用；失效资源移除并提供打开动作",
-    ("Features/FloatingBall/FloatingBallController.swift", "expandedSize"):
-        "按已启用组件数、列数和单格尺寸计算快捷窗网格外框",
+    ("Features/FloatingBall/FloatingBallController.swift", "columns"):
+        "按小窗宽度、组件尺寸、启用数量与列数设置计算实际网格列数",
+    ("Features/FloatingBall/FloatingBallController.swift", "pageCapacity"):
+        "扣除小窗头尾控件高度后计算每页可容纳的组件数",
+    ("Features/FloatingBall/FloatingBallController.swift", "pageCount"):
+        "按启用组件数和当前容量计算自然分页数量",
     ("Features/FloatingBall/FloatingBallController.swift", "init"):
         "控制器单例持有复用状态；面板采用无边框非激活样式，避免建立第二主面板",
     ("Features/FloatingBall/FloatingBallController.swift", "start"):
@@ -2755,43 +2761,61 @@ EVIDENCE.update({
     ("Features/FloatingBall/FloatingBallController.swift", "ensurePanel"):
         "只创建一个复用 NSPanel 和 SwiftUI 内容宿主，供悬浮球与快捷窗切换",
     ("Features/FloatingBall/FloatingBallController.swift", "show"):
-        "依当前指针屏幕读取该屏上次位置，夹入可见区域后呈现悬浮球",
+        "优先恢复上次稳定显示器和相对位置，兼读旧屏幕数字键；不记忆时使用鼠标屏幕",
     ("Features/FloatingBall/FloatingBallController.swift", "toggleExpanded"):
         "在紧凑悬浮球与快捷组件网格之间切换",
     ("Features/FloatingBall/FloatingBallController.swift", "expand"):
-        "保留面板实例并按用户组件布局扩展到屏幕左或右边缘",
+        "保留面板实例，按用户宽高展开并恢复该屏上次页或默认页",
+    ("Features/FloatingBall/FloatingBallController.swift", "positionExpanded"):
+        "按球体贴边方向和中心高度定位快捷窗并约束到可见区域",
+    ("Features/FloatingBall/FloatingBallController.swift", "selectPage"):
+        "将页码限制在当前分页范围，并按设置保存该显示器的当前页",
     ("Features/FloatingBall/FloatingBallController.swift", "pointerEntered"):
-        "鼠标重新进入时取消延迟收起，并唤回贴边半隐藏的球体",
+        "鼠标进入时取消收起，唤回半隐藏球体；按设置延迟0.3秒悬停展开",
     ("Features/FloatingBall/FloatingBallController.swift", "pointerLeft"):
-        "鼠标离开且自动半隐藏启用时，延迟0.85秒收起快捷窗",
+        "鼠标离开后延迟0.85秒收起或半隐藏；保持展开和禁用半隐藏设置分别生效",
     ("Features/FloatingBall/FloatingBallController.swift", "collapse"):
         "收起快捷组件并按设置贴边半隐藏或完整显示球体",
+    ("Features/FloatingBall/FloatingBallController.swift", "dragChanged"):
+        "保存鼠标与球体的初始偏移，并随鼠标更新球体窗口原点",
+    ("Features/FloatingBall/FloatingBallController.swift", "dragEnded"):
+        "按窗口最大重叠面积选择释放屏幕，左右贴边并在释放事件后恢复点击",
+    ("Features/FloatingBall/FloatingBallController.swift", "parkBall"):
+        "把球体置于当前屏幕最近侧边，按设置露16pt并保存完整停靠位置",
     ("Features/FloatingBall/FloatingBallController.swift", "installExpandedMonitors"):
-        "快捷窗展开期间监听应用内外部点击与 Esc，收起时保留原事件传递",
+        "快捷窗展开期间同时监听应用内与其他App点击及Esc，保留点击事件传递",
     ("Features/FloatingBall/FloatingBallController.swift", "removeExpandedMonitors"):
         "收起或停用快捷窗时移除已安装的点击和按键监听",
     ("Features/FloatingBall/FloatingBallController.swift", "windowDidResignKey"):
         "浮动面板失去键窗口状态后收起展开内容",
     ("Features/FloatingBall/FloatingBallController.swift", "run"):
-        "把组件动作路由到现有截图、剪贴板、搜索、监测、收藏或灵动岛页面",
+        "把组件路由到现有业务窗口或共用内容窗，刘海关闭时仍可用；截图结束恢复球体",
+    ("Features/FloatingBall/FloatingBallController.swift", "openModule"):
+        "复用一个可缩放内容窗承载原业务视图，初始640×520且最小360×280",
+    ("Features/FloatingBall/FloatingBallController.swift", "windowWillClose"):
+        "共用内容窗关闭时移除内容宿主，释放业务视图和媒体消费者",
     ("Features/FloatingBall/FloatingBallController.swift", "move"):
-        "在复用窗口上动画调整几何并标记程序移动，避免误存为用户拖动位置",
-    ("Features/FloatingBall/FloatingBallController.swift", "windowDidMove"):
-        "用户移动结束后按 NSScreenNumber 延迟保存该显示器的位置",
+        "在同一个悬浮面板上动画调整窗口位置与大小",
+    ("Features/FloatingBall/FloatingBallController.swift", "savePosition"):
+        "使用稳定显示器身份保存相对可见区域的位置，并记录最近使用屏幕",
     ("Features/FloatingBall/FloatingBallController.swift", "clampToConnectedScreen"):
         "显示器配置变化时将现存面板约束到当前连接屏幕可见范围",
     ("Features/FloatingBall/FloatingBallController.swift", "screenAtPointer"):
         "读取鼠标所在显示器作为新面板的放置屏幕",
     ("Features/FloatingBall/FloatingBallController.swift", "screenFor"):
-        "优先用窗口几何匹配当前屏幕，未相交时回到鼠标屏幕",
+        "选择与窗口重叠面积最大的连接显示器",
     ("Features/FloatingBall/FloatingBallController.swift", "screenKey"):
-        "用 NSScreenNumber 生成显示器位置偏好的稳定键",
+        "复用IslandDisplay的稳定显示器身份作为位置与页面偏好键",
+    ("Features/FloatingBall/FloatingBallController.swift", "legacyScreenKey"):
+        "读取旧NSScreenNumber数字键，以继续使用已有球体位置",
     ("Features/FloatingBall/FloatingBallController.swift", "clampedOrigin"):
         "按指定显示器可见区域限制面板原点，避免窗口移出屏幕",
     ("Features/FloatingBall/FloatingBallController.swift", "clamped"):
         "读取用户尺寸偏好并限制在设置界面公布的范围内，未设置时使用指定默认值",
     ("Features/Settings/Panes/FloatingBallSettingsPane.swift", "slider"):
-        "展示悬浮球尺寸、格子尺寸或透明度，并在拖动时即时更新面板",
+        "展示球体尺寸、小窗宽高、组件尺寸及透明度，并即时应用",
+    ("Features/Settings/Panes/FloatingBallSettingsPane.swift", "option"):
+        "把位置记忆、逐屏页面记忆、离开保持展开与半隐藏开关写入共用偏好并应用",
     ("Features/StatusBar/StatusBarController.swift", "openFavoritesAction"):
         "状态栏全局收藏菜单项打开共享收藏窗口",
 })
