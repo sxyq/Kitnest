@@ -553,7 +553,7 @@ public struct ClipboardTableHostView: NSViewRepresentable {
         init(owner: ClipboardTableHostView) {
             self.owner = owner
             super.init()
-            // 首条目滚出 → manager 发布 + 通知（specs/14 §3.4 mainClipboardFirstItemScrolledOutChanged）
+            // 首条目滚出后更新位置状态，刷新条目时用于决定是否保留滚动锚点。
             topTracker.onFirstItemScrolledOutChange = { scrolledOut in
                 ClipboardManager.shared.updateFirstItemScrolledOut(scrolledOut)
             }

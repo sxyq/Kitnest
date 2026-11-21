@@ -143,10 +143,6 @@ public final class ClipboardManager: ObservableObject {
     /// 主列表是否位于顶部（首条目未滚出；specs/14 Q④ ClipboardListTopScrollTracker 回写）
     @Published public private(set) var isMainListAtTop: Bool = true
 
-    /// 首条目滚出状态变化广播（mainClipboardFirstItemScrolledOutChanged，specs/14 §3.4）
-    public static let mainClipboardFirstItemScrolledOutChanged =
-        Notification.Name("FrsetNext.Clipboard.mainClipboardFirstItemScrolledOutChanged")
-
     private let reader = ClipboardPasteboardReader()
     private let repository = ClipboardRepository.shared
     private let tagStore = TagStore.shared
@@ -473,7 +469,6 @@ public final class ClipboardManager: ObservableObject {
         let atTop = !scrolledOut
         guard isMainListAtTop != atTop else { return }
         isMainListAtTop = atTop
-        NotificationCenter.default.post(name: Self.mainClipboardFirstItemScrolledOutChanged, object: nil)
     }
 
     /// 当前过滤态下的标准查询条件
