@@ -268,13 +268,11 @@ public final class StatsDataProvider {
         // （M 系列偶发缺 "Tiler Utilization %"）。0 = 无占用，-1 才是无数据。
         // v128：IOAccelerator 属性读取是 IOKit 注册表扫描，隐藏时并入 slow 档。
         if heavyDue {
-            let gpuPtr = UnsafeMutablePointer<Double>.allocate(capacity: 3)
-            defer { gpuPtr.deallocate() }
-            gpuPtr.initialize(repeating: 0, count: 3)
-            if frset_gpu_usage(gpuPtr, gpuPtr + 1, gpuPtr + 2) == 0 {
-                snap.gpuUsage = gpuPtr[0]
-                snap.gpuRenderer = gpuPtr[1]
-                snap.gpuTiler = gpuPtr[2]
+            var device = 0.0, renderer = 0.0, tiler = 0.0
+            if frset_gpu_usage(&device, &renderer, &tiler) == 0 {
+                snap.gpuUsage = device
+                snap.gpuRenderer = renderer
+                snap.gpuTiler = tiler
             }
         }
         if snap.gpuModel.isEmpty {
@@ -290,33 +288,28 @@ public final class StatsDataProvider {
         // ---- CPU 集群拓扑（sysctl perflevel；Intel 返回非 0）----
         // v128：含 host_processor_info 自采（系统调用），隐藏时并入 slow 档
         if heavyDue {
-            let clusterPtr = UnsafeMutablePointer<Int32>.allocate(capacity: 3)
-            defer { clusterPtr.deallocate() }
-            if frset_cpu_clusters(clusterPtr, clusterPtr + 1, clusterPtr + 2) == 0 {
-                snap.cpuSuperCores = Int(clusterPtr[0])
-                snap.cpuEffCores = Int(clusterPtr[1])
-                snap.cpuMedCores = Int(clusterPtr[2])
+            var superCores: Int32 = 0, effCores: Int32 = 0, medCores: Int32 = 0
+            if frset_cpu_clusters(&superCores, &effCores, &medCores) == 0 {
+                snap.cpuSuperCores = Int(superCores)
+                snap.cpuEffCores = Int(effCores)
+                snap.cpuMedCores = Int(medCores)
                 // 集群占用（per_core 按集群顺序排列；需本层自采 CPU——C 层差分内部维护）
-                let cpuPtr = UnsafeMutablePointer<frset_cpu_t>.allocate(capacity: 1)
-                defer { cpuPtr.deallocate() }
-                frset_cpu_sample(cpuPtr)
-                let usagePtr = UnsafeMutablePointer<Double>.allocate(capacity: 3)
-                defer { usagePtr.deallocate() }
-                frset_cpu_cluster_usage(cpuPtr, clusterPtr[0], clusterPtr[1], clusterPtr[2],
-                                        usagePtr, usagePtr + 1, usagePtr + 2)
-                snap.clusterSuperUsage = usagePtr[0]
-                snap.clusterEffUsage = usagePtr[1]
-                snap.clusterMedUsage = usagePtr[2]
+                var cpu = frset_cpu_t()
+                frset_cpu_sample(&cpu)
+                var superUsage = 0.0, effUsage = 0.0, medUsage = 0.0
+                frset_cpu_cluster_usage(&cpu, superCores, effCores, medCores,
+                                        &superUsage, &effUsage, &medUsage)
+                snap.clusterSuperUsage = superUsage
+                snap.clusterEffUsage = effUsage
+                snap.clusterMedUsage = medUsage
             }
         }
 
         mark("cpuCluster")
 
         // ---- 内存构成（host_statistics64，轻；与 STATS 引擎同口径）----
-        let memPtr = UnsafeMutablePointer<frset_mem_t>.allocate(capacity: 1)
-        defer { memPtr.deallocate() }
-        frset_mem_sample(memPtr)
-        let mem = memPtr.pointee
+        var mem = frset_mem_t()
+        frset_mem_sample(&mem)
         snap.memTotal = mem.total
         snap.memUsed = mem.used
         snap.memWired = mem.wired
@@ -330,10 +323,8 @@ public final class StatsDataProvider {
         // v128：AppleSmartBattery 属性字典读取（~30 键 + 2 次 SMC 单键）属 IOKit
         // 扫描，隐藏时并入 slow 档（g_snap 的 1s 电池采样不受影响，状态栏照常）
         if heavyDue {
-            let battPtr = UnsafeMutablePointer<frset_battery_t>.allocate(capacity: 1)
-            defer { battPtr.deallocate() }
-            frset_battery_sample(battPtr)
-            let batt = battPtr.pointee
+            var batt = frset_battery_t()
+            frset_battery_sample(&batt)
             snap.battery = StatsBattery(
                 present: batt.present != 0,
                 percent: Int(batt.percent),
@@ -361,10 +352,8 @@ public final class StatsDataProvider {
         mark("battery")
 
         // ---- 网络连通性（C 层后台线程；本调用非阻塞读缓存）----
-        let connPtr = UnsafeMutablePointer<frset_conn_t>.allocate(capacity: 1)
-        defer { connPtr.deallocate() }
-        frset_conn_sample(connPtr)
-        let conn = connPtr.pointee
+        var conn = frset_conn_t()
+        frset_conn_sample(&conn)
         snap.connStatus = StatsConnStatus(rawValue: Int(conn.status)) ?? .unknown
         snap.connLatencyMs = conn.latency_ms
         snap.connJitterMs = conn.jitter_ms
@@ -394,11 +383,10 @@ public final class StatsDataProvider {
         // 本档（原先每帧 getifaddrs + SCDynamicStore，显示层不需要这么勤）。
         if slowDue {
             lastSlowAt = now
-            let capPtr = UnsafeMutablePointer<UInt64>.allocate(capacity: 2)
-            defer { capPtr.deallocate() }
-            frset_disk_capacity(capPtr, capPtr + 1)
-            snap.diskTotalBytes = capPtr[0]
-            snap.diskFreeBytes = capPtr[1]
+            var totalBytes: UInt64 = 0, freeBytes: UInt64 = 0
+            frset_disk_capacity(&totalBytes, &freeBytes)
+            snap.diskTotalBytes = totalBytes
+            snap.diskFreeBytes = freeBytes
 
             let diskBuf = UnsafeMutablePointer<CChar>.allocate(capacity: 128)
             defer { diskBuf.deallocate() }
@@ -413,10 +401,8 @@ public final class StatsDataProvider {
             }
 
             // SMART（C 层 30s 缓存）
-            let smartPtr = UnsafeMutablePointer<frset_smart_t>.allocate(capacity: 1)
-            defer { smartPtr.deallocate() }
-            if frset_disk_smart(smartPtr) == 0 {
-                let s = smartPtr.pointee
+            var s = frset_smart_t()
+            if frset_disk_smart(&s) == 0 {
                 snap.smart = StatsSMART(
                     available: s.available != 0,
                     temperatureC: Int(s.temperature_c),
@@ -463,8 +449,7 @@ public final class StatsDataProvider {
                 if let cached = sensorMeta[key] {
                     meta = cached
                 } else {
-                    var groupOut: Int32 = 0
-                    let official = key.withCString { frset_sensor_name($0, &groupOut) }
+                    let official = key.withCString { frset_sensor_name($0, nil) }
                     // v129：未收录键回落「中文类别（键名）」——纯英文简写（TPDA/PHPB 等
                     // Apple Silicon 键不在官方名表）对用户不可读，扫描层 category 最可靠
                     // v132：供电轨三件套族优先（V×I=P 已实测精确吻合，见 railFamilyName）
@@ -557,8 +542,7 @@ public final class StatsDataProvider {
         // 3 kind + 1 net 共 4 次调用（峰值 152MB 的 churn 源之一）。
         // 输出缓冲改静态复用：313KB 每周期 4 次 malloc/free 是 malloc zone
         // 碎片化的主要推手（footprint 里表现为 non-object 小块+脏页滞留）；
-        // 本函数只被 StatsDataProvider.refresh 调用（MonitorSampler 采样队列单线程），
-        // 但保留锁防御性串行化。buffer 只在函数内使用，无跨调用状态。
+        // refresh 与 NetworkFlowTracker 共用此缓冲和上轮组序，整段聚合持锁。
         let sampleMax = 512   // 恒等于 procBuffer 容量（C 层 FRSET_PROC_CAP=512 也截断在此）
         procBufferLock.lock()
         defer { procBufferLock.unlock() }
@@ -786,9 +770,8 @@ public final class StatsDataProvider {
     /// 供设置页传感器选择器使用：官方名表命中用官方中文名，
     /// 其次供电轨三件套族（V×I=P 实测验证），最后按 SMC 首字母族推断
     public static func sensorDisplayName(_ key: String) -> String {
-        var groupOut: Int32 = 0
         let official: String? = key.withCString { cKey in
-            guard let ptr = frset_sensor_name(cKey, &groupOut) else { return nil }
+            guard let ptr = frset_sensor_name(cKey, nil) else { return nil }
             return String(cString: ptr)
         }
         if let official, !official.isEmpty { return official }

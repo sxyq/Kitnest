@@ -40,8 +40,6 @@ public final class NetworkFlowTracker {
 
     /// 统计窗口：10 分钟
     public static let windowSeconds: TimeInterval = 600
-    /// 分应用采样最小间隔（nettop 5s 一轮，少于 4s 的重复读会重复计费）
-    private static let appMinInterval: TimeInterval = 4.0
     /// 单值上限，防脏数据把窗口撑爆
     private static let maxRate: Double = 10_000_000_000
 
@@ -118,7 +116,7 @@ public final class NetworkFlowTracker {
 
     // MARK: 采样入口
 
-    /// 分应用采样（由 StatsDataProvider 每次读取 procNet 时调用，内部按 4s 去重）
+    /// 分应用采样（StatsDataProvider 与后台节拍共用，按时间及总量变化去重）。
     public func ingestApps(_ items: [StatsProcItem], now: Date = Date()) {
         let t = now.timeIntervalSince1970
         lock.lock()
