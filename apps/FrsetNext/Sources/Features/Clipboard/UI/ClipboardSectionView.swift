@@ -152,8 +152,15 @@ public struct ClipboardTagFilterMenu: View {
 
     @ObservedObject private var tagStore = TagStore.shared
     @Binding public var selectedTagID: String?
+    /// v271：唯一标签入口——过滤与管理合并进同一个下拉菜单。
+    /// 旧版工具条上并排两个几乎一样的 tag 图标（下拉过滤 + 管理按钮），
+    /// 用户分不清（原话：「有两个总标签……只能有一种唯一的一套标签图标」）。
+    public var onManageTags: (() -> Void)? = nil
 
-    public init(selectedTagID: Binding<String?>) { self._selectedTagID = selectedTagID }
+    public init(selectedTagID: Binding<String?>, onManageTags: (() -> Void)? = nil) {
+        self._selectedTagID = selectedTagID
+        self.onManageTags = onManageTags
+    }
 
     public var body: some View {
         Menu {
@@ -167,12 +174,18 @@ public struct ClipboardTagFilterMenu: View {
                 }
             }
             if tagStore.tags.isEmpty { Text("暂无标签") }
+            if let onManageTags {
+                Divider()
+                Button { onManageTags() } label: {
+                    Label("管理标签…", systemImage: "slider.horizontal.3")
+                }
+            }
         } label: {
             Image(systemName: selectedTagID == nil ? "tag" : "tag.fill")
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
-        .help("按标签过滤")
+        .help("标签：按标签过滤 · 管理标签")
     }
 }
 

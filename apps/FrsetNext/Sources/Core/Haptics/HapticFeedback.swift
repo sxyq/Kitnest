@@ -50,17 +50,21 @@ enum HapticIntensity: String, Codable, CaseIterable, Sendable {
         switch self {
         case .off: return "关闭"
         case .light: return "对齐（alignment）"
-        case .medium: return "通用（generic）"
-        case .strong: return "档位变化（levelChange）"
+        case .medium: return "档位变化（levelChange）"
+        case .strong: return "通用（generic）"
         }
     }
 
+    /// v271：按真实感知强度映射。macOS 三种模式的实际触感排序是
+    /// alignment（极轻）< levelChange（中）< generic（明显），
+    /// 旧版把 medium/strong 接反了，且默认「轻」= alignment 在触控板上几乎无感
+    /// （用户原话：「我对这部分进行测试呀，但是我没有感受到」）。
     var pattern: NSHapticFeedbackManager.FeedbackPattern? {
         switch self {
         case .off: return nil
         case .light: return .alignment
-        case .medium: return .generic
-        case .strong: return .levelChange
+        case .medium: return .levelChange
+        case .strong: return .generic
         }
     }
 }
@@ -69,7 +73,8 @@ struct HapticConfiguration: Codable, Equatable {
     static let key = "haptic.configuration"
     /// v270：总开关。旧配置没有这个键，解码时必须回落到 true，不能把用户已有设置判成关闭。
     var enabled = true
-    var intensity: HapticIntensity = .light
+    /// v271：默认「中」。旧默认「轻」映射 alignment，触控板上几乎无感。
+    var intensity: HapticIntensity = .medium
     var disabledEvents: Set<HapticEvent> = [
         .aiCompleted, .searchCompleted, .deviceConnected, .deviceDisconnected,
         .mediaPlayPause, .volumeBoundary
@@ -77,14 +82,33 @@ struct HapticConfiguration: Codable, Equatable {
 
     init() {}
 
-    private enum CodingKeys: String, CodingKey { case enabled, intensity, disabledEvents }
+    /// v271：配置结构版本。0 = 旧 JSON（无版本键）。
+    private enum CodingKeys: String, CodingKey { case schemaVersion, enabled, intensity, disabledEvents }
+
+    /// CodingKeys 里的 schemaVersion 没有对应存储属性，Encodable 无法合成，手写编码。
+    /// 写 schemaVersion=2：表示本条配置已经走过「轻→中」迁移，下次结构变更从它起算。
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(2, forKey: .schemaVersion)
+        try c.encode(enabled, forKey: .enabled)
+        try c.encode(intensity, forKey: .intensity)
+        try c.encode(disabledEvents, forKey: .disabledEvents)
+    }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
-        intensity = try c.decodeIfPresent(HapticIntensity.self, forKey: .intensity) ?? .light
+        intensity = try c.decodeIfPresent(HapticIntensity.self, forKey: .intensity) ?? .medium
         disabledEvents = try c.decodeIfPresent(Set<HapticEvent>.self, forKey: .disabledEvents)
             ?? Self().disabledEvents
+        // 一次性迁移：旧默认「轻」= alignment 无感，抬到「中」（levelChange）。
+        // 与预览字号迁移同一策略——版本号保证只跑一次，用户此后手动调档不再被改。
+        let version = try c.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 0
+        if version < 2, intensity == .light {
+            intensity = .medium
+            try? persist()
+            Log.info("Haptics", "v271 迁移：默认强度 轻→中（alignment 无感）")
+        }
     }
 
     func isEnabled(_ event: HapticEvent) -> Bool { enabled && !disabledEvents.contains(event) }

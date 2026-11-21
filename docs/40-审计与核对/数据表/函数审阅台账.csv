@@ -25,15 +25,16 @@ App,App/FrsetNextApp.swift,AppDelegate,applicationWillTerminate,func,109,KEEP,NS
 App,App/FrsetNextApp.swift,AppDelegate,applicationShouldHandleReopen,func,119,KEEP,NSApplicationDelegate 回调；点 Dock/重开时显示主面板
 App,App/FrsetNextApp.swift,AppDelegate,updateDockPresence,func,129,KEEP,applicationDidFinishLaunching 注册 NSWindow 键状态/关闭通知；函数统计可见标题窗后在 regular 与 accessory 策略间切换
 App,App/FrsetNextApp.swift,AppDelegate,application,func,146,KEEP,NSApplicationDelegate回调；文件URL与kitnest://深链分流，入站URL日志只保留scheme和host，不记录路径、参数或文件名
-Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,init,init,78,KEEP,2026-11-21：v270 显式空 init 保留 HapticConfiguration() 调用点（设置页恢复默认、解码回落），与新增加密字段共存
-Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,init,init,82,KEEP,2026-11-21：v270 显式空 init 保留 HapticConfiguration() 调用点（设置页恢复默认、解码回落），与新增加密字段共存
-Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,isEnabled,func,90,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；统一事件入口按独立场景开关取值，总强度由perform后续处理
-Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,load,func,92,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；从haptic.configuration读取独立Codable偏好，设置草稿与真实事件共用
-Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,persist,func,101,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；设置保存把强度与禁用事件集合编码到原UserDefaults，不影响刘海配置
-Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,perform,func,108,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；所有业务事件唯一触觉入口，读取场景偏好后交给公共系统反馈模式
-Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,simulate,func,119,KEEP,2026-11-21：v270 设置页「模拟所选场景」——只发一次与草稿强度对应的系统模式，不执行任何业务动作；HapticSettingsPane 调用
-Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,emit,func,124,KEEP,2026-11-21：v270 统一出口——perform/simulate 共用；先记 pattern+event 再请求 NSHapticFeedbackManager；perform:100 / simulate:121 调用
-Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,patternName,func,132,KEEP,2026-11-21：v270 日志可读名（alignment/generic/levelChange），emit:126 调用
+Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,init,init,83,KEEP,2026-11-21：v270 显式空 init 保留 HapticConfiguration() 调用点（设置页恢复默认、解码回落），与新增加密字段共存
+Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,encode,func,90,KEEP,2026-11-21：v271 CodingKeys 新增 schemaVersion（无对应存储属性，Encodable 无法合成）→ 手写编码写 schemaVersion=2 + 三字段；persist:103 调用
+Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,init,init,98,KEEP,2026-11-21：v270 显式空 init 保留 HapticConfiguration() 调用点（设置页恢复默认、解码回落），与新增加密字段共存
+Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,isEnabled,func,114,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；统一事件入口按独立场景开关取值，总强度由perform后续处理
+Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,load,func,116,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；从haptic.configuration读取独立Codable偏好，设置草稿与真实事件共用
+Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,persist,func,125,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；设置保存把强度与禁用事件集合编码到原UserDefaults，不影响刘海配置
+Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,perform,func,132,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；所有业务事件唯一触觉入口，读取场景偏好后交给公共系统反馈模式
+Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,simulate,func,143,KEEP,2026-11-21：v270 设置页「模拟所选场景」——只发一次与草稿强度对应的系统模式，不执行任何业务动作；HapticSettingsPane 调用
+Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,emit,func,148,KEEP,2026-11-21：v270 统一出口——perform/simulate 共用；先记 pattern+event 再请求 NSHapticFeedbackManager；perform:100 / simulate:121 调用
+Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,patternName,func,156,KEEP,2026-11-21：v270 日志可读名（alignment/generic/levelChange），emit:126 调用
 Core,Core/Motion/GenieMesh.swift,GenieRect,offsetBy,func,33,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；GenieWarp.swift:283-284 调用
 Core,Core/Motion/GenieMesh.swift,GenieMesh,localY,func,49,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；GenieWarp.swift:87,88 调用"
 Core,Core/Motion/GenieMesh.swift,GenieMesh,screenY,func,51,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；GenieWarp.swift:70,83,84 调用"
@@ -2071,24 +2072,24 @@ Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,ClipboardPreviewWin
 Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.swift,HoverClipModifier,body,func,577,KEEP,ViewModifier 协议；:283 挂载
 Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardSectionView,init,init,33,KEEP,ClipboardModule:26 build 闭包
 Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardSectionView,selectPreview,func,42,KEEP,固定列表点击、悬停和方向键共用：更新本地 previewSelectedID，并写入可选 settingsPreviewClipboardSelection 绑定，不复制或打开内容
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardTagFilterMenu,init,init,156,KEEP,:53 头部标签菜单
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardMenuActionItem,init,init,189,KEEP,:308-329 菜单项构造
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRowMenuContent,init,init,236,KEEP,Desk:602/:615 contextMenu
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardFavoriteButton,init,init,333,KEEP,2026-11-20：主列表与浮动窗卡片或行视图传入item；只保存输入，按钮消费原manager.toggleFavorite，设置演示不写入
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardTagBadges,init,init,355,KEEP,2026-11-20：主列表与浮动窗卡片或行视图传入item；只保存输入，body消费共享tagStore和当前tagIDs，最多显示三个名称与颜色
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,init,init,391,KEEP,TableHostView:573 行渲染
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imagePixelSize,func,532,KEEP,:460 图片行调用
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imagePixelSize,func,538,KEEP,:467 文件行调用
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imageSizeText,func,553,KEEP,:475/:479 调用
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,iconButton,func,572,KEEP,:400/:401 悬停按钮
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,quickActions,func,606,KEEP,按 JSON、链接和富文本类型提供对应的剪贴板快捷动作
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,items,func,618,KEEP,按记录类型提供复制图片文件、格式化、二维码、去重、纯文本与清链动作
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,body,func,632,KEEP,读取记录完整正文；读取失败时将原因显示为提示并终止动作
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,tool,func,638,KEEP,把正文交给工具窗执行，并先关闭预览和主面板
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,plainText,func,645,KEEP,通过 ClipboardManager.copyText 复制富文本记录的纯文本
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,cleanLink,func,651,KEEP,清除可移除的链接追踪参数，并明确保留签名参数时的结果提示
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardThumbnailView,init,init,675,KEEP,:370、Desk:1021
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,Color,init,init,764,KEEP,SettingsPanes:586 标签色
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardTagFilterMenu,init,init,160,KEEP,:53 头部标签菜单
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardMenuActionItem,init,init,202,KEEP,:308-329 菜单项构造
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRowMenuContent,init,init,249,KEEP,Desk:602/:615 contextMenu
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardFavoriteButton,init,init,346,KEEP,2026-11-20：主列表与浮动窗卡片或行视图传入item；只保存输入，按钮消费原manager.toggleFavorite，设置演示不写入
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardTagBadges,init,init,368,KEEP,2026-11-20：主列表与浮动窗卡片或行视图传入item；只保存输入，body消费共享tagStore和当前tagIDs，最多显示三个名称与颜色
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,init,init,404,KEEP,TableHostView:573 行渲染
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imagePixelSize,func,545,KEEP,:460 图片行调用
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imagePixelSize,func,551,KEEP,:467 文件行调用
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imageSizeText,func,566,KEEP,:475/:479 调用
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,iconButton,func,585,KEEP,:400/:401 悬停按钮
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,quickActions,func,619,KEEP,按 JSON、链接和富文本类型提供对应的剪贴板快捷动作
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,items,func,631,KEEP,按记录类型提供复制图片文件、格式化、二维码、去重、纯文本与清链动作
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,body,func,645,KEEP,读取记录完整正文；读取失败时将原因显示为提示并终止动作
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,tool,func,651,KEEP,把正文交给工具窗执行，并先关闭预览和主面板
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,plainText,func,658,KEEP,通过 ClipboardManager.copyText 复制富文本记录的纯文本
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,cleanLink,func,664,KEEP,清除可移除的链接追踪参数，并明确保留签名参数时的结果提示
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardThumbnailView,init,init,688,KEEP,:370、Desk:1021
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,Color,init,init,777,KEEP,SettingsPanes:586 标签色
 Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardHistorySettingsDraft,init,init,10,KEEP,历史与备份草稿订阅偏好外观变化，保留历史清理的正式执行入口
 Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardHistorySettingsDraft,save,func,13,KEEP,历史保留期容量与捕获隐私分别只写实际变动值，错误反馈保留对应草稿
 Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardHistorySettingsDraft,discard,func,21,KEEP,取消历史或捕获页只重读该页保存值，不清理数据库内容
@@ -3037,12 +3038,12 @@ Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,selectPage,f
 Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,dropToLocalTransfer,func,508,KEEP,分段 onDrop :374 回调
 Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,segmentItem,func,543,KEEP,pageSegments :369/386 调用
 Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,runCapture,func,610,KEEP,captureAction 四个菜单项 :481-485
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,closeBottomSearch,func,746,KEEP,onSubmit :536 与收起按钮 :538
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,toolbarIcon,func,757,KEEP,bottomToolbar :551/587/593 调用
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,captureButton,func,772,KEEP,toolbar :281 取色按钮
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,cachedBackgroundImage,func,879,KEEP,body 背景 :159 调用
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelToolbarLayout,sizeThatFits,func,931,KEEP,Layout 协议要求（SwiftUI 布局调用）
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelToolbarLayout,placeSubviews,func,937,KEEP,Layout 协议要求（SwiftUI 布局调用）
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,closeBottomSearch,func,734,KEEP,onSubmit :536 与收起按钮 :538
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,toolbarIcon,func,745,KEEP,bottomToolbar :551/587/593 调用
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,captureButton,func,788,KEEP,toolbar :281 取色按钮
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,cachedBackgroundImage,func,895,KEEP,body 背景 :159 调用
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelToolbarLayout,sizeThatFits,func,947,KEEP,Layout 协议要求（SwiftUI 布局调用）
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelToolbarLayout,placeSubviews,func,953,KEEP,Layout 协议要求（SwiftUI 布局调用）
 Panel,Features/Panel/Presentation/PanelSegments.swift,PanelSegments,migrateLegacyVisibility,func,31,KEEP,把旧showSystemStatus与panel.transferDock有效展示状态合并入分段键，移除重复展示键
 Panel,Features/Panel/Presentation/PanelSegments.swift,PanelSegments,title,func,48,KEEP,PanelRootView.swift:227/228/369/386
 Panel,Features/Panel/Presentation/PanelSegments.swift,PanelSegments,fullTitle,func,58,KEEP,PersonalizationSettingsPane.swift:148 勾选项标题

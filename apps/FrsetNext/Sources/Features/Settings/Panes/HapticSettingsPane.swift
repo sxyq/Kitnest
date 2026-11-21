@@ -130,7 +130,7 @@ private struct HapticSettingsContent: View {
                 Label("Force Touch 触控板", systemImage: "hand.tap")
                     .font(.system(size: 12, weight: .medium))
                 Text("请将手指放在支持触觉反馈的触控板上模拟；实际触感由系统和设备决定。")
-                Text("轻、中、强分别对应对齐、通用、档位变化三种系统模式；系统不提供连续振幅调节。")
+                Text("轻、中、强分别对应对齐、档位变化、通用三种系统模式（感知强度依次递增）；系统不提供连续振幅调节。")
                 Text("总开关、每项场景开关与强度都会影响真实业务事件；保存后立即生效。")
                 Text("「模拟所选场景」只验证系统模式是否有请求发出，不能证明业务动作成功，也不能证明你确实感觉到了振动。")
             }

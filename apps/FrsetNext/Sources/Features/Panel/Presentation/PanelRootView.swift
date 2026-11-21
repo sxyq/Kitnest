@@ -685,31 +685,25 @@ struct PanelRootView: View {
             .help("分类筛选")
             .accessibilityLabel("分类筛选")
 
-            Button {
+            // v271：收藏按钮并入统一图标组件——悬停高亮 + 弹簧按压与其它按钮一致。
+            ToolbarIconButton(symbol: (isSettingsPreview ? previewFilter : ClipboardManager.shared.filter) == .favorite
+                                ? "star.fill" : "star",
+                              help: "查看收藏", fontScale: personalization.fontScale,
+                              accent: theme.accent,
+                              isActive: (isSettingsPreview ? previewFilter : ClipboardManager.shared.filter) == .favorite) {
                 if isSettingsPreview { previewFilter = previewFilter == .favorite ? .all : .favorite }
                 else { ClipboardManager.shared.filter = ClipboardManager.shared.filter == .favorite ? .all : .favorite }
-            } label: {
-                Image(systemName: (isSettingsPreview ? previewFilter : ClipboardManager.shared.filter) == .favorite
-                      ? "star.fill" : "star")
-                    .font(.scaledSystem(size: 14, scale: personalization.fontScale))
-                    .frame(width: 22, height: 26)
-                    .foregroundStyle((isSettingsPreview ? previewFilter : ClipboardManager.shared.filter) == .favorite
-                                     ? theme.accent : Color.secondary)
-                    .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .help("查看收藏")
-            .accessibilityLabel("查看收藏")
 
+            // v271：唯一标签入口。过滤与管理合并进同一个下拉菜单（onManageTags），
+            // 删除并排的第二个 tag 图标——用户分不清两个一样的标签按钮。
             ClipboardTagFilterMenu(selectedTagID: Binding(
                 get: { isSettingsPreview ? nil : ClipboardManager.shared.tagFilterID },
                 set: { if !isSettingsPreview { ClipboardManager.shared.tagFilterID = $0 } }
-            ))
-
-            toolbarIcon("tag", help: "标签") {
+            ), onManageTags: {
                 if isSettingsPreview { previewFeedback = "标签入口演示" }
                 else { isShowingTagSheet = true }
-            }
+            })
             // v102（2026-10-21 用户：「向上箭头功能应该是回到顶部」）：
             // 按钮此前误做成「上传」占位（只弹提示，用户感知为点击无效）。
             // 改为回到顶部：平滑滚回剪贴板列表顶端（FilterBar_ScrollToTop 语义）。
@@ -720,25 +714,19 @@ struct PanelRootView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
-        // v110（三级玻璃 L3 工具条胶囊）：半透明真玻璃——与页面底（更淡）、
-        // 白卡片（实底白玻璃）都不同的第三种质感；亮边 + 浮起投影。
+        // v271：玻璃改用统一配方 GlassSurface（与主面板/悬浮剪贴板同一套：
+        // 通透度底衬 + 磨砂霜感，四个玻璃滑块直接生效）。面板窗口本身已有
+        // 毛玻璃 → includesBlur=false 不叠第二层。旧手写「surface+frost+
+        // 0.55 白渐变描边」是一套自成一体的假玻璃——白边太重，和面板
+        // 其它浮层对不上（用户原话：「玻璃态效果十分的怪」）。
         .background(
-            ZStack {
-                // v207：工具条胶囊不再叠第二层 ultraThinMaterial（面板本身已是统一玻璃），
-                // 只用同一套底衬/霜感，保证四个玻璃滑块对这里同样生效。
-                Capsule(style: .continuous).fill(theme.windowSurface)
-                Capsule(style: .continuous).fill(theme.glassFrost)
-            }
-            .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
+            GlassSurface(cornerRadius: 20, includesBlur: false, appliesWindowShadow: false)
+                .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
         )
         .overlay(
             Capsule(style: .continuous)
-                .strokeBorder(
-                    LinearGradient(
-                        colors: [Color.white.opacity(0.55), Color.white.opacity(0.12),
-                                 Color.primary.opacity(0.10)],
-                        startPoint: .top, endPoint: .bottom),
-                    lineWidth: 0.6)
+                .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
+                .allowsHitTesting(false)
         )
         .fixedSize()
     }
@@ -756,18 +744,46 @@ struct PanelRootView: View {
 
     private func toolbarIcon(_ symbol: String, help: String,
                              action: @escaping () -> Void) -> some View {
+        ToolbarIconButton(symbol: symbol, help: help,
+                          fontScale: personalization.fontScale,
+                          accent: theme.accent, action: action)
+    }
+
+/// v271：底部工具条图标按钮。旧 toolbarIcon 用 .plain 样式，
+/// 悬停无高亮、按下无反馈（用户原话：「没有动效啊！」）。
+/// 现在：悬停圆角底色 + 图标染色，按压走 SpringyIconButtonStyle 弹簧缩放。
+struct ToolbarIconButton: View {
+    let symbol: String
+    let help: String
+    let fontScale: CGFloat
+    let accent: Color
+    /// 激活态（如收藏筛选生效）：图标常驻强调色。
+    var isActive: Bool = false
+    var action: () -> Void
+
+    /// 本工程 @State 宏不可用（SwiftUIMacros 缺失），按项目约定用 @Stored 兼容层。
+    @Stored private var hovering = false
+
+    var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.scaledSystem(size: 14, scale: personalization.fontScale))
+                .font(.scaledSystem(size: 14, scale: fontScale))
                 .frame(width: 26, height: 26)
+                .foregroundStyle(isActive || hovering ? accent : Color.secondary)
+                .background(
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(hovering ? accent.opacity(0.14) : .clear)
+                )
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SpringyIconButtonStyle())
         .focusable(false)
-        .foregroundStyle(.secondary)
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.12), value: hovering)
         .help(help)
         .accessibilityLabel(help)
     }
+}
 
     private func captureButton(_ symbol: String, title: String, mode: CaptureMode) -> some View {
         Button {
