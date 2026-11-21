@@ -19,12 +19,12 @@ App,App/AppBootstrap.swift,AppBootstrap,runTranslateSelection,func,682,KEEP,划�
 App,App/AppBootstrap.swift,AppBootstrap,readSelection,func,694,KEEP,命令面板、划词快捷键及刘海展开前读取真实前台AX焦点的SelectedText，拒绝自身前台及密码字段，不取系统剪贴板，返回具体授权或应用选区错误
 App,App/AppBootstrap.swift,AppBootstrap,runSelectionAction,func,740,KEEP,快捷键、命令面板和刘海OCR划词按钮共用已捕获SelectionResult或readSelection；失败Toast，翻译取消旧请求交translateAndIngest，其他动作交正式ToolRunnerWindow自动执行
 App,App/FrsetNextApp.swift,AppDelegate,applicationDidFinishLaunching,func,33,KEEP,NSApplicationDelegate启动回调；启动日志与更新探针只记阶段和凭据是否提供，不记更新URL或校验值
-App,App/FrsetNextApp.swift,AppDelegate,enforceSingleMenubarOwner,func,80,KEEP,applicationDidFinishLaunching L37 调用；同 bundle 多实例退出 + 原版并存提示
-App,App/FrsetNextApp.swift,AppDelegate,applicationShouldTerminate,func,104,KEEP,2026-11-20：系统退出回调先取得原归档任务确认结果，再由更新器处理待安装交接；取消时不启动替换，替换程序启动失败也保留当前进程
-App,App/FrsetNextApp.swift,AppDelegate,applicationWillTerminate,func,109,KEEP,NSApplicationDelegate 回调；个性化落盘 + 日志归档停止 + bootstrap.stop
-App,App/FrsetNextApp.swift,AppDelegate,applicationShouldHandleReopen,func,119,KEEP,NSApplicationDelegate 回调；点 Dock/重开时显示主面板
-App,App/FrsetNextApp.swift,AppDelegate,updateDockPresence,func,129,KEEP,applicationDidFinishLaunching 注册 NSWindow 键状态/关闭通知；函数统计可见标题窗后在 regular 与 accessory 策略间切换
-App,App/FrsetNextApp.swift,AppDelegate,application,func,146,KEEP,NSApplicationDelegate回调；文件URL与kitnest://深链分流，入站URL日志只保留scheme和host，不记录路径、参数或文件名
+App,App/FrsetNextApp.swift,AppDelegate,enforceSingleMenubarOwner,func,81,KEEP,applicationDidFinishLaunching L37 调用；同 bundle 多实例退出 + 原版并存提示
+App,App/FrsetNextApp.swift,AppDelegate,applicationShouldTerminate,func,105,KEEP,2026-11-20：系统退出回调先取得原归档任务确认结果，再由更新器处理待安装交接；取消时不启动替换，替换程序启动失败也保留当前进程
+App,App/FrsetNextApp.swift,AppDelegate,applicationWillTerminate,func,110,KEEP,NSApplicationDelegate 回调；个性化落盘 + 日志归档停止 + bootstrap.stop
+App,App/FrsetNextApp.swift,AppDelegate,applicationShouldHandleReopen,func,120,KEEP,NSApplicationDelegate 回调；点 Dock/重开时显示主面板
+App,App/FrsetNextApp.swift,AppDelegate,updateDockPresence,func,130,KEEP,applicationDidFinishLaunching 注册 NSWindow 键状态/关闭通知；函数统计可见标题窗后在 regular 与 accessory 策略间切换
+App,App/FrsetNextApp.swift,AppDelegate,application,func,147,KEEP,NSApplicationDelegate回调；文件URL与kitnest://深链分流，入站URL日志只保留scheme和host，不记录路径、参数或文件名
 Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,init,init,83,KEEP,2026-11-21：v270 显式空 init 保留 HapticConfiguration() 调用点（设置页恢复默认、解码回落），与新增加密字段共存
 Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,encode,func,90,KEEP,2026-11-21：v271 CodingKeys 新增 schemaVersion（无对应存储属性，Encodable 无法合成）→ 手写编码写 schemaVersion=2 + 三字段；persist:103 调用
 Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,init,init,98,KEEP,2026-11-21：v270 显式空 init 保留 HapticConfiguration() 调用点（设置页恢复默认、解码回落），与新增加密字段共存
@@ -32,9 +32,10 @@ Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,isEnabled,func,114,KE
 Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,load,func,116,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；从haptic.configuration读取独立Codable偏好，设置草稿与真实事件共用
 Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,persist,func,125,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；设置保存把强度与禁用事件集合编码到原UserDefaults，不影响刘海配置
 Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,perform,func,132,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；所有业务事件唯一触觉入口，读取场景偏好后交给公共系统反馈模式
-Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,simulate,func,143,KEEP,2026-11-21：v270 设置页「模拟所选场景」——只发一次与草稿强度对应的系统模式，不执行任何业务动作；HapticSettingsPane 调用
-Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,emit,func,148,KEEP,2026-11-21：v270 统一出口——perform/simulate 共用；先记 pattern+event 再请求 NSHapticFeedbackManager；perform:100 / simulate:121 调用
-Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,patternName,func,156,KEEP,2026-11-21：v270 日志可读名（alignment/generic/levelChange），emit:126 调用
+Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,simulate,func,149,KEEP,2026-11-21：v270 设置页「模拟所选场景」——只发一次与草稿强度对应的系统模式，不执行任何业务动作；HapticSettingsPane 调用
+Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,fireProbeIfRequested,func,164,KEEP,2026-11-21：v272 启动探针（probe.haptic 键）激活 App 后自动模拟一次，用于无鼠标环境验证触觉链路；项目探针惯例用完删键；applicationDidFinishLaunching 调用
+Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,emit,func,172,KEEP,2026-11-21：v270 统一出口——perform/simulate 共用；先记 pattern+event 再请求 NSHapticFeedbackManager；perform:100 / simulate:121 调用
+Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,patternName,func,184,KEEP,2026-11-21：v270 日志可读名（alignment/generic/levelChange），emit:126 调用
 Core,Core/Motion/GenieMesh.swift,GenieRect,offsetBy,func,33,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；GenieWarp.swift:283-284 调用
 Core,Core/Motion/GenieMesh.swift,GenieMesh,localY,func,49,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；GenieWarp.swift:87,88 调用"
 Core,Core/Motion/GenieMesh.swift,GenieMesh,screenY,func,51,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；GenieWarp.swift:70,83,84 调用"
@@ -2656,35 +2657,35 @@ Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,bytes,func,1015,K
 Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,shortBytes,func,1018,KEEP,2026-11-20：存储窗口和堆块紧凑标签调用，沿Finder十进制1000换算GB/MB/KB，显示一位小数或整数KB
 Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,date,func,1025,KEEP,2026-11-20：存储扫描日期与清理记录标签调用；按MM-dd HH:mm格式呈现本地时间，不改变索引状态
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,27,KEEP,2026-11-20：shared唯一程序化构造1080×720窗口、最小860×560，关闭保留窗口；原生所需coder入口拒绝归档构造，正式入口为私有init
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,44,KEEP,2026-11-20：shared唯一程序化构造1080×720窗口、最小860×560，关闭保留窗口；原生所需coder入口拒绝归档构造，正式入口为私有init
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,show,func,46,KEEP,2026-11-20：监测详情按钮与storage深链共用已有窗口；按参数扫描或延迟发下钻/提示词通知，下钻消费端统一退出分类显示
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageBodyLayout,listMask,func,102,KEEP,2026-11-21：v268 统一正文几何——listBounds 减 seamOutline（左移 seam 的共享轮廓）生成清单遮罩；与 leftPane 行宽同一条轮廓
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageSwipeRegion,makeNSView,func,114,KEEP,2026-11-20：根视图嵌入背景手势区时创建SwipeView，传入共用navigateHistory闭包，不创建业务存储
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageSwipeRegion,updateNSView,func,118,KEEP,2026-11-20：Representable刷新只更新enabled和导航闭包，保留既有NSView及事件监听器
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,init,init,136,KEEP,2026-11-20：makeNSView通过init(onNavigate:)保存导航并零frame创建，实际尺寸交SwiftUI；所需coder构造无归档入口
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,init,init,141,KEEP,2026-11-20：makeNSView通过init(onNavigate:)保存导航并零frame创建，实际尺寸交SwiftUI；所需coder构造无归档入口
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,hitTest,func,143,KEEP,2026-11-20：AppKit命中恒返回nil，滚动监听在本地事件监视器处理，前景按钮继续接收点击
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,viewDidMoveToWindow,func,145,KEEP,2026-11-20：AppKit移窗回调先移除旧事件token，仅在新window非空时装一次监听
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,installSwipeMonitor,func,154,KEEP,2026-11-20：只处理同一可见窗口精确非惯性滚动，按手势起点命中地图并固定归属；横向达42pt且超过纵向1.2倍后只导航一次，闭包弱持有视图
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,deinit,deinit,205,KEEP,2026-11-20：视图释放移除尚存NSEvent monitor，与移窗移除共同结束事件生命周期
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,refreshDiskSpace,func,275,KEEP,2026-11-20：出现、应用激活和indexRevision变化时读取可用空间、完全磁盘访问状态及数据卷f_bfree已用量，展示复用保存值
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,statusLine,func,302,KEEP,2026-11-20：header消费快照范围、扫描日期、节点数与字节，截断时列maxNodes上限；本地日期格式沿StorageFormat
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,openFullDiskAccessSettings,func,332,KEEP,2026-11-20：页头与存储设置去授权按钮共用固定系统设置URL，通过NSWorkspace打开完全磁盘访问页面
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,miniStat,func,518,KEEP,2026-11-21：v268 顶部第一层并排小指标（标签10pt+等宽数值13pt），替代原 headline 两行说明；header 第一行三处调用
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,toolbarButton,func,529,KEEP,2026-11-20：mapControls的扫描、工作记录和设置按钮共用样式，图标标题及action由调用方提供
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,leftPane,func,631,KEEP,2026-11-20：根布局沿地图轮廓采样，LazyVStack只建可见候选行，按画布坐标计算行宽；点击只改变selectedPaths
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,candidateWidth,func,668,KEEP,2026-11-20：leftPane逐行以中心水平线与轮廓边求交，取最左交点作候选右界，未交返回0，调用处限制最终宽非负
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,categoryDetail,func,924,KEEP,2026-11-20：rightPane显示分类字节、扫描根、pathBytes与覆盖范围说明；ScrollView内用LazyVStack按可见区域构建全部明细，仍保留文本选择和缺失明细提示
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,refreshedNavigationNode,func,966,KEEP,2026-11-20：indexRevision更新时实际路径查新树，disk-files按父ownSize更新；展示分组递归剔除消失成员并重算字节、排序和数量
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigate,func,987,KEEP,2026-11-20：深链、面包屑、根和图块共用，先退出分类模式再判是否同目录；下钻重建前缀，回祖先保留前进记录
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigateHistory,func,999,KEEP,2026-11-20：手势、Esc、前后按钮和地图返回共用，只将历史游标移动到已存在索引，不重建目录树
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,jellyPulse,func,1008,KEEP,2026-11-21：v267 更 Q 弹——切层先把 jelly 压到 0.965（纵向 1.035）再以 spring(0.5/0.4) 弹回；reduceMotion 时跳过；调用点 navigate:945、navigateHistory:953；scaleEffect 应用点 868
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,topDirectories,func,1017,KEEP,2026-11-20：buildAgentPrompt唯一调用，局部visit遍历已保留树前4层的正大小目录，按字节降序取默认12项，父子可同时列出
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,buildAgentPrompt,func,1032,KEEP,2026-11-20：附属页预览和复制共用当前索引快照、候选及Top目录；概况复用statusLine与coverageHelp，准确列缓存时间、排除路径、跳过原因和截断状态，不执行删除，使用通用角色且无客户端选择参数
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,copyAgentPrompt,func,1079,KEEP,2026-11-20：附属页按钮调用同一无参buildAgentPrompt，写系统剪贴板后关闭提示词页；没有客户端选择器或agentKind状态
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,selectedBytesForPending,func,1260,KEEP,2026-11-20：删除确认框先去掉pendingTrash内已被父路径覆盖的项，再从当前快照合计真实节点字节，不操作文件
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,performTrash,func,1266,KEEP,2026-11-20：确认删除取出并清空pendingTrash，非空才交store.trash；按回传成功数、字节和lastError显示结果
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageCandidateRow,displayPath,func,1291,KEEP,2026-11-20：候选行只把当前home本身或home/后代缩写为~，其他路径原样显示，不误缩写同名前缀
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,49,KEEP,2026-11-20：shared唯一程序化构造1080×720窗口、最小860×560，关闭保留窗口；原生所需coder入口拒绝归档构造，正式入口为私有init
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,show,func,51,KEEP,2026-11-20：监测详情按钮与storage深链共用已有窗口；按参数扫描或延迟发下钻/提示词通知，下钻消费端统一退出分类显示
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageBodyLayout,listMask,func,112,KEEP,2026-11-21：v268 统一正文几何——listBounds 减 seamOutline（左移 seam 的共享轮廓）生成清单遮罩；与 leftPane 行宽同一条轮廓
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageSwipeRegion,makeNSView,func,124,KEEP,2026-11-20：根视图嵌入背景手势区时创建SwipeView，传入共用navigateHistory闭包，不创建业务存储
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageSwipeRegion,updateNSView,func,128,KEEP,2026-11-20：Representable刷新只更新enabled和导航闭包，保留既有NSView及事件监听器
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,init,init,146,KEEP,2026-11-20：makeNSView通过init(onNavigate:)保存导航并零frame创建，实际尺寸交SwiftUI；所需coder构造无归档入口
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,init,init,151,KEEP,2026-11-20：makeNSView通过init(onNavigate:)保存导航并零frame创建，实际尺寸交SwiftUI；所需coder构造无归档入口
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,hitTest,func,153,KEEP,2026-11-20：AppKit命中恒返回nil，滚动监听在本地事件监视器处理，前景按钮继续接收点击
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,viewDidMoveToWindow,func,155,KEEP,2026-11-20：AppKit移窗回调先移除旧事件token，仅在新window非空时装一次监听
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,installSwipeMonitor,func,164,KEEP,2026-11-20：只处理同一可见窗口精确非惯性滚动，按手势起点命中地图并固定归属；横向达42pt且超过纵向1.2倍后只导航一次，闭包弱持有视图
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,deinit,deinit,215,KEEP,2026-11-20：视图释放移除尚存NSEvent monitor，与移窗移除共同结束事件生命周期
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,refreshDiskSpace,func,285,KEEP,2026-11-20：出现、应用激活和indexRevision变化时读取可用空间、完全磁盘访问状态及数据卷f_bfree已用量，展示复用保存值
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,statusLine,func,312,KEEP,2026-11-20：header消费快照范围、扫描日期、节点数与字节，截断时列maxNodes上限；本地日期格式沿StorageFormat
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,openFullDiskAccessSettings,func,342,KEEP,2026-11-20：页头与存储设置去授权按钮共用固定系统设置URL，通过NSWorkspace打开完全磁盘访问页面
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,miniStat,func,528,KEEP,2026-11-21：v268 顶部第一层并排小指标（标签10pt+等宽数值13pt），替代原 headline 两行说明；header 第一行三处调用
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,toolbarButton,func,539,KEEP,2026-11-20：mapControls的扫描、工作记录和设置按钮共用样式，图标标题及action由调用方提供
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,leftPane,func,641,KEEP,2026-11-20：根布局沿地图轮廓采样，LazyVStack只建可见候选行，按画布坐标计算行宽；点击只改变selectedPaths
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,candidateWidth,func,678,KEEP,2026-11-20：leftPane逐行以中心水平线与轮廓边求交，取最左交点作候选右界，未交返回0，调用处限制最终宽非负
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,categoryDetail,func,934,KEEP,2026-11-20：rightPane显示分类字节、扫描根、pathBytes与覆盖范围说明；ScrollView内用LazyVStack按可见区域构建全部明细，仍保留文本选择和缺失明细提示
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,refreshedNavigationNode,func,976,KEEP,2026-11-20：indexRevision更新时实际路径查新树，disk-files按父ownSize更新；展示分组递归剔除消失成员并重算字节、排序和数量
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigate,func,997,KEEP,2026-11-20：深链、面包屑、根和图块共用，先退出分类模式再判是否同目录；下钻重建前缀，回祖先保留前进记录
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigateHistory,func,1009,KEEP,2026-11-20：手势、Esc、前后按钮和地图返回共用，只将历史游标移动到已存在索引，不重建目录树
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,jellyPulse,func,1018,KEEP,2026-11-21：v267 更 Q 弹——切层先把 jelly 压到 0.965（纵向 1.035）再以 spring(0.5/0.4) 弹回；reduceMotion 时跳过；调用点 navigate:945、navigateHistory:953；scaleEffect 应用点 868
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,topDirectories,func,1027,KEEP,2026-11-20：buildAgentPrompt唯一调用，局部visit遍历已保留树前4层的正大小目录，按字节降序取默认12项，父子可同时列出
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,buildAgentPrompt,func,1042,KEEP,2026-11-20：附属页预览和复制共用当前索引快照、候选及Top目录；概况复用statusLine与coverageHelp，准确列缓存时间、排除路径、跳过原因和截断状态，不执行删除，使用通用角色且无客户端选择参数
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,copyAgentPrompt,func,1089,KEEP,2026-11-20：附属页按钮调用同一无参buildAgentPrompt，写系统剪贴板后关闭提示词页；没有客户端选择器或agentKind状态
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,selectedBytesForPending,func,1270,KEEP,2026-11-20：删除确认框先去掉pendingTrash内已被父路径覆盖的项，再从当前快照合计真实节点字节，不操作文件
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,performTrash,func,1276,KEEP,2026-11-20：确认删除取出并清空pendingTrash，非空才交store.trash；按回传成功数、字节和lastError显示结果
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageCandidateRow,displayPath,func,1301,KEEP,2026-11-20：候选行只把当前home本身或home/后代缩写为~，其他路径原样显示，不误缩写同名前缀
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskVoronoiLayout,make,func,45,KEEP,DiskLayoutCache.tiles:133
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskVoronoiLayout,inradius,func,132,KEEP,DiskVoronoiLayout.make 在布局时计算标签质心到各边的最小距离，供标签档位和宽度复用；悬停不再求内切圆半径
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskLayoutCache,tiles,func,154,KEEP,StorageTreemap.body:171
@@ -3286,7 +3287,7 @@ Settings,Features/Settings/Panes/HapticSettingsPane.swift,HapticSettingsDraft,in
 Settings,Features/Settings/Panes/HapticSettingsPane.swift,HapticSettingsDraft,save,func,24,KEEP,编码成功后更新触觉保存快照，失败返回具体原因并保留草稿；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/HapticSettingsPane.swift,HapticSettingsDraft,discard,func,32,KEEP,取消仅将本页草稿恢复已保存强度和场景开关；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/HapticSettingsPane.swift,HapticSettingsDraft,restoreDefaults,func,33,KEEP,本页恢复默认只更新草稿，经既有保存按钮应用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/HapticSettingsPane.swift,HapticSettingsContent,eventSection,func,143,KEEP,按统一事件枚举生成场景名称说明和独立开关，三类场景复用相同行组件；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/HapticSettingsPane.swift,HapticSettingsContent,eventSection,func,145,KEEP,按统一事件枚举生成场景名称说明和独立开关，三类场景复用相同行组件；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,init,init,33,KEEP,草稿加载唯一配置并建立previewOnly控制器，预览排序回调只同步widgetSizes/widgetOrder/metricOrder到草稿；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,isDirty,func,61,KEEP,按刘海四页所属字段判断草稿变动，画布页包含未完成的布局编辑；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,save,func,66,KEEP,SettingsDraftEditor保存交正式IslandController.apply，失败返回原因，成功才更新saved与脏态通知；2026-11-19人工复核：保留，源码与调用/系统入口已核阅

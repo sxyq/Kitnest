@@ -31,6 +31,7 @@ struct FrsetNextApp: App {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
+        HapticFeedback.fireProbeIfRequested()
         // v43：菜单栏监控「唯一一套」护栏——先于任何模块启动执行。
         // 菜单栏监控的唯一实现是 STATS 合并条；多开实例/官方原版同跑都会各画一套，
         // 表现为菜单栏出现重复的 CPU/RAM/SSD 组件（用户 2026-10-18 反馈）。
