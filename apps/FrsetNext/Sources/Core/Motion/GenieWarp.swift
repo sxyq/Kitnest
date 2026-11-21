@@ -367,7 +367,6 @@ final class GenieWarp {
         let pixelScale = Self.pixelScale(bbox: bbox.size, frames: target)
         let t0 = CFAbsoluteTimeGetCurrent()
         var frames: [CGImage] = []
-        frames.reserveCapacity(target)
 
         let hold = Self.heldProgress()
         if let hold {
