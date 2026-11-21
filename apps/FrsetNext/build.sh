@@ -8,9 +8,7 @@ SRC="${FRSETNEXT_SOURCE_ROOT:-$ROOT/Sources}"
 #   构建/复制的几秒窗口期内，Finder 双击拿到的是半成品 bundle，Gatekeeper 直接报
 #   「已损坏，无法打开」（用户实障：连续多次把 app 拖进废纸篓，Trash 里留有
 #    `Kitnest.app 13-41-17-539.app` 这类 Finder 重命名副本为证）。
-# 方案：编译/签名/校验全在 build/.staging/ 的暂存 bundle 内完成，最后 rename 换位
-#   （同卷 rename 是原子操作）。对外可见的 build/Kitnest.app 与 /Applications 副本
-#   **任何时刻都是完整、签名有效的可启动包**；构建失败也不影响旧版。
+# 编译、签名在暂存包内完成，再原子部署到 /Applications；退出时删除暂存包。
 APP_NAME="${KITNEST_APP_NAME:-Kitnest}"
 INFO_PLIST="${KITNEST_INFO_PLIST:-$ROOT/Info.plist}"
 SIGNING_IDENTITY="2EFBEE27CEFEF9F60C03BA222A972127D9286542"
@@ -22,7 +20,6 @@ if ! security find-identity -v -p codesigning 2>/dev/null | grep -Fq "$SIGNING_I
 fi
 # 外置 exFAT 工作树需把 bundle 留在 APFS，避免 AppleDouble 边车文件破坏签名。
 BUILD_ROOT="${KITNEST_BUILD_ROOT:-$ROOT/build.noindex}"
-APP_FINAL="$BUILD_ROOT/$APP_NAME.app"                  # 对外可见的构建产物（始终完整可启动）
 # 并行工作台/Lite 构建曾改写共用目标文件；本次暂存与链接输入由同一目录持有。
 mkdir -p "$BUILD_ROOT/.staging"
 STAGE=$(mktemp -d "$BUILD_ROOT/.staging/kitnest.XXXXXX")
@@ -217,8 +214,8 @@ OCR_H_OUT="$APP/Contents/Helpers/FrsetOCRHelper"
 if [ -f "$OCR_H_DIR/main.swift" ]; then
   echo "== 本地 OCR helper =="
   mkdir -p "$(dirname "$OCR_H_OUT")"
-  OCR_OBJ_DIR="/tmp/frsetnext_ocr_helper"
-  rm -rf "$OCR_OBJ_DIR"; mkdir -p "$OCR_OBJ_DIR"
+  OCR_OBJ_DIR="$STAGE/ocr"
+  mkdir -p "$OCR_OBJ_DIR"
   if ! clang -c "$OBJC_DIR/frset_ocr_onnx.m" -o "$OCR_OBJ_DIR/frset_ocr_onnx.o" \
        -isysroot "$SDK" -target arm64-apple-macosx13.0 -I "$ROOT/Vendor/ocr" \
        -fobjc-arc -O1 2>&1 | tail -5; then
@@ -291,30 +288,6 @@ if [ "$SIGN_STATE" != "已签名 ✓" ]; then
   exit 1
 fi
 # ============================================================================
-# 原子换位：暂存 → build/Kitnest.app（2026-10-18 v31）
-# 同上：rename 同卷原子，任何时刻 build/ 下的 app 都是完整可启动的；
-# 用户在构建期间双击也只会启动**上一个可用版本**，不会看到"已损坏"。
-# ============================================================================
-mkdir -p "$BUILD_ROOT/.staging"
-rm -rf "$BUILD_ROOT/.staging/old"
-if [ -d "$APP_FINAL" ]; then
-  mv "$APP_FINAL" "$BUILD_ROOT/.staging/old" 2>/dev/null || true
-fi
-if mv "$APP" "$APP_FINAL" 2>/dev/null; then
-  rm -rf "$BUILD_ROOT/.staging/old"
-else
-  echo "  ⚠ 产物换位失败，回滚旧版"
-  [ -d "$BUILD_ROOT/.staging/old" ] && mv "$BUILD_ROOT/.staging/old" "$APP_FINAL"
-  exit 1
-fi
-APP="$APP_FINAL"
-if ! codesign -v --deep --strict "$APP" 2>/dev/null; then
-  echo "  ⚠ 换位后签名校验失败：$APP"
-  exit 1
-fi
-echo "应用包: $APP"
-
-# ============================================================================
 # 部署到固定路径 /Applications（2026-10-18 v31：原子部署）
 #
 # 为什么必须：用户在 Finder 里双击 build/ 下的 app 会踩两个坑——
@@ -356,7 +329,7 @@ if ditto "$APP" "$DEPLOY_STAGE" 2>/dev/null; then
       rm -rf "$DEPLOY_OLD"
       [ -x "$LSREG" ] && "$LSREG" -f "$DEPLOY" >/dev/null 2>&1 || true
       if codesign -v --deep --strict "$DEPLOY" 2>/dev/null; then
-        echo "已部署(原子): ${DEPLOY}（日常从这里打开；build/ 下仅作构建产物）"
+        echo "已部署(原子): ${DEPLOY}（暂存包随构建结束清理）"
       else
         echo "  ⚠ 部署后最终校验失败：$DEPLOY"
       fi
