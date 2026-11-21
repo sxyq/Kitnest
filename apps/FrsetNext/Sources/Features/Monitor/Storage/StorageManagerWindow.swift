@@ -31,7 +31,9 @@ public final class StorageManagerWindowController: NSWindowController, NSWindowD
         win.title = "存储管理"
         win.setContentSize(NSSize(width: 1080, height: 720))
         win.minSize = NSSize(width: 860, height: 560)
-        win.styleMask = [.titled, .closable, .resizable, .miniaturizable]
+        // v268：加 fullSizeContentView——右上工具条要顶到窗口最上沿，
+        // 又不能盖住左上红绿灯（红绿灯是 AppKit 控件，仍在最上层）。
+        win.styleMask = [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView]
         win.titleVisibility = .hidden   // v210 同款：避免标题画到最左压住红绿灯
         win.applyOfficialChrome()
         win.isReleasedWhenClosed = false
@@ -63,6 +65,48 @@ public final class StorageManagerWindowController: NSWindowController, NSWindowD
 }
 
 /// 目录浏览区保留同一滚动监听器，切层动画不重建一次手势的状态。
+/// v268：存储正文几何的唯一口径。
+///
+/// 背景：遮罩用「轮廓左移 12pt」，行宽却用未偏移轮廓再手减 12，
+/// 卡片宽又单独按 0.50W 算——三处比例一旦有人改一处就会互相错位。
+/// 现在全部由这里推导：改 tuck / seam / blobTopAnchor 一处，全局一致。
+struct StorageBodyLayout {
+    let region: CGSize
+    var controlsHeight: CGFloat = 68
+    /// 液面顶边在图框内的横向起点（与目录卡左缘对齐）。
+    var blobTopAnchor: CGFloat = 0.50
+    /// 图顶咬合深度：图上沿藏进目录卡背后多少 pt。
+    var tuck: CGFloat = 6
+    /// 清单与液面之间的呼吸缝（同时是清单 leading 内边距）。
+    var seam: CGFloat = 12
+
+    var mapTop: CGFloat { max(0, controlsHeight - tuck) }
+    var mapSize: CGSize {
+        CGSize(width: region.width, height: max(140, region.height - mapTop))
+    }
+    var listWidth: CGFloat { region.width * 0.48 }
+    var listHeight: CGFloat {
+        controlsHeight + max(0, region.height - controlsHeight) * 0.84
+    }
+    /// 目录卡宽 = 液面顶边左缘 → 卡与图天然连成一整块。
+    var cardWidth: CGFloat { max(220, region.width * blobTopAnchor - 12) }
+
+    var mapOutline: Path {
+        StorageMapShape().path(in: CGRect(x: 0, y: controlsHeight,
+                                          width: region.width,
+                                          height: max(0, region.height - controlsHeight)))
+    }
+    /// 遮罩与行宽共用的轮廓：整体轮廓左移 seam。
+    var seamOutline: Path { mapOutline.offsetBy(dx: -seam, dy: 0) }
+
+    func listMask() -> Path {
+        let bounds = CGPath(rect: CGRect(x: 0, y: 0,
+                                         width: listWidth, height: listHeight),
+                            transform: nil)
+        return Path(bounds.subtracting(seamOutline.cgPath))
+    }
+}
+
 private struct StorageSwipeRegion: NSViewRepresentable {
     let enabled: Bool
     let onNavigate: (Int) -> Void
@@ -294,42 +338,32 @@ struct StorageManagerRootView: View {
         VStack(alignment: .leading, spacing: 8) {
             header.fixedSize(horizontal: false, vertical: true)
             GeometryReader { region in
-                let controlsHeight: CGFloat = 68
-                // v266：目录卡与液态图**咬合**。图顶再上提 10pt 藏到卡片背后，
-                // 卡片（左缘同为 0.48W）正好盖住图顶那条直边与左上尖角，
-                // 露出的只有向下外扩的弧——两块看成一张连续的液面。
-                let mapTop = controlsHeight - 6
-                let mapSize = CGSize(width: region.size.width, height: region.size.height - mapTop)
-                let listSize = CGSize(width: region.size.width * 0.48,
-                                      height: controlsHeight + (region.size.height - controlsHeight) * 0.84)
-                // 清单遮罩按「卡片下沿」算轮廓：图可以躲到卡片后面，
-                // 但不能让遮罩提前啃掉候选卡右下角。
-                let mapOutline = StorageMapShape().path(in: CGRect(x: 0, y: controlsHeight,
-                                                                  width: region.size.width,
-                                                                  height: region.size.height - controlsHeight))
-                let listBounds = CGPath(rect: CGRect(origin: .zero, size: listSize), transform: nil)
-                let listMask = Path(listBounds.subtracting(mapOutline.offsetBy(dx: -12, dy: 0).cgPath))
+                // v268：正文几何的唯一口径。卡片宽、图框、清单宽、遮罩与行宽
+                // 全部从同一个 layout 取值，遮罩和行右界用同一条 seam 轮廓，
+                // 窗口缩放时不会再各算各的。
+                let layout = StorageBodyLayout(region: region.size)
+                let seamSampled = VoronoiTreemap.sampledPoints(layout.seamOutline, spacing: 12)
                 ZStack(alignment: .topLeading) {
                     rightPane
-                        .frame(width: mapSize.width, height: mapSize.height)
+                        .frame(width: layout.mapSize.width, height: layout.mapSize.height)
                         .overlay {
                             StorageSwipeRegion(enabled: !showDataCategories, onNavigate: navigateHistory(by:))
                                 .allowsHitTesting(false)
                         }
-                        .padding(.top, mapTop)
+                        .padding(.top, layout.mapTop)
                     VStack(alignment: .leading, spacing: 8) {
                         candidateControls
-                            .frame(width: listSize.width - 24)
+                            .frame(width: layout.listWidth - layout.seam)
                             .glassCard(radius: Theme.Radius.card)
-                        leftPane(outline: mapOutline)
+                        leftPane(sampledOutline: seamSampled)
                             .glassCard(radius: Theme.Radius.card)
                     }
-                    .frame(width: listSize.width, height: listSize.height)
-                    .mask(listMask)
-                    .contentShape(listMask)
-                    .padding(.leading, 12)
+                    .frame(width: layout.listWidth, height: layout.listHeight)
+                    .mask(layout.listMask())
+                    .contentShape(layout.listMask())
+                    .padding(.leading, layout.seam)
                     mapControls
-                        .frame(width: region.size.width * 0.50 - 12, height: controlsHeight)
+                        .frame(width: layout.cardWidth, height: layout.controlsHeight)
                         .frame(maxWidth: .infinity, alignment: .trailing)
                         .padding(.trailing, 12)
                 }
@@ -338,8 +372,9 @@ struct StorageManagerRootView: View {
                 .clipped()
             }
         }
-        // 最小尺寸由 NSWindow 管理；正文再次设下限会挤出标题栏净空并裁掉顶部。
-        .padding(.top, 12)
+        // v268：fullSizeContentView 后内容从窗口最上沿开始；
+        // 左列由 header 自身的 padding.top 24 让出红绿灯净空，这里只留一点边。
+        .padding(.top, 8)
         .clipped()
         .onAppear {
             refreshDiskSpace()
@@ -416,44 +451,55 @@ struct StorageManagerRootView: View {
     // MARK: 顶部（大数字 + 说明 + 工具条）
 
     private var header: some View {
-        HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(StorageFormat.shortBytes(cleanableBytes))
-                        .font(.system(size: 40, weight: .light).monospacedDigit())
-                    Text("清理候选")
-                        .font(.system(size: 12))
-                        .foregroundStyle(.secondary)
+        ZStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 3) {
+                // 第一视觉层：能腾多少 + 三个占用口径并排。
+                // padding.top 24 是给左上角红绿灯让位的净空（fullSizeContentView 后内容顶到 0）。
+                HStack(alignment: .center, spacing: 16) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        Text(StorageFormat.shortBytes(cleanableBytes))
+                            .font(.system(size: 38, weight: .light).monospacedDigit())
+                        Text("清理候选")
+                            .font(.system(size: 12))
+                            .foregroundStyle(.secondary)
+                    }
+                    miniStat("已索引", store.snapshot?.totalBytes,
+                             help: "本次索引覆盖的字节（区别于整盘实际已用）")
+                    miniStat("整盘已用", volumeUsedBytes,
+                             help: "数据卷实际占用，含索引未覆盖的系统卷 / TCC 保护目录")
+                    miniStat("磁盘可用", diskFreeBytes,
+                             help: "APFS 可用空间")
+                    Spacer(minLength: 8)
                 }
-                Text(headline)
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(2)
+                .padding(.top, 24)
                 if let snap = store.snapshot {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(statusLine(snap))
+                    Text(statusLine(snap))
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.tertiaryText)
+                        .lineLimit(1)
+                        .help(coverageHelp)
+                } else {
+                    Text("尚未建立索引 · 点右上「建立索引」开始，结果保存在本地，平时不占资源")
+                        .font(.system(size: 11))
+                        .foregroundStyle(Theme.tertiaryText)
+                }
+                if !hasFullDiskAccess {
+                    HStack(spacing: 6) {
+                        Text("未获完全磁盘访问权限：沙盒容器 / 邮件 / 照片 / 信息未计入")
                             .font(.system(size: 11))
                             .foregroundStyle(Theme.tertiaryText)
-                            .lineLimit(1)
-                            .help(coverageHelp)
-                        if !hasFullDiskAccess {
-                            HStack(spacing: 6) {
-                                Text("未获完全磁盘访问权限：沙盒容器 / 邮件 / 照片 / 信息未计入")
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(Theme.tertiaryText)
-                                    .lineLimit(2)
-                                Button("去授权") { openFullDiskAccessSettings() }
-                                    .buttonStyle(.plain)
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundStyle(Theme.accent)
-                                    .help("在「系统设置 → 隐私与安全性 → 完全磁盘访问权限」里勾上 Kitnest，"
-                                          + "回来点「重新扫描」即可补全")
-                            }
-                        }
+                            .lineLimit(2)
+                        Button("去授权") { openFullDiskAccessSettings() }
+                            .buttonStyle(.plain)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(Theme.accent)
+                            .help("在「系统设置 → 隐私与安全性 → 完全磁盘访问权限」里勾上 Kitnest，"
+                                  + "回来点「重新扫描」即可补全")
                     }
                 }
             }
-            Spacer(minLength: 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            // 工具条钉在窗口右上角第一行；红绿灯是 AppKit 控件且在左上，互不遮挡。
             HStack(spacing: 6) {
                 toolbarButton("arrow.clockwise", store.snapshot == nil ? "建立索引" : "重新扫描") { store.rescan() }
                     .disabled(store.isScanning)
@@ -461,19 +507,23 @@ struct StorageManagerRootView: View {
                 toolbarButton("gearshape", "设置") { showSettings = true }
             }
             .fixedSize()
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .padding(.leading, 20)
         .padding(.trailing, 12)
-        .padding(.top, 6)
-        .padding(.bottom, 4)
+        .padding(.bottom, 2)
     }
 
-    private var headline: String {
-        guard let snap = store.snapshot else {
-            return "尚未建立索引 · 点「建立索引」开始，结果保存在本地，平时不占资源"
+    /// 顶部第一层的并排小指标（标签在上、数值在下，等宽数字对齐）。
+    private func miniStat(_ title: String, _ bytes: Int64?, help: String) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(title)
+                .font(.system(size: 10))
+                .foregroundStyle(Theme.tertiaryText)
+            Text(bytes.map { StorageFormat.shortBytes($0) } ?? "—")
+                .font(.system(size: 13, weight: .semibold).monospacedDigit())
         }
-        return "已索引 \(StorageFormat.shortBytes(snap.totalBytes))"
-            + " · 共 \(candidates.count) 处可清理位置，其中 \(StorageFormat.shortBytes(safeBytes)) 是常见缓存"
+        .help(help)
     }
 
     private func toolbarButton(_ symbol: String, _ title: String, action: @escaping () -> Void) -> some View {
@@ -577,9 +627,9 @@ struct StorageManagerRootView: View {
         }
     }
 
-    private func leftPane(outline: Path) -> some View {
-        let outline = VoronoiTreemap.sampledPoints(outline, spacing: 12)
-        return VStack(alignment: .leading, spacing: 0) {
+    /// v268：outline 直接传「seam 轮廓」的采样点，行右界与遮罩同源。
+    private func leftPane(sampledOutline outline: [CGPoint]) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
             if candidates.isEmpty {
                 VStack(spacing: 8) {
                     Image(systemName: "checkmark.circle")
@@ -596,7 +646,7 @@ struct StorageManagerRootView: View {
                         ForEach(candidates) { c in
                             GeometryReader { row in
                                 let frame = row.frame(in: .named("storageCanvas"))
-                                let width = max(0, candidateWidth(at: frame.midY, outline: outline) - frame.minX - 12)
+                                let width = max(0, candidateWidth(at: frame.midY, outline: outline) - frame.minX)
                                 StorageCandidateRow(candidate: c, compact: width < 180,
                                                     isSelected: selectedPaths.contains(c.id)) {
                                     if selectedPaths.contains(c.id) { selectedPaths.remove(c.id) }
@@ -642,11 +692,11 @@ struct StorageManagerRootView: View {
                 .controlSize(.small)
                 .frame(width: 120)
                 if !showDataCategories {
-                    Text("两指横滑切换目录")
+                    Text("两指左滑返回 · 右滑前进")
                         .font(.system(size: 10))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
-                        .help("在液态图上左右轻扫：一次手势只切一层，连续往返逐层跟手")
+                        .help("在液态图上横滑：一次手势只切一层，连续往返逐层跟手；竖向滚动不会触发")
                 }
                 Spacer(minLength: 4)
                 if let node = currentNode {
@@ -689,7 +739,7 @@ struct StorageManagerRootView: View {
                         }
                         .buttonStyle(.plain)
                         .disabled(!enabled)
-                        .help(direction < 0 ? "返回上一目录（Esc）" : "前进到下一目录")
+                        .help(direction < 0 ? "返回上一目录（Esc / 两指左滑）" : "前进到下一目录（两指右滑）")
                         .keyboardShortcut(direction < 0 ? "[" : "]", modifiers: .command)
                     }
 

@@ -105,7 +105,7 @@ public final class Personalization: ObservableObject {
     @Published public var material: PersonalizationMaterial = .solid { didSet { persist() } }
     @Published public var showSourceBadge: Bool = true { didSet { persist() } }
     @Published public var thumbOverride: CGFloat? { didSet { persist() } }    // 44/56/72，nil=随密度
-    @Published public var clipboardPreviewScale: CGFloat = 1.5 { didSet { persist() } } // 1.0/1.25/1.5/1.8
+    @Published public var clipboardPreviewScale: CGFloat = 1.6 { didSet { persist() } } // 1.0/1.25/1.6/2.0
     @Published public var toastDuration: TimeInterval = 3 { didSet { persist() } }   // 2/3/5
     @Published public var toastFollowPanel: Bool = false { didSet { persist() } }    // true=跟随主面板；默认屏幕中线偏下
     @Published public var barDividerColorHex: String = "" { didSet { persist() } }  // 空 = 默认
@@ -277,26 +277,29 @@ public final class Personalization: ObservableObject {
         NotificationCenter.default.post(name: Self.didChangeNotification, object: nil)
     }
 
-    /// v266 预览字号迁移（用户：「文字仍然偏小，需要进一步放大」）。
+    /// 预览字号迁移（v266 首轮放大，v269 用户再次要求「进一步放大一点」）。
     ///
-    /// 旧四档 0.9/1.0/1.1/1.25 是在 19.5pt 基准上乘系数，最大只有 24.4pt；
-    /// 新四档 1.0/1.25/1.5/1.8 最大 35pt。旧值按「尽量大」上移，
-    /// 并用版本号保证只迁移一次——否则用户手动选 125% 会在下次启动被再抬一档。
+    /// v2：旧 0.9/1.0/1.1/1.25 → 1.0/1.25/1.5/1.5。
+    /// v3：1.5 → 1.6、1.8 → 2.0（新四档 1.0/1.25/1.6/2.0，默认 1.6）。
+    /// 版本号保证每轮只迁移一次——否则用户手动选的档位会在下次启动被再抬。
     private static func migratedPreviewScale(_ stored: CGFloat?) -> CGFloat {
         let d = UserDefaults.standard
         let version = d.integer(forKey: Preferences.Keys.uiClipboardPreviewScaleVersion)
-        guard let stored, stored > 0 else { return 1.5 }
+        guard let stored, stored > 0 else { return 1.6 }
         var value = stored
         if version < 2 {
             switch stored {
             case ..<0.95: value = 1.0
             case ..<1.05: value = 1.25
-            case ..<1.18: value = 1.5
             default:      value = 1.5
             }
-            d.set(2, forKey: Preferences.Keys.uiClipboardPreviewScaleVersion)
         }
-        return min(1.8, max(1.0, value))
+        if version < 3 {
+            if abs(value - 1.5) < 0.01 { value = 1.6 }
+            if abs(value - 1.8) < 0.01 { value = 2.0 }
+            d.set(3, forKey: Preferences.Keys.uiClipboardPreviewScaleVersion)
+        }
+        return min(2.0, max(1.0, value))
     }
 
     private func load() {
@@ -424,7 +427,7 @@ public final class Personalization: ObservableObject {
         material = .solid
         showSourceBadge = true
         thumbOverride = nil
-        clipboardPreviewScale = 1.5
+        clipboardPreviewScale = 1.6
         toastDuration = 3
         toastFollowPanel = false
         barDividerColorHex = ""

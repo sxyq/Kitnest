@@ -49,7 +49,7 @@ enum PreviewMarkdownRenderer {
     // 所有字号 / 行距 / 段距统一乘此系数；调用方无需改任何数值。
     static var scale: CGFloat {
         let stored = UserDefaults.standard.double(forKey: Preferences.Keys.uiClipboardPreviewScale)
-        let previewScale = stored > 0 ? CGFloat(stored) : 1.5
+        let previewScale = stored > 0 ? CGFloat(stored) : 1.6
         return 1.5 * previewScale
     }
 
