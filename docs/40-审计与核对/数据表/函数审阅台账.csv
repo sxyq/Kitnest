@@ -12,13 +12,12 @@ App,App/AppBootstrap.swift,AppBootstrap,installDoubleTapBindings,func,533,KEEP,r
 App,App/AppBootstrap.swift,AppBootstrap,applyShortcuts,func,548,KEEP,集中保存时注册实际变动动作，组合键批量替换成功后应用双按；冲突返回功能名称并保留原注册
 App,App/AppBootstrap.swift,AppBootstrap,presentDoubleTapCompatibilityTipIfNeeded,func,614,KEEP,setDoubleTap L463 首次开启且无辅助功能权限时提示
 App,App/AppBootstrap.swift,AppBootstrap,shortcutBinding,func,621,KEEP,registerDefaultHotkeys L415 / setDoubleTap L469 / ShortcutSettingsPane:77 / ClipboardSettingsPane:26
-App,App/AppBootstrap.swift,AppBootstrap,setShortcut,func,637,KEEP,ShortcutSettingsPane:118/122 录入或清除组合键
-App,App/AppBootstrap.swift,AppBootstrap,beginScreenshotTranslate,func,652,KEEP,截图翻译热键 L349 与 .frsetScreenshotTranslate 通知 L231
-App,App/AppBootstrap.swift,AppBootstrap,takeScreenshotTranslatePending,func,660,KEEP,onTextRecognized L246 一次性消费挂起标志
-App,App/AppBootstrap.swift,AppBootstrap,translateAndIngest,func,673,KEEP,onTextRecognized L247 / runTranslateSelection L590 翻译并回写剪贴板
-App,App/AppBootstrap.swift,AppBootstrap,runTranslateSelection,func,691,KEEP,划词翻译热键 L361 与 .frsetTranslateSelection 通知 L235
-App,App/AppBootstrap.swift,AppBootstrap,readSelection,func,703,KEEP,命令面板、划词快捷键及刘海展开前读取真实前台AX焦点的SelectedText，拒绝自身前台及密码字段，不取系统剪贴板，返回具体授权或应用选区错误
-App,App/AppBootstrap.swift,AppBootstrap,runSelectionAction,func,749,KEEP,快捷键、命令面板和刘海OCR划词按钮共用已捕获SelectionResult或readSelection；失败Toast，翻译取消旧请求交translateAndIngest，其他动作交正式ToolRunnerWindow自动执行
+App,App/AppBootstrap.swift,AppBootstrap,beginScreenshotTranslate,func,643,KEEP,截图翻译热键 L349 与 .frsetScreenshotTranslate 通知 L231
+App,App/AppBootstrap.swift,AppBootstrap,takeScreenshotTranslatePending,func,651,KEEP,onTextRecognized L246 一次性消费挂起标志
+App,App/AppBootstrap.swift,AppBootstrap,translateAndIngest,func,664,KEEP,onTextRecognized L247 / runTranslateSelection L590 翻译并回写剪贴板
+App,App/AppBootstrap.swift,AppBootstrap,runTranslateSelection,func,682,KEEP,划词翻译热键 L361 与 .frsetTranslateSelection 通知 L235
+App,App/AppBootstrap.swift,AppBootstrap,readSelection,func,694,KEEP,命令面板、划词快捷键及刘海展开前读取真实前台AX焦点的SelectedText，拒绝自身前台及密码字段，不取系统剪贴板，返回具体授权或应用选区错误
+App,App/AppBootstrap.swift,AppBootstrap,runSelectionAction,func,740,KEEP,快捷键、命令面板和刘海OCR划词按钮共用已捕获SelectionResult或readSelection；失败Toast，翻译取消旧请求交translateAndIngest，其他动作交正式ToolRunnerWindow自动执行
 App,App/FrsetNextApp.swift,AppDelegate,applicationDidFinishLaunching,func,33,KEEP,NSApplicationDelegate启动回调；启动日志与更新探针只记阶段和凭据是否提供，不记更新URL或校验值
 App,App/FrsetNextApp.swift,AppDelegate,enforceSingleMenubarOwner,func,80,KEEP,applicationDidFinishLaunching L37 调用；同 bundle 多实例退出 + 原版并存提示
 App,App/FrsetNextApp.swift,AppDelegate,applicationShouldTerminate,func,104,KEEP,2026-11-20：系统退出回调先取得原归档任务确认结果，再由更新器处理待安装交接；取消时不启动替换，替换程序启动失败也保留当前进程
@@ -49,19 +48,19 @@ Core,Core/Motion/GenieWarp.swift,GenieWarp,playIn,func,240,KEEP,2026-11-19：已
 Core,Core/Motion/GenieWarp.swift,GenieWarp,playOut,func,248,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；PanelController.swift:362 调用
 Core,Core/Motion/GenieWarp.swift,GenieWarp,cancel,func,253,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；PanelController:207,342 / play:258"
 Core,Core/Motion/GenieWarp.swift,GenieWarp,play,func,272,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；playIn与playOut共用入口；同一窗口反向请求交switchDirection复用现有帧序列，新动画采用probe.genieDuration或duration(for:)并预渲染后交startLeg；现有展开/收起日志追加self.duration×1000的实际播放毫秒
-Core,Core/Motion/GenieWarp.swift,GenieWarp,currentPosition,func,477,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v244 反向播放：当前播放位置
-Core,Core/Motion/GenieWarp.swift,GenieWarp,startLeg,func,485,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v244 新增：从指定帧播一腿，playIn/playOut/switchDirection 调用
-Core,Core/Motion/GenieWarp.swift,GenieWarp,switchDirection,func,533,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v244 新增：反向复用帧序列；play() 打断分支调用
-Core,Core/Motion/GenieWarp.swift,GenieWarp,stopWatchdog,func,548,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；cancel:227 / finish:413
-Core,Core/Motion/GenieWarp.swift,GenieWarp,finish,func,553,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；watchdog Timer:399 回调
-Core,Core/Motion/GenieWarp.swift,GenieWarp,teardownOverlay,func,586,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；cancel:228 / finish:417
-Core,Core/Motion/GenieWarp.swift,GenieWarp,isBlank,func,595,KEEP,2026-11-21：play在快照后调用；24×24 RGB 缩略图逐像素与首色比较，RGB差异即判非空白、全相同判空白
-Core,Core/Motion/GenieWarp.swift,GenieWarp,easeExponent,func,614,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v244 新增：缓动指数读取，帧采样循环外调用
-Core,Core/Motion/GenieWarp.swift,GenieWarp,pixelScale,func,621,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:291,300 帧内存预算"
-Core,Core/Motion/GenieWarp.swift,GenieWarp,downscale,func,630,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:293 快照降采样
-Core,Core/Motion/GenieWarp.swift,GenieWarp,heldProgress,func,644,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:305 probe.genieHold 定格
-Core,Core/Motion/GenieWarp.swift,GenieWarp,snapshot,func,650,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:246,251 抓窗口快照"
-Core,Core/Motion/GenieWarp.swift,GenieWarp,local,func,676,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:273,274 坐标换算"
+Core,Core/Motion/GenieWarp.swift,GenieWarp,currentPosition,func,476,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v244 反向播放：当前播放位置
+Core,Core/Motion/GenieWarp.swift,GenieWarp,startLeg,func,484,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v244 新增：从指定帧播一腿，playIn/playOut/switchDirection 调用
+Core,Core/Motion/GenieWarp.swift,GenieWarp,switchDirection,func,532,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v244 新增：反向复用帧序列；play() 打断分支调用
+Core,Core/Motion/GenieWarp.swift,GenieWarp,stopWatchdog,func,547,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；cancel:227 / finish:413
+Core,Core/Motion/GenieWarp.swift,GenieWarp,finish,func,552,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；watchdog Timer:399 回调
+Core,Core/Motion/GenieWarp.swift,GenieWarp,teardownOverlay,func,585,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；cancel:228 / finish:417
+Core,Core/Motion/GenieWarp.swift,GenieWarp,isBlank,func,594,KEEP,2026-11-21：play在快照后调用；24×24 RGB 缩略图逐像素与首色比较，RGB差异即判非空白、全相同判空白
+Core,Core/Motion/GenieWarp.swift,GenieWarp,easeExponent,func,613,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v244 新增：缓动指数读取，帧采样循环外调用
+Core,Core/Motion/GenieWarp.swift,GenieWarp,pixelScale,func,620,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:291,300 帧内存预算"
+Core,Core/Motion/GenieWarp.swift,GenieWarp,downscale,func,629,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:293 快照降采样
+Core,Core/Motion/GenieWarp.swift,GenieWarp,heldProgress,func,643,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:305 probe.genieHold 定格
+Core,Core/Motion/GenieWarp.swift,GenieWarp,snapshot,func,649,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:246,251 抓窗口快照"
+Core,Core/Motion/GenieWarp.swift,GenieWarp,local,func,675,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:273,274 坐标换算"
 Core,Core/Motion/PanelMotion.swift,PanelMotion,animation,func,34,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v243 新增：PanelRootView:704/735、MonitorDetailView:101 调用
 Core,Core/Motion/PanelMotion.swift,PanelMotion,transition,func,39,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v243 新增：panel 四处 page transition 调用
 Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,init,init,32,KEEP,2026-11-20：私有构造仅供shared单例，原启动轮询与手动更新共用同一清单及待安装交接
@@ -2554,42 +2553,38 @@ Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,applyPrefe
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,scheduleNext,func,187,KEEP,2026-11-20：取消旧定时任务，在采样队列延时执行；执行前读取总开关，采样后按当前界面可见性安排下一帧
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,sampleOnce,func,212,KEEP,2026-11-20：优先使用有效 C 快照，补深层指标及时间轴；轮换同一组历史缓冲，在 MonitorExtra 的锁内合并峰值，主队列发布当前值与历史
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,resetHistory,func,347,KEEP,2026-11-20：监测设置的清空按钮调用，锁内重置环形缓冲与两份快照，重置补充指标后发布空历史
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,init,init,72,KEEP,2026-11-20：shared 唯一构造，从空应用及网卡历史开始；启动由 MonitorModule 决定
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,applyKeepAlivePreference,func,88,KEEP,2026-11-20：MonitorModule 启动和 MonitorSampler 原偏好观察者共用；两个开关均开启时首采并启用 5 秒定时器，任一关闭时取消
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,backgroundTick,func,105,KEEP,2026-11-21：首拍及5秒定时器只向MonitorSampler现有采样队列派发；任务内读取偏好，启用时读取nettop及有效网卡快照并交两个累计入口；与refresh串行共用进程缓冲和排序次序，不在主线程聚合或等待采样锁
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,ingestApps,func,122,KEEP,2026-11-21：后台定时器与StatsDataProvider共用原时间及总量判重；持锁在apps字典内直接更新元数据与追加历史，移除局部AppState共享samples再写回造成的数组复制；600秒裁剪及超200保留120项沿原实现
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,ingestNIC,func,162,KEEP,2026-11-20：NetworkPulse 及后台定时器输入整机上下行速率，间隔不足 0.4 秒跳过，整机总量供未归属流量计算
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,snapshot,func,191,KEEP,2026-11-20：正式监测网络页读取；锁内裁剪并取得快照，锁外累计并按总字节排序，保留实际覆盖时长
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,reset,func,227,KEEP,2026-11-20：设置页清空正式监测历史时加锁进入 resetLocked
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,resetLocked,func,234,KEEP,2026-11-20：手动清空及应用或网卡采样间断超过 120 秒时清除历史和计时状态
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,prune,func,245,KEEP,2026-11-20：读写历史共用 600 秒截止；网卡移除旧读数，应用部分过期裁去前段、全部过期移除项目
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,trimApps,func,258,KEEP,2026-11-20：应用数超过 200 时按窗口累计字节排序并保留前 120 个，限制常驻历史
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,sanitize,func,264,KEEP,2026-11-20：应用与网卡共用，把非有限、非正及超上限的速率转成零
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowIcon,icon,func,279,KEEP,2026-11-20：正式流量图根据可执行路径取得图标；按路径缓存最多 64 项，设置预设预览不访问图标
-Monitor,Features/Monitor/Sampling/NetworkPulse.swift,NetworkPulse,activate,func,43,KEEP,MonitorDetailView.swift:636 onAppear
-Monitor,Features/Monitor/Sampling/NetworkPulse.swift,NetworkPulse,deactivate,func,57,KEEP,MonitorDetailView.swift:637 onDisappear
-Monitor,Features/Monitor/Sampling/NetworkPulse.swift,NetworkPulse,sample,func,64,KEEP,activate:47 首帧 + 定时器:49
-Monitor,Features/Monitor/Sampling/NetworkPulse.swift,NetworkPulse,append,func,77,KEEP,sample:69-70
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,init,init,71,KEEP,2026-11-20：shared 唯一构造，从空应用及网卡历史开始；启动由 MonitorModule 决定
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,applyKeepAlivePreference,func,87,KEEP,2026-11-20：MonitorModule 启动和 MonitorSampler 原偏好观察者共用；两个开关均开启时首采并启用 5 秒定时器，任一关闭时取消
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,backgroundTick,func,104,KEEP,2026-11-21：首拍及5秒定时器只向MonitorSampler现有采样队列派发；任务内读取偏好，启用时读取nettop及有效网卡快照并交两个累计入口；与refresh串行共用进程缓冲和排序次序，不在主线程聚合或等待采样锁
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,ingestApps,func,121,KEEP,2026-11-21：后台定时器与StatsDataProvider共用原时间及总量判重；持锁在apps字典内直接更新元数据与追加历史，移除局部AppState共享samples再写回造成的数组复制；600秒裁剪及超200保留120项沿原实现
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,ingestNIC,func,161,KEEP,2026-11-20：NetworkPulse 及后台定时器输入整机上下行速率，间隔不足 0.4 秒跳过，整机总量供未归属流量计算
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,snapshot,func,190,KEEP,2026-11-20：正式监测网络页读取；锁内裁剪并取得快照，锁外累计并按总字节排序，保留实际覆盖时长
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,reset,func,226,KEEP,2026-11-20：设置页清空正式监测历史时加锁进入 resetLocked
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,resetLocked,func,233,KEEP,2026-11-20：手动清空及应用或网卡采样间断超过 120 秒时清除历史和计时状态
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,prune,func,244,KEEP,2026-11-20：读写历史共用 600 秒截止；网卡移除旧读数，应用部分过期裁去前段、全部过期移除项目
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,trimApps,func,257,KEEP,2026-11-20：应用数超过 200 时按窗口累计字节排序并保留前 120 个，限制常驻历史
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,sanitize,func,263,KEEP,2026-11-20：应用与网卡共用，把非有限、非正及超上限的速率转成零
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowIcon,icon,func,278,KEEP,2026-11-20：正式流量图根据可执行路径取得图标；按路径缓存最多 64 项，设置预设预览不访问图标
 Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsProcItem,init,init,37,KEEP,readProcList:677、684 构造聚合行
 Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsSnapshot,init,init,170,KEEP,storage 初值 StatsDataProvider.swift:180
 Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,init,init,216,KEEP,私有 init，shared:174
 Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,refresh,func,234,KEEP,2026-11-21：MonitorSampler.sampleOnce在采样队列调用；逐项核实9组C同步输出不保留地址后改用局部标量或结构体传址，成功及失败判定与分档节拍保持；GPU型号缓存及连通历史双缓冲沿用，名称查询省去未读取的分组输出
 Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,readProcList,func,539,KEEP,2026-11-21：refresh及网络backgroundTick已统一在MonitorSampler采样队列，移除原缓冲锁；仍复用512项缓冲及上轮组序，按原宿主路径分组并在字典内累加指标与追加kids；原分桶排序和前8组子进程明细保持
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,appBundlePath,func,673,KEEP,readProcList:598、BatteryEnergy.swift:121
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,appDisplayName,func,683,KEEP,readProcList:613、BatteryEnergy.swift:124
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,readFans,func,704,KEEP,refresh:523
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,primaryInterfaceName,func,731,KEEP,refresh:451
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,genericSensorName,func,744,KEEP,refresh:483 未收录键回落名
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,railFamilyName,func,756,KEEP,refresh:480、sensorDisplayName:807
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,sensorDisplayName,func,769,KEEP,2026-11-21：MonitorWidgetsPane传感器选择器调用；官方名优先，其次供电轨和首字母类别；frset_sensor_name接受nil分组输出，移除无读取变量而不改显示名
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,voltage,func,792,KEEP,MonitorDetailView.swift:1176
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,amperage,func,797,KEEP,MonitorDetailView.swift:1177
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,watts,func,802,KEEP,MonitorDetailView.swift:1178
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,wattHours,func,807,KEEP,MonitorDetailView.swift:1179
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,rpm,func,812,KEEP,MonitorDetailView:1021、StatsModulePanels:1258
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,ms,func,817,KEEP,MonitorDetailView:723/724、StatsModulePanels:1016/1017
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,capacity,func,822,KEEP,BatteryPanel.swift:221、224
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,remaining,func,827,KEEP,BatteryPanel.swift:100 预计剩余时间
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,appBundlePath,func,676,KEEP,readProcList:598、BatteryEnergy.swift:121
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,appDisplayName,func,686,KEEP,readProcList:613、BatteryEnergy.swift:124
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,readFans,func,707,KEEP,refresh:523
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,primaryInterfaceName,func,734,KEEP,refresh:451
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,genericSensorName,func,747,KEEP,refresh:483 未收录键回落名
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,railFamilyName,func,759,KEEP,refresh:480、sensorDisplayName:807
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,sensorDisplayName,func,772,KEEP,2026-11-21：MonitorWidgetsPane传感器选择器调用；官方名优先，其次供电轨和首字母类别；frset_sensor_name接受nil分组输出，移除无读取变量而不改显示名
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,voltage,func,795,KEEP,MonitorDetailView.swift:1176
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,amperage,func,800,KEEP,MonitorDetailView.swift:1177
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,watts,func,805,KEEP,MonitorDetailView.swift:1178
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,wattHours,func,810,KEEP,MonitorDetailView.swift:1179
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,rpm,func,815,KEEP,MonitorDetailView:1021、StatsModulePanels:1258
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,ms,func,820,KEEP,MonitorDetailView:723/724、StatsModulePanels:1016/1017
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,capacity,func,825,KEEP,BatteryPanel.swift:221、224
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,remaining,func,830,KEEP,BatteryPanel.swift:100 预计剩余时间
 Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,module,func,20,KEEP,openMonitor:266
 Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,start,func,39,KEEP,MonitorModule.swift:32；开关观察者:178 重启
 Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,stop,func,160,KEEP,MonitorModule.swift:51；开关观察者:181 立即停
@@ -2806,11 +2801,11 @@ Monitor,Features/Monitor/Views/MonitorFormat.swift,MonitorFormat,percent,func,43
 Monitor,Features/Monitor/Views/MonitorFormat.swift,MonitorFormat,temperature,func,49,KEEP,2026-11-21：MonitorDetailView的CPU与GPU温度传感器列表消费；沿原整度及度数字符显示
 Monitor,Features/Monitor/Views/MonitorFormat.swift,MonitorFormat,load,func,54,KEEP,2026-11-21：MonitorDetailView每核负载及负载卡片消费；有限值保留两位小数，非有限值显示0
 Monitor,Features/Monitor/Views/MonitorFormat.swift,MonitorFormat,power,func,59,KEEP,2026-11-21：MonitorDetailView功率传感器与MonitorTrendData图例消费；非负有限值以W显示，100W起取整，其余保留一位
-Monitor,Features/Monitor/Views/MonitorNetworkViews.swift,MonitorNetworkThroughputCard,stat,func,94,KEEP,同文件:34、36 body 调用
-Monitor,Features/Monitor/Views/MonitorNetworkViews.swift,MonitorNetworkThroughputCard,endpointDots,func,125,KEEP,同文件:57 body 调用
-Monitor,Features/Monitor/Views/MonitorNetworkViews.swift,MonitorNetworkThroughputCard,dot,func,138,KEEP,同文件:128、130 调用
-Monitor,Features/Monitor/Views/MonitorNetworkViews.swift,MonitorChartScale,robustPeak,func,153,KEEP,同文件:31 body 量程计算
-Monitor,Features/Monitor/Views/MonitorNetworkViews.swift,MonitorChartScale,niceCeiling,func,162,KEEP,同文件:30、MonitorDetailView:791 调用
+Monitor,Features/Monitor/Views/MonitorNetworkViews.swift,MonitorNetworkThroughputCard,stat,func,79,KEEP,同文件:34、36 body 调用
+Monitor,Features/Monitor/Views/MonitorNetworkViews.swift,MonitorNetworkThroughputCard,endpointDots,func,110,KEEP,同文件:57 body 调用
+Monitor,Features/Monitor/Views/MonitorNetworkViews.swift,MonitorNetworkThroughputCard,dot,func,123,KEEP,同文件:128、130 调用
+Monitor,Features/Monitor/Views/MonitorNetworkViews.swift,MonitorChartScale,robustPeak,func,138,KEEP,同文件:31 body 量程计算
+Monitor,Features/Monitor/Views/MonitorNetworkViews.swift,MonitorChartScale,niceCeiling,func,147,KEEP,同文件:30、MonitorDetailView:791 调用
 Monitor,Features/Monitor/Views/PortInspector.swift,PortInspector,init,init,81,KEEP,单例 shared:54；PortOccupancySection:14 使用
 Monitor,Features/Monitor/Views/PortInspector.swift,PortInspector,start,func,86,KEEP,PortOccupancySection.swift:57 onAppear 调用
 Monitor,Features/Monitor/Views/PortInspector.swift,PortInspector,stop,func,100,KEEP,PortOccupancySection.swift:58 onDisappear 调用
@@ -3094,9 +3089,9 @@ Panel,Features/Panel/Preview/PanelPreviewPreferences.swift,PreviewPopoverDataBri
 Panel,Features/Panel/Preview/PanelPreviewPreferences.swift,PreviewPopoverDataBridge,richTextAttributed,func,88,KEEP,PreviewPopoverContentModel:152/163
 Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,init,init,37,KEEP,static shared :17 构造
 Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,loadImage,func,49,KEEP,PreviewPopoverContentView:932 起异步加载图片
-Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,detectQRCode,func,88,KEEP,PreviewPopoverContentView:950
-Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,cacheKey,func,99,KEEP,loadImage :53 调用
-Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,decode,func,104,KEEP,loadImage 解码队列 :75
+Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,detectQRCode,func,93,KEEP,PreviewPopoverContentView:950
+Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,cacheKey,func,104,KEEP,loadImage :53 调用
+Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,decode,func,109,KEEP,loadImage 解码队列 :75
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,s,func,53,KEEP,内部字号缩放辅助，全文 20+ 处调用
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderBody,func,60,KEEP,PreviewPopoverContentView:389/511
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,parseSourced,func,88,KEEP,renderBody :93 与 parse :118
@@ -3549,36 +3544,35 @@ StatusBar,Features/StatusBar/StatisticsWindowController.swift,StatisticsWindowCo
 StatusBar,Features/StatusBar/StatisticsWindowController.swift,StatisticsWindowController,installContent,func,43,KEEP,调用方 init:41 与 openStatistics:64
 StatusBar,Features/StatusBar/StatisticsWindowController.swift,StatisticsWindowController,openStatistics,func,63,KEEP,FrsetNextApp:150、PanelRootView:336、StatusBarController:203
 StatusBar,Features/StatusBar/StatisticsWindowController.swift,StatisticsWindowController,windowWillClose,func,82,KEEP,NSWindowDelegate 回调（delegate=self :40），AppKit 派发
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,init,init,28,KEEP,shared:22 初始化，经 StatusBarModule.swift:11 install() 触达
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,install,func,33,KEEP,调用方 StatusBarModule.swift:11
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,performInstall,func,41,KEEP,调用方 install:36/38
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,installMainItem,func,53,KEEP,调用方 performInstall:45
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,setMainItemLength,func,99,KEEP,调用方 MenuBarIconStyle.swift:425/430/440
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,statusItemName,func,112,KEEP,调用方 installMainItem:66/68
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,mainItemClicked,func,116,KEEP,@objc；#selector installMainItem:75（左/右键 action）
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openPanelAction,func,132,KEEP,@objc；#selector StatusBarMenuBuilder.swift:95
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openSettingsAction,func,137,KEEP,@objc；#selector StatusBarMenuBuilder.swift:102
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openFavoritesAction,func,138,KEEP,状态栏全局收藏菜单项打开共享收藏窗口
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openIslandAction,func,139,KEEP,菜单栏刘海工作台Selector只交唯一IslandController.shared.open，不另建展示窗口
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,updatePauseBadge,func,141,KEEP,按剪贴板暂停状态更新菜单栏徽标和图标提示文字
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,pauseRecordingAction,func,146,KEEP,根据菜单项分钟数恢复记录、定时暂停或暂停至手动恢复
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openMonitorSettingsAction,func,151,KEEP,@objc；#selector StatusBarMenuBuilder.swift:107
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openArchiveTasksAction,func,156,KEEP,@objc；#selector StatusBarMenuBuilder.swift:113
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openFloatingClipboardAction,func,165,KEEP,@objc；#selector StatusBarMenuBuilder.swift:119
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,toggleCurtainAction,func,171,KEEP,菜单栏「图帘」项：发 curtainToggleRequested，与快捷键/设置页同一入口
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showOnboardingAction,func,176,KEEP,@objc；#selector StatusBarMenuBuilder.swift:123
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showTutorialAction,func,180,KEEP,菜单栏教程入口先返回欢迎页任务列表，再展示同一欢迎窗
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,checkForUpdatesAction,func,186,KEEP,@objc；#selector StatusBarMenuBuilder.swift:132
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,toggleMonitorModuleAction,func,192,KEEP,@objc；#selector StatusBarMenuBuilder.swift:153
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showStatisticsAction,func,199,KEEP,@objc；#selector :140，亦为 frset.openStatistics 观察者:48
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,quitAction,func,203,KEEP,@objc；#selector StatusBarMenuBuilder.swift:176
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,popoverDidClose,func,209,KEEP,NSPopoverDelegate 回调（delegate=self :139）；KEEP 名单
-StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,entriesSignature,func,51,KEEP,调用方 mainMenu:61（私有）
-StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,mainMenu,func,62,KEEP,调用方 StatusBarController.swift:117（右键点击）
-StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,refreshPauseMenu,func,84,KEEP,刷新暂停菜单状态，提供立即恢复及 5、15、30 分钟和手动暂停选项
-StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,buildMenu,func,103,KEEP,调用方 mainMenu:74（缓存未命中/结构变化）
-StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,customIconSubmenu,func,228,KEEP,调用方 buildMenu:167
-StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,item,func,238,KEEP,调用方 buildMenu 内多处（:92/:99/:106 等）
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,init,init,27,KEEP,shared:22 初始化，经 StatusBarModule.swift:11 install() 触达
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,install,func,32,KEEP,调用方 StatusBarModule.swift:11
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,performInstall,func,40,KEEP,调用方 install:36/38
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,installMainItem,func,52,KEEP,调用方 performInstall:45
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,setMainItemLength,func,98,KEEP,调用方 MenuBarIconStyle.swift:425/430/440
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,statusItemName,func,108,KEEP,调用方 installMainItem:66/68
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,mainItemClicked,func,112,KEEP,@objc；#selector installMainItem:75（左/右键 action）
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openPanelAction,func,128,KEEP,@objc；#selector StatusBarMenuBuilder.swift:95
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openSettingsAction,func,133,KEEP,@objc；#selector StatusBarMenuBuilder.swift:102
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openFavoritesAction,func,134,KEEP,状态栏全局收藏菜单项打开共享收藏窗口
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openIslandAction,func,135,KEEP,菜单栏刘海工作台Selector只交唯一IslandController.shared.open，不另建展示窗口
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,updatePauseBadge,func,137,KEEP,按剪贴板暂停状态更新菜单栏徽标和图标提示文字
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,pauseRecordingAction,func,142,KEEP,根据菜单项分钟数恢复记录、定时暂停或暂停至手动恢复
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openMonitorSettingsAction,func,147,KEEP,@objc；#selector StatusBarMenuBuilder.swift:107
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openArchiveTasksAction,func,152,KEEP,@objc；#selector StatusBarMenuBuilder.swift:113
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openFloatingClipboardAction,func,161,KEEP,@objc；#selector StatusBarMenuBuilder.swift:119
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,toggleCurtainAction,func,167,KEEP,菜单栏「图帘」项：发 curtainToggleRequested，与快捷键/设置页同一入口
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showOnboardingAction,func,172,KEEP,@objc；#selector StatusBarMenuBuilder.swift:123
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showTutorialAction,func,176,KEEP,菜单栏教程入口先返回欢迎页任务列表，再展示同一欢迎窗
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,checkForUpdatesAction,func,182,KEEP,@objc；#selector StatusBarMenuBuilder.swift:132
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,toggleMonitorModuleAction,func,188,KEEP,@objc；#selector StatusBarMenuBuilder.swift:153
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showStatisticsAction,func,195,KEEP,@objc；#selector :140，亦为 frset.openStatistics 观察者:48
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,quitAction,func,199,KEEP,@objc；#selector StatusBarMenuBuilder.swift:176
+StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,entriesSignature,func,39,KEEP,调用方 mainMenu:61（私有）
+StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,mainMenu,func,50,KEEP,调用方 StatusBarController.swift:117（右键点击）
+StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,refreshPauseMenu,func,66,KEEP,刷新暂停菜单状态，提供立即恢复及 5、15、30 分钟和手动暂停选项
+StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,buildMenu,func,85,KEEP,调用方 mainMenu:74（缓存未命中/结构变化）
+StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,customIconItem,func,204,KEEP,调用方 buildMenu:167
+StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,item,func,213,KEEP,调用方 buildMenu 内多处（:92/:99/:106 等）
 StatusBar,Features/StatusBar/StatusBarModule.swift,StatusBarModule,start,func,10,KEEP,AppModule 协议；AppBootstrap.swift:25 注册，startAll:34 派发
 StatusBar,Features/StatusBar/StatusItemDropProxy.swift,StatusItemDropProxy,init,init,14,KEEP,在状态栏按钮上加透明覆盖层并注册 fileURL 拖放（按钮不可子类化）
 StatusBar,Features/StatusBar/StatusItemDropProxy.swift,StatusItemDropProxy,init,init,21,KEEP,在状态栏按钮上加透明覆盖层并注册 fileURL 拖放（按钮不可子类化）
@@ -3633,13 +3627,13 @@ Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,toggleS
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,refreshLanguage,func,376,KEEP,语言通知到达时用本窗口原选区重建普通及斜杠命令目录，再沿原搜索词refilter；不重建窗口或清输入
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,refilter,func,383,KEEP,2026-11-20：输入变化先重置选中项；斜杠按完全前缀和模糊分数排序，普通按标题匹配，空查询直接发布原目录
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,publish,func,434,KEEP,2026-11-20：refilter共用结果出口，仅id序列变化时写Published列表，避免同一目录重复绘制
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,move,func,440,KEEP,2026-11-20：键盘上下键只在非空结果内夹取选中索引，列表监听随后滚动到该项
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,executeSelected,func,445,KEEP,2026-11-20：回车和点击共用；取有效选中项后先关闭原面板，再执行该项保存的业务动作
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcher,makeNSView,func,648,KEEP,2026-11-20：SwiftUI宿主首次创建KeyEventCatcherView并传当前处理闭包；监视器由视图挂窗时安装
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcher,updateNSView,func,654,KEEP,2026-11-20：SwiftUI状态变化时替换现有视图的处理闭包，不重复安装NSEvent监视
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcherView,viewDidMoveToWindow,func,663,KEEP,2026-11-20：进入窗口且无句柄时安装本地按键监听，只消费所属窗口已处理按键；离开窗口移除监听并清句柄
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcherView,deinit,deinit,676,KEEP,2026-11-20：视图释放时移除尚存本地按键监听，与挂窗离开处理共用同一可空句柄
-Toolbox,Features/Toolbox/Search/CommandPalette.swift,Array,subscript,subscript,684,KEEP,2026-11-20：选中项变化触发滚动定位时按indices取可选元素，结果目录变化后不访问越界项
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,move,func,443,KEEP,2026-11-20：键盘上下键只在非空结果内夹取选中索引，列表监听随后滚动到该项
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandPaletteState,executeSelected,func,448,KEEP,2026-11-20：回车和点击共用；取有效选中项后先关闭原面板，再执行该项保存的业务动作
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcher,makeNSView,func,651,KEEP,2026-11-20：SwiftUI宿主首次创建KeyEventCatcherView并传当前处理闭包；监视器由视图挂窗时安装
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcher,updateNSView,func,657,KEEP,2026-11-20：SwiftUI状态变化时替换现有视图的处理闭包，不重复安装NSEvent监视
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcherView,viewDidMoveToWindow,func,666,KEEP,2026-11-20：进入窗口且无句柄时安装本地按键监听，只消费所属窗口已处理按键；离开窗口移除监听并清句柄
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcherView,deinit,deinit,679,KEEP,2026-11-20：视图释放时移除尚存本地按键监听，与挂窗离开处理共用同一可空句柄
+Toolbox,Features/Toolbox/Search/CommandPalette.swift,Array,subscript,subscript,687,KEEP,2026-11-20：选中项变化触发滚动定位时按indices取可选元素，结果目录变化后不访问越界项
 Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,init,init,65,KEEP,2026-11-20：shared唯一私有构造，初始化本身不扫描；SearchSectionView计算属性及其state订阅会取得单例，旧注释称面板不走初始化失实
 Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,ensureReady,func,76,KEEP,2026-11-20：搜索调度及建立按钮调用，ready或building直接返回，先尝试loadFromDisk，失败交既有后台build；非路径文件搜索才需要该索引
 Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,preloadIfCached,func,88,KEEP,2026-11-20：正式搜索面板onAppear调用，只在absent时尝试映射已存索引，缺失保持absent不遍历磁盘
