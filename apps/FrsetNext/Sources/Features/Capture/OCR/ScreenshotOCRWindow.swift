@@ -722,6 +722,7 @@ public final class ScreenshotOCRWindowController: NSObject, NSWindowDelegate {
                       self.window === win else { return }
                 self.translated = (source: text, result: result)
                 win.setTranslatedText(result)
+                Toast.show("翻译完成 · \(TranslationToolSession.shared.lastUsedProviderName)", icon: "character.book.closed")
                 Log.info("Capture", "截图翻译完成：\(text.count) 字符 → \(result.count) 字符")
             } catch {
                 guard let win, !Task.isCancelled, self.translationGeneration == generation,

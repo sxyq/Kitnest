@@ -39,7 +39,7 @@ private struct WorkflowSettingsContent: View {
     var body: some View {
         SettingsSection("工作流") {
             SettingsGroupBox {
-                Text("截图落盘后自动执行。步骤按顺序跑，后面的步骤能用到前面识别出的文字与上传得到的图片链接；某一步失败只记日志，不影响截图本身。")
+                Text("截图落盘后按顺序执行。失败时会暂停后续步骤，保留截图并允许只重试失败步骤。GitHub 和 Linear 凭证保存在系统钥匙串。")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .padding(.top, 8)
@@ -59,7 +59,7 @@ private struct WorkflowSettingsContent: View {
                         workflows.append(CaptureWorkflow(name: "工作流 \(workflows.count + 1)"))
                     }
                     .controlSize(.small)
-                    Text("Token 存在 ~/Library/Application Support/Kitnest/workflows/workflows.json（权限 600）")
+                    Text("工作流配置保存在本机；服务凭证使用系统钥匙串。")
                         .font(.system(size: 10.5))
                         .foregroundStyle(.secondary)
                     Spacer(minLength: 0)
@@ -129,10 +129,16 @@ private struct WorkflowSettingsContent: View {
                     .font(.system(size: 11))
                     .frame(maxWidth: 230)
                 if !titles.1.isEmpty {
-                    TextField(titles.1, text: stepBinding(workflow, step, \.b))
-                        .textFieldStyle(.roundedBorder)
-                        .font(.system(size: 11, design: .monospaced))
-                        .frame(maxWidth: 170)
+                    Group {
+                        if stepValue.kind == .github || stepValue.kind == .linear {
+                            SecureField(titles.1, text: stepBinding(workflow, step, \.b))
+                        } else {
+                            TextField(titles.1, text: stepBinding(workflow, step, \.b))
+                        }
+                    }
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 11, design: .monospaced))
+                    .frame(maxWidth: 170)
                 }
             }
 

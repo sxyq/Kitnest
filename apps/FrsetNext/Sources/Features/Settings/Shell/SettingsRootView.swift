@@ -162,6 +162,8 @@ struct SettingsRootView: View {
             panePage { GeneralSettingsPane(section: .personalization) }
         case .generalMenuBar:
             panePage { GeneralSettingsPane(section: .menuBar) }
+        case .floatingBall:
+            panePage { FloatingBallSettingsPane() }
         case .menuBarArrangement:
             panePage { GeneralSettingsPane(section: .menuBarArrangement) }
         case .generalNotifications:

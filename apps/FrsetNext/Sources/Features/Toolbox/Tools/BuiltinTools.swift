@@ -56,7 +56,8 @@ public enum BuiltinTools {
         ) { input, _ in
             do {
                 if kind == .translation {
-                    return ToolOutput(text: try await TranslationToolSession.shared.complete(input))
+                    let translated = try await TranslationToolSession.shared.complete(input)
+                    return ToolOutput(text: translated, note: "服务：\(TranslationToolSession.shared.lastUsedProviderName)")
                 }
                 guard let service = ServiceLocator.llmService else {
                     return .error("请先配置 AI 服务商")

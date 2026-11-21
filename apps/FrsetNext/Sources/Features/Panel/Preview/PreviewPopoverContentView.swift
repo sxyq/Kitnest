@@ -17,6 +17,7 @@ public struct PreviewPopoverContentView: View {
     /// 「按代码看」：用户手动把 Markdown / JSON / 纯文本强制切到代码视图
     var forceCode: Bool = false
     var usesWindowChrome = true
+    var showsTOC = true
 
     @ViewBuilder
     public var body: some View {
@@ -43,9 +44,9 @@ public struct PreviewPopoverContentView: View {
             case .text:
                 PreviewTextContentView(text: model.inlineText)
             case .fileBackedText:
-                PreviewFileBackedTextView(model: model)
+                PreviewFileBackedTextView(model: model, showsTOC: showsTOC)
             case .markdown:
-                PreviewMarkdownTextView(model: model)
+                PreviewMarkdownTextView(model: model, showsTOC: showsTOC)
             case .json:
                 PreviewJSONTextView(model: model)
             case .code:
@@ -386,6 +387,7 @@ struct PreviewFileBackedTextView: View {
     }
 
     let model: PreviewPopoverContentModel
+    var showsTOC = true
     @Stored private var loadState: LoadState = .loading
 
     var body: some View {
@@ -395,7 +397,7 @@ struct PreviewFileBackedTextView: View {
                 PreviewLoadingIndicator(delay: MainPanelPreviewPopoverCoordinator.shared.previewLoadingIndicatorDelay)
                     .frame(maxWidth: .infinity, minHeight: MainPanelPreviewPopoverCoordinator.shared.textPreviewLoadingMinHeight)
             case .markdown(let markdown):
-                PreviewMarkdownTextView(model: markdown)
+                PreviewMarkdownTextView(model: markdown, showsTOC: showsTOC)
             case .json(let document):
                 JSONInspectorView(document: document, compact: true)
             case .code(let attributed):
@@ -457,14 +459,16 @@ private struct PreviewLoadingIndicator: View {
 
 struct PreviewMarkdownTextView: View {
     let model: PreviewPopoverContentModel
+    var showsTOC = true
     @Stored private var rendered: NSAttributedString?
     @Stored private var headings: [MarkdownHeading] = []
     @Stored private var sourceSegments: [(rendered: NSRange, source: NSRange)] = []
     @Stored private var scrollRequest: Int? = nil
     @Stored private var activeHeading: Int? = nil
 
-    init(model: PreviewPopoverContentModel) {
+    init(model: PreviewPopoverContentModel, showsTOC: Bool = true) {
         self.model = model
+        self.showsTOC = showsTOC
     }
 
     var body: some View {
@@ -477,7 +481,8 @@ struct PreviewMarkdownTextView: View {
                     headings: headings,
                     sourceSegments: sourceSegments,
                     scrollRequest: $scrollRequest,
-                    activeHeading: $activeHeading)
+                    activeHeading: $activeHeading,
+                    showsTOC: showsTOC)
             } else {
                 ProgressView("正在排版…").controlSize(.small)
             }

@@ -213,21 +213,23 @@ public enum CaptureActionChain {
     // MARK: 呈现
 
     /// 选区确认后弹出动作面板（固定屏幕居中，不再贴选区）
-    static func present(image: CGImage, url: URL, selectionAppKit: CGRect) {
+    static func present(image: CGImage, url: URL, selectionAppKit: CGRect,
+                        completion: (() -> Void)? = nil) {
         DispatchQueue.main.async {
-            presentOnMain(image: image, url: url)
+            presentOnMain(image: image, url: url, completion: completion)
         }
     }
 
     @MainActor
-    private static func presentOnMain(image: CGImage, url: URL) {
+    private static func presentOnMain(image: CGImage, url: URL, completion: (() -> Void)?) {
         guard showToolbarAfterSelection else {
             ScreenshotManager.shared.apply(ScreenshotManager.shared.defaultAction, to: image, url: url)
+            completion?()
             return
         }
         let panel = sharedPanel ?? CaptureActionToolbarPanel()
         sharedPanel = panel
-        panel.present(image: image, url: url)
+        panel.present(image: image, url: url, completion: completion)
     }
 
     /// 启动预热：提前把面板与 SwiftUI 视图树建好（不显示），
@@ -255,6 +257,7 @@ final class CaptureActionToolbarPanel: NSPanel {
     private var currentImage: CGImage?
     private var currentURL: URL?
     private var keyMonitor: Any?
+    private var onCaptureFinished: (() -> Void)?
 
     init() {
         super.init(contentRect: NSRect(x: 0, y: 0, width: 340, height: 260),
@@ -311,8 +314,9 @@ final class CaptureActionToolbarPanel: NSPanel {
         return NSSize(width: max(minWidth, previewW + 20), height: previewH + 20 + 56)
     }
 
-    func present(image: CGImage, url: URL) {
+    func present(image: CGImage, url: URL, completion: (() -> Void)? = nil) {
         isDismissing = false
+        onCaptureFinished = completion
         currentImage = image
         currentURL = url
         model.preview = NSImage(cgImage: image,
@@ -380,6 +384,9 @@ final class CaptureActionToolbarPanel: NSPanel {
             self.currentImage = nil
             self.currentURL = nil
             completion?()
+            let captureFinished = self.onCaptureFinished
+            self.onCaptureFinished = nil
+            captureFinished?()
         }
     }
 

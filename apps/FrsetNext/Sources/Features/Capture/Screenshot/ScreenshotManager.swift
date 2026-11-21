@@ -549,6 +549,7 @@ public final class ScreenshotManager: ObservableObject {
 
     private var overlays: [ScreenshotOverlayWindow] = []
     private var captureGeneration = 0
+    private var captureSessionCompletion: (() -> Void)?
     private var returnApplication: NSRunningApplication?
     // v128（内存优化）：原缩略图缓存无界，截图目录大时长期驻留只涨不落。
     // 加 countLimit=48 + totalCostLimit=20MB，写入按像素字节记账（w*h*4）。
@@ -763,7 +764,9 @@ public final class ScreenshotManager: ObservableObject {
 
     /// 截图主入口（v267：唯一的拾取方式就是「自适应」——悬停窗口单击截整窗、
     /// 直接拖拽截自定义范围、单击空白桌面截全屏，不再需要先选模式）。
-    public func captureRegion() { startCapture(flow: .toolbar) }
+    public func captureRegion(completion: (() -> Void)? = nil) {
+        startCapture(flow: .toolbar, completion: completion)
+    }
 
     @MainActor
     func handleScreenshotShortcut() {
@@ -804,13 +807,16 @@ public final class ScreenshotManager: ObservableObject {
     /// 截图后直接屏幕翻译（OCR→翻译→按坐标画回→钉回原位）
     public func captureAndScreenTranslate() { startCapture(flow: .direct(.screenTranslate)) }
 
-    private func startCapture(flow: PendingFlow) {
+    private func startCapture(flow: PendingFlow, completion: (() -> Void)? = nil) {
+        captureSessionCompletion?()
+        captureSessionCompletion = completion
         captureGeneration += 1
         let generation = captureGeneration
         returnApplication = NSWorkspace.shared.frontmostApplication
         Task { @MainActor in
             guard await ensureScreenRecordingPermission() else {
                 HapticFeedback.perform(.operationFailed)
+                self.finishCaptureSession()
                 return
             }
             guard generation == self.captureGeneration else { return }
@@ -883,6 +889,7 @@ public final class ScreenshotManager: ObservableObject {
                 self.statusMessage = CaptureError.captureFailed.errorDescription
                 HapticFeedback.perform(.operationFailed)
                 Toast.show("截图失败：没有可用屏幕", icon: "exclamationmark.triangle", isWarning: true)
+                self.finishCaptureSession()
             }
         }
     }
@@ -917,6 +924,7 @@ public final class ScreenshotManager: ObservableObject {
             HapticFeedback.perform(.operationFailed)
             Log.error("Capture", "选区截图失败：没有有效的触发时冻结帧")
             Toast.show("截图失败，请重试", icon: "exclamationmark.triangle", isWarning: true)
+            finishCaptureSession()
             return
         }
         Log.info("Capture", "选区截图使用触发时冻结帧：\(Int(global.width))×\(Int(global.height))pt → \(image.width)×\(image.height)px")
@@ -935,6 +943,7 @@ public final class ScreenshotManager: ObservableObject {
                   let url = stagePNG(data, pixelSize: pixel) else {
                 HapticFeedback.perform(.operationFailed)
                 Toast.show("截图暂存失败，请检查磁盘空间", icon: "exclamationmark.triangle", isWarning: true)
+                finishCaptureSession()
                 return
             }
             registerCaptured(url: url, data: data, playSound: true)
@@ -942,7 +951,8 @@ public final class ScreenshotManager: ObservableObject {
             autoDetectQR(in: cropped)   // v130⑤：自动检测二维码
             // v267：右下角拖拽角标整套移除（用户：「之前不是没让你加」）。
             // 截图完成后只保留动作工具条，不再有任何自动浮在右下角的预览窗。
-            CaptureActionChain.present(image: cropped, url: url, selectionAppKit: global)
+            CaptureActionChain.present(image: cropped, url: url, selectionAppKit: global,
+                                       completion: takeCaptureSessionCompletion())
         }
     }
 
@@ -950,6 +960,17 @@ public final class ScreenshotManager: ObservableObject {
         captureGeneration += 1
         closeOverlays()
         isCapturing = false
+        finishCaptureSession()
+    }
+
+    private func takeCaptureSessionCompletion() -> (() -> Void)? {
+        let completion = captureSessionCompletion
+        captureSessionCompletion = nil
+        return completion
+    }
+
+    private func finishCaptureSession() {
+        takeCaptureSessionCompletion()?()
     }
 
     private func closeOverlays() {
@@ -1018,6 +1039,7 @@ public final class ScreenshotManager: ObservableObject {
             statusMessage = CaptureError.captureFailed.errorDescription
             HapticFeedback.perform(.operationFailed)
             Toast.show("截图失败，请重试", icon: "exclamationmark.triangle", isWarning: true)
+            finishCaptureSession()
             return
         }
         Log.info("Capture", "空白单击全屏使用触发时冻结帧：\(snapshot.width)×\(snapshot.height)px")
@@ -1087,6 +1109,7 @@ public final class ScreenshotManager: ObservableObject {
                 self.statusMessage = CaptureError.captureFailed.errorDescription
                 HapticFeedback.perform(.operationFailed)
                 Toast.show("窗口截图失败，请重试", icon: "exclamationmark.triangle", isWarning: true)
+                self.finishCaptureSession()
                 return
             }
             // 与区域截图同一条收尾路径（落盘 + 广播 + 动作工具条/默认动作）
@@ -1099,12 +1122,14 @@ public final class ScreenshotManager: ObservableObject {
                       let url = self.stagePNG(data, pixelSize: pixel) else {
                     HapticFeedback.perform(.operationFailed)
                     Toast.show("截图暂存失败，请检查磁盘空间", icon: "exclamationmark.triangle", isWarning: true)
+                    self.finishCaptureSession()
                     return
                 }
                 self.registerCaptured(url: url, data: data, playSound: true)
                 HapticFeedback.perform(.screenshot)
                 self.autoDetectQR(in: image)   // v130⑤：自动检测二维码
-                CaptureActionChain.present(image: image, url: url, selectionAppKit: global)
+                CaptureActionChain.present(image: image, url: url, selectionAppKit: global,
+                                           completion: self.takeCaptureSessionCompletion())
             }
         }
     }
@@ -1123,7 +1148,7 @@ public final class ScreenshotManager: ObservableObject {
         closeOverlays()
         isCapturing = false
         currentModeTag = "window"
-        guard !items.isEmpty else { return }
+        guard !items.isEmpty else { finishCaptureSession(); return }
 
         Task { @MainActor in
             var images: [CGImage] = []
@@ -1154,11 +1179,13 @@ public final class ScreenshotManager: ObservableObject {
             guard !images.isEmpty else {
                 HapticFeedback.perform(.operationFailed)
                 Toast.show("窗口截图失败，请重试", icon: "exclamationmark.triangle", isWarning: true)
+                self.finishCaptureSession()
                 return
             }
             guard let composed = Self.composeVertically(images) else {
                 HapticFeedback.perform(.operationFailed)
                 Toast.show("窗口图片合成失败", icon: "exclamationmark.triangle", isWarning: true)
+                self.finishCaptureSession()
                 return
             }
             Log.info("Capture", "窗口多选：\(images.count) 个窗口 → \(composed.width)×\(composed.height)px")
@@ -1172,11 +1199,13 @@ public final class ScreenshotManager: ObservableObject {
                                                                       height: composed.height)) else {
                     HapticFeedback.perform(.operationFailed)
                     Toast.show("截图暂存失败，请检查磁盘空间", icon: "exclamationmark.triangle", isWarning: true)
+                    self.finishCaptureSession()
                     return
                 }
                 self.registerCaptured(url: url, data: data, playSound: true)
                 HapticFeedback.perform(.screenshot)
-                CaptureActionChain.present(image: composed, url: url, selectionAppKit: .zero)
+                CaptureActionChain.present(image: composed, url: url, selectionAppKit: .zero,
+                                           completion: self.takeCaptureSessionCompletion())
             }
         }
     }

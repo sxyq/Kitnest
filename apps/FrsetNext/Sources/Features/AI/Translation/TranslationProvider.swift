@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 
 // MARK: - 翻译 Provider 层（v147）
 //
@@ -170,6 +171,57 @@ public final class TranslationProviderRegistry {
 
     /// 当前实际会用的第一个可用 Provider（设置页文案/诊断用）
     public func effectiveProvider(preference: String) -> TranslationProvider? {
-        resolve(preference: preference).first { $0.isAvailable }
+        resolve(preference: preference).first { $0.isAvailable && TranslationPrivacyConsent.isAuthorized($0) }
+    }
+}
+
+enum TranslationPrivacyConsent {
+    private static let key = "ai.translation.onlineAllowed"
+
+    static var isOnlineAllowed: Bool {
+        let defaults = UserDefaults.standard
+        return defaults.bool(forKey: key)
+            || ["llm", "qnw"].contains { defaults.bool(forKey: "ai.translation.online.provider.\($0)") }
+    }
+
+    static func isAuthorized(_ provider: TranslationProvider) -> Bool {
+        let defaults = UserDefaults.standard
+        if defaults.object(forKey: key) as? Bool == false { return provider.id == "apple" }
+        return provider.id == "apple" || defaults.bool(forKey: key)
+            || defaults.bool(forKey: "ai.translation.online.provider.\(provider.id)")
+    }
+
+    static func authorize(_ provider: TranslationProvider) async -> Bool {
+        guard provider.id != "apple" else { return true }
+        if UserDefaults.standard.object(forKey: key) as? Bool == false { return false }
+        guard !isAuthorized(provider) else { return true }
+        let deniedKey = "ai.translation.online.denied.\(provider.id)"
+        guard !UserDefaults.standard.bool(forKey: deniedKey) else { return false }
+        return await MainActor.run {
+            let alert = NSAlert()
+            alert.alertStyle = .informational
+            alert.messageText = "在线翻译会发送所选文字"
+            alert.informativeText = "即将使用\(provider.displayName)。所选文字会发送给该服务处理；允许后仅授权此服务。可在设置 → 搜索与 AI 关闭在线翻译。"
+            alert.addButton(withTitle: "允许在线翻译")
+            alert.addButton(withTitle: "仅使用本机翻译")
+            let allowed = alert.runModal() == .alertFirstButtonReturn
+            if allowed {
+                UserDefaults.standard.set(true, forKey: "ai.translation.online.provider.\(provider.id)")
+            } else {
+                UserDefaults.standard.set(true, forKey: deniedKey)
+            }
+            return allowed
+        }
+    }
+
+    static func setOnlineAllowed(_ allowed: Bool) {
+        let defaults = UserDefaults.standard
+        defaults.set(allowed, forKey: key)
+        if !allowed {
+            for provider in ["llm", "qnw"] {
+                defaults.removeObject(forKey: "ai.translation.online.provider.\(provider)")
+                defaults.removeObject(forKey: "ai.translation.online.denied.\(provider)")
+            }
+        }
     }
 }

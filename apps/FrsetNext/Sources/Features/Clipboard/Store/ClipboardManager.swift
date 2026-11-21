@@ -816,6 +816,7 @@ public final class ClipboardManager: ObservableObject {
                     return
                 }
                 self.items.removeAll { $0.dedupeKey == item.dedupeKey }
+                FavoritesStore.shared.clipboardRemoved(item.dedupeKey)
                 ServiceLocator.panelPreview?.notifyItemRemoved(itemID: item.id)
                 NotificationCenter.default.post(name: ClipboardManager.itemsDidChangeNotification, object: nil)
             }
@@ -895,6 +896,10 @@ public final class ClipboardManager: ObservableObject {
                 TagStore.shared.refresh(notifying: true)
                 MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .programmatic)
                 NotificationCenter.default.post(name: .clipboardSelectionChanged, object: nil)
+                DispatchQueue.main.async {
+                    FavoritesStore.shared.refresh()
+                    NotificationCenter.default.post(name: ClipboardManager.itemsDidChangeNotification, object: nil)
+                }
             }
             completion(result)
         }

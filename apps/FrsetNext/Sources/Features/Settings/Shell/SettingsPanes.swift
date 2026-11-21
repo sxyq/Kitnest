@@ -65,7 +65,7 @@ final class MenuBarSettingsDraft: SettingsEditableDraft {
     private static let keys = [GlobalEntries.homeKey, GlobalEntries.monitorPopoutKey, GlobalEntries.statsBarKey]
 
     init() {
-        flags = Dictionary(uniqueKeysWithValues: Self.keys.map { ($0, Preferences.shared.value($0, default: true)) })
+        flags = Dictionary(uniqueKeysWithValues: Self.keys.map { ($0, GlobalEntries.isEnabled($0)) })
         saved = [:]
         saved = values
     }
@@ -88,7 +88,7 @@ final class MenuBarSettingsDraft: SettingsEditableDraft {
     func discard() {
         iconStyle = MenuBarIconStyleStore.current
         customSymbol = MenuBarIconStyleStore.customSymbol
-        flags = Dictionary(uniqueKeysWithValues: Self.keys.map { ($0, Preferences.shared.value($0, default: true)) })
+        flags = Dictionary(uniqueKeysWithValues: Self.keys.map { ($0, GlobalEntries.isEnabled($0)) })
         saved = values
     }
     func save() -> String? {
@@ -343,7 +343,6 @@ struct GeneralSettingsPane: View {
                     entryRow("菜单：打开面板", key: GlobalEntries.homeKey, draft: draft)
                     entryRow("菜单：性能监测设置", key: GlobalEntries.monitorPopoutKey, draft: draft)
                     entryRow("菜单栏：性能部件", key: GlobalEntries.statsBarKey, draft: draft)
-                    SettingsDivider()
                     formRow("部件布局与颜色") {
                         Button("前往部件设置") { StatsBarEngine.openSettings() }.controlSize(.small)
                     }

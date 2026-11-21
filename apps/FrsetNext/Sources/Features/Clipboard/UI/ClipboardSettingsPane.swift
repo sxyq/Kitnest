@@ -208,7 +208,7 @@ public struct ClipboardSettingsPane: View {
                     .disabled(clearingHistory)
                 }
                 SettingsDivider()
-                SettingsRow(title: "密码加密备份", subtitle: "备份剪贴板、收藏项目、标签与完整附件；外部文件仅保存路径。密码不保存。") {
+                SettingsRow(title: "密码加密备份", subtitle: "备份剪贴板记录、剪贴板收藏、标签与完整附件；不含其他模块收藏，外部文件仅保存路径。密码不保存。") {
                     HStack(spacing: 8) {
                         Button("加密备份…") {
                             let panel = NSSavePanel()
@@ -442,7 +442,7 @@ private struct ClipboardBackupSheet: View {
                     Text("替换剪贴板资料").tag(true)
                 }.pickerStyle(.segmented)
                 if replace {
-                    Text("替换全部剪贴板历史、收藏项目和标签，保留 AI 对话及其他模块资料。")
+                    Text("替换全部剪贴板历史、剪贴板收藏和标签；保留文件、工具等其他模块资料。")
                         .font(.system(size: 12)).foregroundStyle(.secondary)
                 } else {
                     Picker("冲突记录（含本机缺失附件）", selection: $useBackupConflicts) {

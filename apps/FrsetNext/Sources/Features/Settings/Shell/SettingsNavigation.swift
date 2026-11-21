@@ -41,7 +41,7 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
         case .appearance: return [.generalPersonal, .appearanceText, .generalWindows]
         case .entryInteraction: return [.generalPanel, .panelBackground, .generalMenuBar, .menuBarArrangement,
                                         .monitorWidgets, .shortcuts, .island, .islandPeeks, .islandCanvas,
-                                        .islandMaterial, .clipboardFloating]
+                                        .islandMaterial, .floatingBall, .clipboardFloating]
         case .clipboard: return [.clipboardCapture, .clipboardHistory, .clipboardAppearance]
         case .transfer: return [.transferLocal, .transferScan, .transferCloud, .transferCast, .archive]
         case .capture: return [.capture(.capture), .ocr, .watermark, .captureActions, .capture(.pin), .capture(.curtain), .capture(.recording), .capture(.workflow)]
@@ -58,7 +58,7 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
 
 enum SettingsPage: Hashable {
     case haptics
-    case generalStart, generalNotifications, permissions, generalPersonal, appearanceText, generalWindows, generalPanel, panelBackground, island, islandPeeks, islandCanvas, islandMaterial, generalMenuBar, menuBarArrangement, monitorWidgets, clipboardCapture, clipboardHistory, clipboardAppearance, clipboardFloating, transferLocal, transferScan, transferCloud, transferCast, archive, ocr, watermark, captureActions, search, ai, tools, aiText, calendar, shortcuts, monitorSettings, configTransfer, diagnostics, about, manual, audio, transferDisplay, statistics
+    case generalStart, generalNotifications, permissions, generalPersonal, appearanceText, generalWindows, generalPanel, panelBackground, island, islandPeeks, islandCanvas, islandMaterial, generalMenuBar, menuBarArrangement, monitorWidgets, floatingBall, clipboardCapture, clipboardHistory, clipboardAppearance, clipboardFloating, transferLocal, transferScan, transferCloud, transferCast, archive, ocr, watermark, captureActions, search, ai, tools, aiText, calendar, shortcuts, monitorSettings, configTransfer, diagnostics, about, manual, audio, transferDisplay, statistics
     case capture(CaptureSettingsBlock), monitorModule(MonitorModuleID)
     /// 旧业务入口仍可解析，设置侧栏不展示实时正文。
     var canonical: SettingsPage {
@@ -88,6 +88,7 @@ enum SettingsPage: Hashable {
         case .generalMenuBar: return "图标与入口"
         case .menuBarArrangement: return "排列与间距"
         case .monitorWidgets: return "部件与颜色"
+        case .floatingBall: return "悬浮球"
         case .clipboardCapture: return "捕获与隐私"
         case .clipboardHistory: return "历史与备份"
         case .clipboardAppearance: return "列表外观"
@@ -166,6 +167,7 @@ enum SettingsPage: Hashable {
         case .calendar: return "周起始日统一月历和两周视图；预览不读真实日程"
         case .shortcuts: return "组合键或现有双按模式；保存成功后才注册"
         case .monitorSettings: return "八项指标在正式监测页；此处调节采样与显示"
+        case .floatingBall: return "悬浮快捷窗可独立开关；组件与位置分别保存"
         case .configTransfer: return "导入导出为即时操作；不含内容、凭证或预览状态"
         case .diagnostics: return "运行状态及诊断导出；不自动清理资料"
         case .about: return "更新源保存后应用；查找更新为即时操作"

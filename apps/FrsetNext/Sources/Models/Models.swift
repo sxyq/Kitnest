@@ -55,7 +55,7 @@ public struct ClipboardItem: Codable, Identifiable, Hashable, Sendable {
     public let fileCategories: Int
     private var favoriteFlag: Bool? = nil
     public var isFavorite: Bool {
-        get { favoriteFlag ?? isNote }
+        get { favoriteFlag ?? false }
         set { favoriteFlag = newValue }
     }
 

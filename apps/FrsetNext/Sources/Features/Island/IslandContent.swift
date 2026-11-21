@@ -538,7 +538,7 @@ private struct IslandRecordPreview: View {
 
     var body: some View {
         ZStack {
-            if let model { PreviewPopoverContentView(model: model, usesWindowChrome: false) }
+            if let model { PreviewPopoverContentView(model: model, usesWindowChrome: false, showsTOC: false) }
             else { ProgressView().controlSize(.small) }
         }
         .task {
