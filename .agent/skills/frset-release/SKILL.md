@@ -14,7 +14,7 @@ Kitnest（原名 FrsetNext，macOS 菜单栏工具）每次更改的固定收尾
 - 更新包解压后由 `AppUpdateChecker.installUpdate` 核验同一 FrsetDev 证书与应用标识，成功才准备替换。`codesign` 内联表达式参数写为 `--test-requirement==<表达式>`；第一个等号分隔命令选项，第二个表示表达式内容。本机既有 Kitnest 通过，系统计算器因身份不同返回 3。
 - v30/v32 历史结论：从旧签名身份迁移后，TCC 不会自动改写旧授权记录，最终安装版需重新授权一次；此后保持同一身份，不能每次部署都要求用户授权。不要运行 `tccutil reset`。
 - 构建固定 no-WMO、Swift 并发 2、`nice -n 10`。本机 16GB 内存下完整构建不与其他完整构建并发；不得通过环境变量恢复 WMO 或提高并发。
-- 外置工作树的独立审阅构建复用现有 `KITNEST_APP_NAME`、`KITNEST_BUILD_ROOT` 与 `KITNEST_DMG_OUTPUT` 参数，把中间产物留在 APFS 临时目录。审阅包与正式包共用应用标识，不同时启动；最终整合后才替换正式安装版，结束清理本次临时产物。
+- 外置源码构建用 `KITNEST_BUILD_ROOT` 把中间产物放在 APFS 临时目录，日常只部署 `/Applications/Kitnest.app`。必须并存的短期前后对照结束即删除额外 App；生成资料和 CodeGraph 同步后及时合入本地主线，移除已完成的工作树，继续审阅只保留一棵活动外置树。本地构建不创建备份，收尾清理本次临时包和目录。
 - 部署后查看 `ScreenshotManager` 启动日志中的屏幕录制权限状态；“已获得”且抓帧成功时保持授权状态，不再要求用户重复授权。
 
 ## 执行步骤
