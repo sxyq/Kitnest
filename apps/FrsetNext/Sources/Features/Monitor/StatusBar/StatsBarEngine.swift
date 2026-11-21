@@ -36,6 +36,22 @@ public enum StatsBarEngine {
     /// 模块重复启动 / 探针重入都不得再建第二个状态项。
     private static var isStarted = false
 
+    // 首次启用时注册。停用部件不影响录屏保存提示。
+    private static let installNotifications: Void = {
+        NotificationCenter.default.addObserver(forName: NSNotification.Name("FrsetStatsBarOpenSettings"),
+            object: nil, queue: .main) { note in
+                ServiceLocator.settings?.open(pane: note.object as? String ?? "menubar.widgets")
+            }
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("FrsetScreenRecDidSave"), object: nil, queue: .main
+        ) { note in
+            let path = (note.userInfo?["path"] as? String) ?? ""
+            let name = (path as NSString).lastPathComponent
+            Toast.show(name.isEmpty ? "录屏已保存" : "录屏已保存：\(name)",
+                       icon: "record.circle.fill")
+        }
+    }()
+
     public static func start() {
         // v203：先挂开关观察者，再判断当前值——原先只在启动时判断一次，
         // 用户在设置里打开「菜单栏性能部件（STATS）」后必须重启 App 才出现，
@@ -51,21 +67,7 @@ public enum StatsBarEngine {
             return
         }
         isStarted = true
-        NotificationCenter.default.addObserver(forName: NSNotification.Name("FrsetStatsBarOpenSettings"),
-            object: nil, queue: .main) { note in
-                ServiceLocator.settings?.open(pane: note.object as? String ?? "menubar.widgets")
-            }
-        // v109：录屏保存完成 Toast（引擎广播 FrsetScreenRecDidSave → 与截图同款提示）
-        // v126（性能审计 F0929）：observer 注册移到 isStarted 守卫之后——原先在守卫
-        // 之前注册，重复 start() 会叠加观察者（每次录屏保存弹 N 个 Toast）。
-        NotificationCenter.default.addObserver(
-            forName: NSNotification.Name("FrsetScreenRecDidSave"), object: nil, queue: .main
-        ) { note in
-            let path = (note.userInfo?["path"] as? String) ?? ""
-            let name = (path as NSString).lastPathComponent
-            Toast.show(name.isEmpty ? "录屏已保存" : "录屏已保存：\(name)",
-                       icon: "record.circle.fill")
-        }
+        _ = installNotifications
         // 引擎点击回调必须是无捕获的 C 函数指针——经顶层跳板函数转接
         // （闭包字面量里嵌 async 块会被判为“捕获上下文”，无法形成 C 指针）
         FSStatsSetOpenMonitorHandler(statsBarOpenMonitorTrampoline)

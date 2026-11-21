@@ -2591,14 +2591,14 @@ Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,ms,func,81
 Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,capacity,func,824,KEEP,BatteryPanel.swift:221、224
 Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsFormat,remaining,func,829,KEEP,BatteryPanel.swift:100 预计剩余时间
 Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,module,func,20,KEEP,openMonitor:266
-Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,start,func,39,KEEP,MonitorModule.swift:32；开关观察者:178 重启
-Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,stop,func,160,KEEP,MonitorModule.swift:51；开关观察者:181 立即停
-Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,observeGlobalEntryToggle,func,173,KEEP,start:42
-Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,syncMainItem,func,190,KEEP,StatusBarController.swift:81、start:67
-Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,openMonitor,func,204,KEEP,C 跳板:316 + 探针:138/144
-Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,openSettings,func,233,KEEP,MonitorDetailView:1244、SettingsPanes:187
-Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,openRecorder,func,242,KEEP,PanelRootView:485、CaptureSectionView:98
-Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,-,statsBarOpenMonitorTrampoline,func,253,KEEP,作为 C 函数指针交 FSStatsSetOpenMonitorHandler，StatsBarEngine:66
+Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,start,func,55,KEEP,MonitorModule.swift:32；功能开关观察者按启动幂等注册；菜单设置与录屏提示通知仅首次启用安装，停启不累加
+Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,stop,func,162,KEEP,MonitorModule.swift:51；开关观察者:181 立即停
+Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,observeGlobalEntryToggle,func,175,KEEP,start:42
+Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,syncMainItem,func,192,KEEP,StatusBarController.swift:81、start:67
+Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,openMonitor,func,206,KEEP,C 跳板:316 + 探针:138/144
+Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,openSettings,func,235,KEEP,MonitorDetailView:1244、SettingsPanes:187
+Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,StatsBarEngine,openRecorder,func,244,KEEP,PanelRootView:485、CaptureSectionView:98
+Monitor,Features/Monitor/StatusBar/StatsBarEngine.swift,-,statsBarOpenMonitorTrampoline,func,255,KEEP,作为 C 函数指针交 FSStatsSetOpenMonitorHandler，StatsBarEngine:66
 Monitor,Features/Monitor/StatusBar/StatsModulePanels.swift,StatsProcTable,childValueTexts,func,34,KEEP,2026-11-21：当前CPU内存网络磁盘四页共用进程表；展开子行时使用传入childValues或沿父行values格式化，保留同列展示
 Monitor,Features/Monitor/StatusBar/StatsModulePanels.swift,StatsProcTable,childLabel,func,41,KEEP,2026-11-21：共用进程表展开子行调用；与组名相同显示主进程，否则去组名前缀及连接符，空结果沿原子进程名
 Monitor,Features/Monitor/StatusBar/StatsModulePanels.swift,StatsAppIcon,cachedIcon,func,219,KEEP,2026-11-21：当前进程表图标视图调用；按路径或名称缓存最多192张成功图标，优先读取实际文件图标，缺路径时在运行应用内按名称找bundle；设置预览不调用
