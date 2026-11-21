@@ -11,7 +11,6 @@
 #import "frset_stats_data.h"
 #import "frset_runcat_frames.h"          // v32 移植（注入版）：奔跑小猫帧资源（RunCat Neo，Apache 2.0）
 #import <CoreGraphics/CoreGraphics.h>   // v14：点击链路诊断（CGEvent / CGWarp）
-#include <dlfcn.h>                      // v19：运行时取 CGDisplayCreateImageForRect（编译期已被 obsoleted）
 
 FSSnap g_snap;
 
@@ -478,9 +477,6 @@ static BOOL FSBarAppearanceDark(NSView *v) {
     return [n containsString:@"Dark"];
 }
 
-// 保留空实现（FSBarSystemTick 仍在调用；v77 起不再做任何采样/截屏）
-static void FSBarProbeMenuBarDarkAsync(void) { }
-
 // v18：反相信号源改为"视图绘制上下文的外观"——对齐 Stats 原版实现：
 //   stats-source/Kit/extensions.swift:365  NSView.isDarkMode → effectiveAppearance
 //   stats-source/Kit/helpers.swift:1676      isDarkMode → NSAppearance.currentDrawing()
@@ -712,10 +708,15 @@ static CGFloat FSBarNumberWidth(NSString *text, CGFloat size, NSFontWeight weigh
 //     开关：widgets.plist 键 MainIconCat（缺省=开）；改后重启生效。
 static int g_runCatFrame = 0;
 static double g_runCatCpuEMA = 0;
-static NSMutableDictionary<NSString *, NSImage *> *g_runCatImgs = nil;
+typedef NS_ENUM(NSInteger, FSRunCatImageVariant) {
+    FSRunCatImageBlack,
+    FSRunCatImageWhite,
+    FSRunCatImageTemplate,
+};
+static NSMutableDictionary<NSNumber *, NSImage *> *g_runCatImgs = nil;
 static BOOL g_runCatTimerStarted = NO;
 // v32/v34 前向声明（实现见 FSBarWidgetView @end 之后的 run_cat static 区）
-static NSImage *FSRunCatImage(int idx, BOOL white);
+static NSImage *FSRunCatImage(int idx, FSRunCatImageVariant variant);
 static void FSRunCatStartTimer(void);
 // 主图标使用原生按钮图像；预览视图沿用相同帧资源。
 // v43（2026-10-18 用户指示）：**默认关闭**——状态栏主图标回到之前版本
@@ -1827,18 +1828,23 @@ static NSImage *FSBarSymbolImage(NSString *sym, CGFloat pointSize, NSFontWeight 
 
 // ======== v32/v34/v35 移植（注入版）：奔跑小猫 —— static 实现区 ========
 static NSStatusItem *FSFindMainBarItem(void);   // 前向声明（定义于状态项管理器区）
-static NSImage *FSRunCatImage(int idx, BOOL white);
 
-static NSImage *FSRunCatImage(int idx, BOOL white) {
+static NSImage *FSRunCatImage(int idx, FSRunCatImageVariant variant) {
     if (!g_runCatImgs) g_runCatImgs = [NSMutableDictionary dictionary];
-    NSString *key = [NSString stringWithFormat:@"%d-%d", white ? 1 : 0, idx];
+    NSNumber *key = @(variant * frset_runcat_frame_count() + idx);
     NSImage *img = g_runCatImgs[key];
     if (img) return img;
-    unsigned int len = 0;
-    const unsigned char *data = frset_runcat_frame(idx, white ? 1 : 0, &len);
-    if (!data || len == 0) return nil;
-    NSData *d = [NSData dataWithBytes:data length:len];
-    img = [[NSImage alloc] initWithData:d];
+    if (variant == FSRunCatImageTemplate) {
+        // 状态栏原生按钮复用自己的模板帧，预览继续使用原尺寸和原色。
+        img = [FSRunCatImage(idx, FSRunCatImageBlack) copy];
+        img.size = NSMakeSize(20 * 56.0 / 36.0, 20);
+        img.template = YES;
+    } else {
+        unsigned int len = 0;
+        const unsigned char *data = frset_runcat_frame(idx, variant == FSRunCatImageWhite, &len);
+        if (!data || len == 0) return nil;
+        img = [[NSImage alloc] initWithData:[NSData dataWithBytes:data length:len]];
+    }
     if (img) g_runCatImgs[key] = img;
     return img;
 }
@@ -1896,7 +1902,8 @@ static NSImage *FSRunCatImage(int idx, BOOL white) {
 - (void)drawRect:(NSRect)dirty {
     (void)dirty;
     [self updatePreviewAnimation:nil];
-    NSImage *img = FSRunCatImage(self.fixedFrame ? self.fixedFrame.intValue : g_runCatFrame, FSBarDark(self));
+    NSImage *img = FSRunCatImage(self.fixedFrame ? self.fixedFrame.intValue : g_runCatFrame,
+                                FSBarDark(self) ? FSRunCatImageWhite : FSRunCatImageBlack);
     if (!img) return;
     NSRect r = self.bounds;
     // v82：按高度定尺寸（56:36），但**不得超过按钮可用宽度**——原实现固定 56:36，
@@ -1919,13 +1926,10 @@ static void FSRunCatUpdateMainIcon(void) {
     NSStatusItem *main = FSFindMainBarItem();
     if (!main || !main.button) return;
     NSButton *b = main.button;
-    NSImage *image = [FSRunCatImage(g_runCatFrame, NO) copy];
-    image.size = NSMakeSize(20 * 56.0 / 36.0, 20);
-    image.template = YES; // 状态按钮按菜单栏背景着色，不依赖覆盖层外观。
     b.title = @"";
     b.imagePosition = NSImageOnly;
     b.imageScaling = NSImageScaleProportionallyDown;
-    b.image = image;
+    b.image = FSRunCatImage(g_runCatFrame, FSRunCatImageTemplate);
     if (main.length != 34) main.length = 34;
     g_mainIconCatLastFrame = g_runCatFrame;
 }
@@ -2742,8 +2746,6 @@ void FSBarSystemTick(void) {
     FSBarResolveNativeItems();
     FSBarReconcile();
     FSBarRefreshValues();
-    // v19：菜单栏背景明暗实测（2s 节流，后台线程；变化时自动触发全量重绘）
-    FSBarProbeMenuBarDarkAsync();
     g_tickN++;
     if (g_tickN == 1) FSBarDumpItems("tick1");
     if (g_tickN == 8) FSBarDumpItems("tick8");   // v51：4s 后布局稳定，再采一次间距
