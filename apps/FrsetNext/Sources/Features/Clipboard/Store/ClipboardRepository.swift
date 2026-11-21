@@ -272,14 +272,7 @@ public final class ClipboardRepository: @unchecked Sendable {
 
     @discardableResult
     public func updateFavorite(dedupeKey: String, isFavorite: Bool) -> Bool {
-        do {
-            try db.run("UPDATE clipboard_items SET is_favorite = ? WHERE dedupe_key = ?",
-                       [.int(isFavorite ? 1 : 0), .text(dedupeKey)])
-            return true
-        } catch {
-            Log.error("clipboard", "收藏状态保存失败: \(error)")
-            return false
-        }
+        FavoritesStore.shared.setClipboard(dedupeKey: dedupeKey, favorite: isFavorite)
     }
 
     // MARK: 删
@@ -324,6 +317,7 @@ public final class ClipboardRepository: @unchecked Sendable {
                 for copy in copies { try fm.removeItem(at: copy.original) }
                 try database.run("DELETE FROM clipboard_items WHERE dedupe_key = ?", [.text(dedupeKey)])
                 try database.run("DELETE FROM clipboard_item_tags WHERE item_dedupe_key = ?", [.text(dedupeKey)])
+                try database.run("DELETE FROM resource_favorites WHERE resource_type='clipboard' AND resource_id=?", [.text(dedupeKey)])
             }
         } catch {
             var message = error.localizedDescription

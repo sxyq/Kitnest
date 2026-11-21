@@ -135,7 +135,7 @@ nice -n "$BUILD_NICE" swiftc $OPT_FLAGS -j "$SWIFT_JOBS" -parse-as-library \
   -framework CoreGraphics -framework CoreImage -framework ImageIO \
   -framework Vision -Xlinker -weak_framework -Xlinker Translation -framework ScreenCaptureKit -framework EventKit \
   -framework ServiceManagement -framework UniformTypeIdentifiers \
-  -framework IOKit -framework SystemConfiguration \
+  -framework IOKit -framework SystemConfiguration -framework Security \
   -framework AVFoundation -framework CoreMedia \
   -framework QuickLookThumbnailing \
   -framework WebKit 2>&1 | tee -a "$BUILD_LOG" | tail -40

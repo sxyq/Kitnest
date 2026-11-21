@@ -35,6 +35,10 @@ enum TranslationDiagnostics {
 
             // ① 逐个 Provider 单测（不受偏好影响）
             for provider in all where provider.isAvailable {
+                guard await TranslationPrivacyConsent.authorize(provider) else {
+                    Log.info("AI", "翻译自检 [\(provider.id)] 未获在线授权，已跳过")
+                    continue
+                }
                 let started = CFAbsoluteTimeGetCurrent()
                 do {
                     let text = try await provider.translate(sample, to: "English", mode: .document)

@@ -209,6 +209,7 @@ private struct SearchSettingsContent: View {
     @Stored private var previewQuery = "设计"
     @Stored private var notice: String?
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Stored private var translationPreference = AISettings.translationProviderPreference
 
     init(draft: SearchDisplayDraft) {
         self.draft = draft
@@ -250,6 +251,7 @@ private struct SearchSettingsContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
+            translationPrivacySection
             searchCategorySection
             Toggle(L10n.t("Clear input after searching or opening links"), isOn: $service.clearSearchInputAfterWebAction)
                 .toggleStyle(.checkbox)
@@ -334,6 +336,34 @@ private struct SearchSettingsContent: View {
             Button(L10n.t("Cancel"), role: .cancel) {}
         } message: {
             Text("从草稿删除「\(enginePendingDelete?.name ?? "")」；保存后生效，取消可恢复。")
+        }
+    }
+
+    private var translationPrivacySection: some View {
+        SettingsSection("翻译服务与隐私") {
+            SettingsGroupBox {
+                SettingsRow(title: "默认翻译服务") {
+                    Picker("默认翻译服务", selection: Binding(
+                        get: { AISettings.translationProviderPreference },
+                        set: { AISettings.translationProviderPreference = $0; translationPreference = $0 }
+                    )) {
+                        Text("自动（按授权服务回退）").tag(AISettings.translationAutoPreference)
+                        ForEach(TranslationProviderRegistry.shared.all, id: \.id) { provider in
+                            Text(provider.displayName).tag(provider.id)
+                        }
+                    }.labelsHidden().frame(width: 230)
+                }
+                SettingsDivider()
+                Toggle("允许在线翻译服务发送所选文字", isOn: Binding(
+                    get: { TranslationPrivacyConsent.isOnlineAllowed },
+                    set: { TranslationPrivacyConsent.setOnlineAllowed($0) }
+                )).toggleStyle(.checkbox)
+                Text("Apple 系统翻译在本机处理；AI 和 360 快速通道会联网。首次使用在线服务时会说明发送内容并询问授权。拒绝后自动模式只尝试本机服务。")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+                    .padding(.vertical, 6)
+                Text("当前可用服务：\(TranslationToolSession.shared.effectiveProviderName)")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+            }
         }
     }
 

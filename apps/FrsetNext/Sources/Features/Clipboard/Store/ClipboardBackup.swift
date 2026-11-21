@@ -574,6 +574,7 @@ enum ClipboardBackup {
                 if replace {
                     try database.run("DELETE FROM clipboard_item_tags")
                     try database.run("DELETE FROM clipboard_items")
+                    try database.run("DELETE FROM resource_favorites WHERE resource_type='clipboard'")
                     try database.run("DELETE FROM tags")
                 }
                 let existingTags = Set(local.tags.map(\.id))
@@ -589,6 +590,13 @@ enum ClipboardBackup {
                     try operation.checkCancellation()
                     try database.run("INSERT INTO clipboard_items(\(ClipboardRepository.columns)) VALUES(\(placeholders)) ON CONFLICT(dedupe_key) DO UPDATE SET \(updates)",
                                      ClipboardRepository.bindings(item))
+                    if item.isFavorite {
+                        try database.run("INSERT OR IGNORE INTO resource_favorites(resource_type,resource_id,added_at) VALUES('clipboard',?,?)",
+                                         [.text(item.dedupeKey), .real(item.timestamp.timeIntervalSince1970)])
+                    } else {
+                        try database.run("DELETE FROM resource_favorites WHERE resource_type='clipboard' AND resource_id=?",
+                                         [.text(item.dedupeKey)])
+                    }
                     try database.run("DELETE FROM clipboard_item_tags WHERE item_dedupe_key=?", [.text(item.dedupeKey)])
                     for tagID in item.tagIDs {
                         let time = manifest.links.first { $0.itemDedupeKey == item.dedupeKey && importedTagIDs[$0.tagID] == tagID }!.createdAt

@@ -130,6 +130,10 @@ public enum CommandCatalog {
             NSApp.activate(ignoringOtherApps: true)
             ServiceLocator.panel?.show()
         })
+        items.append(CommandItem(id: "favorites.open", title: "查看收藏", subtitle: "全局收藏",
+                                 systemImage: "star", kind: .action) {
+            FavoritesWindowController.shared.show()
+        })
 
         // ③ 开关（Preferences / Manager 状态直读写）
         items.append(CommandItem(id: "toggle.clipboardRecording",
@@ -450,6 +454,7 @@ final class CommandPaletteState: ObservableObject {
 
 struct CommandPaletteView: View {
     @ObservedObject var state: CommandPaletteState
+    @ObservedObject private var favorites = FavoritesStore.shared
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -511,14 +516,15 @@ struct CommandPaletteView: View {
                 ScrollView {
                     LazyVStack(spacing: 1) {
                         ForEach(Array(state.items.enumerated()), id: \.element.id) { index, item in
-                            CommandRowView(item: item, selected: index == state.selectedIndex)
+                            let favoriteKind: FavoriteResourceKind = item.kind == .tool ? .tool : .command
+                            let favoriteID = item.kind == .tool ? String(item.id.dropFirst("tool.".count)) : item.id
+                            CommandRowView(item: item, selected: index == state.selectedIndex,
+                                           isFavorite: favorites.contains(favoriteKind, id: favoriteID),
+                                           onToggleFavorite: { favorites.toggle(favoriteKind, id: favoriteID) },
+                                           onExecute: { state.selectedIndex = index; state.executeSelected() })
                                 .id(item.id)
                                 .onHover { hovering in
                                     if hovering { state.selectedIndex = index }
-                                }
-                                .onTapGesture {
-                                    state.selectedIndex = index
-                                    state.executeSelected()
                                 }
                         }
                     }
@@ -580,6 +586,9 @@ struct CommandPaletteView: View {
 private struct CommandRowView: View {
     let item: CommandItem
     let selected: Bool
+    let isFavorite: Bool
+    let onToggleFavorite: () -> Void
+    let onExecute: () -> Void
 
     var body: some View {
         HStack(spacing: 10) {
@@ -598,6 +607,8 @@ private struct CommandRowView: View {
                         .lineLimit(1)
                 }
             }
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onExecute)
             Spacer(minLength: 8)
             if item.kind == .toggle, let isOn = item.isOn {
                 Toggle("", isOn: .constant(isOn()))
@@ -605,6 +616,15 @@ private struct CommandRowView: View {
                     .labelsHidden()
                     .controlSize(.mini)
                     .disabled(true)
+            }
+            if item.kind == .tool || item.kind == .command || item.kind == .action {
+                Button(action: onToggleFavorite) {
+                    Image(systemName: isFavorite ? "star.fill" : "star")
+                        .foregroundStyle(isFavorite ? Theme.accent : Color.secondary)
+                }
+                .buttonStyle(.plain)
+                .help(isFavorite ? "取消收藏" : "收藏")
+                .accessibilityLabel(isFavorite ? "取消收藏" : "收藏")
             }
             Text(item.kind.rawValue)
                 .font(.system(size: 11))

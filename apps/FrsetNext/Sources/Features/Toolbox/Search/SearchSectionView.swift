@@ -549,6 +549,7 @@ public struct SearchSectionView: View {
     private var fileIndex: FileNameIndex { FileNameIndex.shared }
     @ObservedObject private var service: SearchServiceManager
     @ObservedObject private var clipboard = ClipboardManager.shared
+    @ObservedObject private var favorites = FavoritesStore.shared
     @Stored private var previewShowWeb = true
     @Stored private var previewShowClipboard = true
     @Stored private var previewShowFiles = true
@@ -1229,6 +1230,7 @@ public struct SearchSectionView: View {
                     .help(isSettingsPreview ? "演示搜索后清空输入开关" : "在默认浏览器打开该搜索结果")
                 }
                 ForEach(webResults.prefix(maxRows)) { result in
+                    HStack(spacing: 4) {
                     Button {
                         if isSettingsPreview {
                             previewSelectedResultID = result.id.uuidString
@@ -1303,6 +1305,19 @@ public struct SearchSectionView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .help(isSettingsPreview ? "选择固定网页示例" : "点击在默认浏览器打开（⌥ 点击：在此处预览）")
                     .accessibilityLabel(isSettingsPreview ? "选择示例：\(result.title)" : "在默认浏览器打开：\(result.title)")
+                    if !isSettingsPreview {
+                        let url = result.url.absoluteString
+                        Button { favorites.toggle(.searchResult, id: url) } label: {
+                            Image(systemName: favorites.contains(.searchResult, id: url) ? "star.fill" : "star")
+                                .font(.system(size: 11))
+                                .foregroundStyle(favorites.contains(.searchResult, id: url) ? Theme.accent : Color.secondary)
+                                .frame(width: 22, height: 24)
+                        }
+                        .buttonStyle(.plain)
+                        .help(favorites.contains(.searchResult, id: url) ? "取消收藏网页" : "收藏网页")
+                        .accessibilityLabel(favorites.contains(.searchResult, id: url) ? "取消收藏网页" : "收藏网页")
+                    }
+                    }
                 }
             }
             .padding(.top, 2)
@@ -1617,15 +1632,16 @@ public struct SearchSectionView: View {
                 .padding(.bottom, 2)
             } else {
                 ForEach(Array(rows.enumerated()), id: \.element.id) { index, result in
-                    Button {
-                        if isSettingsPreview {
-                            previewSelectedResultID = result.id
-                            previewFeedback = "定位示例：" + result.url.lastPathComponent
-                            return
-                        }
-                        NSWorkspace.shared.activateFileViewerSelecting([result.url])
-                    } label: {
-                        if compact {
+                    HStack(spacing: 4) {
+                        Button {
+                            if isSettingsPreview {
+                                previewSelectedResultID = result.id
+                                previewFeedback = "定位示例：" + result.url.lastPathComponent
+                                return
+                            }
+                            NSWorkspace.shared.activateFileViewerSelecting([result.url])
+                        } label: {
+                            if compact {
                             // 全部视图：单行——文件名（命中高亮）+ 右侧父目录名
                             HStack(spacing: 8) {
                                 resultFileIcon(for: result.url)
@@ -1678,11 +1694,24 @@ public struct SearchSectionView: View {
                             .padding(.vertical, 4)
                             .background(RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous).fill(Color.clear))
                             .contentShape(Rectangle())
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .background(previewSelectionFill(result.id))
+                        .help(isSettingsPreview ? "选择固定文件示例" : "在 Finder 中显示")
+                        if !isSettingsPreview {
+                            let url = result.url.absoluteString
+                            Button { favorites.toggle(.searchResult, id: url) } label: {
+                                Image(systemName: favorites.contains(.searchResult, id: url) ? "star.fill" : "star")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(favorites.contains(.searchResult, id: url) ? Theme.accent : Color.secondary)
+                                    .frame(width: 22, height: 24)
+                            }
+                            .buttonStyle(.plain)
+                            .help(favorites.contains(.searchResult, id: url) ? "取消收藏文件" : "收藏文件")
+                            .accessibilityLabel(favorites.contains(.searchResult, id: url) ? "取消收藏文件" : "收藏文件")
                         }
                     }
-                    .buttonStyle(.plain)
-                    .background(previewSelectionFill(result.id))
-                    .help(isSettingsPreview ? "选择固定文件示例" : "在 Finder 中显示")
                 }
             }
         }

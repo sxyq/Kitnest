@@ -274,6 +274,15 @@ public final class DatabaseManager {
             FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
         );
 
+
+        CREATE TABLE IF NOT EXISTS resource_favorites (
+            resource_type TEXT NOT NULL,
+            resource_id TEXT NOT NULL,
+            added_at REAL NOT NULL,
+            PRIMARY KEY (resource_type, resource_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_resource_favorites_added ON resource_favorites(added_at DESC);
+
         CREATE TABLE IF NOT EXISTS file_type_icons (
             icon_key TEXT PRIMARY KEY,
             handler_bundle_id TEXT,
@@ -310,10 +319,10 @@ public final class DatabaseManager {
         if !(try clipboard.query("PRAGMA table_info(clipboard_items)")).contains(where: { $0.string("name") == "is_favorite" }) {
             try clipboard.transaction { db in
                 try db.exec("ALTER TABLE clipboard_items ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0")
-                try db.exec("UPDATE clipboard_items SET is_favorite = 1 WHERE is_note = 1")
             }
         }
         try clipboard.exec("CREATE INDEX IF NOT EXISTS idx_items_favorite ON clipboard_items(is_favorite, timestamp DESC)")
+        try clipboard.exec("INSERT OR IGNORE INTO resource_favorites(resource_type,resource_id,added_at) SELECT 'clipboard',dedupe_key,timestamp FROM clipboard_items WHERE is_favorite=1")
 
         if !(try clipboard.query("PRAGMA table_info(clipboard_items)")).contains(where: { $0.string("name") == "file_categories" }) {
             try clipboard.transaction { db in

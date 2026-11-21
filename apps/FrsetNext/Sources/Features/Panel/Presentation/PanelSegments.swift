@@ -111,10 +111,11 @@ public enum GlobalEntries {
     public static let homeKey = "entry.home"
     public static let monitorPopoutKey = "entry.monitorPopout"
     public static let statsBarKey = "entry.statsBar"
+    public static let floatingBallKey = FloatingBallSettings.enabledKey
 
     /// 出厂默认：三个都开（性能监测是本产品的核心卖点，用户明确要求默认打开）
     public static func isEnabled(_ key: String) -> Bool {
-        Preferences.shared.value(key, default: true)
+        Preferences.shared.value(key, default: key != floatingBallKey)
     }
 
     public static func setEnabled(_ key: String, _ on: Bool) {

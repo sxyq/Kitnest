@@ -44,6 +44,7 @@ private struct LiveTransferDockView: View {
 }
 
 private struct TransferDockContent: View {
+    @ObservedObject private var favoritesStore = FavoritesStore.shared
     @Environment(\.isSettingsPreview) private var isSettingsPreview
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     private let liveService: TransferDockService?
@@ -1273,6 +1274,7 @@ private struct TransferDockContent: View {
     private func localCard(_ item: LocalTransferItem) -> some View {
         LocalCardRowView(
             item: item,
+            isFavorite: favoritesStore.contains(.transferFile, id: item.id),
             selected: selectedIDs.contains(item.id),
             isKeyboardPreviewTarget: localItems.first(where: { selectedIDs.contains($0.id) })?.id == item.id,
             showsCloud: showsCloud,
@@ -1478,6 +1480,7 @@ private struct LocalCardRowView: View, Equatable {
     @Environment(\.isSettingsPreview) private var isSettingsPreview
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let item: LocalTransferItem
+    let isFavorite: Bool
     let selected: Bool
     let isKeyboardPreviewTarget: Bool
     let showsCloud: Bool
@@ -1495,6 +1498,7 @@ private struct LocalCardRowView: View, Equatable {
             && lhs.selected == rhs.selected
             && lhs.isKeyboardPreviewTarget == rhs.isKeyboardPreviewTarget
             && lhs.showsCloud == rhs.showsCloud
+            && lhs.isFavorite == rhs.isFavorite
     }
 
     var body: some View {
@@ -1527,6 +1531,15 @@ private struct LocalCardRowView: View, Equatable {
                 }
                 .buttonStyle(.plain)
                 .help("勾选后可批量扫码直传 / 加入云端")
+                if !isSettingsPreview {
+                    Button { FavoritesStore.shared.toggle(.transferFile, id: item.id) } label: {
+                        Image(systemName: isFavorite ? "star.fill" : "star")
+                            .font(.system(size: 11))
+                            .foregroundStyle(isFavorite ? Theme.accent : Color.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .help(isFavorite ? "取消收藏" : "收藏文件")
+                }
             }
             Text(item.name)
                 .font(.system(size: 11, weight: .medium))
@@ -1620,6 +1633,10 @@ private struct LocalCardRowView: View, Equatable {
             }
             Button("打开") { if !isSettingsPreview { LocalTransferStore.shared.open(item) } }
             Button("在 Finder 中显示") { if !isSettingsPreview { LocalTransferStore.shared.reveal(item) } }
+            Divider()
+            Button(isFavorite ? "取消收藏" : "收藏") {
+                if !isSettingsPreview { FavoritesStore.shared.toggle(.transferFile, id: item.id) }
+            }
             Divider()
             Button(selected ? "取消勾选" : "勾选") { onToggleSelect(item.id) }
             Button("通用互传这个") { onPickOnly(item.id) }

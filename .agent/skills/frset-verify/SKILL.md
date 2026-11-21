@@ -51,6 +51,13 @@ print(''.join(open(p,errors='replace').readlines()[-8:]))"
 ```
 关键词：`已部署` `解析下载` `下载完成` `工具窗已打开` `启动追赶` `show: frame=`。
 
+## 5. 本次入口与任务链
+
+- 收藏状态以 SQLite `resource_favorites` 为共享来源；剪贴板另外同步写 `clipboard_items.is_favorite`。核对其他入口时从状态栏「查看收藏…」或命令面板打开收藏窗。
+- 悬浮球界面目录复用 `IslandWidget`；显示开关、组件顺序、格子尺寸、列数及逐屏位置均由「设置 → 入口与交互 → 悬浮球」读取。
+- 悬浮球触发截图后，恢复依赖截图取消或动作条关闭回调；不要用固定计时器推断截图结束。
+- 在线翻译分别查看 Apple 本机 Provider 与 AI/360 在线 Provider；在线 Provider 首次请求会展示授权说明。仅用成功结果提示里的 Provider 名称确认实际服务。
+
 ### 屏幕录制授权
 
 ```bash

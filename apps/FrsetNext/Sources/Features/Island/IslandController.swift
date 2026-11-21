@@ -797,7 +797,7 @@ final class IslandController: NSObject, ObservableObject {
 
     private func entry(at point: NSPoint) -> IslandDisplay? {
         displays.first {
-            guard configuration.entryVisibilities[$0.id] != .hidden else { return false }
+            // `.hidden` hides only the drawn capsule; the screen's pointer hot zone stays active.
             return $0.entryFrame(hotspot: configuration.hotspots[$0.id] ?? .center,
                                  width: configuration.hotspotWidths[$0.id] ?? 210).contains(point)
         }

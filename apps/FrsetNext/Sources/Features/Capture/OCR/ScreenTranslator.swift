@@ -95,7 +95,7 @@ public enum ScreenTranslator {
         }
         ScreenshotManager.shared.registerCaptured(url: url, data: data)
         PinnedScreenshotManager.shared.show(image: rendered, at: pinOrigin)
-        Toast.show("屏幕翻译完成，已钉回原位", icon: "character.book.closed")
+        Toast.show("屏幕翻译完成 · \(TranslationToolSession.shared.lastUsedProviderName)", icon: "character.book.closed")
         Log.info("Capture", "屏幕翻译完成：\(blocks.count) 块，输出 \(rendered.width)×\(rendered.height)")
     }
 

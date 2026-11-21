@@ -412,6 +412,7 @@ struct PanelRootView: View {
                     FloatingClipboardWindowController.shared.toggle()
                 }
                 .keyboardShortcut("v", modifiers: [.command, .shift])
+                Button("查看收藏…") { FavoritesWindowController.shared.show() }
                 Divider()
                 // v97（2026-10-21 用户：「点击暂停统计剪贴板无效并且无提示」）：
                 // Menu 内自定义 Binding 的 Toggle 在 macOS 上点击偶发不触发 set

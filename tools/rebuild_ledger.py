@@ -2693,5 +2693,108 @@ EVIDENCE.update({
         "按间距采样 Path 曲线并保留分离轮廓，供图块边界、标签区域与命中路径生成",
 })
 
+EVIDENCE.update({
+    ("Core/Runtime/AppUpdateChecker.swift", "isValidSHA256"):
+        "自动安装前限定 SHA-256 为64位十六进制文本，供更新清单与实际包摘要比较",
+    ("Features/AI/Translation/TranslationProvider.swift", "isAuthorized"):
+        "按总开关与服务商授权键判断在线翻译许可；Apple 系统翻译始终本机可用",
+    ("Features/AI/Translation/TranslationProvider.swift", "authorize"):
+        "首次调用在线 Provider 时说明发送文字并记录用户对此服务的允许或拒绝",
+    ("Features/AI/Translation/TranslationProvider.swift", "setOnlineAllowed"):
+        "设置在线翻译总许可；关闭时撤销服务商单独许可及此前拒绝记录",
+    ("Features/AI/Translation/TranslationToolSession.swift", "remember"):
+        "记录最近一次成功翻译的实际 Provider，供结果提示显示真实服务",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "takeCaptureSessionCompletion"):
+        "从当前截图会话取出并清空结束回调，交给动作条完成或取消路径单次调用",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "finishCaptureSession"):
+        "截图授权拒绝、取消或无法产出时收束当前会话并调用其可选完成回调",
+    ("Features/Capture/Workflow/CaptureWorkflow.swift", "credentialAccount"):
+        "用工作流与步骤的稳定 UUID 组合 Keychain 账号，区分 GitHub 和 Linear 凭证",
+    ("Features/Capture/Workflow/CaptureWorkflow.swift", "readCredential"):
+        "按服务和账号读取 Keychain 凭证；区分条目不存在与钥匙串读取失败",
+    ("Features/Capture/Workflow/CaptureWorkflow.swift", "writeCredential"):
+        "先更新同账号 Keychain 项，不存在时新增，使 JSON 不必保存服务凭证",
+    ("Features/Capture/Workflow/CaptureWorkflow.swift", "deleteCredential"):
+        "删除已移除步骤对应的 Keychain 项，并允许条目本来不存在",
+    ("Features/Capture/Workflow/CaptureWorkflow.swift", "presentFailure"):
+        "报告工作流失败步骤和原截图路径；重试时从失败步骤继续并沿用上下文",
+    ("Features/Clipboard/Store/FavoritesStore.swift", "init"):
+        "构造共享收藏 store 时读取 resource_favorites；控制器构造时保留唯一窗口实例",
+    ("Features/Clipboard/Store/FavoritesStore.swift", "contains"):
+        "按资源类型和稳定 ID 查询本地发布集合中的收藏状态",
+    ("Features/Clipboard/Store/FavoritesStore.swift", "set"):
+        "幂等写入或删除非剪贴板收藏关联，成功后通知所有界面刷新",
+    ("Features/Clipboard/Store/FavoritesStore.swift", "setClipboard"):
+        "在同一 SQLite 事务中更新剪贴板旧收藏列与全局关联表，保证两处状态一致",
+    ("Features/Clipboard/Store/FavoritesStore.swift", "clipboardRemoved"):
+        "剪贴板记录删除后移除对应内存收藏状态并发布变化",
+    ("Features/Clipboard/Store/FavoritesStore.swift", "publish"):
+        "在主线程更新指定资源收藏键并发送全局收藏变化通知",
+    ("Features/Clipboard/Store/FavoritesStore.swift", "toggle"):
+        "在 SQLite 事务内读取当前收藏值并切换，避免不同入口使用过期视图值",
+    ("Features/Clipboard/Store/FavoritesStore.swift", "removeMissing"):
+        "全局收藏视图发现目标资源已不存在时删除对应收藏引用",
+    ("Features/Clipboard/Store/FavoritesStore.swift", "references"):
+        "按加入时间读取类型、资源 ID 和日期，供全局收藏视图打开或清理条目",
+    ("Features/Clipboard/Store/FavoritesStore.swift", "refresh"):
+        "从 resource_favorites 重载收藏键集合，用于恢复备份后同步可见界面",
+    ("Features/Clipboard/Store/FavoritesStore.swift", "show"):
+        "创建或重新呈现可调整大小的全局收藏窗，并激活应用",
+    ("Features/Clipboard/Store/FavoritesStore.swift", "reload"):
+        "合并剪贴板、暂存文件、工具、命令和网页引用；失效资源移除并提供打开动作",
+    ("Features/FloatingBall/FloatingBallController.swift", "expandedSize"):
+        "按已启用组件数、列数和单格尺寸计算快捷窗网格外框",
+    ("Features/FloatingBall/FloatingBallController.swift", "init"):
+        "控制器单例持有复用状态；面板采用无边框非激活样式，避免建立第二主面板",
+    ("Features/FloatingBall/FloatingBallController.swift", "start"):
+        "监听入口开关、应用失活和显示器变化，再按当前偏好显示或收起面板",
+    ("Features/FloatingBall/FloatingBallController.swift", "applyEnabledState"):
+        "依据统一入口偏好显示或隐藏悬浮球，并在关闭时释放展开态事件监听",
+    ("Features/FloatingBall/FloatingBallController.swift", "applyConfiguration"):
+        "应用用户尺寸、透明度、组件网格及当前屏幕边缘位置设置",
+    ("Features/FloatingBall/FloatingBallController.swift", "ensurePanel"):
+        "只创建一个复用 NSPanel 和 SwiftUI 内容宿主，供悬浮球与快捷窗切换",
+    ("Features/FloatingBall/FloatingBallController.swift", "show"):
+        "依当前指针屏幕读取该屏上次位置，夹入可见区域后呈现悬浮球",
+    ("Features/FloatingBall/FloatingBallController.swift", "toggleExpanded"):
+        "在紧凑悬浮球与快捷组件网格之间切换",
+    ("Features/FloatingBall/FloatingBallController.swift", "expand"):
+        "保留面板实例并按用户组件布局扩展到屏幕左或右边缘",
+    ("Features/FloatingBall/FloatingBallController.swift", "pointerEntered"):
+        "鼠标重新进入时取消延迟收起，并唤回贴边半隐藏的球体",
+    ("Features/FloatingBall/FloatingBallController.swift", "pointerLeft"):
+        "鼠标离开且自动半隐藏启用时，延迟0.85秒收起快捷窗",
+    ("Features/FloatingBall/FloatingBallController.swift", "collapse"):
+        "收起快捷组件并按设置贴边半隐藏或完整显示球体",
+    ("Features/FloatingBall/FloatingBallController.swift", "installExpandedMonitors"):
+        "快捷窗展开期间监听应用内外部点击与 Esc，收起时保留原事件传递",
+    ("Features/FloatingBall/FloatingBallController.swift", "removeExpandedMonitors"):
+        "收起或停用快捷窗时移除已安装的点击和按键监听",
+    ("Features/FloatingBall/FloatingBallController.swift", "windowDidResignKey"):
+        "浮动面板失去键窗口状态后收起展开内容",
+    ("Features/FloatingBall/FloatingBallController.swift", "run"):
+        "把组件动作路由到现有截图、剪贴板、搜索、监测、收藏或灵动岛页面",
+    ("Features/FloatingBall/FloatingBallController.swift", "move"):
+        "在复用窗口上动画调整几何并标记程序移动，避免误存为用户拖动位置",
+    ("Features/FloatingBall/FloatingBallController.swift", "windowDidMove"):
+        "用户移动结束后按 NSScreenNumber 延迟保存该显示器的位置",
+    ("Features/FloatingBall/FloatingBallController.swift", "clampToConnectedScreen"):
+        "显示器配置变化时将现存面板约束到当前连接屏幕可见范围",
+    ("Features/FloatingBall/FloatingBallController.swift", "screenAtPointer"):
+        "读取鼠标所在显示器作为新面板的放置屏幕",
+    ("Features/FloatingBall/FloatingBallController.swift", "screenFor"):
+        "优先用窗口几何匹配当前屏幕，未相交时回到鼠标屏幕",
+    ("Features/FloatingBall/FloatingBallController.swift", "screenKey"):
+        "用 NSScreenNumber 生成显示器位置偏好的稳定键",
+    ("Features/FloatingBall/FloatingBallController.swift", "clampedOrigin"):
+        "按指定显示器可见区域限制面板原点，避免窗口移出屏幕",
+    ("Features/FloatingBall/FloatingBallController.swift", "clamped"):
+        "读取用户尺寸偏好并限制在设置界面公布的范围内，未设置时使用指定默认值",
+    ("Features/Settings/Panes/FloatingBallSettingsPane.swift", "slider"):
+        "展示悬浮球尺寸、格子尺寸或透明度，并在拖动时即时更新面板",
+    ("Features/StatusBar/StatusBarController.swift", "openFavoritesAction"):
+        "状态栏全局收藏菜单项打开共享收藏窗口",
+})
+
 if __name__ == "__main__":
     sys.exit(main())

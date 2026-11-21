@@ -135,6 +135,7 @@ public final class StatusBarController: NSObject {
     }
 
     @objc func openSettingsAction(_ sender: Any?) { ServiceLocator.settings?.open(pane: nil) }
+    @objc func openFavoritesAction(_ sender: Any?) { FavoritesWindowController.shared.show() }
     @objc func openIslandAction(_ sender: Any?) { IslandController.shared.open() }
 
     private func updatePauseBadge() {

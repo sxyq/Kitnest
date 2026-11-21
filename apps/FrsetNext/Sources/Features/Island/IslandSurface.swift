@@ -76,6 +76,12 @@ struct IslandSurface<Content: View>: View {
                 Image(systemName: "macwindow").frame(width: 26, height: 26)
             }.buttonStyle(IslandButtonStyle(help: "打开主面板")).accessibilityLabel("打开主面板")
             Button {
+                if controller.previewOnly { controller.feedback = "收藏入口预览" }
+                else { controller.performOutside { FavoritesWindowController.shared.show() } }
+            } label: {
+                Image(systemName: "star").frame(width: 26, height: 26)
+            }.buttonStyle(IslandButtonStyle(help: "查看收藏")).accessibilityLabel("查看收藏")
+            Button {
                 if controller.previewOnly { controller.feedback = "设置位于总设置 → 刘海工作台" }
                 else { controller.performOutside { ServiceLocator.settings?.open(pane: "island") } }
             } label: {

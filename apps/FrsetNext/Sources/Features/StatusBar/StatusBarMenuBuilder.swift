@@ -127,6 +127,8 @@ public enum StatusBarMenuBuilder {
                                 modifiers: [.command],
                                 action: #selector(StatusBarController.openSettingsAction(_:)),
                                 target: target)))
+        menu.addItem(track(item("查看收藏…", key: "", modifiers: [],
+                                action: #selector(StatusBarController.openFavoritesAction(_:)), target: target)))
 
         if GlobalEntries.isEnabled(GlobalEntries.monitorPopoutKey) {
             menu.addItem(track(item("性能监测…", key: "", modifiers: [],

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
   <meta name="theme-color" content="#ffffff">
   <title>Kitnest · 菜单栏里的效率工具集</title>
-  <meta name="description" content="Kitnest 是一个常驻 macOS 菜单栏的效率工具集：剪贴板历史、截图与标注、系统监控、文件中转与安卓投屏。点一下图标或按 ⌥A，数据留在本机。">
+  <meta name="description" content="Kitnest 是一个常驻 macOS 菜单栏的效率工具集：剪贴板历史、截图与标注、系统监控、文件中转与安卓投屏。本地优先；联网功能由你主动选择。">
   <link rel="icon" type="image/svg+xml" href="assets/kitnest-mark.svg">
   <link rel="stylesheet" href="assets/site.css">
 </head>
@@ -73,7 +73,7 @@
             <div class="hero-version" id="heroVersionLine">
               <strong>当前版本</strong><span id="heroVersionText">正在读取版本信息…</span>
               <span>不占 Dock</span>
-              <span>数据留在本机</span>
+              <span>本地优先</span>
             </div>
           </div>
 
@@ -272,7 +272,7 @@
       <div class="hero-bridge" data-reveal>
         <div class="wrap">
           <div class="bridge-trust">
-            <span>无账号</span><span>无埋点统计</span><span>数据留在本机</span>
+            <span>无账号</span><span>无埋点统计</span><span>本地优先</span>
             <span>SHA-256 校验</span><span>独立分发</span>
           </div>
           <a class="bridge-demo" href="#showcase" data-nav>
@@ -390,21 +390,21 @@
           <div class="privacy-banner" data-reveal>
             <div>
               <span class="kicker">Local first</span>
-              <h3>它不需要你的账号，<br>也不需要把你的数据传上去。</h3>
-              <p>剪贴板记录、截图和监控数据都写在本机的 SQLite 里。不要求登录，不做云端同步，埋点统计也没有。</p>
+              <h3>日常资料保存在本机，<br>联网操作由你主动选择。</h3>
+              <p>剪贴板、标签、截图与监控数据保存在本机；Kitnest 不要求账号，也不做云端同步或埋点统计。在线翻译仅在你允许后发送选中文字到选定服务。</p>
             </div>
             <div class="privacy-points">
               <div class="privacy-point">
                 <span class="pp-ico">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5.5" rx="7.5" ry="3"/><path d="M4.5 5.5v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/><path d="M4.5 11.5v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6"/></svg>
                 </span>
-                <div><b>数据只落本机</b><span>剪贴板、标签和统计存在 ~/Library/Application Support/Kitnest。</span></div>
+                <div><b>日常资料保存在本机</b><span>剪贴板、标签、截图和统计保存在 ~/Library/Application Support/Kitnest。</span></div>
               </div>
               <div class="privacy-point">
                 <span class="pp-ico">
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M5 8l7-5 7 5M5 16l7 5 7-5"/></svg>
                 </span>
-                <div><b>只在三处联网</b><span>检查更新、局域网传输，还有你主动触发的 AI 请求；其余时间完全离线。</span></div>
+                <div><b>联网功能按需使用</b><span>网页搜索、更新、文件传输、AI 翻译及你配置的工作流会按操作连接对应服务；在线翻译须先授权。</span></div>
               </div>
               <div class="privacy-point">
                 <span class="pp-ico">
@@ -611,7 +611,7 @@
                 <li><span class="k">自定义工具</span><span class="v">名称 + 系统提示词 + <code>{input}</code> 模板，存成小工具后和内置动作并列</span></li>
                 <li><span class="k">密钥</span><span class="v">加密信封存本地，主密钥由系统钥匙串派生；导出偏好数据时不带密钥</span></li>
               </ul>
-              <div class="callout warn"><b>不联网也能用：</b>本地 Ollama 不需要任何 Key；翻译在没有 AI 服务商时会退回系统翻译，仍然可用。</div>
+              <div class="callout warn"><b>在线翻译由你决定：</b>Apple 系统翻译在本机处理；AI 与 360 快速通道会发送所选文字，首次使用前会说明并询问授权。拒绝后自动模式只尝试本机翻译。</div>
             </div>
           </article>
 
@@ -1024,11 +1024,12 @@
           <article class="chapter">
             <div class="chapter-no"><span class="ch-title">02 · 网络</span><span class="ch-sub">什么时候会联网</span></div>
             <div class="chapter-body">
-              <h3>只有三件事会用到网络</h3>
+              <h3>哪些操作会联网</h3>
               <ul class="spec-list">
                 <li><span class="k">检查更新</span><span class="v">请求官方清单（几百字节），下载安装包时走 HTTPS；可在「设置 → 关于」换成自己的源或关掉</span></li>
-                <li><span class="k">文件中转</span><span class="v">隔空投送走系统通道；扫码直传与 ADB 只在你主动点击后启动</span></li>
-                <li><span class="k">AI 请求</span><span class="v">只有你主动使用总结 / 翻译时才发给你配置的服务商，Key 存钥匙串</span></li>
+                <li><span class="k">搜索与传输</span><span class="v">网页搜索、扫码直传、ADB、云端中转和隔空投送按各自操作连接网络或系统服务</span></li>
+                <li><span class="k">AI 与翻译</span><span class="v">AI 请求发往你配置的服务商；Apple 系统翻译在本机处理，AI 与 360 在线翻译首次使用前会说明并询问授权</span></li>
+                <li><span class="k">截图工作流</span><span class="v">仅按你配置的步骤上传截图或创建 Issue；GitHub 与 Linear 凭证保存在钥匙串</span></li>
               </ul>
               <p>没有埋点 SDK，不做崩溃上报，也没有「匿名使用数据」。官网本身也不加载第三方统计脚本。</p>
             </div>
