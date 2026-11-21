@@ -359,6 +359,7 @@ void FSStatsTickStart(void) {
 
 void FSStatsTickStop(void) {
     if (s_tickTimer) { [s_tickTimer invalidate]; s_tickTimer = nil; }
+    g_snap.valid = 0;
     pthread_mutex_lock(&s_cpuLock);
     s_hasCPU = NO;
     pthread_mutex_unlock(&s_cpuLock);

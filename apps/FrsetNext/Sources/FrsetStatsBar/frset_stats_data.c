@@ -254,6 +254,9 @@ void frset_mem_sample(frset_mem_t *out) {
 // ============ 网络 ============
 
 void frset_net_sample(frset_net_t *out) {
+    // 菜单栏与独立常驻统计交接时共用同一份差分计数。
+    static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_lock(&lock);
     memset(out, 0, sizeof(*out));
     static uint64_t prev_in = 0, prev_out = 0;
     static double prev_t = 0;
@@ -287,6 +290,7 @@ void frset_net_sample(frset_net_t *out) {
     }
     out->total_up = o; out->total_down = in;
     prev_in = in; prev_out = o; prev_t = now;
+    pthread_mutex_unlock(&lock);
 }
 
 // ============ 磁盘 ============

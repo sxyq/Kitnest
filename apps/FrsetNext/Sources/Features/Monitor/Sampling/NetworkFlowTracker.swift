@@ -111,6 +111,10 @@ public final class NetworkFlowTracker {
             let snapshot = g_snap
             if snapshot.valid != 0 {
                 self.ingestNIC(down: snapshot.netDownBps, up: snapshot.netUpBps)
+            } else {
+                var network = frset_net_t()
+                frset_net_sample(&network)
+                self.ingestNIC(down: Double(network.down_bps), up: Double(network.up_bps))
             }
         }
     }
