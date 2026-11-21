@@ -90,31 +90,6 @@ public struct ClipboardSectionView: View {
         }
     }
 
-    // MARK: 头部
-
-    private var header: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Theme.sectionHeader("剪贴板")
-            Spacer()
-            ClipboardTagFilterMenu(selectedTagID: Binding(get: { manager.tagFilterID },
-                                                          set: { manager.tagFilterID = $0 }))
-            Button {
-                FloatingClipboardWindowController.shared.toggle()
-            } label: {
-                Image(systemName: "macwindow")
-            }
-            .buttonStyle(.borderless)
-            .help("打开/关闭浮动窗")
-            Button {
-                manager.reload(reset: true)
-            } label: {
-                Image(systemName: "arrow.clockwise")
-            }
-            .buttonStyle(.borderless)
-            .help("刷新")
-        }
-    }
-
     // MARK: 列表（specs/14 §4：NSTableView 宿主，行交互族在 ClipboardTableHostView）
 
     private var list: some View {
