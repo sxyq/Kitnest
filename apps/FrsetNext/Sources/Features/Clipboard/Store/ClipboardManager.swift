@@ -917,8 +917,8 @@ public final class ClipboardManager: ObservableObject {
                 richTextPath = stored
             }
             let currentRichTextPath = richTextPath ?? existing.richTextPath
-            let auxiliary = self.auxiliaryBytes(item: existing)
-                - ClipboardFileStore.fileSize(existing.richTextPath)
+            let auxiliary = ClipboardFileStore.fileSize(existing.imagePath)
+                + ClipboardFileStore.fileSize(existing.thumbnailPath)
                 + ClipboardFileStore.fileSize(currentRichTextPath)
             var content = newContent
             var charCount: Int?
@@ -1061,13 +1061,6 @@ public final class ClipboardManager: ObservableObject {
 
 
     // MARK: 辅助
-
-    /// 图片 / 富文本副文件的字节数（编辑正文时 storage_bytes 要保留这部分）
-    private func auxiliaryBytes(item: ClipboardItem) -> Int {
-        ClipboardFileStore.fileSize(item.imagePath)
-            + ClipboardFileStore.fileSize(item.thumbnailPath)
-            + ClipboardFileStore.fileSize(item.richTextPath)
-    }
 
     /// 剪贴板文件自动暂存：文件与文件夹复制后同步到「文件中转」。
     /// 模块间不直接引用（契约 §1.3）：这里只发通知，由 AppBootstrap 接到 LocalTransferStore。
