@@ -24,6 +24,7 @@ public final class AppUpdateChecker {
 
     /// 官方更新清单；用户仍可在 设置 → 关于 覆盖（清空即回到默认）
     public static let defaultFeedURL = "https://calorieai.sxyq27.online/kitnest/stable/latest.json"
+    private static let updateSigningRequirement = "identifier \"com.sxyq.frsetnext\" and certificate leaf = H\"2efbee27cefef9f60c03ba222a972127d9286542\""
 
     /// 清单更新后广播（WhatsNew 与状态栏用）
     public static let feedDidUpdateNotification = Notification.Name("frset.update.feedDidUpdate")
@@ -307,6 +308,19 @@ public final class AppUpdateChecker {
                                   userInfo: [NSLocalizedDescriptionKey: "更新包里没有应用"])
                 }
                 let newApp = payload.appendingPathComponent(appName)
+                let verifier = Process()
+                verifier.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
+                // requirement 前的 = 表示内联表达式，否则 codesign 会把它当文件路径。
+                verifier.arguments = ["--verify", "--deep", "--strict",
+                                      "--test-requirement==\(Self.updateSigningRequirement)", newApp.path]
+                verifier.standardOutput = FileHandle.nullDevice
+                verifier.standardError = FileHandle.nullDevice
+                try verifier.run()
+                verifier.waitUntilExit()
+                guard verifier.terminationStatus == 0 else {
+                    throw NSError(domain: "Kitnest.Update", code: Int(verifier.terminationStatus),
+                                  userInfo: [NSLocalizedDescriptionKey: "更新应用签名验证失败"])
+                }
 
                 // 替换脚本：等本进程退出 → 备份 → 覆盖 → 去隔离 → 重开
                 let script = """
