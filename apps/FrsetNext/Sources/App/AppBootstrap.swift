@@ -633,15 +633,6 @@ enum AppBootstrap {
         return (keyCode, entry.modifiers)
     }
 
-    @discardableResult
-    static func setShortcut(_ id: String, keyCode: UInt32?, modifiers: UInt32 = 0) -> Bool {
-        let id = id == "colorPicker" ? "colorpicker" : id
-        guard defaultHotkeys.contains(where: { $0.id == id }) else { return false }
-        let value = ShortcutBinding(trigger: keyCode == nil ? .unbound : .combination,
-                                    keyCode: keyCode, modifiers: modifiers)
-        return applyShortcuts([id: value]) == nil
-    }
-
     // MARK: 截图翻译会话（screenshotTranslate 热键 → 截图 OCR → TranslationToolSession）
 
     /// 截图翻译会话挂起标志（事件接线处一次性消费）
