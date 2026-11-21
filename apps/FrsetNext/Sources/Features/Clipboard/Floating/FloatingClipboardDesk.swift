@@ -243,7 +243,6 @@ public final class FloatingClipDeskStore: ObservableObject {
         let query = ClipboardQuery(filter: kind, search: search, tagID: tagFilterID,
                                    limit: append ? 120 : max(120, items.count),
                                    offset: append ? items.count : 0)
-        let queryChanged = kind != loadedKind || search != loadedSearch || tagFilterID != loadedTagFilterID
         queryStateLock.lock()
         let generation = queryGeneration
         queryStateLock.unlock()
@@ -264,8 +263,13 @@ public final class FloatingClipDeskStore: ObservableObject {
                 let selectedID = self.selectedItemID
                 let queryChanged = kind != self.loadedKind || search != self.loadedSearch
                     || query.tagID != self.loadedTagFilterID
-                let existingIDs = Set(self.items.map(\.id))
-                let updated = append ? self.items + fetched.filter { !existingIDs.contains($0.id) } : fetched
+                let updated: [ClipboardItem]
+                if append {
+                    let existingIDs = Set(self.items.map(\.id))
+                    updated = self.items + fetched.filter { !existingIDs.contains($0.id) }
+                } else {
+                    updated = fetched
+                }
                 if self.items != updated { self.items = updated }
                 if self.totalInKind != total { self.totalInKind = total }
                 self.loadedKind = kind
