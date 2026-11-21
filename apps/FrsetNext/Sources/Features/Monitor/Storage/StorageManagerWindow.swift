@@ -35,6 +35,11 @@ public final class StorageManagerWindowController: NSWindowController, NSWindowD
         // 又不能盖住左上红绿灯（红绿灯是 AppKit 控件，仍在最上层）。
         win.styleMask = [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView]
         win.titleVisibility = .hidden   // v210 同款：避免标题画到最左压住红绿灯
+        // v272：重启后第一条 kitnest://storage 深链把窗口开到了非活动 Space，
+        // onScreenOnly 窗口列表里根本没有它（实测 02:18:40 深链静默无效）。
+        // moveToActiveSpace 保证唤起时窗口落到当前 Space；fullScreenAuxiliary
+        // 允许在全屏 Space 上以浮层形式出现。
+        win.collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
         win.applyOfficialChrome()
         win.isReleasedWhenClosed = false
         super.init(window: win)
@@ -44,9 +49,14 @@ public final class StorageManagerWindowController: NSWindowController, NSWindowD
     required init?(coder: NSCoder) { fatalError() }
 
     public func show(autoScan: Bool = false, drill: String? = nil, openAgent: Bool = false) {
-        guard let window else { return }
+        guard let window else {
+            Log.warn("Storage", "show：window 尚未创建，深链无效")
+            return
+        }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        let f = window.frame
+        Log.info("Storage", "show：\(Int(f.width))x\(Int(f.height)) @\(Int(f.minX)),\(Int(f.minY)) visible=\(window.isVisible)")
         // v211 排障：kitnest://storage?scan=1 —— 无人值守触发一次扫描（验证全盘索引/进度/截断提示）
         if autoScan { DiskIndexStore.shared.rescan() }
         // v212 排障：?drill=Users 下钻一层；?agent=1 直接开「让 Agent 清理」弹窗
