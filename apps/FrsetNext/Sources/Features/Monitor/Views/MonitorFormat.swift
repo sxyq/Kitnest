@@ -39,21 +39,10 @@ public enum MonitorFormat {
         bytes(value) + "/s"
     }
 
-    /// 带方向的速率（↑ 上传 / ↓ 下载）
-    public static func directionalRate(upload: UInt64, download: UInt64) -> String {
-        "↑\(rate(upload)) ↓\(rate(download))"
-    }
-
     /// 0..1 → 百分比整数（如 62%）
     public static func percent(_ value: Double) -> String {
         guard value.isFinite else { return "0%" }
         return "\(Int((min(1, max(0, value)) * 100).rounded()))%"
-    }
-
-    /// 百分比（保留一位小数，用于压力/负载）
-    public static func percentFine(_ value: Double) -> String {
-        guard value.isFinite else { return "0.0%" }
-        return String(format: "%.1f%%", min(1, max(0, value)) * 100)
     }
 
     /// 温度
@@ -64,11 +53,6 @@ public enum MonitorFormat {
     /// 负载
     public static func load(_ value: Double) -> String {
         String(format: "%.2f", value.isFinite ? value : 0)
-    }
-
-    /// 磁盘读写合并显示（状态栏用，紧凑）
-    public static func diskRate(read: UInt64, write: UInt64) -> String {
-        "R\(rate(read)) W\(rate(write))"
     }
 
     /// 整机功耗（W，保留一位小数；≥100W 取整）

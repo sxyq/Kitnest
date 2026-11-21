@@ -131,7 +131,7 @@ public final class AppUpdateChecker {
                 }
 
                 let latestBuild = Self.parseBuild(obj, currentBuild: self.currentBuild)
-                Log.info("Update", "清单已拉取：远端 build=\(latestBuild) / 当前 build=\(self.currentBuild) / 源 \(feed)")
+                Log.info("Update", "清单已拉取：远端 build=\(latestBuild) / 当前 build=\(self.currentBuild) / 源主机 \(url.host ?? "")")
                 // 先落缓存再广播：WhatsNew 与状态栏总能读到最新说明（含离线）
                 Preferences.shared.set(Keys.cachedFeed, String(data: data, encoding: .utf8) ?? "")
                 Preferences.shared.set(Keys.availableBuild, latestBuild)
@@ -394,8 +394,8 @@ public final class AppUpdateChecker {
     }
 
     private static func isValidSHA256(_ value: String) -> Bool {
-        value.count == 64 && value.unicodeScalars.allSatisfy {
-            CharacterSet(charactersIn: "0123456789abcdefABCDEF").contains($0)
+        value.utf8.count == 64 && value.utf8.allSatisfy {
+            (48...57).contains($0) || (65...70).contains($0) || (97...102).contains($0)
         }
     }
 

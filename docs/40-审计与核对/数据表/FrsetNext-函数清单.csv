@@ -169,7 +169,7 @@ Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,func,notifyUpdate,182,
 Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,func,presentUpdate,204,33,13
 Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,func,prepareToTerminate,249,18,4
 Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,func,installUpdate,268,127,10
-Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,func,isValidSHA256,396,5,2
+Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,func,isValidSHA256,396,5,4
 Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,func,compare,405,12,6
 Core,Core/Runtime/L10n.swift,L10n,var,bundleCache,26,0,1
 Core,Core/Runtime/L10n.swift,L10n,func,t,29,6,2
@@ -7279,13 +7279,10 @@ Monitor,Features/Monitor/Views/MonitorFormat.swift,MonitorFormat,func,u64,17,5,3
 Monitor,Features/Monitor/Views/MonitorFormat.swift,MonitorFormat,let,units,23,0,1
 Monitor,Features/Monitor/Views/MonitorFormat.swift,MonitorFormat,func,bytes,26,10,4
 Monitor,Features/Monitor/Views/MonitorFormat.swift,MonitorFormat,func,rate,38,3,1
-Monitor,Features/Monitor/Views/MonitorFormat.swift,MonitorFormat,func,directionalRate,43,3,1
-Monitor,Features/Monitor/Views/MonitorFormat.swift,MonitorFormat,func,percent,48,4,2
-Monitor,Features/Monitor/Views/MonitorFormat.swift,MonitorFormat,func,percentFine,54,4,2
-Monitor,Features/Monitor/Views/MonitorFormat.swift,MonitorFormat,func,temperature,60,3,1
-Monitor,Features/Monitor/Views/MonitorFormat.swift,MonitorFormat,func,load,65,3,2
-Monitor,Features/Monitor/Views/MonitorFormat.swift,MonitorFormat,func,diskRate,70,3,1
-Monitor,Features/Monitor/Views/MonitorFormat.swift,MonitorFormat,func,power,75,4,3
+Monitor,Features/Monitor/Views/MonitorFormat.swift,MonitorFormat,func,percent,43,4,2
+Monitor,Features/Monitor/Views/MonitorFormat.swift,MonitorFormat,func,temperature,49,3,1
+Monitor,Features/Monitor/Views/MonitorFormat.swift,MonitorFormat,func,load,54,3,2
+Monitor,Features/Monitor/Views/MonitorFormat.swift,MonitorFormat,func,power,59,4,3
 Monitor,Features/Monitor/Views/MonitorNetworkViews.swift,MonitorNetworkThroughputCard,let,down,22,0,1
 Monitor,Features/Monitor/Views/MonitorNetworkViews.swift,MonitorNetworkThroughputCard,let,up,23,0,1
 Monitor,Features/Monitor/Views/MonitorNetworkViews.swift,MonitorNetworkThroughputCard,let,downHistory,24,0,1

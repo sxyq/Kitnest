@@ -68,16 +68,16 @@ bash tools/publish_update.sh $'[新增] 一句话\n[改进] 一句话\n[修复] 
 - 脚本收尾自动 curl 验证 124 上的 feed 与 zip（HTTP 200 / 206）；另应完整下载一次核对 sha256 与清单一致；
 - 版本口径：显示版本固定 1.0.0，**比较与记账全用 `CFBundleVersion` build 号**；旧 4 位 LAN 二维码在 v200 后失效属预期。
 
-「立即更新」整包替换链路（下载 → sha256 → 解压 → 备份 → 替换 → 重启）的排障探针（自清理，测完即净）：
+「立即更新」整包替换链路的现有探针只接受 HTTPS 安装包地址及对应的 64 位十六进制 SHA-256；解压后的应用还须通过固定 FrsetDev 身份核验。空摘要或 `file://` 地址会进入原失败提示，不能用来验证成功安装：
 
 ```bash
 defaults write com.sxyq.frsetnext probe.updateInstall -bool YES
-defaults write com.sxyq.frsetnext probe.updateZip "file:///tmp/xxx.zip"   # 本地 zip
-defaults write com.sxyq.frsetnext probe.updateSha "<sha256>"              # 可选，不填跳过校验
+defaults write com.sxyq.frsetnext probe.updateZip "<实际 HTTPS 安装包地址>"
+defaults write com.sxyq.frsetnext probe.updateSha "<该安装包的 SHA-256>"
 # 重启 App 后 3s 自动走整包更新；三键读取后自删，不会循环
 ```
 
-「发现新版」提示链路的排障探针：把设置 → 关于 的更新源临时指向本地 `file://` 清单（build 写大于当前的值），重启即弹；测完删 `update.feedURL / update.notifiedBuild / update.availableBuild / update.ignoredBuild` 四键恢复。
+更新源同样必须使用 HTTPS；查询日志只记录源主机，不记录路径和查询参数。验证更新提示时使用实际清单及现有手动查询入口，保留用户的更新源和忽略记录。
 
 ## 参考
 
