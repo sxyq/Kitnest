@@ -1,21 +1,6 @@
 import SwiftUI
 
-// MARK: - 网络页可视化（v183）
-//
-// 用户反馈（2026-11-02）：
-//   「线条十分的差劲，并且不是实时的在更新的。然后它的一个分流的那个图是文本有超出，
-//     然后界面是不够美观的，然后很多边界没有考虑到。」
-//
-// 三件事对应三个改动：
-//   ① 折线：逐点 addLine 的折线 → 平滑贝塞尔 + 固定 60 秒窗口 + 网格 + 端点；
-//      两条线**共享同一 Y 轴量程**（原来是各归一化各的：148 KB/s 的下载画得比
-//      324 KB/s 的上传还高，纯误导）；
-//   ② 实时：C 引擎 1s 就更新网络速率，这里用 `NetworkPulse` 以 1s 取点，
-//      不走 2s 的通用采样节奏；
-//   ③ 分流图：窄窗口下三列流向卡必然挤爆文字 → 换成「比例条 + 逐行明细」，
-//      长名字先截断、数值固定宽度、超过 4 个 App 聚合成「其他 N 个」。
-
-// MARK: - 吞吐卡（数值 + 折线）
+// MARK: - 个性化预览吞吐卡（下载与上传共用同一量程）
 
 struct MonitorNetworkThroughputCard: View {
 
@@ -24,7 +9,7 @@ struct MonitorNetworkThroughputCard: View {
     let downHistory: [Double]
     let upHistory: [Double]
     let timeSpan: TimeInterval
-    var slots: Int = NetworkPulse.capacity
+    let slots: Int
 
     var body: some View {
         // 两系列共用真实最大值量程，保留孤立峰值。

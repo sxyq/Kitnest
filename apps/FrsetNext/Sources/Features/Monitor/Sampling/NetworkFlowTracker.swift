@@ -14,9 +14,8 @@ import Foundation
 //
 // 数据来源：
 //   · 分应用：StatsDataProvider.current.procNet（nettop 差分，diskRead=下行 B/s，diskWrite=上行）
-//   · 整机：NetworkPulse 的 1s 脉冲（netDownBps/netUpBps）
-//   两者都只在监测页可见时采样（C 层 nettop 在隐藏时暂停），所以窗口 = "面板可见期间的最近 10 分钟"，
-//   覆盖不足 10 分钟时由 UI 标明"已统计 X 分钟"，不假装是 10 分钟。
+//   · 整机：后台节拍读取 C 引擎的网络速率（netDownBps/netUpBps）
+//   开启常驻统计后不依赖监测页可见性；覆盖不足 10 分钟时由界面显示已统计时长。
 
 public struct NetworkFlowEntry: Identifiable, Sendable {
     public let key: String
@@ -158,7 +157,7 @@ public final class NetworkFlowTracker {
         prune(t)
     }
 
-    /// 整机采样（NetworkPulse 1s 一拍）：用来算「其他 App」= 整机 - 已列出
+    /// 累计整机流量，供「其他 App」计算整机与已列出项目的差值。
     public func ingestNIC(down: Double, up: Double, now: Date = Date()) {
         let t = now.timeIntervalSince1970
         lock.lock()
