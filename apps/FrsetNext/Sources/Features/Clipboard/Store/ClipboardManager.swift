@@ -47,23 +47,6 @@ public enum ClipboardFilterKind: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    public var systemImage: String {
-        switch self {
-        case .all: return "tray.full"
-        case .text: return "doc.plaintext"
-        case .image: return "photo"
-        case .link: return "link"
-        case .file: return "doc"
-        case .pdf: return "doc.richtext"
-        case .media: return "play.rectangle"
-        case .code: return "chevron.left.forwardslash.chevron.right"
-        case .color: return "paintpalette"
-        case .generated: return "wand.and.stars"
-        case .note: return "note.text"
-        case .favorite: return "star.fill"
-        }
-    }
-
     /// 过滤项 → 查询条件映射（specs/14 §6）：
     /// - generated → is_generated_by_tool=1（工具回流）
     /// - color → 工具回流中 sourceToolKeyword=="colorpicker"（取色工具产物；原作按内容特征分类，
