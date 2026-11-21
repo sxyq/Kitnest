@@ -151,7 +151,7 @@ enum SettingsPage: Hashable {
         case .transferScan: return "主面板中转页的手机直传；服务启停为即时操作"
         case .transferCloud: return "主面板中转页的云端传输；登录和账号操作单独呈现"
         case .transferCast: return "主面板投屏页；画质参数保存后应用"
-        case .archive: return "压缩和解压使用既有工具；Finder 服务在系统中分别启用"
+        case .archive: return "双击打开/快速解压、悬浮预览上限、任务窗置顶与 Finder 服务"
         case .capture(.capture): return "截图目录、命名与保存行为；各截图动作独立绑定"
         case .ocr: return "共用识别语言与结果展示；预览不启动真实识别"
         case .watermark: return "文字、透明度、平铺及角度使用固定模拟画面"

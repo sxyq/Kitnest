@@ -26,6 +26,12 @@ public final class Preferences: ObservableObject {
         public static let launchAtLogin = "launchAtLogin"
         /// 用户开启 ZIP 关联前的默认应用；关闭时恢复，不在启动时设置关联。
         public static let archivePreviousZIPApplication = "archive.previousZIPApplication"
+        // v273（ArcZip 1.2.5 对齐）：打开与解压行为 / 悬浮预览 / 任务窗置顶
+        public static let archiveOpenDirectExtract = "archive.open.directExtract"
+        public static let archiveOpenTrashOriginal = "archive.open.trashOriginal"
+        public static let archiveHoverEnabled = "archive.hover.enabled"
+        public static let archiveHoverSizeLimitMB = "archive.hover.sizeLimitMB"
+        public static let archiveProgressKeepOnTop = "archive.progress.keepOnTop"
         /// 深度释放时顺带暂停闲置应用（v259 第二档；默认开，内存卡上可临时关掉）
         public static let memoryFreezeIdle = "memory.freezeIdleOnRelease"
         /// 已看过的欢迎窗版本（onboardingVersion；空=没看过。见 WelcomeWindowController）

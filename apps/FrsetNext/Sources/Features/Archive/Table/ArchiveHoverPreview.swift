@@ -15,8 +15,19 @@ final class ArchiveHoverPreview {
 
     /// 用户要的「悬浮 1 秒」——短于这个值，扫列表时会一直闪窗
     static let delay: TimeInterval = 1.0
-    /// 超过 96MB 的条目不预解：解压成本远大于预览收益
-    static let sizeCap: Int64 = 96 * 1024 * 1024
+    /// v273（ArcZip 1.2.5 settings.browsing.hover.video.limit 对齐）：
+    /// 可预览大小上限改为设置项（10MB…2GB，按解压后大小、含上限）；
+    /// 旧实现硬编码 96MB，默认值取 100MB 保持观感不变。
+    static var sizeCap: Int64 {
+        let stored = UserDefaults.standard.object(forKey: Preferences.Keys.archiveHoverSizeLimitMB) as? Int
+        let mb = max(1, stored ?? 100)
+        return Int64(mb) * 1024 * 1024
+    }
+
+    /// 总开关：默认开启（历史行为），关闭后不预解任何条目。
+    static var isEnabled: Bool {
+        (UserDefaults.standard.object(forKey: Preferences.Keys.archiveHoverEnabled) as? Bool) ?? true
+    }
     private static let cacheLimit = 8
 
     private struct Item {
@@ -40,6 +51,7 @@ final class ArchiveHoverPreview {
         // 不能预览的条目仍收起；有效换项在内容就绪前保留同一个窗口。
         FileHoverPreviewController.shared.scheduleHide()
 
+        guard Self.isEnabled else { return }
         guard !entry.isDirectory else { return }
         guard entry.size > 0, entry.size <= Self.sizeCap else { return }
         // 只解「有内容可看」的类型；未知二进制解出来也只有图标，白花一次 7zz

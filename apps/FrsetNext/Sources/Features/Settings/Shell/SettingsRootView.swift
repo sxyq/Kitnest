@@ -196,9 +196,21 @@ struct SettingsRootView: View {
         case .transferLocal:
             panePage { TransferDockSettingsPane(section: .local) }
         case .archive:
+            // v273（ArcZip 1.2.5 设置结构对齐）：打开与解压 / 悬浮预览 / 进度窗口 / 系统关联
             panePage {
-                SettingsSection("系统关联与 Finder 服务 · 即时操作") {
-                    SettingsGroupBox { ArchiveDefaultApplicationOption() }
+                VStack(alignment: .leading, spacing: 20) {
+                    SettingsSection("打开与解压") {
+                        SettingsGroupBox { ArchiveOpenBehaviorOptions() }
+                    }
+                    SettingsSection("悬浮预览") {
+                        SettingsGroupBox { ArchiveHoverPreviewOptions() }
+                    }
+                    SettingsSection("进度窗口") {
+                        SettingsGroupBox { ArchiveProgressWindowOptions() }
+                    }
+                    SettingsSection("系统关联与 Finder 服务 · 即时操作") {
+                        SettingsGroupBox { ArchiveDefaultApplicationOption() }
+                    }
                 }
             }
 

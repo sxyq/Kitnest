@@ -151,9 +151,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let files = urls.filter { $0.isFileURL }
         if !files.isEmpty {
             let archives = files.filter { ArchiveCore.isArchive($0) }
+            // v273（ArcZip 1.2.5 extraction.opening 对齐）：双击直接解压。
+            // 规则：设置开启才生效；按住 Shift 临时浏览；DMG/ISO 始终浏览。
+            let directExtract = UserDefaults.standard.bool(forKey: Preferences.Keys.archiveOpenDirectExtract)
+            let trashOriginal = UserDefaults.standard.bool(forKey: Preferences.Keys.archiveOpenTrashOriginal)
+            let shiftHeld = NSEvent.modifierFlags.contains(.shift)
             for (idx, url) in archives.enumerated() {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15 + Double(idx) * 0.05) {
-                    ArchiveBrowserWindowController.show(url: url)
+                    if directExtract, !shiftHeld, ArchiveQuickExtract.isDirectEligible(url) {
+                        ArchiveQuickExtract.run(url: url, trashOriginal: trashOriginal)
+                    } else {
+                        ArchiveBrowserWindowController.show(url: url)
+                    }
                 }
             }
             if !archives.isEmpty { return }

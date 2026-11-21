@@ -58,6 +58,120 @@ final class ArchiveDefaultApplication: ObservableObject {
 }
 
 /// 教程与设置复用同一开关，显示系统关联而非本地布尔值。
+// MARK: - v273（ArcZip 1.2.5 对齐）：打开行为 / 悬浮预览 / 进度窗设置
+
+/// 「打开压缩包」：双击压缩包时直接解压到所在文件夹（ArcZip 1.2.5
+/// `extraction.opening` 同款能力）。DMG/ISO 始终浏览；按住 Shift 临时浏览。
+struct ArchiveOpenBehaviorOptions: View {
+    @AppStorage(Preferences.Keys.archiveOpenDirectExtract) private var directExtract = false
+    @AppStorage(Preferences.Keys.archiveOpenTrashOriginal) private var trashOriginal = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SettingsRow(title: "双击时快速解压",
+                        subtitle: "开启后双击压缩包会立刻解压到所在文件夹，跳过浏览步骤。按住 Shift 双击可临时改用浏览。") {
+                Toggle("双击时快速解压", isOn: $directExtract)
+                    .labelsHidden().toggleStyle(.switch)
+            }
+            SettingsRow(title: "原包处理",
+                        subtitle: "直接解压完成后对原压缩包的处理：保留不动，或移入废纸篓（可恢复）。") {
+                Picker("原包处理", selection: $trashOriginal) {
+                    Text("保留原包").tag(false)
+                    Text("移到废纸篓").tag(true)
+                }
+                .labelsHidden().pickerStyle(.segmented).frame(width: 190)
+                .disabled(!directExtract)
+            }
+            Text("DMG、ISO 等镜像格式不受此设置影响，始终以浏览方式打开。")
+                .font(.system(size: 11)).foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// 「悬浮预览」：列表悬停弹出条目预览的总开关与解压大小上限
+/// （ArcZip 1.2.5 `settings.browsing.hover.video.limit` 同款口径：按解压后大小计算，包含上限）。
+struct ArchiveHoverPreviewOptions: View {
+    @AppStorage(Preferences.Keys.archiveHoverEnabled) private var hoverEnabled = true
+    @AppStorage(Preferences.Keys.archiveHoverSizeLimitMB) private var sizeLimitMB = 100
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SettingsRow(title: "开启悬浮预览",
+                        subtitle: "在归档列表里悬停条目约 1 秒，自动解出临时副本并弹出预览；关闭后不预解任何条目。") {
+                Toggle("开启悬浮预览", isOn: $hoverEnabled)
+                    .labelsHidden().toggleStyle(.switch)
+            }
+            SettingsRow(title: "可预览大小上限",
+                        subtitle: "按解压后的条目大小计算，包含上限；超过上限的条目不预解。") {
+                Picker("可预览大小上限", selection: $sizeLimitMB) {
+                    Text("10 MB").tag(10)
+                    Text("50 MB").tag(50)
+                    Text("100 MB").tag(100)
+                    Text("500 MB").tag(500)
+                    Text("1 GB").tag(1000)
+                    Text("2 GB").tag(2000)
+                }
+                .labelsHidden().frame(width: 130)
+                .disabled(!hoverEnabled)
+            }
+        }
+    }
+}
+
+/// 「进度窗口」：任务队列浮窗保持置顶（ArcZip 1.2.5 `settings.progress.keep_on_top`）。
+struct ArchiveProgressWindowOptions: View {
+    @AppStorage(Preferences.Keys.archiveProgressKeepOnTop) private var keepOnTop = false
+
+    var body: some View {
+        SettingsRow(title: "保持置顶",
+                    subtitle: "任务队列浮窗始终显示在其他窗口之上；关闭后按普通窗口层级显示。") {
+            Toggle("保持置顶", isOn: $keepOnTop)
+                .labelsHidden().toggleStyle(.switch)
+        }
+    }
+}
+
+/// v273：双击直接解压（`archive.open.directExtract`）。
+/// 冲突保护：目标位置已有同名文件时不解压，回退到浏览窗口并提示——
+/// 无确认的覆盖比多开一个窗口更危险。无法列举（加密/损坏）同样回退浏览。
+enum ArchiveQuickExtract {
+
+    /// 镜像格式始终浏览（ArcZip 1.2.5 extraction.opening.browse_formats 同款规则）。
+    static func isDirectEligible(_ url: URL) -> Bool {
+        !["dmg", "iso"].contains(url.pathExtension.lowercased())
+    }
+
+    static func run(url: URL, trashOriginal: Bool) {
+        let dir = url.deletingLastPathComponent()
+        ArchiveCore.list(url: url) { entries, error in
+            if let error {
+                Log.warn("Archive", "快速解压：列举失败（\(error)），回退浏览")
+                ArchiveBrowserWindowController.show(url: url)
+                return
+            }
+            let fm = FileManager.default
+            let conflicts = entries.contains { entry in
+                !entry.isDirectory && fm.fileExists(atPath: dir.appendingPathComponent(entry.path).path)
+            }
+            if conflicts {
+                Toast.show("\(url.lastPathComponent) 中存在同名文件，已改为浏览",
+                           icon: "exclamationmark.triangle", isWarning: true)
+                ArchiveBrowserWindowController.show(url: url)
+                return
+            }
+            Log.info("Archive", "快速解压：\(url.lastPathComponent) → \(dir.path)（原包\(trashOriginal ? "移入废纸篓" : "保留")）")
+            _ = ArchiveCore.extract(url: url, to: dir) { ok, message in
+                if ok {
+                    Toast.show("已解压 \(url.lastPathComponent)", icon: "archivebox")
+                    if trashOriginal { NSWorkspace.shared.recycle([url]) }
+                } else {
+                    Toast.show("解压失败：\(message)", icon: "exclamationmark.triangle", isWarning: true)
+                }
+            }
+        }
+    }
+}
+
 struct ArchiveDefaultApplicationOption: View {
     @ObservedObject private var association = ArchiveDefaultApplication.shared
     @AppStorage(ArchiveCreationPreferences.passwordEnabled) private var passwordEnabled = false
