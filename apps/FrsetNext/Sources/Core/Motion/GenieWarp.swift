@@ -602,10 +602,10 @@ final class GenieWarp {
         }
         ctx.interpolationQuality = .none
         ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
-        var seen = Set<UInt32>()
-        for i in stride(from: 0, to: pixels.count, by: 4) {
-            seen.insert(UInt32(pixels[i]) << 16 | UInt32(pixels[i + 1]) << 8 | UInt32(pixels[i + 2]))
-            if seen.count > 1 { return false }
+        let first = UInt32(pixels[0]) << 16 | UInt32(pixels[1]) << 8 | UInt32(pixels[2])
+        for i in stride(from: 4, to: pixels.count, by: 4) {
+            let color = UInt32(pixels[i]) << 16 | UInt32(pixels[i + 1]) << 8 | UInt32(pixels[i + 2])
+            if color != first { return false }
         }
         return true
     }
