@@ -19,7 +19,6 @@ public final class StatusBarController: NSObject {
     public static let shared = StatusBarController()
 
     private var mainItem: NSStatusItem?
-    private var currentPopover: NSPopover?
     private var statisticsObservation: NSObjectProtocol?
     private var didInstall = false
     private let pauseBadge = NSImageView()
@@ -100,9 +99,6 @@ public final class StatusBarController: NSObject {
         guard Thread.isMainThread else { DispatchQueue.main.async { self.setMainItemLength(length) }; return }
         mainItem?.length = length
     }
-
-    /// 主状态项当前长度（排障用：验证 setMainItemLength 对 variableLength 创建的项是否生效）
-    public var mainItemLength: CGFloat? { mainItem?.length }
 
     // MARK: 位置持久化
 
@@ -201,14 +197,4 @@ public final class StatusBarController: NSObject {
     }
 
     @objc func quitAction(_ sender: Any?) { NSApp.terminate(nil) }
-}
-
-// MARK: - NSPopoverDelegate
-
-extension StatusBarController: NSPopoverDelegate {
-    public func popoverDidClose(_ notification: Notification) {
-        currentPopover = nil
-        // v74：popover 关闭 → 恢复隐藏态降频（与打开时的提升配对）
-        MonitorSampler.shared.setSettingsActive(false)
-    }
 }

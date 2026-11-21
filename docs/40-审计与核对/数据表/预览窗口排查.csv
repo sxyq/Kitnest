@@ -136,6 +136,6 @@ H-001,历史/非活动,Clipboard,Features/Clipboard/UI/ClipboardPreviewWindow.sw
 H-002,历史/非活动,Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardPreviewWindow 枚举,旧大文本独立预览,历史记录,不作为当前活动窗统计,保留原有历史说明,2026-11-19,不适用,历史,当前源码没有旧窗口创建点；旧右键“大文本预览”；640×480；旧菜单与开窗代码已移除
 H-003,历史/非活动,Clipboard,Features/Clipboard/UI/LargeTextPreviewView.swift,LargeTextPreviewContainerView,旧大文本窗容器,历史记录,不作为当前活动窗统计,保留原有历史说明,2026-11-19,不适用,历史,不是当前独立窗口实体；旧表记录只留 AttributedTextView/PreviewTextView 富文本基础视图；保留历史路径
 H-004,历史/非活动,Panel,Features/Panel/Inspector/JSONInspectorWindow.swift,JSONInspectorWindowController,旧 JSON 检视器窗口,历史记录,不作为当前活动窗统计,保留原有历史说明,2026-11-19,不适用,历史,当前目录已无此文件；JSON 表格详情和筛选见 P 类记录；旧表曾记“拖文件/菜单打开、标题栏3钮”；该记录不作为当前活动窗
-H-005,历史/非活动,StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController.currentPopover,旧状态栏 popover 引用,历史记录,不作为当前活动窗统计,保留原有历史说明,2026-11-19,不适用,历史,只有声明及关闭回调置空；当前没有创建/赋值点；状态栏左键调用主面板；右键由 NSMenu.popUp 显示
+H-005,历史/非活动,StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController.currentPopover,旧状态栏 popover 引用,历史记录,不作为当前活动窗统计,保留原有历史说明,2026-11-21,不适用,历史,已删除无创建和代理注册入口的引用及NSPopoverDelegate关闭回调；状态栏左键调用主面板；右键由NSMenu.popUp显示
 H-006,历史/非活动,App,App/FrsetNextApp.swift,FrsetNextApp.body / Settings { EmptyView() },SwiftUI 空设置场景,历史记录,不作为当前活动窗统计,保留原有历史说明,2026-11-19,不适用,历史,"场景无可见业务内容；⌘, 转到 W-002；原注释记录双设置窗布局冲突；不计作另一个用户设置窗口"
 H-007,历史/非活动,FrsetStatsBar,FrsetStatsBar/frset_barsettings.m,gWin / gEmbedded / FSSelectPage,旧 STATS 独立设置窗口,历史记录,不作为当前活动窗统计,保留原有历史说明,2026-11-19,不适用,历史,设置页已内嵌 App 设置；当前未创建独立 NSWindow；保留旧全局引用；当前共享 W-002 的设置内容
