@@ -1259,11 +1259,11 @@ EVIDENCE.update({
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "restoreDefaults"):
         "只把该 scope 的 DraftField 改为 makeDefaultDraft 值；面板恢复400pt及默认页序，悬浮窗恢复网格/中档/0.52分隔，动作条恢复pillBar，通用主题恢复system",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "reduce"):
-        "保存外观预览与settingsPreviewViewport相交的可见值；消费方离屏恢复revealed，开合任务标识不含isVisible，滚动重新进入不会触发重播",
+        "保存外观预览与settingsPreviewViewport相交的可见值；消费方离屏把revealed与revealScale一起复位，开合任务只认openReplay，滚出视口不会留下半缩放状态",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "image"):
         "AppearancePreviewWallpaper 按当前桌面壁纸 URL 缓存图像，经 ImageIO 生成最大1024像素缩略图，供背景预览使用，不重复解码相同 URL",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "press"):
-        "原生红黄绿按钮仅调用场景onPress触发重播；通用预览在viewport内按minWidth居中，超宽横向滚动，无整块宽度或toolbarStyle隐式动画；openReplay=0初始静止，手动重播或开合设置变化触发播放",
+        "原生红黄绿按钮仅调用场景onPress触发重播；通用预览在viewport内按minWidth居中，超宽横向滚动；进页面与切换开合档位时先把面板按到0.90+透明，落地80ms后按当前档位时长easeOut展开，与WindowReveal一致，不随减弱动态效果降级",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "makeCoordinator"):
         "为 PreviewWindowChrome 创建保存 onPress 的协调器，三颗原生窗口按钮共用其 press 回调",
     ("Features/Settings/Panes/SearchSettingsPane.swift", "init"):

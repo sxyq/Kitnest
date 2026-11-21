@@ -979,6 +979,9 @@ struct AppearancePreviewBlock: View {
     @Stored private var toastReplay = 0
     @Stored private var openReplay = 0
     @Stored private var revealed = true
+    /// 打开动画预览：正式面板是「从锚点长出来」（WindowReveal，scale 0.90→1 + 淡入），
+    /// 只做淡入时 0.18/0.22/0.28 三档几乎看不出来，用户会以为点开动画没反应。
+    @Stored private var revealScale: CGFloat = 1
     @Stored private var isVisible = true
     @Stored private var toolbarFeedback: String?
 
@@ -1007,7 +1010,8 @@ struct AppearancePreviewBlock: View {
                     .environment(\.colorScheme, previewColorScheme)
                     .tint(theme.accent)
                     .opacity(revealed ? 1 : 0)
-                    .offset(y: revealed || reduceMotion ? 0 : -8)
+                    .scaleEffect(revealScale, anchor: .top)
+                    .offset(y: revealed ? 0 : -4)
                     .padding(6)
                     .background {
                         if needsWallpaper {
@@ -1032,10 +1036,14 @@ struct AppearancePreviewBlock: View {
         }
         .onPreferenceChange(AppearancePreviewVisibilityKey.self) {
             isVisible = $0
-            if !$0 { revealed = true }
+            // 滚出视口时把开合状态复位：任务在 sleep 后看到 !isVisible 会直接 return，
+            // 只复位 revealed 会让面板永久停在 0.92 缩放。
+            if !$0 { revealed = true; revealScale = 1 }
         }
         .onAppear {
             if needsWallpaper { wallpaper = AppearancePreviewWallpaper.image() }
+            // 进页面先演示一次「打开」，否则只有切换动画档位才看得到。
+            if scope != .notification, openReplay == 0 { openReplay = 1 }
             if scope == .captureToolbar {
                 toolbarModel.style = CaptureToolbarStyle(rawValue: draft.toolbarStyle)!
                 toolbarModel.preview = CaptureAppearanceSample.image
@@ -1062,16 +1070,23 @@ struct AppearancePreviewBlock: View {
         .onChange(of: p.toastFollowPanel) { _ in
             if scope == .notification { toastReplay &+= 1 }
         }
-        .task(id: "\(openReplay)-\(reduceMotion)") { @MainActor in
+        .task(id: openReplay) { @MainActor in
+            // 正式面板的开合走 WindowReveal 的 CAAnimation，不受系统「减弱动态效果」
+            // 影响；预览若跟着 reduceMotion 降级，就会变成瞬间切换，用户只会看到
+            // 「点了没反应」。这里与正式实现一致，始终演示缩放+淡入。
             if openReplay == 0 || scope == .notification || !isVisible { return }
-            let duration = p.openAnimation.duration
-            withAnimation(reduceMotion ? nil : .easeIn(duration: duration)) { revealed = false }
-            if !reduceMotion {
-                do { try await Task.sleep(nanoseconds: UInt64(duration * 1_000_000_000)) }
-                catch { return }
-            }
+            // 先把面板按到起点（无动画），等它真正画出来，再按当前档位的时长展开。
+            // 直接 withAnimation 改 false→true 会在首帧合并，等于没有动画——这也是
+            // 之前「切换打开动画没反应」的另一半原因。
+            revealed = false
+            revealScale = 0.90
+            do { try await Task.sleep(nanoseconds: 80_000_000) }
+            catch { return }
             if !isVisible { return }
-            withAnimation(reduceMotion ? nil : .easeOut(duration: duration)) { revealed = true }
+            withAnimation(.easeOut(duration: p.openAnimation.duration)) {
+                revealed = true
+                revealScale = 1
+            }
         }
         .task(id: "\(toastReplay)-\(isVisible)") { @MainActor in
             // v274（用户：「它的这个没有展示它的一个效果」）：预览要连续演示，
@@ -1098,6 +1113,7 @@ struct AppearancePreviewBlock: View {
         .onDisappear {
             toastState.isVisible = false
             revealed = true
+            revealScale = 1
             toolbarModel.onPreviewFeedback = nil
             toolbarFeedback = nil
             }
