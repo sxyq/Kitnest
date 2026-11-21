@@ -58,6 +58,7 @@ print(''.join(open(p,errors='replace').readlines()[-8:]))"
 
 - 性能场景使用 `open -a /Applications/Kitnest.app 'kitnest://monitor?module=cpu'` 明确指定目标。共用应用标识的前后版串行运行，对照完成即清理短期安装包。
 - 前后采样用 `top -pid <PID> -l 8 -s 2 -stats pid,cpu,mem -n 1`，排除首笔，另用 `footprint <PID> -f bytes -s` 记录当前与进程峰值字节；同时记主机 CPU 空闲率。UI操作和源码工具查询不与测量窗口交叠。
+- 部件设置走 `kitnest://settings?pane=monitor.widgets`；选择传感器，若原先隐藏就仅在草稿开启，展开真实传感器列表并观察预览，最后取消草稿还原。旧 ObjC 设置窗已移除，不再使用 `FRSET_SETTINGSHOT`。
 - `cua.getApp(路径)` 在应用退出后会再次启动它；退出是否成功用进程状态确认，再切换下一版。CPU窗原Motion日志包含帧数、刷新率、播放时长和缓动，可与实际画面一并对照。
 
 - 剪贴板正文改动用独立工作台搜索已有纯文本、Markdown 和 JSON；主面板失焦会自动收起。字号保存后可在设置页重开核对。

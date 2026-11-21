@@ -3,7 +3,7 @@
 // 用法（Swift 侧）：import FrsetStatsBar 后直接调用：
 //   · FSStatsTickStart() / FSStatsTickStop()          引擎启停
 //   · FSStatsSetOpenMonitorHandler { module in ... }  点击部件 → 打开监测页
-//   · FSBarSettingsOpen()                             打开 Stats 风格部件设置窗
+//   · FSBarSensorKeysList()                           Swift 设置页传感器列表
 //   · frset_gpu_usage / frset_disk_smart / frset_net_top / frset_conn_sample …
 //      监测面板的深层数据（GPU/NVMe SMART/高占用进程/网络连通性）
 //

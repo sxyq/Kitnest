@@ -5,7 +5,7 @@
 //                          提供 FSBarOpenMonitor()（打开面板并直达模块）
 //   frset_barwidgets.m     部件引擎：设置存储（widgets.plist ↔ Stats 键名互通）、
 //                          部件视图（12 种形态绘制）、状态项管理（原生接管 + 自建增删）
-//   frset_barsettings.m    Stats 风格设置窗口（模块工具栏 + 部件列表 + 逐部件设置）
+//   frset_barsettings.m    Swift 设置页使用的传感器列表桥接
 //
 // 数据流：FSStatsView.tick（0.5s）→ g_snap → FSBarSystemTick（0.5s）
 //         → 按各模块 updateInterval 刷新部件 → 部件视图重绘
@@ -45,9 +45,6 @@ extern FSSnap g_snap;
 void FSBarSystemStart(NSMutableArray *statusItems);
 /// inject 主轮询每 0.5s 调用（内部自行管理节奏与自愈）
 void FSBarSystemTick(void);
-/// 打开部件设置窗口（监测面板页脚齿轮调用）
-/// v54：改为深链到 App 设置窗口的「性能监测 → 部件设置」页
-void FSBarSettingsOpen(void);
 /// 设置变更后重建部件（供设置窗口调用）
 void FSBarReloadFromStore(void);
 
@@ -114,7 +111,6 @@ int FSBarDebugCurrentModule(void);
 // ---- v17：弹窗复刻 & 菜单位置支持 ----
 NSColor *FSBarColorFor(NSString *key, BOOL dark, double value);   // Stats SColor 解析（全表 + custom）
 void FSBarDebugPosProbe(void);                                    // 菜单位置探针（FRSET_POSCHK=1）
-void FSBarSettingsOpenModule(NSString *module);                   // 打开设置并切到指定模块页
 
 // ---- v18：反相信号探针（FRSET_APPEARCHK=1；打印各层 appearance 验证 FSBarDark 判定源）----
 void FSBarDebugAppearanceProbe(void);
