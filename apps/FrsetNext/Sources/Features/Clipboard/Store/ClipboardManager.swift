@@ -340,12 +340,6 @@ public final class ClipboardManager: ObservableObject {
 
     // MARK: 捕获管线
 
-    /// 读取一次粘贴板并入库（含去重）。isIngesting 串行保护避免重入；
-    /// 捕获成功进入 0.5s 突发（持续 2.0s 窗口，specs/14 F1）
-    public func ingest() {
-        readAndIngest(retryOnFailure: true)
-    }
-
     private func readAndIngest(retryOnFailure: Bool) {
         guard !isIngesting else { return }
         isIngesting = true
@@ -396,7 +390,6 @@ public final class ClipboardManager: ObservableObject {
             var lineCount: Int?
             var content = result.content
             // storage_bytes 口径：**实际落盘产物 + 数据库内联内容**，与 ClipboardStorageUsageProvider 的磁盘口径一致。
-            // 注意不要用 result.approximateBytes 起步再叠加落盘字节，否则同一份内容会被计两次。
             var fileBytes = 0
 
             switch result.type {

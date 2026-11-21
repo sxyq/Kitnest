@@ -43,15 +43,6 @@ public struct ClipboardReadResult {
         }
     }
 
-    /// 存储占用估算（用于 capacity 清理）
-    public var approximateBytes: Int {
-        switch type {
-        case .image: return imageData?.count ?? 0
-        case .file:  return fileURLs.reduce(0) { $0 + ($1.path.utf8.count) }
-        case .richtext: return max(richTextData?.count ?? 0, (content ?? "").utf8.count)
-        default:     return (content ?? "").utf8.count
-        }
-    }
 }
 
 // MARK: - 读取器
