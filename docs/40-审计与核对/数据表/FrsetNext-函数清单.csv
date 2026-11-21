@@ -168,8 +168,8 @@ Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,func,parseBuild,161,10
 Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,func,notifyUpdate,175,19,3
 Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,func,presentUpdate,197,31,12
 Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,func,prepareToTerminate,240,18,4
-Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,func,installUpdate,259,95,7
-Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,func,compare,358,12,6
+Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,func,installUpdate,259,100,8
+Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,func,compare,363,12,6
 Core,Core/Runtime/L10n.swift,L10n,var,bundleCache,26,0,1
 Core,Core/Runtime/L10n.swift,L10n,func,t,29,6,2
 Core,Core/Runtime/L10n.swift,L10n,func,lprojBundle,37,7,4

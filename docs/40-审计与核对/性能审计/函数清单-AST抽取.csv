@@ -27,7 +27,7 @@ swift,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,checkNowManual,44,46,
 swift,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,checkOnLaunch,49,54,6,0,public,public func checkOnLaunch() {
 swift,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,check,56,106,51,1,private,private func check(manual: Bool) {
 swift,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,presentUpdate,110,140,31,,private,"private func presentUpdate(latest: String, pageURL: String, notes: String,"
-swift,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,installUpdate,152,238,87,2,public,"public func installUpdate(zipURL: URL, expectedSHA256: String?) {"
+swift,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,installUpdate,259,358,100,2,public,"public func installUpdate(zipURL: URL, expectedSHA256: String?) {"
 swift,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,compare,243,254,12,2,static,"static func compare(_ a: String, _ b: String) -> ComparisonResult {"
 swift,Core/UI/AppearanceTheme.swift,MidnightTheme,h,57,75,19,1,static private,private static func h(_ color: Color) -> Color {
 swift,Core/UI/AppearanceTheme.swift,AppearanceThemeModifier,body,150,158,9,1,public,public func body(content: Content) -> some View {

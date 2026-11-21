@@ -269,9 +269,14 @@ public final class AppUpdateChecker {
             let work = URL(fileURLWithPath: NSTemporaryDirectory())
                 .appendingPathComponent("frset-update-\(UUID().uuidString)", isDirectory: true)
             do {
-                let data = try Data(contentsOf: tmp)
                 if let expectedSHA256 {
-                    let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
+                    let file = try FileHandle(forReadingFrom: tmp)
+                    var hasher = SHA256()
+                    while let chunk = try file.read(upToCount: 1 << 20), !chunk.isEmpty {
+                        hasher.update(data: chunk)
+                    }
+                    try file.close()
+                    let digest = hasher.finalize().map { String(format: "%02x", $0) }.joined()
                     guard digest.lowercased() == expectedSHA256.lowercased() else {
                         DispatchQueue.main.async {
                             Toast.show("校验失败：sha256 不匹配，已中止更新",
@@ -282,7 +287,7 @@ public final class AppUpdateChecker {
                 }
                 try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true)
                 let zip = work.appendingPathComponent("update.zip")
-                try data.write(to: zip)
+                try FileManager.default.moveItem(at: tmp, to: zip)
 
                 let unzip = Process()
                 unzip.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
