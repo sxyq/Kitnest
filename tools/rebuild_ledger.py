@@ -1861,7 +1861,9 @@ EVIDENCE.update({
     ("Features/Clipboard/Store/ClipboardManager.swift", "restoreBackup"):
         "确认恢复交ClipboardBackup.restore；成功才失效OCR索引、刷新标签、关闭共享预览、发选择变化并重载正式列表",
     ("Features/Clipboard/Store/ClipboardRepository.swift", "unsavedHistory"):
-        "clearUnsavedHistory统计与删除共用SELECT is_note=0，读取全部历史，不受当前列表筛选或分页影响",
+        "用户确认清理后读取未标记已存且未收藏的全部条目，逐条回收附件并保留失败文案需要的标题",
+    ("Features/Clipboard/Store/ClipboardRepository.swift", "unsavedCount"):
+        "清理历史确认框仅需条数，使用SQLite COUNT统计未标记已存且未收藏的条目，匹配确认后的删除范围",
     ("Features/Clipboard/Store/ClipboardRepository.swift", "savedCount"):
         "clearUnsavedHistory确认文案用SELECT COUNT(*) WHERE is_note=1说明保留的已存项目数",
     ("Features/Clipboard/UI/ClipboardSettingsPane.swift", "execute"):

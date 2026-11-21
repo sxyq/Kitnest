@@ -336,6 +336,10 @@ public final class ClipboardRepository: @unchecked Sendable {
         return true
     }
 
+    func unsavedCount() throws -> Int {
+        Int(try db.scalarInt("SELECT COUNT(*) FROM clipboard_items WHERE is_note = 0 AND is_favorite = 0"))
+    }
+
     public func unsavedHistory() throws -> [ClipboardItem] {
         try db.query("SELECT \(Self.columns) FROM clipboard_items WHERE is_note = 0 AND is_favorite = 0", transform: Self.makeItem)
     }

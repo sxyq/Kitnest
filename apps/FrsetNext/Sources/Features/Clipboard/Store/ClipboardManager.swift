@@ -786,7 +786,7 @@ public final class ClipboardManager: ObservableObject {
     public func clearUnsavedHistory(completion: @escaping () -> Void) {
         queue.async {
             do {
-                let pending = try self.repository.unsavedHistory().count
+                let pending = try self.repository.unsavedCount()
                 let saved = try self.repository.savedCount()
                 DispatchQueue.main.async {
                     let alert = NSAlert()
