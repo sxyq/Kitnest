@@ -120,8 +120,10 @@ private struct HapticSettingsContent: View {
         if !config.isEnabled(previewEvent) { return "\(previewEvent.setting.title)：该场景已关闭，业务发生时不会触发。" }
         if config.intensity == .off { return "\(previewEvent.setting.title)：强度为「关闭」，不会发出触觉请求。" }
         return "\(previewEvent.setting.title)：已启用 · 模拟模式 \(mode)。"
-            + "「模拟所选场景」只发一次与强度对应的系统模式，不执行任何业务动作；"
-            + "系统不返回硬件是否振动的结果，能否感觉到取决于触控板与系统设置。"
+            + "「模拟所选场景」会把 Kitnest 调到前台并连发三次该模式（间隔 0.18 秒），不执行任何业务动作；"
+            + "系统只在 App 处于前台时才真正产生触感，后台请求会被静默丢弃；"
+            + "连发三次仍无触感，说明触控板不支持 Force Touch 触觉（属硬件限制）；"
+            + "真实业务事件的触感同样要求 Kitnest 在前台，从浮动面板触发时可能被系统吞掉。"
     }
 
     private var usage: some View {

@@ -136,18 +136,46 @@ enum HapticFeedback {
         emit(configuration.intensity, event: event.debugName)
     }
 
-    /// 设置页「模拟所选场景」：用草稿强度发一次同样的系统模式。
+    /// 设置页「模拟所选场景」：用草稿强度发同样的系统模式。
     ///
-    /// 这不是业务验证——系统 API 是 void，既不能证明业务动作成功，也不能证明
-    /// 用户真的感觉到了振动。UI 文案必须按「模拟触觉模式」表述。
+    /// 系统 API 是 void——它不能证明业务动作成功，硬件是否振动也无法程序化
+    /// 确认。UI 文案按「模拟触觉模式」表述。
+    /// v272（用户：「是一点感觉没有的，你现在好像没有正确的触发」）：
+    /// NSHapticFeedbackManager 只在 App 处于前台激活时真正产生触感，
+    /// 后台请求被系统静默丢弃——而 Kitnest 大量交互发生在不激活 App 的
+    /// 浮动面板上，这正是「日志有请求、手上没感觉」的最可能根因。
+    /// 模拟按钮是用户主动点击的验证动作：先显式激活 App，再连发 3 次
+    /// （间隔 0.18s）——单次可能被吞，三连发只要硬件支持一定感觉得到。
     static func simulate(event: HapticEvent, intensity: HapticIntensity) {
         guard intensity != .off else { return }
-        emit(intensity, event: "simulate:\(event.debugName)")
+        DispatchQueue.main.async {
+            if !NSApp.isActive { NSApp.activate(ignoringOtherApps: true) }
+            for i in 0..<3 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.18 * Double(i)) {
+                    emit(intensity, event: "simulate:\(event.debugName)#\(i + 1)")
+                }
+            }
+        }
+    }
+
+    /// v272：启动探针——`defaults write com.sxyq.frsetnext probe.haptic -bool true`
+    /// 后重启 App，激活 2.5s 后自动模拟一次。用于无鼠标环境验证触觉链路
+    /// （项目探针惯例，probe.* 键用完删）。
+    static func fireProbeIfRequested() {
+        guard UserDefaults.standard.bool(forKey: "probe.haptic") else { return }
+        Log.info("Haptics", "探针：检测到 probe.haptic，2.5s 后模拟（先激活 App）")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+            simulate(event: .gridMove, intensity: HapticConfiguration.load().intensity)
+        }
     }
 
     private static func emit(_ intensity: HapticIntensity, event: String) {
         guard let pattern = intensity.pattern else { return }
-        Log.info("Haptics", "请求触觉 pattern=\(patternName(pattern)) event=\(event)")
+        // 诊断：请求时的激活状态。前台要求不满足时系统静默丢请求，
+        // 这一行就是「日志有、感觉无」的直接证据。
+        let state = NSApp.isActive ? "active" : "inactive"
+        let front = NSWorkspace.shared.frontmostApplication?.localizedName ?? "nil"
+        Log.info("Haptics", "请求触觉 pattern=\(patternName(pattern)) event=\(event) app=\(state) front=\(front)")
         DispatchQueue.main.async {
             NSHapticFeedbackManager.defaultPerformer.perform(pattern, performanceTime: .now)
         }
