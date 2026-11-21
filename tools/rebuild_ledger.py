@@ -1865,7 +1865,7 @@ EVIDENCE.update({
     ("Features/Clipboard/Store/ClipboardRepository.swift", "unsavedCount"):
         "清理历史确认框仅需条数，使用SQLite COUNT统计未标记已存且未收藏的条目，匹配确认后的删除范围",
     ("Features/Clipboard/Store/ClipboardRepository.swift", "savedCount"):
-        "clearUnsavedHistory确认文案用SELECT COUNT(*) WHERE is_note=1说明保留的已存项目数",
+        "clearUnsavedHistory确认文案用SELECT COUNT(*) WHERE is_note=1 OR is_favorite=1说明保留的已存或收藏项目数",
     ("Features/Clipboard/UI/ClipboardSettingsPane.swift", "execute"):
         "备份sheet按钮先置busy并清错误，按已有RestoreSession、导入或导出分派Manager正式入口；读取成功展示摘要并清密码",
     ("Features/Clipboard/UI/ClipboardSettingsPane.swift", "finish"):
