@@ -383,6 +383,7 @@ final class CaptureActionToolbarPanel: NSPanel {
             self.isDismissing = false
             self.currentImage = nil
             self.currentURL = nil
+            self.model.preview = nil
             completion?()
             let captureFinished = self.onCaptureFinished
             self.onCaptureFinished = nil

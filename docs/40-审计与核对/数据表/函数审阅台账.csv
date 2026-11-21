@@ -1557,11 +1557,11 @@ Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolba
 Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,present,func,317,KEEP,2026-11-19：presentOnMain共用实例调用；替换当前图像/URL/默认动作/样式/一次性debug展开值，递增token后定位并淡入
 Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,placementOrigin,func,358,KEEP,2026-11-19：present设置窗口原点调用；在主显示器visibleFrame水平居中并定位到底部向上四分之一附近，边缘留12pt
 Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,dismiss,func,371,KEEP,2026-11-19：按钮、Esc及外点登记回调共用；token守护淡出完成，随后orderOut、注销瞬态窗并释放图像/URL引用
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,close,func,393,KEEP,2026-11-19：NSWindow close覆写；统一转入异步淡出dismiss，不直接销毁预热单例面板
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,cancelOperation,func,396,KEEP,2026-11-19：AppKit响应链取消操作调用；作为local key monitor无法接Esc时的关闭回退
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,installKeyMonitors,func,400,KEEP,2026-11-19：init唯一调用；注册限定本窗口的local keyDown处理Esc、Return默认动作及⌘单字符工具键
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,execute,func,425,KEEP,2026-11-19：模型onPick与键盘分支调用；先捕获当前图像/URL，淡出完成后经CaptureActionChain.perform执行工具
-Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureToolbarModel,pick,func,450,KEEP,2026-11-19：CaptureActionToolbarView统一按钮回调；设置预览只发布工具标题反馈，正式状态交onPick执行
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,close,func,394,KEEP,2026-11-19：NSWindow close覆写；统一转入异步淡出dismiss，不直接销毁预热单例面板
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,cancelOperation,func,397,KEEP,2026-11-19：AppKit响应链取消操作调用；作为local key monitor无法接Esc时的关闭回退
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,installKeyMonitors,func,401,KEEP,2026-11-19：init唯一调用；注册限定本窗口的local keyDown处理Esc、Return默认动作及⌘单字符工具键
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionToolbarPanel,execute,func,426,KEEP,2026-11-19：模型onPick与键盘分支调用；先捕获当前图像/URL，淡出完成后经CaptureActionChain.perform执行工具
+Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureToolbarModel,pick,func,451,KEEP,2026-11-19：CaptureActionToolbarView统一按钮回调；设置预览只发布工具标题反馈，正式状态交onPick执行
 Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureButtonAnchorKey,reduce,func,7,KEEP,合并三种动作条样式的按钮实际边界锚点，供同一浮层按触发图标定位并留出窗口边距
 Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureToolbarButtonStyle,makeBody,func,15,KEEP,三种动作条按钮共用按下外观：透明度降为 0.7，普通模式缩至 0.96 并用 0.1 秒动画，减少动态时保留透明反馈而取消缩放和动画
 Capture,Features/Capture/Screenshot/CaptureActionToolbarView.swift,CaptureActionToolbarView,thumbnail,func,154,KEEP,正式动作条与设置预览共用截图缩略图：按比例适配到 340×200pt，裁圆角并画发丝边；拖到外部应用仅由正式路径附加
