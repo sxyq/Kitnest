@@ -57,7 +57,12 @@ public final class PreviewImageLoader {
             completion(cached)
             return
         }
-        inFlight[key, default: []].append(completion)
+        if inFlight[key] != nil {
+            inFlight[key, default: []].append(completion)
+            lock.unlock()
+            return
+        }
+        inFlight[key] = [completion]
         lock.unlock()
 
         let full = needsFullRebuild
