@@ -3116,7 +3116,7 @@ Capture,Features/Capture/OCR/PPOCROCR.swift,PPOCROCR,func,defaultModelPath,114,3
 Capture,Features/Capture/OCR/PPOCROCR.swift,PPOCROCR,func,defaultDictionaryPath,118,3,1
 Capture,Features/Capture/OCR/PPOCROCR.swift,PPOCROCR,func,recognize,125,14,4
 Capture,Features/Capture/OCR/PPOCROCR.swift,PPOCROCR,func,makeInput,144,31,5
-Capture,Features/Capture/OCR/PPOCROCR.swift,PPOCROCR,func,decode,179,40,12
+Capture,Features/Capture/OCR/PPOCROCR.swift,PPOCROCR,func,decode,179,42,13
 Capture,Features/Capture/OCR/PPOCROCREmote.swift,Result,let,text,23,0,1
 Capture,Features/Capture/OCR/PPOCROCREmote.swift,Result,let,confidence,24,0,1
 Capture,Features/Capture/OCR/PPOCROCREmote.swift,PPOCROCREmote,var,helperURL,28,0,1

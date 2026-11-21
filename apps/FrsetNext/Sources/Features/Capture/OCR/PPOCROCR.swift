@@ -189,17 +189,19 @@ public final class PPOCROCR {
             let base = step * c
             var best = 0
             var bestVal = -Float.greatestFiniteMagnitude
-            var sumExp: Double = 0
             for k in 0..<c {
                 let v = raw[base + k]
                 if v > bestVal { bestVal = v; best = k }
-                sumExp += exp(Double(v))
             }
             // 模型导出可能已带 softmax：值域 [0,1] 时直接当概率用
             let prob: Double
             if Double(bestVal) <= 1.0, Double(bestVal) >= 0 {
                 prob = Double(bestVal)
             } else {
+                var sumExp: Double = 0
+                for k in 0..<c {
+                    sumExp += exp(Double(raw[base + k]))
+                }
                 prob = exp(Double(bestVal)) / max(sumExp, 1e-9)
             }
             if best != 0 && best != previous {
