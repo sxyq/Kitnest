@@ -405,21 +405,9 @@ public final class ClipboardManager: ObservableObject {
                     richTextPath = ClipboardRichTextStorage.write(rtf)
                     fileBytes += rtf.count
                 }
-                // 富文本正文同样受长文本阈值约束：索引/搜素用 content，全量用 rich_text_path
-                // v126（性能审计 F0605）：utf16 长度外提一次（原分支内 NSString 桥接算两遍）
-                if let text = result.content {
-                    let utf16Len = (text as NSString).length
-                    if utf16Len > Self.inlineTextByteLimit, let stored = ClipboardTextStorage.write(text) {
-                        textPath = stored.path
-                        charCount = utf16Len
-                        lineCount = text.lineCount
-                        fileBytes += stored.bytes
-                        content = String(text.prefix(Self.inlinePreviewLength))
-                    }
-                }
-                fileBytes += (content ?? "").utf8.count
+                fallthrough
             case .file, .text, .url:
-                // v126（性能审计 F0605）：utf16 长度外提一次（同上）
+                // 富文本与其他文本共用正文落盘、预览截取和字节计量。
                 if let text = result.content {
                     let utf16Len = (text as NSString).length
                     if utf16Len > Self.inlineTextByteLimit, let stored = ClipboardTextStorage.write(text) {
