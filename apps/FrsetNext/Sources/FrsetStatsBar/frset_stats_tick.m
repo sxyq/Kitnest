@@ -217,23 +217,6 @@ int FSBarCopySensorKeys(char keys[][8], double *values, int max) {
 // ---- v14 诊断接口（引擎声明、注入层实现；重建版保留空实现以满足链接）----
 int FSBarDebugCurrentModule(void) { return -1; }
 
-// ============ 辅助：收集并排序温度传感器（降序，可选前缀过滤）============
-// （与注入版 collectTemps 逐行一致：category==0 且 key 前缀匹配 TV/TG）
-static int collectTemps(frset_sensor_t *src, int n, frset_sensor_t *out, int maxOut,
-                        const char *pfx1, const char *pfx2) {
-    int cnt = 0;
-    for (int i = 0; i < n && cnt < maxOut; i++) {
-        if (src[i].category != 0) continue;
-        if (pfx1 && strncmp(src[i].key, pfx1, strlen(pfx1)) != 0 &&
-            (!pfx2 || strncmp(src[i].key, pfx2, strlen(pfx2)) != 0)) continue;
-        int j = cnt;
-        while (j > 0 && out[j-1].value < src[i].value) { out[j] = out[j-1]; j--; }
-        out[j] = src[i];
-        cnt++;
-    }
-    return cnt;
-}
-
 // ============ tick：采样 → g_snap（逻辑与注入版 FSStatsView.tick 一致）============
 // CPU 集群详情与菜单栏共用一帧。菜单栏停用时，详情沿用原来的直接采样。
 void FSStatsReadCPU(frset_cpu_t *out) {
@@ -306,9 +289,17 @@ static void statsTick(void) {
     {
         // v49：后台扫描发布计数（acquire 与后台 release 配对，保证数组可见性）
         int sensorCount = atomic_load_explicit(&s_sensorCountA, memory_order_acquire);
-        frset_sensor_t tb[100];
-        int tn = collectTemps(s_sensors, sensorCount, tb, 100, "TV", "TG");
-        g_snap.gpuTemp = tn > 0 ? tb[0].value : 0;
+        // 部件只显示最高温，沿原扫描顺序取前100项 TV/TG 温度。
+        int count = 0;
+        double highest = 0;
+        for (int i = 0; i < sensorCount && count < 100; i++) {
+            const frset_sensor_t *sensor = &s_sensors[i];
+            if (sensor->category != 0 || sensor->key[0] != 'T' ||
+                (sensor->key[1] != 'V' && sensor->key[1] != 'G')) continue;
+            highest = MAX(highest, sensor->value);
+            count++;
+        }
+        g_snap.gpuTemp = highest;
     }
     {
         // v88（2026-10-20 用户实证「BDAT 显示 5388°」）：温度模块的取值同样只认
