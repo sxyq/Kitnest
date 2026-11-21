@@ -457,14 +457,14 @@ struct PersonalizationSettingsView: View {
     }
 
     /// 剪贴板预览正文独立字号，不改变列表行和窗口标题。
-    /// v266：整体上抬一档（100/125/150/180，默认 150）——用户反馈「文字仍然偏小」。
+    /// v269：再放大一档（100/125/160/200，默认 160）——用户「预览文字再放大一点」。
     private var previewFontScaleRow: some View {
         settingRow("预览字号") {
             Picker("", selection: $p.clipboardPreviewScale) {
                 Text("100%").tag(CGFloat(1.0))
                 Text("125%").tag(CGFloat(1.25))
-                Text("150%").tag(CGFloat(1.5))
-                Text("180%").tag(CGFloat(1.8))
+                Text("160%").tag(CGFloat(1.6))
+                Text("200%").tag(CGFloat(2.0))
             }
             .pickerStyle(.segmented)
             .frame(width: compact ? 210 : 230)
