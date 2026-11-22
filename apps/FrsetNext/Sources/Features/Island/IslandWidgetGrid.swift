@@ -297,7 +297,9 @@ private struct IslandEditableWidget<Content: View>: View {
                         .font(.system(size: 12, weight: .semibold))
                         .foregroundStyle(resizing || resizeFocused ? configuration.color(for: item) : .secondary)
                         .frame(width: 28, height: 28).contentShape(Rectangle())
-                        .background(.black.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+                        // 2026-11-23：圆角 8 → IslandLayout.controlRadius（取值不变）
+                        .background(.black.opacity(0.5),
+                                    in: RoundedRectangle(cornerRadius: IslandLayout.controlRadius, style: .continuous))
                         .onHover { hover in
                             if hover {
                                 if #available(macOS 15.0, *) { NSCursor.frameResize(position: .bottomRight, directions: .all).push() }

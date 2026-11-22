@@ -128,6 +128,7 @@ private struct LiveMonitorDetailView: View {
 private struct MonitorDetailContent: View {
     @Environment(\.isSettingsPreview) private var isSettingsPreview
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var selection: MonitorDetailSelection
     @Environment(\.monitorPresentation) private var presentation
     let sample: MonitorSample
@@ -270,7 +271,8 @@ private struct MonitorDetailContent: View {
                 if wide { Text(currentValue(module)).font(.system(size: Theme.TextSize.caption).monospacedDigit()).foregroundStyle(.secondary) }
             }.frame(maxWidth: wide ? .infinity : nil, alignment: .leading)
                 .padding(.horizontal, 10).padding(.vertical, wide ? 10 : 7)
-                .background(selected ? Theme.accent.opacity(0.14) : hoveredModule == module ? Theme.rowHoverFill : .clear,
+                .background(selected ? Theme.State.selected(isDark: colorScheme == .dark)
+                            : hoveredModule == module ? Theme.State.hover : .clear,
                             in: RoundedRectangle(cornerRadius: Theme.Radius.control))
                 .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control).strokeBorder(
                     focusedModule == module ? Theme.accent : selected ? Theme.accent.opacity(0.4) : .clear,

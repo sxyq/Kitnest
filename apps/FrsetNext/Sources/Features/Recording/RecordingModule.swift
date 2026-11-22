@@ -83,7 +83,7 @@ struct RecordingPanelSection: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 12, style: .continuous)
-            .fill(Color.primary.opacity(0.04)))
+        // 普通内容卡统一 .surface(.card)（轻填充 + 发丝边，无阴影）
+        .surface(.card, radius: Theme.Radius.card)
     }
 }

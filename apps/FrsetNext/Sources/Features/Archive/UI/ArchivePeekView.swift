@@ -414,9 +414,8 @@ struct ArchiveEntryTile: View {
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.micro, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: Theme.Radius.micro, style: .continuous)
-                            .strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5)
+                            .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
                     )
-                    .shadow(color: .black.opacity(0.08), radius: 1, y: 0.5)
             } else {
                 Image(nsImage: ArchiveFileIcon.icon(for: entry.name,
                                                     isDirectory: entry.isDirectory))

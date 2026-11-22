@@ -162,7 +162,7 @@ private struct PermissionCard: View {
             }
         }
         .padding(12)
-        .glassCard(radius: 10)
+        .glassCard(radius: Theme.Radius.card)
         .overlay(
             RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                 .strokeBorder(kind.isCore && !status.isGranted ? Color.accentColor.opacity(0.35) : .clear, lineWidth: 1)

@@ -46,6 +46,7 @@ final class PinSettingsDraft: SettingsEditableDraft {
 }
 
 private struct PinSettingsContent: View {
+    @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var draft: PinSettingsDraft
     private var borderWidth: Double { draft.appearance.borderWidth }
     private var borderColor: String { draft.appearance.borderColorToken }
@@ -115,7 +116,7 @@ private struct PinSettingsContent: View {
                                         Circle()
                                             .fill(item.swatch)
                                             .frame(width: 12, height: 12)
-                                            .overlay(Circle().strokeBorder(Color.primary.opacity(0.18), lineWidth: 0.5))
+                                            .overlay(Circle().strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline))
                                         Text(item.title)
                                             .font(.system(size: 11.5))
                                             .foregroundStyle(borderColor == item.token ? Theme.accent : Color.primary.opacity(0.8))
@@ -124,7 +125,7 @@ private struct PinSettingsContent: View {
                                     .frame(height: 26)
                                     .background {
                                         RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                                            .fill(borderColor == item.token ? Theme.accent.opacity(0.12) : Color.primary.opacity(0.04))
+                                            .fill(borderColor == item.token ? Theme.State.selected(isDark: colorScheme == .dark) : Color.primary.opacity(0.04))
                                     }
                                     .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
                                 }

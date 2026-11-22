@@ -110,12 +110,15 @@ public struct CloudLinkBar: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
         .background(
+            // 2026-11-23：旧口径「primary 4.5% 灰底」→ v192 卡面令牌 Theme.cardFill
             RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
-                .fill(Color.primary.opacity(0.045))
+                .fill(Theme.cardFill)
         )
         .overlay(
+            // 提供商着色边保留（功能标识）；线宽收编 Theme.Stroke.hairline（0.8 → 0.5）
             RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
-                .strokeBorder(Color(nsColor: link.provider.tint).opacity(0.22), lineWidth: 0.8)
+                .strokeBorder(Color(nsColor: link.provider.tint).opacity(0.22),
+                              lineWidth: Theme.Stroke.hairline)
         )
     }
 

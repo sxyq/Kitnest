@@ -2648,6 +2648,20 @@ EVIDENCE.update({
         "从 body 的 onChange 回调抽出为独立函数（打断 ViewBuilder 修饰链的类型检查超时）；行为与原回调一致",
 })
 
+# ── 2026-11-23 需求 B：四类表面与交互状态令牌 ──
+EVIDENCE.update({
+    ("Core/UI/SurfaceStyle.swift", "body"):
+        "2026-11-23：四类表面路由器（contentBase 不加层/card=glassCard/floatingGlass=glassPlate+浮动阴影/"
+        "transient=glassPlate+柔投影），只路由到既有实现，不新建主题系统",
+    ("Core/UI/SurfaceStyle.swift", "surface"):
+        "2026-11-23：四类表面统一入口 .surface(_:)，卡片/浮层从这里取样式，替代散落的背景手写",
+    ("Core/UI/SurfaceStyle.swift", "stateFill"):
+        "2026-11-23：悬停/按下/选中状态底统一口径入口，替代各处 opacity(0.0x) 字面量",
+    ("Core/UI/ThemeTokens.swift", "selected"):
+        "2026-11-23：选中底统一口径（强调色低强度铺底，深浅分色，可传个性化强调色）；"
+        "与 hover/press/disabledOpacity/focusRing 同组收编散落状态字面量",
+})
+
 def main() -> int:
     strict = "--strict" in sys.argv
 

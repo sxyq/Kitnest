@@ -389,7 +389,7 @@ struct SettingsSidebarView: View {
     private var footer: some View {
         VStack(spacing: 0) {
             Rectangle()
-                .fill(Color.primary.opacity(0.07))
+                .fill(Theme.separator)
                 .frame(height: 0.5)
             // v271：截图拆成五个侧边栏项后导航变长，原来的竖排页脚（3×30）把
             // 「性能监测」整组挤到折叠线以下。这三项改成一行紧凑入口（图标 + 小字），

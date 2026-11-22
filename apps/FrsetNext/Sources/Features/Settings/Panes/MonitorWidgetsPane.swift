@@ -162,7 +162,7 @@ private struct MonitorWidgetsContent: View {
                             .fixedSize().padding(8)
                     }
                     .background(draft.previewDark ? Color(.sRGB, white: 0.12, opacity: 1) : Color(.sRGB, white: 0.94, opacity: 1))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.chip))
                     if draft.forms(draft.selectedModule).isEmpty {
                         Text("当前部件已隐藏").font(.system(size: 11)).foregroundStyle(.secondary)
                     }
@@ -338,7 +338,7 @@ private struct MenuBarArrangementContent: View {
                     .fixedSize().padding(8)
             }
             .background(draft.previewDark ? Color(.sRGB, white: 0.12, opacity: 1) : Color(.sRGB, white: 0.94, opacity: 1))
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.chip))
             SettingsRow(title: "合并模块", subtitle: "拆分模式由系统保留每项 16pt 间隙；排列顺序用于合并条") {
                 Toggle("合并模块", isOn: $draft.merged).labelsHidden().toggleStyle(.switch).controlSize(.small)
             }
@@ -664,7 +664,7 @@ private struct ColorKeyControl: View {
                     Circle()
                         .fill(swatch(value))
                         .frame(width: 10, height: 10)
-                        .overlay(Circle().strokeBorder(Color.primary.opacity(0.15), lineWidth: 0.5))
+                        .overlay(Circle().strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline))
                     Text(displayName(value))
                         .font(.system(size: 11))
                 }

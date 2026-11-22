@@ -444,7 +444,8 @@ struct ClipboardPreviewWindowView: View {
                         .frame(width: 22, height: 22)
                         .background(
                             RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
-                                .fill(forceCode ? Color.accentColor : Color.primary.opacity(0.06))
+                                // 2026-11-23：静置底 primary 0.06 → Theme.State.hover（交互状态统一口径）
+                                .fill(forceCode ? Color.accentColor : Theme.State.hover)
                         )
                 }
                 .buttonStyle(.borderless)
@@ -486,7 +487,8 @@ struct ClipboardPreviewWindowView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(pinned ? Color.primary : Color.secondary)
                     .frame(width: 22, height: 22)
-                    .background(Circle().fill(Color.primary.opacity(pinned ? 0.1 : 0)))
+                    // 2026-11-23：固定态底 primary 0.1 → Theme.State.press（取值不变）
+                    .background(Circle().fill(pinned ? Theme.State.press : Color.clear))
             }
             .buttonStyle(.borderless)
             .help(pinned ? "固定中：移开鼠标/失焦不再自动关闭（点击取消固定）"
@@ -499,7 +501,8 @@ struct ClipboardPreviewWindowView: View {
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(closeHover ? Color.white : Color.secondary)
                     .frame(width: 22, height: 22)
-                    .background(Circle().fill(closeHover ? Color.red : Color.primary.opacity(0.06)))
+                    // 2026-11-23：静置底 primary 0.06 → Theme.State.hover
+                    .background(Circle().fill(closeHover ? Color.red : Theme.State.hover))
             }
             .buttonStyle(.borderless)
             .onHover { hovering in
@@ -631,47 +634,21 @@ struct ClipboardPreviewWindowView: View {
     }
 }
 
-/// hover 态内容裁剪：圆角 + 半透明描边（active=false 时不裁，persistent 走系统标题栏圆角）
+/// hover 态内容裁剪：临时浮层表面（active=false 时不裁，persistent 走系统标题栏圆角）
 /// v106（2026-10-21 用户：「文本预览框要玻璃改造」，对齐 liquid-glass 规范）：
-/// 毛玻璃材质 + 顶部高光渐变描边 + 柔和投影；对比度靠半实底 tint 保障
-/// （设计守则：材质不能压过文字对比）；开启「减弱透明度」时回退纯色。
+/// 毛玻璃材质 + 顶部高光渐变描边 + 柔和投影；对比度靠半实底 tint 保障。
+/// 2026-11-23（需求 B：快捷小窗族统一表面）：手写的高光渐变描边 + 阴影字面量
+/// （黑 0.22 / r16 / y6）收敛为 `.surface(.transient)`——统一玻璃面 + cardStroke
+/// 发丝边（不画双高光）+ Theme.Shadow.transient（0.24 / r18 / y8，同一档柔投影）。
+/// 「减弱透明度」由 GlassSurface 内部兜底为不透明底，可读性不变。
 private struct HoverClipModifier: ViewModifier {
     let active: Bool
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-
-    private let radius: CGFloat = 12
 
     func body(content: Content) -> some View {
         if active {
-            content
-                .background(glassSurface)
-                .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: radius, style: .continuous)
-                        .strokeBorder(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(reduceTransparency ? 0.12 : 0.38),
-                                    Color.white.opacity(0.10),
-                                    Color.primary.opacity(0.10),
-                                ],
-                                startPoint: .top, endPoint: .bottom),
-                            lineWidth: 0.5)
-                )
-                // 液态玻璃的"浮起"感：大而柔的投影（仅 hover 态，滚动列表不受影响）
-                .shadow(color: .black.opacity(0.22), radius: 16, y: 6)
+            content.surface(.transient, radius: Theme.Radius.window)
         } else {
             content
-        }
-    }
-
-    /// 玻璃面：ultraThin 材质 + 半实底 tint（文字对比度），减弱透明度时纯色兜底
-    @ViewBuilder private var glassSurface: some View {
-        if reduceTransparency {
-            Color(nsColor: .windowBackgroundColor)
-        } else {
-            // v207：hover 预览也走统一玻璃面（系统 Liquid Glass + 通透度/磨砂滑块）
-            GlassSurface(cornerRadius: radius)
         }
     }
 }

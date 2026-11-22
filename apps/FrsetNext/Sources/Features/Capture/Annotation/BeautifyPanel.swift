@@ -195,7 +195,7 @@ final class BeautifyWindow: NSWindow, NSWindowDelegate {
         imageView.frame = NSRect(x: 12, y: 12, width: 470, height: 496)
         imageView.autoresizingMask = [.width, .height]
         imageView.wantsLayer = true
-        imageView.layer?.cornerRadius = 6
+        imageView.layer?.cornerRadius = Theme.Radius.chip
         imageView.layer?.cornerCurve = .continuous   // v156: G2（曲率连续）圆角
         imageView.layer?.masksToBounds = true
         container.addSubview(imageView)

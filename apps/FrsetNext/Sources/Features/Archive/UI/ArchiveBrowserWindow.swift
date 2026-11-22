@@ -980,6 +980,7 @@ public final class ArchiveBrowserWindowController: NSWindowController, NSWindowD
 // MARK: 视图
 
 struct ArchiveBrowserView: View {
+    @Environment(\.colorScheme) private var colorScheme
 
     @ObservedObject var model: ArchiveBrowserModel
     /// v180：任务按钮角标（运行中 + 等待），让「有任务在跑」在窗口里可见
@@ -1279,7 +1280,7 @@ struct ArchiveBrowserView: View {
 
     private var barSeparator: some View {
         Rectangle()
-            .fill(Color.primary.opacity(0.12))
+            .fill(Theme.separator)
             .frame(width: 0.5, height: 18)
     }
 
@@ -1400,7 +1401,7 @@ struct ArchiveBrowserView: View {
                         .background(
                             RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
                                 .fill(model.selection.contains(entry.path)
-                                      ? Theme.accent.opacity(0.18)
+                                      ? Theme.State.selected(isDark: colorScheme == .dark)
                                       : Color.clear)
                         )
                         .overlay {

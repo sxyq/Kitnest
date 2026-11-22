@@ -352,12 +352,16 @@ public final class FloatingBallController: NSObject, ObservableObject, NSWindowD
             window.isReleasedWhenClosed = false
             window.contentMinSize = NSSize(width: 360, height: 280)
             window.delegate = self
+            // 2026-11-23：模块窗补统一外观入口（此前是裸 NSWindow 默认灰底，
+            // 与全 App 内容窗的玻璃/圆角/红绿灯口径割裂）。
+            window.applyOfficialChrome()
             moduleWindow = window
         }
         let host = NSHostingView(rootView: FloatingBallModuleView(widget: widget))
         host.sizingOptions = []
         moduleWindow?.title = "Kitnest · " + widget.title
-        moduleWindow?.contentView = host
+        // 换内容走 setOfficialContent：保证玻璃底重挂到新内容之下（v272 契约）
+        moduleWindow?.setOfficialContent(host)
         moduleWindow?.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
@@ -429,7 +433,8 @@ private struct FloatingBallView: View {
                                 Button { controller.run(id) } label: {
                                     Image(systemName: action.symbol).font(.system(size: 15, weight: .medium))
                                         .frame(width: FloatingBallSettings.tileSize, height: FloatingBallSettings.tileSize)
-                                        .contentShape(RoundedRectangle(cornerRadius: 10))
+                                        // 2026-11-23：热区圆角 10 → Theme.Radius.card（取值不变）
+                                        .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card))
                                 }
                                 .buttonStyle(.plain).help(action.title).accessibilityLabel(action.title)
                             }
@@ -470,9 +475,14 @@ private struct FloatingBallView: View {
         }
         .padding(controller.expanded ? 8 : 0)
         .foregroundStyle(.primary)
-        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: controller.expanded ? 22 : size / 2, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: controller.expanded ? 22 : size / 2, style: .continuous)
-            .strokeBorder(.white.opacity(0.18), lineWidth: 1))
+        // 2026-11-23（需求 B：悬浮球与快捷小窗统一表面）：
+        // 原来是 SwiftUI .regularMaterial + 手写白 18% 描边（第二种玻璃实现，R2 违规）。
+        // 收敛到统一玻璃面 glassPlate——真玻璃（26+ NSGlassEffectView）+ 通透度/磨砂
+        // 滑块生效 + cardStroke 发丝边；阴影由窗口级 hasShadow 承担（球窗边框正好贴着
+        // 球缘，视图级阴影会被窗口裁掉，且与系统窗口阴影双份——故这里用 glassPlate
+        // 而不是 .surface(.floatingGlass) 的「玻璃 + 视图阴影」组合）。
+        // 壳圆角是球体几何（收起 = size/2 正圆、展开 22 与球缘连续），不属表面令牌档位。
+        .glassPlate(radius: controller.expanded ? 22 : size / 2)
         .onHover { $0 ? controller.pointerEntered() : controller.pointerLeft() }
         .onExitCommand { controller.collapse() }
     }

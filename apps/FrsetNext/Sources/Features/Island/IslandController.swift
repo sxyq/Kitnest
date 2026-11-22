@@ -474,10 +474,12 @@ final class IslandController: NSObject, ObservableObject {
     private func openIsland(page requestedPage: IslandPage?) {
         if !previewOnly {
             guard configuration.enabled else { ServiceLocator.settings?.open(pane: "island"); return }
+            // 2026-11-23（需求 B：不随鼠标移动重新定位面板）：
+            // 这里原来会把岛搬到「鼠标所在的屏」——打开位置跟着鼠标跑。
+            // 现在打开保持在设置选定的屏幕上（displayScope + lastActiveDisplayID，
+            // show() 内恢复），跨屏迁移只走该屏入口（updatePointer/点击，
+            // 按 entryTriggers / hoverEnabled 设置门控），不跟鼠标漂移。
             show()
-            if let target = displays.first(where: { $0.frame.contains(NSEvent.mouseLocation) }) {
-                move(to: target)
-            }
         }
         if let requestedPage { selectDeepLinkPage(requestedPage) }
         expand(takeFocus: true, useOpeningPage: requestedPage == nil)
@@ -848,6 +850,9 @@ final class IslandController: NSObject, ObservableObject {
                 entryHoverWork = work
                 DispatchQueue.main.asyncAfter(deadline: .now() + configuration.collapseDelay, execute: work)
             } else if let target, target.hasNotch, target.id != activeDisplayID, configuration.hoverEnabled,
+                      // 2026-11-23（需求 B）：跨屏迁移按用户设置门控——与非刘海入口同口径，
+                      // 「仅点击」的屏幕不再被悬停带走（原来只有 hoverEnabled 一档，漏了 entryTriggers）。
+                      configuration.entryTriggers[target.id] != .clickOnly,
                !openedExplicitly, !interacting, !menuTracking, !editingText {
                 let work = DispatchWorkItem { [weak self] in
                     guard let self, self.entryHoverID == target.id, !self.openedExplicitly,
@@ -911,13 +916,12 @@ private final class IslandEntryView: NSView {
         setAccessibilityRole(.button)
         setAccessibilityLabel(hasNotch ? "打开刘海工作台" : "搜索并打开工作台")
         if !hasNotch {
-            let material = NSVisualEffectView(frame: bounds)
-            material.material = .menu
-            material.state = .active
+            // 2026-11-23：自拼 NSVisualEffectView 收敛到 LiquidGlass 工厂（R2 口径），
+            // 26+ 得真玻璃、旧系统仍是 .menu 毛玻璃；圆角收编 Theme.Radius.control（= 8）。
+            let material = LiquidGlass.makeView(frame: bounds,
+                                                cornerRadius: Theme.Radius.control,
+                                                material: .menu)
             material.autoresizingMask = [.width, .height]
-            material.wantsLayer = true
-            material.layer?.cornerRadius = 8
-            material.layer?.masksToBounds = true
             addSubview(material)
             let icon = NSImageView(frame: NSRect(x: 10, y: 7, width: 14, height: 14))
             icon.image = NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: nil)
@@ -937,7 +941,9 @@ private final class IslandEntryView: NSView {
     override func draw(_ dirtyRect: NSRect) {
         guard hasNotch else { return }
         NSColor.black.setFill()
-        NSBezierPath(roundedRect: bounds, xRadius: 10, yRadius: 10).fill()
+        // 2026-11-23：入口胶囊圆角 10 → Theme.Radius.card（取值不变）
+        NSBezierPath(roundedRect: bounds,
+                     xRadius: Theme.Radius.card, yRadius: Theme.Radius.card).fill()
         let mark = NSRect(x: bounds.midX - 12, y: 4, width: 24, height: 3)
         NSColor.white.withAlphaComponent(0.6).setFill()
         NSBezierPath(roundedRect: mark, xRadius: 1.5, yRadius: 1.5).fill()

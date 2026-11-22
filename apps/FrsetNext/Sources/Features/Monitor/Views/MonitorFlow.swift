@@ -104,7 +104,7 @@ struct MonitorFlowCard: View {
     @ViewBuilder private var plateBackground: some View {
         switch plate {
         case .glass:
-            Color.clear.glassCard(radius: 10)
+            Color.clear.glassCard(radius: Theme.Radius.card)
         case .gridded:
             ZStack {
                 RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
@@ -122,7 +122,7 @@ struct MonitorFlowCard: View {
                     .stroke(Color.primary.opacity(0.045), lineWidth: 0.5)
                 }
                 RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
+                    .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
             }
         }
     }

@@ -11,6 +11,8 @@ public struct MonitorCard<Content: View>: View {
     public var body: some View {
         content
             .padding(10)
-            .background(GlassCardBackground(cornerRadius: Theme.cornerRadius))
+            // 普通内容卡统一走 `.surface(.card)`（= glassCard）：实色轻填充 + 发丝边，
+            // 不叠阴影不叠模糊（原 GlassCardBackground 带 6/2 投影，已按 v285 收敛）。
+            .surface(.card, radius: Theme.Radius.card)
     }
 }

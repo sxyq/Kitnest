@@ -45,7 +45,7 @@ struct ChatBubble: View {
                     .font(.system(size: 13))
                     .padding(10)
                     .background {
-                        RoundedRectangle(cornerRadius: Theme.cornerRadius, style: .continuous)
+                        RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                             .fill(role == .user ? Theme.accent.opacity(0.16) : Color(NSColor.controlBackgroundColor))
                     }
                     .overlay(alignment: .bottomTrailing) {
@@ -366,11 +366,11 @@ public struct AIChatView: View {
                 .frame(minHeight: 34, maxHeight: 96)
                 .padding(6)
                 .background {
-                    RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
+                    RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                         .fill(Color(NSColor.textBackgroundColor))
                 }
                 .overlay {
-                    RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
+                    RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                         .strokeBorder(Theme.separator, lineWidth: 1)
                 }
 

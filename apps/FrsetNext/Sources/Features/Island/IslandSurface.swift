@@ -303,7 +303,9 @@ private final class IslandMaterialView: NSView {
         wantsLayer = true
         layer?.mask = mask
         self.shellOpacity = shellOpacity
-        let glass = LiquidGlass.makeView(cornerRadius: 0,
+        // 玻璃自角从 .zero 起：外壳圆角由 IslandMorph 逐帧经 setCornerRadius 注入，
+        // 形状交给 CAShapeLayer 遮罩（2026-11-23：0 字面量收编为 .zero）。
+        let glass = LiquidGlass.makeView(cornerRadius: .zero,
                                          tint: Self.tint(shellOpacity),
                                          solid: false,
                                          followsWindowFocus: material == .liquidGlass,
@@ -334,7 +336,7 @@ private final class IslandMaterialView: NSView {
 
     private func applyTint() {
         guard let glass = glassView, !glass.isHidden else { return }
-        LiquidGlass.reapplyStyle(on: glass, cornerRadius: 0,
+        LiquidGlass.reapplyStyle(on: glass, cornerRadius: .zero,
                                  tint: Self.tint(shellOpacity), solid: false)
     }
 

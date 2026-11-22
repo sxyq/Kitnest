@@ -473,7 +473,7 @@ final class CurtainCardView: NSView {
         button.contentTintColor = .white
         button.wantsLayer = true
         button.layer?.backgroundColor = NSColor.black.withAlphaComponent(reduceTransparency ? 1 : 0.55).cgColor
-        button.layer?.cornerRadius = 8.5
+        button.layer?.cornerRadius = Theme.Radius.control
         button.target = self
         button.action = action
         addSubview(button)

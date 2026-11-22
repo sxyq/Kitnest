@@ -526,9 +526,10 @@ public struct FloatingClipboardDeskView: View {
         .overlay(
             // v260：描边强度下调。深色下 primary 就是白色，8% 的白描边会在
             // 窗口外圈画出一道明显「线框」（用户反馈的「四周曲线 + 外部线框」）。
-            // 边缘交给阴影表达就够了，这里只留一丝极淡的界线。
+            // 2026-11-23：结构面描边统一 cardStroke（跟随「描边」滑块可调）+ hairline，
+            // 不再手写 primary 0.045 / 0.5 字面量。
             RoundedRectangle(cornerRadius: appearance.cornerRadius, style: .continuous)
-                .stroke(Color.primary.opacity(0.045), lineWidth: 0.5)
+                .stroke(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
         )
         .tint(appearance.accent)
         .environment(\.settingsPreviewPersonalization, personalization)
@@ -996,13 +997,11 @@ public struct FloatingClipboardDeskView: View {
     }
 
     private var footerBackground: some View {
-        Group {
-            if previewIsMidnight ?? appearanceState.isMidnight {
-                appearance.cardFill
-            } else {
-                Color.primary.opacity(0.04)
-            }
-        }
+        // 2026-11-23（需求 B：工具条走 floatingGlass 口径）：底栏是嵌在窗内的
+        // 控制条（不是浮层），不能再叠一层 glassPlate 采样——按主面板底部工具条
+        // 同一口径（审计 A-1）：只铺一层通透度底衬 windowSurface（Midnight 走
+        // 同源底色），与窗口玻璃面同配方，两个玻璃滑块继续生效。
+        appearance.windowSurface
     }
 
     // MARK: 拖拽
@@ -1080,26 +1079,26 @@ private struct FloatingClipCard: View {
         }
         .padding(9)
         .frame(minHeight: size.minHeight, alignment: .topLeading)
-        .background(cardBackground)
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                .stroke(isSelected ? appearance.accent.opacity(0.75) : appearance.cardStroke,
-                        lineWidth: isSelected ? 1.5 : 0.5)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+        // 状态底（悬停 0.06 / 选中 0.08 强调 wash）垫在卡面填充与内容之间——
+        // 顺序保证 wash 在 .surface(.card) 的 cardFill 之上、文字之下，反馈不变。
+        .background {
+            if isHovering || isSelected {
+                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                    .fill(appearance.accent.opacity(isSelected ? 0.08 : 0.06))
+            }
+        }
+        // 2026-11-23（需求 B：内容卡统一 card 表面）：底面/发丝边/裁切走
+        // .surface(.card)（= glassCard：cardFill + cardStroke + 圆角一次到位，
+        // 与全 App 内容卡同一实现）；选中描边保留为覆盖层（功能语义不动）。
+        .surface(.card)
+        .overlay {
+            if isSelected {
+                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                    .strokeBorder(appearance.accent.opacity(0.75), lineWidth: 1.5)
+            }
+        }
         .onHover { isHovering = $0 }
         .help(item.displayTitle)
-    }
-
-    private var cardBackground: some View {
-        RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-            // v193（原版实拍对照）：卡片是「比窗口底亮一档」的实面，
-            // 不再用 primary.opacity(0.055)——在浅色下那是灰砖，卡片之间没有层次。
-            .fill(appearance.cardFill)
-            .overlay {
-                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                    .fill(appearance.accent.opacity(isHovering ? 0.06 : (isSelected ? 0.08 : 0)))
-            }
     }
 
     // MARK: 按类型排版（没有标题行，内容直接铺满）
@@ -1321,7 +1320,9 @@ private struct FloatingClipListRow: View {
         HStack(spacing: 9) {
             ClipboardThumbnailView(item: item,
                                    size: appearance.thumbSize * 26 / PersonalizationDensity.standard.thumbSize,
-                                   corner: 5,
+                                   // 2026-11-23：缩略图圆角 5 → Theme.Radius.control
+                                   // （与 ClipboardSectionView 同类调用的 8pt 对齐）
+                                   corner: Theme.Radius.control,
                                    personalization: personalization)
             VStack(alignment: .leading, spacing: 1) {
                 Text(item.displayTitle)
@@ -1345,9 +1346,11 @@ private struct FloatingClipListRow: View {
         .padding(.horizontal, 8)
         .padding(.vertical, 5)
         .background {
+            // 2026-11-23：悬停底 primary 0.06 → Theme.State.hover；选中强调底保留
+            // （appearance.accent：个性化强调色语义，不用 Color.accentColor 令牌以免丢自定义色）
             RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
                 .fill(isSelected ? appearance.accent.opacity(0.14)
-                      : (isHovering ? Color.primary.opacity(0.06) : Color.clear))
+                      : (isHovering ? Theme.State.hover : Color.clear))
         }
         .contentShape(Rectangle())
         .onHover { isHovering = $0 }

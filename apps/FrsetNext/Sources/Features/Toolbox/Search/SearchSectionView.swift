@@ -485,6 +485,7 @@ enum SearchCategory: String, CaseIterable, Identifiable {
 // MARK: UI
 
 public struct SearchSectionView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.settingsPreviewPersonalization) private var previewPersonalization
     @Environment(\.settingsPreviewIsMidnight) private var previewIsMidnight
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -840,8 +841,8 @@ public struct SearchSectionView: View {
                     .frame(width: 20, height: 18)
                     .background(
                         RoundedRectangle(cornerRadius: Theme.Radius.micro, style: .continuous)
-                            .fill(isSlashMode ? theme.accent.opacity(0.18)
-                                              : Color.primary.opacity(0.06))
+                            .fill(isSlashMode ? Theme.State.selected(isDark: colorScheme == .dark, accent: theme.accent)
+                                              : Theme.State.hover)
                     )
                     .contentShape(Rectangle())
             }
@@ -860,7 +861,7 @@ public struct SearchSectionView: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
-        .glassCard(radius: 8, fill: isSettingsPreview && reduceTransparency ? Color(nsColor: .controlBackgroundColor) : nil)
+        .glassCard(radius: Theme.Radius.control, fill: isSettingsPreview && reduceTransparency ? Color(nsColor: .controlBackgroundColor) : nil)
     }
 
     // MARK: 分类 chips（v50：用户自选聚焦类别）
@@ -1110,9 +1111,9 @@ public struct SearchSectionView: View {
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
                         .background(
-                            RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
+                            RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
                                 .fill((isSettingsPreview ? previewEngine?.id : previewEngineID) == engine.id
-                                      ? theme.accent.opacity(0.14)
+                                      ? Theme.State.selected(isDark: colorScheme == .dark, accent: theme.accent)
                                       : theme.cardFill)
                         )
                         .contentShape(Rectangle())
@@ -1161,7 +1162,7 @@ public struct SearchSectionView: View {
                     .frame(height: 300)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                        .strokeBorder(Color.primary.opacity(0.08)))
+                        .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline))
             }
             .padding(.top, 2)
         } else if !supports {
@@ -1863,7 +1864,7 @@ public struct SearchSectionView: View {
 
     private func previewSelectionFill(_ id: String) -> some View {
         RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
-            .fill(isSettingsPreview && previewSelectedResultID == id ? theme.accent.opacity(0.12) : Color.clear)
+            .fill(isSettingsPreview && previewSelectedResultID == id ? Theme.State.selected(isDark: colorScheme == .dark, accent: theme.accent) : Color.clear)
     }
 
     /// 去除首尾空白后的关键词（分类显隐、剪贴板匹配、预览 URL 构造共用）

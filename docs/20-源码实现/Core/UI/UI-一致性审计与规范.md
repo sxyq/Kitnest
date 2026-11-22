@@ -116,3 +116,35 @@
   AppKit 把 `isEnabled` 置回 false —— 此时 `performClose(_:)` 静默变空操作
   （实测 `isVisible` 仍为 true）。自绘圆钮就是这些窗口唯一的关闭出口，
   它的 action 走 `frsetRoundCloseTapped`（先问 `windowShouldClose`，再 `close()`）。
+
+## 四类表面职责（v285 · 2026-11-23）
+
+在 v179「结构面真玻璃 / 内容卡不叠模糊」两级规则之上，全产品背景语义收敛为四类，
+统一从 `Core/UI/SurfaceStyle.swift` 的 `.surface(_:)` 入口取（只路由到既有实现，
+不新建主题系统）：
+
+| 表面 | 语义 | 实现 | 阴影 | 典型用途 |
+|---|---|---|---|---|
+| `.contentBase` | 主内容底板 | 不加层（窗口玻璃已由 UnifiedGlassBackingView 衬底） | 无 | 阅读/列表/图表主体区 |
+| `.card` | 普通内容卡片 | `glassCard()`：轻填充 + 0.5pt 发丝边，**无模糊** | 无 | 设置分组、统计卡、行卡 |
+| `.floatingGlass` | 重要悬浮玻璃控制层 | `glassPlate()`：真玻璃（26+ NSGlassEffectView） | `Theme.Shadow.floating` | 工具条胶囊、悬浮小窗、岛壳 |
+| `.transient` | 临时 Popover/HUD/浮层 | `glassPlate()` + 柔投影 | `Theme.Shadow.transient` | 详情卡、HUD、独立浮层 |
+
+**规则（HIG 对齐）**：
+- 一块背景不无限叠加玻璃+磨砂+遮罩+高光；根玻璃与正文底衬不重复采样。
+- 普通卡片不逐卡建 NSGlassEffectView（逐卡模糊掉帧）。
+- 玻璃主要突出重要控制层；真实玻璃与实色面板用途分开。
+- 边缘高光克制：结构面描边统一 `Theme.cardStroke`（个性化可调），不画双高光。
+- 阴影只用于区分浮动层级（floatingGlass/transient 两级），普通卡片与主内容不配阴影。
+- 浅色与深色分别给值（WhiteGlassCard 已分色），不靠自动颜色反转凑效果。
+- 品牌强调色与用户自定义强调色保留（`Theme.accent(for:)`）。
+
+**配套令牌（`ThemeTokens.swift` v285）**：
+- `Theme.Control`：控件高度统一（toolbar 30 / button 26 / input 28 / row 44）。
+- `Theme.State`：悬停/按下/选中/禁用/焦点统一口径（`.stateFill(pressed:selected:isDark:)`）。
+- `Theme.Shadow`：浮动/临时/窗口三档阴影参数。
+- 交互状态底从 `Theme.State` 取，不再各写 `opacity(0.0x)` 字面量。
+- 圆角四档：窗口 12 / 卡片 10 / 控件 8 / 标签 6（`Theme.Radius`）。
+
+**用户配置保护**：个性化迁移只动「等于旧出厂值」的参数（`migrateIfUntouched`），
+已保存的主题/强调色/背景/岛组件布局/悬浮球位置/快捷键一律保留；禁止清 UserDefaults 获得新设计。

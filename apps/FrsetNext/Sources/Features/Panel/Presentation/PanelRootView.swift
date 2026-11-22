@@ -731,7 +731,10 @@ struct PanelRootView: View {
                 }
             }
             .clipShape(Capsule(style: .continuous))
-            .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
+            // 2026-11-23：阴影字面量 0.18/12/y4 → Theme.Shadow.floating（取值不变）
+            .shadow(color: .black.opacity(Theme.Shadow.floating.opacity),
+                    radius: Theme.Shadow.floating.radius,
+                    x: 0, y: Theme.Shadow.floating.y)
         )
         .overlay(
             Capsule(style: .continuous)

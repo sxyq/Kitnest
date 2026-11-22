@@ -77,7 +77,7 @@ public struct CalendarSectionView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 10)
         // v111：同走 WhiteGlassCard（三级玻璃 L2 内容卡层，与剪贴板行卡同族）
-        .whiteGlassCard(14)
+        .whiteGlassCard(Theme.Radius.card)
         .onHover { hovering in
             isHovered = hovering
             if !hovering { scrollAccum = 0 }

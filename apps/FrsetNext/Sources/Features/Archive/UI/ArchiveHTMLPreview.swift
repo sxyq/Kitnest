@@ -219,7 +219,7 @@ struct ArchiveHTMLPreview: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 10.5, weight: .medium))
-                .foregroundStyle(enabled ? Color.secondary : Theme.tertiaryText.opacity(0.5))
+                .foregroundStyle(enabled ? Color.secondary : Color.primary.opacity(Theme.State.disabledOpacity))
                 .frame(width: 20, height: 18)
                 .contentShape(Rectangle())
         }

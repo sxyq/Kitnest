@@ -329,7 +329,7 @@ struct GeneralSettingsPane: View {
                                 MenuBarIconPreview(style: draft.iconStyle, customSymbol: draft.customSymbol, dark: dark)
                                     .frame(width: 56, height: 30)
                                     .background(dark ? Color(.sRGB, white: 0.12, opacity: 1) : Color(.sRGB, white: 0.94, opacity: 1))
-                                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.chip))
                                     .allowsHitTesting(false)
                                     .accessibilityLabel(dark ? "深色背景图标预览" : "浅色背景图标预览")
                                 Text(dark ? "深色背景" : "浅色背景").font(.system(size: 11)).foregroundStyle(.secondary)
@@ -661,7 +661,7 @@ struct IgnoredAppsEditor: View {
                         .padding(.vertical, 4)
                         .overlay {
                             RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
-                                .strokeBorder(Color.primary.opacity(0.18))
+                                .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
                         }
                 }
                 .buttonStyle(.plain)
@@ -687,7 +687,7 @@ struct IgnoredAppsEditor: View {
                         .padding(.vertical, 4)
                         .overlay {
                             RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
-                                .strokeBorder(Color.primary.opacity(0.18))
+                                .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
                         }
                 }
                 .buttonStyle(.plain)

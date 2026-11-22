@@ -544,9 +544,7 @@ private struct ActivityHeatmapView: View {
                     }
                     .padding(.horizontal, 9)
                     .padding(.vertical, 5)
-                    .background(RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
-                        .fill(Color(NSColor.controlBackgroundColor))
-                        .shadow(color: .black.opacity(0.18), radius: 3, y: 1))
+                    .surface(.transient, radius: Theme.Radius.chip)
                 }
                 .transition(reduceMotion ? .identity : .opacity)
             }

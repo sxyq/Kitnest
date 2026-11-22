@@ -194,7 +194,7 @@ struct WelcomeView: View {
                     .font(.system(size: 12)).foregroundStyle(status == .completed ? Color.green : .secondary)
                     .fixedSize(horizontal: false, vertical: true)
                     .padding(10).frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: 9))
+                    .background(Color.primary.opacity(0.035), in: RoundedRectangle(cornerRadius: Theme.Radius.control))
             }
             if status == .completed {
                 if task != .screenshot {

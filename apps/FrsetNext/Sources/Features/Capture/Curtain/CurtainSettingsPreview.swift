@@ -20,7 +20,7 @@ final class CurtainPreviewScene: NSView {
     init() {
         super.init(frame: .zero)
         wantsLayer = true
-        layer?.cornerRadius = 8
+        layer?.cornerRadius = Theme.Radius.control
         setAccessibilityElement(true)
         setAccessibilityRole(.group)
         setAccessibilityLabel("图帘预览：回车展开或收起，N 模拟截图，加减缩放，删除键移除模拟卡片")

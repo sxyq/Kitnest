@@ -697,7 +697,7 @@ private struct TransferDockContent: View {
             .padding(.vertical, 2.5)
             .overlay {
                 RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.16))
+                    .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
             }
         }
         .buttonStyle(.plain)
@@ -1202,9 +1202,8 @@ private struct TransferDockContent: View {
             }
             .padding(14)
             .frame(width: 230)
-            // v181：统一玻璃面（结构浮层走 glassPlate，不再自己配 material + 描边）
-            .glassPlate(radius: 12)
-            .shadow(radius: 18)
+            // 临时浮层统一 .surface(.transient)（glassPlate + Theme.Shadow.transient 柔投影）
+            .surface(.transient, radius: Theme.Radius.window)
         }
         .ignoresSafeArea()
     }
@@ -1420,6 +1419,7 @@ extension Notification.Name {
 /// 匹配/格式化/视图树）。现在只有被悬停的那一行重绘；Equatable 使父级重算时
 /// 未变化的行直接跳过 body。闭包不参与比较（同 HeatmapGridView 的处理）。
 private struct CloudRowView: View, Equatable {
+    @Environment(\.colorScheme) private var colorScheme
     let file: TransferDockFile
     let onDownload: (TransferDockFile) -> Void
     let onDelete: (TransferDockFile) -> Void
@@ -1463,7 +1463,7 @@ private struct CloudRowView: View, Equatable {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
-                .fill(hovered ? Color.primary.opacity(0.07) : Color.clear)
+                .fill(hovered ? Theme.State.hover : Color.clear)
         )
         .contentShape(Rectangle())
         .onHover { inside in hovered = inside }
@@ -1477,6 +1477,7 @@ private struct CloudRowView: View, Equatable {
 
 /// 本地暂存卡行（原 TransferDockView.localCard 的主体；动作经闭包回传父视图）
 private struct LocalCardRowView: View, Equatable {
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.isSettingsPreview) private var isSettingsPreview
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let item: LocalTransferItem
@@ -1569,14 +1570,14 @@ private struct LocalCardRowView: View, Equatable {
         .background(
             RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
                 .fill(selected
-                      ? Theme.accent.opacity(0.10)
-                      : Color.primary.opacity(hovered ? 0.06 : 0.035))
+                      ? Theme.State.selected(isDark: colorScheme == .dark)
+                      : (hovered ? Theme.State.hover : Color.primary.opacity(0.035)))
         )
         .overlay(
             RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                .strokeBorder(selected ? Theme.accent.opacity(0.55)
-                                       : Color.primary.opacity(0.06),
-                              lineWidth: 1)
+                .strokeBorder(selected ? Theme.State.focusRing
+                                       : Theme.cardStroke,
+                              lineWidth: Theme.Stroke.emphasis)
         )
         .scaleEffect(hovered && !reduceMotion ? 1.02 : 1.0)
         .animation(reduceMotion ? nil : Theme.Motion.springSnappy, value: hovered)

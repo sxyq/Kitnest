@@ -25,7 +25,8 @@ struct ToolbarIconButton: View {
                 .frame(width: 26, height: 26)
                 .foregroundStyle(isActive || hovering ? accent : Color.secondary)
                 .background(
-                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    // 2026-11-23：悬停底圆角收编 Theme.Radius.control（7 → 8，控件档）
+                    RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                         .fill(hovering ? accent.opacity(0.14) : .clear)
                 )
                 .contentShape(Rectangle())

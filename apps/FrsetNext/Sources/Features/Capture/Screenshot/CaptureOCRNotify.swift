@@ -60,7 +60,7 @@ final class OCRNotePanel: NSPanel {
         let host = NSView(frame: NSRect(x: 0, y: 0, width: 320, height: 54))
         host.wantsLayer = true
         host.layer?.backgroundColor = NSColor(calibratedWhite: 0.08, alpha: 0.9).cgColor
-        host.layer?.cornerRadius = 12
+        host.layer?.cornerRadius = Theme.Radius.window
         host.layer?.cornerCurve = .continuous
 
         icon.image = NSImage(systemSymbolName: "text.viewfinder", accessibilityDescription: nil)

@@ -314,9 +314,9 @@ final class PinToolbarView: NSView {
         super.init(frame: frameRect)
         wantsLayer = true
         layer?.shadowColor = NSColor.black.cgColor
-        layer?.shadowOpacity = 0.26
-        layer?.shadowRadius = 10
-        layer?.shadowOffset = CGSize(width: 0, height: -3)
+        layer?.shadowOpacity = Float(Theme.Shadow.floating.opacity)
+        layer?.shadowRadius = Theme.Shadow.floating.radius
+        layer?.shadowOffset = CGSize(width: 0, height: -Theme.Shadow.floating.y)
 
         grip.onDown = { [weak self] event in self?.onGripDown?(event) }
         grip.onDrag = { [weak self] event in self?.onGripDrag?(event) }

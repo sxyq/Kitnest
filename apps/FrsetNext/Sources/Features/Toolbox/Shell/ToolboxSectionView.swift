@@ -83,7 +83,7 @@ public struct ToolboxSectionView: View {
                     }
                     .frame(maxWidth: .infinity)
                     .frame(height: 52)
-                    .glassCard(radius: 8)
+                    .glassCard(radius: Theme.Radius.control)
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -209,8 +209,8 @@ public struct ToolRunnerView: View {
                     .font(.system(size: 12))
                     .frame(minHeight: compact ? 64 : 70, maxHeight: compact ? 80 : 110)
                     .overlay(
-                        RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
-                            .stroke(Color(NSColor.separatorColor), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
+                            .stroke(Theme.separator, lineWidth: Theme.Stroke.emphasis)
                     )
                     .overlay(alignment: .topLeading) {
                         if input.isEmpty {

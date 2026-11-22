@@ -29,6 +29,7 @@ extension Notification.Name {
 ///   · 两张卡片错开 40ms 依次进来，让视线先落在标题、再落到选项；
 ///   · 选中即高亮描边，不做弹跳——这是功能性选择，不需要庆祝动画。
 struct TransferIntakeDialog: View {
+    @Environment(\.colorScheme) private var colorScheme
     let request: TransferIntakeRequest
     let onConfirm: (TransferIntakeChoice) -> Void
     let onCancel: () -> Void
@@ -124,12 +125,12 @@ struct TransferIntakeDialog: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                    .fill(active ? Theme.accent.opacity(0.10) : Color.primary.opacity(0.04))
+                    .fill(active ? Theme.State.selected(isDark: colorScheme == .dark) : Color.primary.opacity(0.04))
             )
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                    .strokeBorder(active ? Theme.accent.opacity(0.55) : Color.primary.opacity(0.08),
-                                  lineWidth: 0.5)
+                    .strokeBorder(active ? Theme.State.focusRing : Theme.cardStroke,
+                                  lineWidth: Theme.Stroke.hairline)
             )
             .contentShape(Rectangle())
         }

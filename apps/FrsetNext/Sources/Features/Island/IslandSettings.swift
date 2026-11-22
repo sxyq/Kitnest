@@ -462,7 +462,8 @@ enum IslandLayout {
     static let collapsedRadius: CGFloat = Theme.Radius.chip
     static let cardRadius: CGFloat = corner - inset
     static let controlRadius: CGFloat = Theme.Radius.control
-    static let tint = NSColor.black.withAlphaComponent(0.32)
+    // 2026-11-23：IslandLayout.tint（黑 0.32）已删——它是「黑幕与 tint 双铺」时代
+    // 的残留常量，零引用；现展开态深色程度只由 IslandMaterialView.tint(shellOpacity) 一层负责。
     static let cardFill = Color.white.opacity(0.035)
     static let cardStroke = Color.white.opacity(0.08)
 }

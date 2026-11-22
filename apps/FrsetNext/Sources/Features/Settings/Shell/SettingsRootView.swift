@@ -53,12 +53,12 @@ struct SettingsRootView: View {
                 // 仍会压扁侧栏（截图里只剩半截字）。钉成不可压缩才是真约束。
                 .fixedSize(horizontal: true, vertical: false)
             Rectangle()
-                .fill(Color.primary.opacity(0.08))
+                .fill(Theme.separator)
                 .frame(width: 0.5)
             VStack(spacing: 0) {
                 header
                 Rectangle()
-                    .fill(Color.primary.opacity(0.08))
+                    .fill(Theme.separator)
                     .frame(height: 0.5)
                 if state.isVisible {
                     content.id(editingSession.generation)

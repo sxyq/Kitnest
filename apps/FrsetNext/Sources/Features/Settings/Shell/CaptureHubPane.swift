@@ -25,7 +25,7 @@ struct CaptureBlockPage: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
             Rectangle()
-                .fill(Color.primary.opacity(0.07))
+                .fill(Theme.separator)
                 .frame(height: 0.5)
         }
     }

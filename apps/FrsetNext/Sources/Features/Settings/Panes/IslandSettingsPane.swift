@@ -605,10 +605,10 @@ private struct IslandEntryPreview: View {
             }
             .frame(height: 28)
                 ZStack(alignment: .top) {
-                    RoundedRectangle(cornerRadius: 7)
+                    RoundedRectangle(cornerRadius: Theme.Radius.control)
                         .fill(Color.primary.opacity(0.035))
                     if hasNotch {
-                        RoundedRectangle(cornerRadius: 6)
+                        RoundedRectangle(cornerRadius: Theme.Radius.chip)
                             .fill(Color.black)
                             .frame(width: 78, height: 16)
                             .offset(y: -3)
@@ -622,19 +622,20 @@ private struct IslandEntryPreview: View {
                         .foregroundStyle(.secondary)
                         .padding(.horizontal, 10)
                         .frame(width: 180, height: 28)
-                        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 8))
+                        // 预览里的控制层同走 floatingGlass（真玻璃），不再各写 .regularMaterial
+                        .surface(.floatingGlass, radius: Theme.Radius.control)
                     } else if step == 2 {
                         Text("单一工作台")
                             .font(.system(size: 11))
                             .frame(maxWidth: .infinity)
                             .frame(height: 48)
-                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+                            .surface(.card, radius: Theme.Radius.card)
                             .padding(.horizontal, 16)
                     }
                 }
                 .frame(height: 78)
-                .clipShape(RoundedRectangle(cornerRadius: 7))
-                .overlay(RoundedRectangle(cornerRadius: 7).strokeBorder(Color.primary.opacity(0.12)))
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.control))
+                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control).strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline))
                 Text(hasNotch ? "沿用刘海入口 · 悬停展开" : ["① 平时隐藏 · 中央透明热区", "② 悬停停留 → 搜索短条", "③ 点击短条 → 工作台"][step])
                     .font(.system(size: 11)).foregroundStyle(.secondary)
             Text(hasNotch
