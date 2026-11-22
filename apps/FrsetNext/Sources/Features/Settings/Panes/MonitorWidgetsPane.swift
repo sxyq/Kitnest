@@ -148,37 +148,46 @@ private struct MonitorWidgetsContent: View {
     @Environment(\.settingsTargetField) private var targetField
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            SettingsGroupBox {
-                Text("菜单栏预览 · 固定示例数值").font(.system(size: 11)).foregroundStyle(.secondary)
-                Text("数值槽按格式定宽；读数、单位变化与充电状态不会移动相邻部件。标签、单位及排列调整先预览，保存后应用。")
-                    .font(.system(size: 11)).foregroundStyle(.secondary)
-                Picker("背景场景", selection: $draft.previewDark) {
-                    Text("浅色背景").tag(false)
-                    Text("深色背景").tag(true)
-                }
-                .pickerStyle(.segmented).frame(width: 220)
-                ScrollView(.horizontal) {
-                    MonitorWidgetsPreview(configuration: draft.configuration, modules: [draft.selectedModule], dark: draft.previewDark)
-                        .fixedSize().padding(8)
-                }
-                .background(draft.previewDark ? Color(.sRGB, white: 0.12, opacity: 1) : Color(.sRGB, white: 0.94, opacity: 1))
-                .clipShape(RoundedRectangle(cornerRadius: 6))
-                if draft.forms(draft.selectedModule).isEmpty {
-                    Text("当前部件已隐藏").font(.system(size: 11)).foregroundStyle(.secondary)
-                }
-                SettingsRow(title: "选择部件") {
-                    Picker("选择部件", selection: $draft.selectedModule) {
-                        ForEach(draft.orderedModules, id: \.self) { module in
-                            Text(FSBarModuleName(module) ?? module).tag(module)
-                        }
-                    }.labelsHidden().frame(width: 180)
+        VStack(alignment: .leading, spacing: 20) {
+            // v278（用户：部件设置拆多级标题；该页归「性能监测」而不是「入口与交互」）
+            SettingsSection("预览", alwaysExpanded: true) {
+                SettingsGroupBox {
+                    Picker("背景场景", selection: $draft.previewDark) {
+                        Text("浅色背景").tag(false)
+                        Text("深色背景").tag(true)
+                    }
+                    .pickerStyle(.segmented).frame(width: 220)
+                    ScrollView(.horizontal) {
+                        MonitorWidgetsPreview(configuration: draft.configuration, modules: [draft.selectedModule], dark: draft.previewDark)
+                            .fixedSize().padding(8)
+                    }
+                    .background(draft.previewDark ? Color(.sRGB, white: 0.12, opacity: 1) : Color(.sRGB, white: 0.94, opacity: 1))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    if draft.forms(draft.selectedModule).isEmpty {
+                        Text("当前部件已隐藏").font(.system(size: 11)).foregroundStyle(.secondary)
+                    }
                 }
             }
-            moduleCard(draft.selectedModule)
-            SettingsGroupBox {
-                SettingsRow(title: "重新导入 Stats 配置", subtitle: "只替换当前草稿；保存后应用") {
-                    Button("重新导入") { draft.importStats() }.controlSize(.small)
+            SettingsSection("部件选择") {
+                SettingsGroupBox {
+                    SettingsRow(title: "当前部件") {
+                        Picker("选择部件", selection: $draft.selectedModule) {
+                            ForEach(draft.orderedModules, id: \.self) { module in
+                                Text(FSBarModuleName(module) ?? module).tag(module)
+                            }
+                        }.labelsHidden().frame(width: 180)
+                    }
+                }
+            }
+            // 部件卡：标题随所选部件变化，归在「部件设置」小节下
+            SettingsSection(FSBarModuleName(draft.selectedModule) ?? draft.selectedModule) {
+                moduleCard(draft.selectedModule)
+            }
+            SettingsSection("配置") {
+                SettingsGroupBox {
+                    SettingsRow(title: "重新导入 Stats 配置", subtitle: "只替换当前草稿；保存后应用") {
+                        Button("重新导入") { draft.importStats() }.controlSize(.small)
+                    }
                 }
             }
         }
@@ -195,8 +204,8 @@ private struct MonitorWidgetsContent: View {
         let all = FSBarFormsForModule(module) as? [String] ?? []
         return SettingsGroupBox {
             HStack(spacing: 8) {
-                Label(FSBarModuleName(module) ?? module, systemImage: MonitorWidgetsPane.moduleSymbol(module))
-                    .font(.system(size: 12, weight: .semibold))
+                Image(systemName: MonitorWidgetsPane.moduleSymbol(module))
+                    .foregroundStyle(.secondary)
                 Spacer()
                 Button("恢复默认") { draft.restoreModule(module) }.controlSize(.small)
                 Toggle("显示" + (FSBarModuleName(module) ?? module), isOn: Binding(

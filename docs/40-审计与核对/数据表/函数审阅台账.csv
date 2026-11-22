@@ -2888,19 +2888,19 @@ Panel,Features/Panel/Presentation/PanelPreviewPresenterAdapter.swift,PanelPrevie
 Panel,Features/Panel/Presentation/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,cancelKeyboardPreview,func,51,KEEP,协议方法；ClipboardTableHostView:635
 Panel,Features/Panel/Presentation/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,prepareForPanelAppear,func,56,KEEP,协议方法；ClipboardSectionView:36
 Panel,Features/Panel/Presentation/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,notifyItemRemoved,func,61,KEEP,协议方法；ClipboardSectionView:96、ClipboardTableHostView:1002
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,isSegmentOn,func,81,KEEP,enabledPages :62 过滤调用
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,normalizeSegmentSelection,func,96,KEEP,onAppear :229 与 5 处 onChange :144-152
-Panel,Features/Panel/Presentation/PanelRootView.swift,AnchorArrow,path,func,271,KEEP,Shape 协议要求（SwiftUI 绘制调用）
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,segmentHelp,func,393,KEEP,pageSegments :389 调用
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,selectPage,func,400,KEEP,segmentItem 动作 :370/:387 回调
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,segmentItem,func,408,KEEP,pageSegments :369/386 调用
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,runCapture,func,475,KEEP,captureAction 四个菜单项 :481-485
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,closeBottomSearch,func,599,KEEP,onSubmit :536 与收起按钮 :538
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,toolbarIcon,func,610,KEEP,bottomToolbar :551/587/593 调用
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,captureButton,func,653,KEEP,toolbar :281 取色按钮
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,cachedBackgroundImage,func,754,KEEP,body 背景 :159 调用
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelToolbarLayout,sizeThatFits,func,806,KEEP,Layout 协议要求（SwiftUI 布局调用）
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelToolbarLayout,placeSubviews,func,812,KEEP,Layout 协议要求（SwiftUI 布局调用）
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,isSegmentOn,func,80,KEEP,enabledPages :62 过滤调用
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,normalizeSegmentSelection,func,95,KEEP,onAppear :229 与 5 处 onChange :144-152
+Panel,Features/Panel/Presentation/PanelRootView.swift,AnchorArrow,path,func,264,KEEP,Shape 协议要求（SwiftUI 绘制调用）
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,segmentHelp,func,386,KEEP,pageSegments :389 调用
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,selectPage,func,393,KEEP,segmentItem 动作 :370/:387 回调
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,segmentItem,func,401,KEEP,pageSegments :369/386 调用
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,runCapture,func,468,KEEP,captureAction 四个菜单项 :481-485
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,closeBottomSearch,func,592,KEEP,onSubmit :536 与收起按钮 :538
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,toolbarIcon,func,603,KEEP,bottomToolbar :551/587/593 调用
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,captureButton,func,646,KEEP,toolbar :281 取色按钮
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,cachedBackgroundImage,func,747,KEEP,body 背景 :159 调用
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelToolbarLayout,sizeThatFits,func,799,KEEP,Layout 协议要求（SwiftUI 布局调用）
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelToolbarLayout,placeSubviews,func,805,KEEP,Layout 协议要求（SwiftUI 布局调用）
 Panel,Features/Panel/Presentation/PanelSegments.swift,PanelSegments,migrateLegacyVisibility,func,21,KEEP,把旧showSystemStatus与panel.transferDock有效展示状态合并入分段键，移除重复展示键
 Panel,Features/Panel/Presentation/PanelSegments.swift,PanelSegments,title,func,36,KEEP,PanelRootView.swift:227/228/369/386
 Panel,Features/Panel/Presentation/PanelSegments.swift,PanelSegments,fullTitle,func,44,KEEP,PersonalizationSettingsPane.swift:148 勾选项标题
@@ -3160,28 +3160,28 @@ Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsSettings
 Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsSettingsDraft,refreshUnownedValues,func,116,KEEP,返回部件页刷新其他页已保存的排列，不覆盖本页形态颜色草稿；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsSettingsDraft,save,func,120,KEEP,按 NSObjectEqual 求出相对 saved 的变更值及移除键，交给 FSBarSaveConfiguration 原子写入；失败返回原因，成功更新 saved 并重载正式部件；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsSettingsDraft,NSObjectEqual,func,131,KEEP,保存时用 NSObject.isEqual 比较草稿值和原值；原键不存在则视为新值，供只写改动的配置差异使用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsContent,selectTarget,func,189,KEEP,菜单部件配置深链按正式模块标识定位页内选择，不新增三级目录；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsContent,moduleCard,func,193,KEEP,按草稿顺序绘制模块卡、启用形态及各形态设置；显示、模块/形态排序、更新间隔、传感器选择和单模块默认都只更新 draft.configuration；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsContent,optionRow,func,274,KEEP,部件细项复用 96pt 标题列及至少 26pt 控件行，供间隔、传感器和四类形态控件使用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsContent,boolBinding,func,281,KEEP,形态开关从 draft.bool 读取，赋值只写 configuration 的指定键，不调用 FSBarCfgSet；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsContent,stringBinding,func,284,KEEP,形态菜单及颜色控件从 draft.string 读取，赋值只更新指定草稿字符串键；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsContent,numberBinding,func,287,KEEP,数值滑条把草稿字符串转 Double，拖动后按零位小数写回同一草稿键，供配置序列化复用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsContent,optionControl,func,291,KEEP,按 OptionSpec 分发开关、菜单、颜色和滑条，统一拼 module_form_ 前缀并绑定草稿配置；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsPreview,makeNSView,func,375,KEEP,直接返回FSBarCreateConfiguredPreview创建的22pt正式部件画布，按草稿模块/形态顺序装入固定数值和图线历史，不增加空宿主容器或菜单栏状态项；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsPreview,updateNSView,func,378,KEEP,调用FSBarUpdateConfiguredPreview先将原生画布高度设为22pt，再按module/form复用部件并更新草稿配置、移除失效形态及重排；新增图线装入120个固定样本，其他形态取最后一个样本；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsPreview,sizeThatFits,func,382,KEEP,SwiftUI尺寸提案保留原生画布实际宽度并固定返回22pt高度，与FSBarUpdateConfiguredPreview设置的画布高度一致，避免被压至8pt而裁掉图线和双行网络；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsPreview,dismantleNSView,func,385,KEEP,部件预览卸载时移除容器全部子视图，释放正式绘制组件；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,OptionSpec,toggle,func,401,KEEP,本文件:582 等 optionGroups 构造；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,OptionSpec,menu,func,404,KEEP,本文件:584 等 optionGroups 构造；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,OptionSpec,color,func,407,KEEP,本文件:583 等 optionGroups 构造；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,OptionSpec,slider,func,411,KEEP,本文件:600/629/671 构造；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsPane,optionGroups,func,454,KEEP,本文件:276；WidgetSettingsSelfTest.swift:141；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsPane,moduleSymbol,func,614,KEEP,本文件:162 模块图标；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,ColorKeyControl,write,func,674,KEEP,本文件:735/743/776 写配置；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,ColorKeyControl,displayName,func,686,KEEP,本文件:751 菜单标题；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,ColorKeyControl,swatch,func,692,KEEP,本文件:748 色块预览；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,ColorKeyControl,color,func,722,KEEP,本文件:773/787 hex 转色；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,ColorKeyControl,hex,func,732,KEEP,本文件:775 取色转 hex；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsContent,selectTarget,func,198,KEEP,菜单部件配置深链按正式模块标识定位页内选择，不新增三级目录；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsContent,moduleCard,func,202,KEEP,按草稿顺序绘制模块卡、启用形态及各形态设置；显示、模块/形态排序、更新间隔、传感器选择和单模块默认都只更新 draft.configuration；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsContent,optionRow,func,283,KEEP,部件细项复用 96pt 标题列及至少 26pt 控件行，供间隔、传感器和四类形态控件使用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsContent,boolBinding,func,290,KEEP,形态开关从 draft.bool 读取，赋值只写 configuration 的指定键，不调用 FSBarCfgSet；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsContent,stringBinding,func,293,KEEP,形态菜单及颜色控件从 draft.string 读取，赋值只更新指定草稿字符串键；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsContent,numberBinding,func,296,KEEP,数值滑条把草稿字符串转 Double，拖动后按零位小数写回同一草稿键，供配置序列化复用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsContent,optionControl,func,300,KEEP,按 OptionSpec 分发开关、菜单、颜色和滑条，统一拼 module_form_ 前缀并绑定草稿配置；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsPreview,makeNSView,func,384,KEEP,直接返回FSBarCreateConfiguredPreview创建的22pt正式部件画布，按草稿模块/形态顺序装入固定数值和图线历史，不增加空宿主容器或菜单栏状态项；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsPreview,updateNSView,func,387,KEEP,调用FSBarUpdateConfiguredPreview先将原生画布高度设为22pt，再按module/form复用部件并更新草稿配置、移除失效形态及重排；新增图线装入120个固定样本，其他形态取最后一个样本；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsPreview,sizeThatFits,func,391,KEEP,SwiftUI尺寸提案保留原生画布实际宽度并固定返回22pt高度，与FSBarUpdateConfiguredPreview设置的画布高度一致，避免被压至8pt而裁掉图线和双行网络；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsPreview,dismantleNSView,func,394,KEEP,部件预览卸载时移除容器全部子视图，释放正式绘制组件；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,OptionSpec,toggle,func,410,KEEP,本文件:582 等 optionGroups 构造；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,OptionSpec,menu,func,413,KEEP,本文件:584 等 optionGroups 构造；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,OptionSpec,color,func,416,KEEP,本文件:583 等 optionGroups 构造；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,OptionSpec,slider,func,420,KEEP,本文件:600/629/671 构造；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsPane,optionGroups,func,463,KEEP,本文件:276；WidgetSettingsSelfTest.swift:141；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsPane,moduleSymbol,func,623,KEEP,本文件:162 模块图标；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,ColorKeyControl,write,func,683,KEEP,本文件:735/743/776 写配置；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,ColorKeyControl,displayName,func,695,KEEP,本文件:751 菜单标题；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,ColorKeyControl,swatch,func,701,KEEP,本文件:748 色块预览；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,ColorKeyControl,color,func,731,KEEP,本文件:773/787 hex 转色；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,ColorKeyControl,hex,func,741,KEEP,本文件:775 取色转 hex；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,AppearanceSettingsDraft,init,init,28,KEEP,AppearanceSettingsDraft.init 接收模块 scope 并订阅个性化/悬浮窗草稿；AppearanceSettingsEditor 和 PersonalizationSettingsView 接收 scope/draft；原生窗口按钮 Coordinator.init 保存场景 onPress 回调；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,AppearanceSettingsDraft,observeChanges,func,54,KEEP,合并 personalization 与 floating 的 objectWillChange 并转发到外观草稿，使缓存编辑器和正式预览同步重绘，不再通过 previewRevision 重建内容；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/PersonalizationSettingsPane.swift,AppearanceSettingsDraft,save,func,68,KEEP,按 scope 只应用该页面板、悬浮窗、动作条或主题字段，再经 Personalization.applyDraft 写该模块 DraftField；synchronize 失败保留草稿并返回原因，成功更新保存快照；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
@@ -3315,8 +3315,8 @@ Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSes
 Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,end,func,155,KEEP,设置窗口关闭时清空草稿实例和全部默认标记，并递增 generation，使下次打开重建内容与预览生命周期；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsDraftEditor,init,init,218,KEEP,SettingsEditingSession.init注册各类外观和八个模块工厂，新增transferLocal供本地暂存设置缓存；SettingsDraftEditor.init保存id、工厂及内容闭包，切页借用同一草稿；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsModule.swift,SettingsModule,start,func,14,KEEP,AppModule 协议；ModuleRegistry.startAll 派发；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsNavigation.swift,SettingsGroup,section,func,84,KEEP,按页面反查所属二级小节；小节 ID 以一级目录名为前缀，跨目录唯一
-Settings,Features/Settings/Shell/SettingsNavigation.swift,SettingsGroup,group,func,88,KEEP,由二级 SettingsPage 反查一级 SettingsGroup，统一驱动分组高亮与导航归属；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsNavigation.swift,SettingsGroup,section,func,91,KEEP,按页面反查所属二级小节；小节 ID 以一级目录名为前缀，跨目录唯一
+Settings,Features/Settings/Shell/SettingsNavigation.swift,SettingsGroup,group,func,95,KEEP,由二级 SettingsPage 反查一级 SettingsGroup，统一驱动分组高亮与导航归属；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsPanes.swift,StartupSettingsDraft,save,func,18,KEEP,先验证自定义 SF Symbol，变更小猫时调用 FSBarSaveConfiguration；只应用变化的图标/符号/入口键，发入口通知并刷新正式图标和小猫，失败返回具体原因；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsPanes.swift,StartupSettingsDraft,discard,func,35,KEEP,重新读取图标存储、引擎小猫配置与七项入口偏好，替换草稿并更新 saved；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsPanes.swift,StartupSettingsDraft,restoreDefaults,func,41,KEEP,菜单栏草稿恢复 logo、默认自定义符号、关闭小猫并启用七项入口，正式图标和入口不立即变化；2026-11-19人工复核：保留，源码与调用/系统入口已核阅

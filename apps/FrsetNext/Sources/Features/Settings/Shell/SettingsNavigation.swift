@@ -46,12 +46,12 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
         case .haptics: return [.haptics]
         case .appearance: return [.generalPersonal, .appearanceText, .generalWindows]
         case .entryInteraction: return [.generalPanel, .panelBackground, .generalMenuBar, .menuBarArrangement,
-                                        .monitorWidgets, .shortcuts, .floatingBall, .clipboardFloating]
+                                        .shortcuts, .floatingBall, .clipboardFloating]
         case .clipboard: return [.clipboardCapture, .clipboardHistory, .clipboardAppearance]
         case .capture: return [.capture(.capture), .ocr, .watermark, .captureActions, .capture(.pin), .capture(.curtain), .capture(.recording), .capture(.workflow)]
         case .searchAI: return [.search, .ai]
         case .tools: return [.tools, .aiText, .calendar, .archive]
-        case .monitor: return [.monitorSettings]
+        case .monitor: return [.monitorSettings, .monitorWidgets]
         case .data: return [.configTransfer, .diagnostics, .about]
         }
     }
@@ -63,9 +63,16 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
                 .init(id: "entryInteraction.panel", title: "主面板",
                       pages: [.generalPanel, .panelBackground]),
                 .init(id: "entryInteraction.menuBar", title: "菜单栏与快捷键",
-                      pages: [.generalMenuBar, .menuBarArrangement, .monitorWidgets, .shortcuts]),
+                      pages: [.generalMenuBar, .menuBarArrangement, .shortcuts]),
                 .init(id: "entryInteraction.floating", title: "悬浮窗",
                       pages: [.floatingBall, .clipboardFloating]),
+            ]
+        case .monitor:
+            return [
+                .init(id: "monitor.window", title: "监测窗口",
+                      pages: [.monitorSettings]),
+                .init(id: "monitor.menuBar", title: "菜单栏部件",
+                      pages: [.monitorWidgets]),
             ]
         case .capture:
             return [
@@ -174,7 +181,7 @@ enum SettingsPage: Hashable {
         case .panelBackground: return "主面板背景图与遮罩"
         case .generalMenuBar: return "菜单栏图标与入口"
         case .menuBarArrangement: return "图标合并、间距与分隔线"
-        case .monitorWidgets: return "监测页的部件与形态"
+        case .monitorWidgets: return "菜单栏部件的形态、颜色与排列"
         case .clipboardCapture: return "复制后自动收录，含图片 OCR"
         case .clipboardHistory: return "保留时长与容量上限"
         case .clipboardAppearance: return "列表密度、缩略图与来源徽章"
