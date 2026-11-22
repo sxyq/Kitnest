@@ -27,31 +27,15 @@ App,App/FrsetNextApp.swift,AppDelegate,applicationWillTerminate,func,181,KEEP,NS
 App,App/FrsetNextApp.swift,AppDelegate,applicationShouldHandleReopen,func,190,KEEP,NSApplicationDelegate 回调；点 Dock/重开时显示主面板
 App,App/FrsetNextApp.swift,AppDelegate,updateDockPresence,func,200,KEEP,applicationDidFinishLaunching 注册 NSWindow 键状态/关闭通知；函数统计可见标题窗后在 regular 与 accessory 策略间切换
 App,App/FrsetNextApp.swift,AppDelegate,application,func,217,KEEP,NSApplicationDelegate回调；文件URL与kitnest://深链分流，入站URL日志只保留scheme和host，不记录路径、参数或文件名
-App,App/FrsetNextApp.swift,InstanceLock,acquire,func,670,KEEP,待补证据：新增函数，尚未逐个读源码填写
-App,App/FrsetNextApp.swift,InstanceLock,startHeartbeat,func,715,KEEP,待补证据：新增函数，尚未逐个读源码填写
-App,App/FrsetNextApp.swift,InstanceLock,touchHeartbeat,func,724,KEEP,待补证据：新增函数，尚未逐个读源码填写
-App,App/FrsetNextApp.swift,InstanceLock,heartbeatStale,func,729,KEEP,待补证据：新增函数，尚未逐个读源码填写
-App,App/FrsetNextApp.swift,InstanceLock,isOutdatedBuild,func,736,KEEP,待补证据：新增函数，尚未逐个读源码填写
-App,App/FrsetNextApp.swift,InstanceLock,isLegitimateHolder,func,749,KEEP,待补证据：新增函数，尚未逐个读源码填写
+App,App/FrsetNextApp.swift,InstanceLock,acquire,func,670,KEEP,2026-11-23：单实例锁唯一入口；先 flock(O_CLOEXEC)，失败再按「持有者非活实例/旧构建/心跳超 12s」三条判据接管，只回收放满 3s 的锁，杀不掉就无锁启动不自杀
+App,App/FrsetNextApp.swift,InstanceLock,startHeartbeat,func,715,KEEP,2026-11-23：acquire L… 抢到锁后启动；DispatchSource 2s 一次写 instance.heartbeat，纯后台队列不碰主线程
+App,App/FrsetNextApp.swift,InstanceLock,touchHeartbeat,func,724,KEEP,2026-11-23：startHeartbeat 的定时器回调写入 pid 心跳文件，供 heartbeatStale 判断卡死
+App,App/FrsetNextApp.swift,InstanceLock,heartbeatStale,func,729,KEEP,2026-11-23：acquire L… 接管判定用；心跳 mtime 超过 12s 即认为持有者卡死
+App,App/FrsetNextApp.swift,InstanceLock,isOutdatedBuild,func,736,KEEP,2026-11-23：acquire L… 接管判定用；锁文件 build= 构建戳与本进程不一致即旧实例
+App,App/FrsetNextApp.swift,InstanceLock,isLegitimateHolder,func,749,KEEP,2026-11-23：acquire L… 接管判定用；持有者 pid 不存在或是僵尸（SZOMB）都不算合法持有
 App,App/FrsetNextApp.swift,InstanceLock,isZombie,func,757,KEEP,"单实例检查过滤用；proc_pidinfo取pbi_status==SZOMB(5)判定僵尸，NSRunningApplication与kill(pid,0)都会把僵尸当成活进程"
-App,App/FrsetNextApp.swift,InstanceLock,tryAcquire,func,765,KEEP,待补证据：新增函数，尚未逐个读源码填写
-App,App/FrsetNextApp.swift,InstanceLock,readHolderPid,func,781,KEEP,待补证据：新增函数，尚未逐个读源码填写
-Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,init,init,82,KEEP,2026-11-21：v270 显式空 init 保留 HapticConfiguration() 调用点（设置页恢复默认、解码回落），与新增加密字段共存
-Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,encode,func,89,KEEP,2026-11-21：v271 CodingKeys 新增 schemaVersion（无对应存储属性，Encodable 无法合成）→ 手写编码写 schemaVersion=2 + 三字段；persist:103 调用
-Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,init,init,97,KEEP,2026-11-21：v270 显式空 init 保留 HapticConfiguration() 调用点（设置页恢复默认、解码回落），与新增加密字段共存
-Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,isEnabled,func,113,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；统一事件入口按独立场景开关取值，总强度由perform后续处理
-Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,load,func,115,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；从haptic.configuration读取独立Codable偏好，设置草稿与真实事件共用
-Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,persist,func,124,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；设置保存把强度与禁用事件集合编码到原UserDefaults，不影响刘海配置
-Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,perform,func,135,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；所有业务事件唯一触觉入口，读取场景偏好后交给公共系统反馈模式
-Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,preview,func,149,KEEP,设置试听和正式事件共用系统调用，关闭不调用，其余每次仅请求一次离散反馈
-Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,simulate,func,155,KEEP,2026-11-21：v270 设置页「模拟所选场景」——只发一次与草稿强度对应的系统模式，不执行任何业务动作；HapticSettingsPane 调用
-Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,fireProbeIfRequested,func,162,KEEP,2026-11-21：v272 启动探针（probe.haptic 键）激活 App 后自动模拟一次，用于无鼠标环境验证触觉链路；项目探针惯例用完删键；applicationDidFinishLaunching 调用
-Core,Core/Haptics/HapticFeedback.swift,HapticFeedback,emit,func,170,KEEP,2026-11-21：v270 统一出口——perform/simulate 共用；先记 pattern+event 再请求 NSHapticFeedbackManager；perform:100 / simulate:121 调用
-Core,Core/Haptics/TrackpadActuator.swift,TrackpadActuator,init,init,28,KEEP,仅在内建触控板可驱动时打开私有马达并缓存句柄；失败保持 nil，由 emit 回落公开接口
-Core,Core/Haptics/TrackpadActuator.swift,TrackpadActuator,deinit,deinit,56,KEEP,进程退出前关闭马达句柄，避免占用触控板设备
-Core,Core/Haptics/TrackpadActuator.swift,TrackpadActuator,actuate,func,61,KEEP,业务事件与设置试听的唯一敲击点；直连失败时关掉重开再试一次，仍失败交公开接口
-Core,Core/Haptics/TrackpadActuator.swift,TrackpadActuator,ensureOpen,func,72,KEEP,按需创建并打开马达；睡眠唤醒后句柄失效时由 actuate 关闭重开
-Core,Core/Haptics/TrackpadActuator.swift,TrackpadActuator,builtInTrackpadID,func,85,KEEP,从 IORegistry 取内建且 ActuationSupported 的触控板 Multitouch ID，避开外接设备
+App,App/FrsetNextApp.swift,InstanceLock,tryAcquire,func,765,KEEP,2026-11-23：acquire L… 调用；open(O_CREAT|O_CLOEXEC)+flock 非阻塞抢锁，成功写入 pid 与 build 戳
+App,App/FrsetNextApp.swift,InstanceLock,readHolderPid,func,781,KEEP,2026-11-23：acquire L… 调用；解析锁文件首行 pid，供接管判据与日志使用
 Core,Core/Motion/GenieMesh.swift,GenieRect,offsetBy,func,33,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；GenieWarp.swift:283-284 调用
 Core,Core/Motion/GenieMesh.swift,GenieMesh,localY,func,49,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；GenieWarp.swift:87,88 调用"
 Core,Core/Motion/GenieMesh.swift,GenieMesh,screenY,func,51,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；GenieWarp.swift:70,83,84 调用"
@@ -2332,6 +2316,57 @@ FloatingBall,Features/FloatingBall/FloatingBallController.swift,FloatingBallCont
 FloatingBall,Features/FloatingBall/FloatingBallController.swift,FloatingBallController,clampedOrigin,func,403,KEEP,按指定显示器可见区域限制面板原点，避免窗口移出屏幕
 FloatingBall,Features/FloatingBall/FloatingBallController.swift,FloatingBallPanel,init,init,546,KEEP,控制器单例持有复用状态；面板采用无边框非激活样式，避免建立第二主面板
 FloatingBall,Features/FloatingBall/FloatingBallController.swift,CGFloat,clamped,func,554,KEEP,读取用户尺寸偏好并限制在设置界面公布的范围内，未设置时使用指定默认值
+Haptics,Features/Haptics/HapticConfiguration.swift,HapticIntensity,atLeast,func,46,KEEP,2026-11-23：HapticPattern.steps L… 调用；按强度阶梯取不低于下限的档位，失败事件要求不低于「中」
+Haptics,Features/Haptics/HapticConfiguration.swift,HapticConfiguration,init,init,68,KEEP,2026-11-23：默认配置（enabled=true、强度=中、6 个默认关闭场景），设置页恢复默认与 load() 兜底使用
+Haptics,Features/Haptics/HapticConfiguration.swift,HapticConfiguration,isEnabled,func,70,KEEP,2026-11-23：HapticService.perform L… 调用；总开关 + 强度 + 场景开关三重判断，关闭其一即不发
+Haptics,Features/Haptics/HapticConfiguration.swift,HapticConfiguration,migrated,func,77,KEEP,2026-11-23：解码后显式迁移（v0 轻→中 + 版本号补齐）；返回是否需要写回，解码本身保持无副作用
+Haptics,Features/Haptics/HapticConfiguration.swift,HapticConfiguration,encode,func,95,KEEP,2026-11-23：写 schemaVersion=3 与三个用户字段；旧配置字段名不变
+Haptics,Features/Haptics/HapticConfiguration.swift,HapticConfiguration,init,init,104,KEEP,2026-11-23：默认配置（enabled=true、强度=中、6 个默认关闭场景），设置页恢复默认与 load() 兜底使用
+Haptics,Features/Haptics/HapticConfiguration.swift,HapticConfiguration,func,func,116,KEEP,2026-11-23：合成成员（Equatable 比较只看 enabled/intensity/disabledEvents，忽略版本号）
+Haptics,Features/Haptics/HapticConfiguration.swift,HapticConfiguration,load,func,125,KEEP,2026-11-23：读 UserDefaults + 解码 + migrated()，不落盘；HapticSettingsStore 与设置页草稿共用
+Haptics,Features/Haptics/HapticConfiguration.swift,HapticSettingsStore,init,init,148,KEEP,2026-11-23：进程内只读一次配置并缓存；业务侧不再每次事件解码 JSON
+Haptics,Features/Haptics/HapticConfiguration.swift,HapticSettingsStore,save,func,159,KEEP,2026-11-23：HapticSettingsDraft.save 调用；写盘成功才替换内存快照，失败原样返回错误
+Haptics,Features/Haptics/HapticConfiguration.swift,HapticSettingsStore,reload,func,172,KEEP,2026-11-23：重新读盘替换快照（外部改动配置时使用）
+Haptics,Features/Haptics/HapticDriver.swift,HapticDriving,prepare,func,68,KEEP,2026-11-23：驱动协议；准备完成后回调，设备枚举不得占用调用线程
+Haptics,Features/Haptics/HapticDriver.swift,HapticDriving,fire,func,69,KEEP,2026-11-23：驱动协议；返回 HapticDelivery，公开接口只能如实返回「已请求」
+Haptics,Features/Haptics/HapticDriver.swift,HapticDriving,invalidate,func,70,KEEP,2026-11-23：驱动协议；睡眠唤醒/设备变化后释放句柄允许重建
+Haptics,Features/Haptics/HapticDriver.swift,PrivateHapticDriver,prepare,func,92,KEEP,2026-11-23：转发 TrackpadActuator.prepare，后台完成设备发现与句柄打开
+Haptics,Features/Haptics/HapticDriver.swift,PrivateHapticDriver,invalidate,func,93,KEEP,2026-11-23：转发 TrackpadActuator.invalidate（唤醒通知触发）
+Haptics,Features/Haptics/HapticDriver.swift,PrivateHapticDriver,fire,func,95,KEEP,2026-11-23：HapticDriverRouter.deliver 首选路径；MTActuatorActuate 返回 KERN_SUCCESS 即 privateActuated
+Haptics,Features/Haptics/HapticDriver.swift,PublicHapticDriver,prepare,func,106,KEEP,2026-11-23：公开接口无需准备，直接回调
+Haptics,Features/Haptics/HapticDriver.swift,PublicHapticDriver,invalidate,func,108,KEEP,2026-11-23：公开接口无句柄，无需失效
+Haptics,Features/Haptics/HapticDriver.swift,PublicHapticDriver,fire,func,110,KEEP,2026-11-23：主线程调用 NSHapticFeedbackManager；无返回值，只如实返回 publicRequested（手指需贴触控板才有感）
+Haptics,Features/Haptics/HapticDriver.swift,HapticDriverRouter,prepare,func,127,KEEP,2026-11-23：HapticService.start/唤醒通知调用；只准备私有驱动
+Haptics,Features/Haptics/HapticDriver.swift,HapticDriverRouter,invalidate,func,129,KEEP,2026-11-23：唤醒通知调用；释放私有句柄并允许重新发现
+Haptics,Features/Haptics/HapticDriver.swift,HapticDriverRouter,deliver,func,133,KEEP,2026-11-23：私有优先、失败只回落一次公开接口；返回真实投递状态供设置页说明
+Haptics,Features/Haptics/HapticService.swift,HapticService,init,init,34,KEEP,2026-11-23：单例；持有配置快照、驱动路由与专用串行队列，不做任何设备 IO
+Haptics,Features/Haptics/HapticService.swift,HapticService,start,func,39,KEEP,2026-11-23：AppDelegate.applicationDidFinishLaunching L34 调用；订阅唤醒 + 0.8s 后台预热驱动 + 排障探针，全程非阻塞
+Haptics,Features/Haptics/HapticService.swift,HapticService,perform,func,63,KEEP,2026-11-23：业务唯一入口；读缓存配置做开关判断后排期，任意线程可调、立即返回
+Haptics,Features/Haptics/HapticService.swift,HapticService,preview,func,71,KEEP,2026-11-23：设置页试听；用草稿强度走真实节奏，不改已保存配置、不受业务节流限制
+Haptics,Features/Haptics/HapticService.swift,HapticService,apply,func,77,KEEP,2026-11-23：HapticSettingsDraft.save 调用；保存配置并替换业务侧快照
+Haptics,Features/Haptics/HapticService.swift,HapticService,schedule,func,97,KEEP,2026-11-23：同事件按 cooldown 去重、跨事件 45ms 错峰（延迟不丢弃），解决旧 60ms 全局节流互相抑制
+Haptics,Features/Haptics/HapticService.swift,HapticService,emit,func,121,KEEP,2026-11-23：按事件类型拆成 1~2 个脉冲（边界/完成/里程碑/失败四类节奏），逐个投递给驱动
+Haptics,Features/Haptics/HapticService.swift,HapticService,record,func,136,KEEP,2026-11-23：记录投递结果并把设备能力发布到主线程；日志含事件/类型/强度/结果，不含用户数据
+Haptics,Features/Haptics/HapticService.swift,HapticService,publishAvailability,func,148,KEEP,2026-11-23：驱动准备结束后更新设置页可见的设备状态（主线程）
+Haptics,Features/Haptics/HapticService.swift,HapticService,checkDebugProbe,func,158,KEEP,2026-11-23：probe.haptic 排障键；2.5s 后走真实 perform 路径触发一次，用完删键
+Haptics,Features/Haptics/HapticService.swift,HapticPattern,steps,func,175,KEEP,2026-11-23：事件类型 → 实际节奏；边界封顶「中」、失败不低于「中」、里程碑/失败为双次，硬件只有三档波形不做 18 种波形
+Haptics,Features/Haptics/HapticSettingsPane.swift,HapticSettingsDraft,init,init,16,KEEP,2026-11-23：读已保存配置做草稿，保存/丢弃语义与其它设置页一致
+Haptics,Features/Haptics/HapticSettingsPane.swift,HapticSettingsDraft,save,func,25,KEEP,2026-11-23：SettingsDraftEditor 保存回调；写盘成功才更新 saved，失败返回错误文案
+Haptics,Features/Haptics/HapticSettingsPane.swift,HapticSettingsDraft,discard,func,34,KEEP,2026-11-23：丢弃未保存草稿，回到已保存配置
+Haptics,Features/Haptics/HapticSettingsPane.swift,HapticSettingsDraft,restoreDefaults,func,35,KEEP,2026-11-23：恢复默认配置（未保存前不写盘）
+Haptics,Features/Haptics/HapticSettingsPane.swift,HapticSettingsContent,playPreview,func,120,KEEP,2026-11-23：「试听」按钮；按草稿强度演示所选场景节奏，并用 Toast 说明试听≠已接线与设备边界
+Haptics,Features/Haptics/HapticSettingsPane.swift,HapticSettingsContent,eventSection,func,128,KEEP,2026-11-23：按 HapticEvent.settingGroups 渲染 18 个场景开关，布局与重构前一致
+Haptics,Features/Haptics/TrackpadActuator.swift,TrackpadActuator,init,init,55,KEEP,2026-11-23：只初始化锁与队列，不做 dlopen/IOKit 枚举（旧实现首次触觉在主线程枚举设备）
+Haptics,Features/Haptics/TrackpadActuator.swift,TrackpadActuator,deinit,deinit,57,KEEP,2026-11-23：释放 MTActuator 句柄
+Haptics,Features/Haptics/TrackpadActuator.swift,TrackpadActuator,prepare,func,68,KEEP,2026-11-23：后台串行队列幂等准备，完成后回调；HapticService.start 0.8s 后调用
+Haptics,Features/Haptics/TrackpadActuator.swift,TrackpadActuator,actuate,func,83,KEEP,2026-11-23：敲击入口；失败只做「关掉→重新发现→重开一次」，仍失败返回 false 由上层回落公开接口
+Haptics,Features/Haptics/TrackpadActuator.swift,TrackpadActuator,invalidate,func,103,KEEP,2026-11-23：睡眠唤醒后调用；关句柄并允许下次重新发现
+Haptics,Features/Haptics/TrackpadActuator.swift,TrackpadActuator,openWithDiscovery,func,113,KEEP,2026-11-23：prepare 调用；带锁打开句柄并写就绪日志
+Haptics,Features/Haptics/TrackpadActuator.swift,TrackpadActuator,openLocked,func,121,KEEP,2026-11-23：dlopen 一次 + IOKit 发现设备 + MTActuatorOpen；失败记 state，20s 内不重复枚举
+Haptics,Features/Haptics/TrackpadActuator.swift,TrackpadActuator,closeLocked,func,142,KEEP,2026-11-23：MTActuatorClose 并清空句柄
+Haptics,Features/Haptics/TrackpadActuator.swift,TrackpadActuator,describeLocked,func,147,KEEP,2026-11-23：状态字符串（设备 id / 不可用原因）供日志与排障
+Haptics,Features/Haptics/TrackpadActuator.swift,TrackpadActuator,loadSymbols,func,158,KEEP,2026-11-23：只 dlopen 一次 MultitouchSupport，四个符号缺一即视为不可用；不新增私有符号
+Haptics,Features/Haptics/TrackpadActuator.swift,TrackpadActuator,actuationDeviceID,func,179,KEEP,2026-11-23：IOKit 找 ActuationSupported 设备，内建优先、外接兜底（外接行为未在本机验证）
 Island,Features/Island/IslandDisplay.swift,IslandDisplay,init,init,13,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；由NSScreen读取显示ID并转换系统UUID，镜像屏统一采用源屏的稳定身份和几何
 Island,Features/Island/IslandDisplay.swift,IslandDisplay,sourceID,func,24,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；用CGDisplayMirrorsDisplay归一镜像源，独立屏保留自身系统显示ID
 Island,Features/Island/IslandGlow.swift,IslandGlowRegions,reduce,func,27,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；合并当前刘海页面卡片与按钮的边界锚点，单个 Canvas 消费几何；滚动范围附带裁切锚点
@@ -3171,11 +3206,6 @@ Settings,Features/Settings/Panes/DiagnosticsExporter.swift,DiagnosticsExporter,s
 Settings,Features/Settings/Panes/DiagnosticsExporter.swift,AnalyticsEvent,recordNow,func,183,KEEP,2026-11-20：诊断包写入和替换成功后回主线程记录原settingsExportSuccess事件，失败及取消不计成功
 Settings,Features/Settings/Panes/FloatingBallSettingsPane.swift,FloatingBallSettingsPane,slider,func,108,KEEP,展示球体尺寸、小窗宽高、组件尺寸及透明度，并即时应用
 Settings,Features/Settings/Panes/FloatingBallSettingsPane.swift,FloatingBallSettingsPane,option,func,123,KEEP,把位置记忆、逐屏页面记忆、离开保持展开与半隐藏开关写入共用偏好并应用
-Settings,Features/Settings/Panes/HapticSettingsPane.swift,HapticSettingsDraft,init,init,16,KEEP,独立触觉设置草稿读取正式配置为当前值和保存快照，复用原设置编辑会话；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/HapticSettingsPane.swift,HapticSettingsDraft,save,func,24,KEEP,编码成功后更新触觉保存快照，失败返回具体原因并保留草稿；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/HapticSettingsPane.swift,HapticSettingsDraft,discard,func,32,KEEP,取消仅将本页草稿恢复已保存强度和场景开关；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/HapticSettingsPane.swift,HapticSettingsDraft,restoreDefaults,func,33,KEEP,本页恢复默认只更新草稿，经既有保存按钮应用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/HapticSettingsPane.swift,HapticSettingsContent,eventSection,func,111,KEEP,按统一事件枚举生成场景名称说明和独立开关，三类场景复用相同行组件；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsSettingsDraft,init,init,15,KEEP,从 FSBarConfigurationSnapshot 读取部件配置并保存一份 saved，模块列表由 FSBarAllModules 提供，编辑时只改 configuration；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsSettingsDraft,owns,func,22,KEEP,排列页只编辑排列键，部件页只编辑形态颜色且排除独立刷新间隔；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsSettingsDraft,bool,func,43,KEEP,部件草稿的布尔读取接受 NSNumber.boolValue，缺键才使用选项默认值，因此显式 false 保留；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
@@ -3561,37 +3591,37 @@ Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,fetchRe
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,resolveURL,func,413,KEEP,fetchResults:342 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,webView,func,433,KEEP,nonisolated WKNavigationDelegate：didFinish / didFail 两个重载都回 MainActor resume navContinuation，等待导航时不会卡死或泄漏；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,webView,func,441,KEEP,nonisolated WKNavigationDelegate：didFinish / didFail 两个重载都回 MainActor resume navContinuation，等待导航时不会卡死或泄漏；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,init,init,575,KEEP,ToolboxModule.swift:16 经 PanelSectionRegistry.build 构造；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,init,init,582,KEEP,正式 SearchSectionView.init 观察共享服务；草稿重载观察 SearchDisplayDraft.service 并注入三项分类绑定，预览与正式路径复用同一视图；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,previewAction,func,792,KEEP,设置预览的网页/工具/引擎动作仅显示演示反馈，消费clearSearchInputAfterWebAction决定调用clearInput或保留输入；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ContentHeightKey,reduce,func,908,KEEP,PreferenceKey 协议实现（:710 onPreferenceChange 消费）；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,categoryHeader,func,1001,KEEP,webCategory:844、clipboard:1173、files:1299、tools:1381 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webCategory,func,1065,KEEP,listContent:732/734 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webResultArea,func,1126,KEEP,webCategory调用并构造网页结果动作；日志探针仅记录结果数量与状态，不输出标题和目标URL
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ClipboardFilterKind,matches,func,1330,KEEP,filteredClipboardMatches:1127 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filterChips,func,1370,KEEP,clipboardCategory:1176、filesCategory:1302 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardCategory,func,1392,KEEP,listContent:731/736 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardIcon,func,1483,KEEP,clipboardCategory:1195/1215 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fileIcon,func,1504,KEEP,filesCategory:1318/1340 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,resultFileIcon,func,1515,KEEP,设置预览文件行用 doc SF Symbol，正式文件行继续读取缓存的 NSWorkspace 文件图标；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,ago,func,1594,KEEP,「22 分钟前建立」相对时间文案；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filesCategory,func,1602,KEEP,listContent:729/738 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,toolCategory,func,1711,KEEP,listContent:730/747 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,highlighted,func,1780,KEEP,web:1014/1036、clipboard:1199、files:1321、tools:1396 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,updatePreviewCategories,func,1825,KEEP,仅设置预览响应分类开关；当前类关闭时切回全部并调用本地 scheduleSearch，不写持久分类；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filterPreviewItems,func,1832,KEEP,固定工具名/命令、副标题、五类文件名及网页标题/摘要通过 FuzzyMatcher 本地筛选，更新结果与搜索状态，不进入注册检索源、文件索引或网页抓取；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,previewSelectionFill,func,1858,KEEP,按 previewSelectedResultID 给被点击的固定结果绘制强调色圆角底，正式搜索行使用透明底；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,performWebSearch,func,1869,KEEP,搜索框提交与引擎按钮调用；生成搜索URL并交默认浏览器，日志只记引擎，不记录关键词或URL参数
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clearInput,func,1895,KEEP,搜索框 ✕ 按钮:629、toolCategory:1385、performWebSearch:1486 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fetchWebResults,func,1910,KEEP,categoryChips:658、engineActionsRow:863、scheduleSearch:1567；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,scheduleSearch,func,1949,KEEP,body onChange(query):502 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,2007,KEEP,WKNavigationDelegate加载完成回调；只记录目标host，不记录搜索结果路径和查询参数
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,2010,KEEP,WKNavigationDelegate加载失败回调；日志只记NSError domain与code，避免错误描述夹带目标URL
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,2014,KEEP,WKNavigationDelegate连接失败回调；日志只记NSError domain与code，避免错误描述夹带目标URL
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeCoordinator,func,2020,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeNSView,func,2022,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,updateNSView,func,2033,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,dismantleNSView,func,2039,KEEP,NSViewRepresentable 静态协议方法；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,init,init,574,KEEP,ToolboxModule.swift:16 经 PanelSectionRegistry.build 构造；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,init,init,581,KEEP,正式 SearchSectionView.init 观察共享服务；草稿重载观察 SearchDisplayDraft.service 并注入三项分类绑定，预览与正式路径复用同一视图；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,previewAction,func,791,KEEP,设置预览的网页/工具/引擎动作仅显示演示反馈，消费clearSearchInputAfterWebAction决定调用clearInput或保留输入；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ContentHeightKey,reduce,func,907,KEEP,PreferenceKey 协议实现（:710 onPreferenceChange 消费）；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,categoryHeader,func,1000,KEEP,webCategory:844、clipboard:1173、files:1299、tools:1381 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webCategory,func,1064,KEEP,listContent:732/734 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webResultArea,func,1125,KEEP,webCategory调用并构造网页结果动作；日志探针仅记录结果数量与状态，不输出标题和目标URL
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ClipboardFilterKind,matches,func,1329,KEEP,filteredClipboardMatches:1127 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filterChips,func,1369,KEEP,clipboardCategory:1176、filesCategory:1302 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardCategory,func,1391,KEEP,listContent:731/736 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardIcon,func,1482,KEEP,clipboardCategory:1195/1215 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fileIcon,func,1503,KEEP,filesCategory:1318/1340 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,resultFileIcon,func,1514,KEEP,设置预览文件行用 doc SF Symbol，正式文件行继续读取缓存的 NSWorkspace 文件图标；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,ago,func,1593,KEEP,「22 分钟前建立」相对时间文案；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filesCategory,func,1601,KEEP,listContent:729/738 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,toolCategory,func,1710,KEEP,listContent:730/747 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,highlighted,func,1779,KEEP,web:1014/1036、clipboard:1199、files:1321、tools:1396 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,updatePreviewCategories,func,1824,KEEP,仅设置预览响应分类开关；当前类关闭时切回全部并调用本地 scheduleSearch，不写持久分类；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filterPreviewItems,func,1831,KEEP,固定工具名/命令、副标题、五类文件名及网页标题/摘要通过 FuzzyMatcher 本地筛选，更新结果与搜索状态，不进入注册检索源、文件索引或网页抓取；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,previewSelectionFill,func,1857,KEEP,按 previewSelectedResultID 给被点击的固定结果绘制强调色圆角底，正式搜索行使用透明底；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,performWebSearch,func,1868,KEEP,搜索框提交与引擎按钮调用；生成搜索URL并交默认浏览器，日志只记引擎，不记录关键词或URL参数
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clearInput,func,1896,KEEP,搜索框 ✕ 按钮:629、toolCategory:1385、performWebSearch:1486 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fetchWebResults,func,1911,KEEP,categoryChips:658、engineActionsRow:863、scheduleSearch:1567；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,scheduleSearch,func,1945,KEEP,body onChange(query):502 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,2000,KEEP,WKNavigationDelegate加载完成回调；只记录目标host，不记录搜索结果路径和查询参数
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,2003,KEEP,WKNavigationDelegate加载失败回调；日志只记NSError domain与code，避免错误描述夹带目标URL
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,2007,KEEP,WKNavigationDelegate连接失败回调；日志只记NSError domain与code，避免错误描述夹带目标URL
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeCoordinator,func,2013,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeNSView,func,2015,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,updateNSView,func,2026,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,dismantleNSView,func,2032,KEEP,NSViewRepresentable 静态协议方法；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SlashCommands.swift,SlashCommandCatalog,build,func,52,KEEP,CommandPalette.swift:58 buildSlash 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SlashCommands.swift,SlashCommandCatalog,match,func,112,KEEP,SearchSectionView.swift:97 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Shell/ToolboxModule.swift,ToolboxModule,start,func,9,KEEP,AppModule 协议，经 ModuleRegistry.startAll 派发；2026-11-19人工复核：保留，源码与调用/系统入口已核阅

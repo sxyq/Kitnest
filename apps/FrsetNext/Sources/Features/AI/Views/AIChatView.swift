@@ -192,7 +192,7 @@ public final class AIChatViewModel: ObservableObject {
                 // 用户主动停止：不弹错误；其余错误如实提示（保留已产出的内容）
                 self.errorMessage = error.isLLMCancellation ? nil : error.localizedDescription
                 self.finishPartial(reply: partial, sessionID: sessionID)
-                if !Task.isCancelled, !error.isLLMCancellation { HapticFeedback.perform(.operationFailed) }
+                if !Task.isCancelled, !error.isLLMCancellation { HapticService.shared.perform(.operationFailed) }
             }
         }
     }
@@ -207,7 +207,7 @@ public final class AIChatViewModel: ObservableObject {
         messages.append(message)
         streamingText = ""
         isStreaming = false
-        HapticFeedback.perform(.aiCompleted)
+        HapticService.shared.perform(.aiCompleted)
     }
 
     private func finishPartial(reply: String, sessionID: String) {

@@ -517,7 +517,6 @@ public struct SearchSectionView: View {
     @Stored private var generation = 0
     @Stored private var toolLanguageGeneration = 0
     @Stored private var webGeneration = 0
-    @Stored private var feedbackGeneration: Int?
     @Stored private var hasSearched = false
     /// v60 结果列表内容实测高度（PreferenceKey 测量 → 动态展开动画）
     @Stored private var listContentHeight: CGFloat = 0
@@ -1885,7 +1884,9 @@ public struct SearchSectionView: View {
         // v84：搜索结果打开埋点（面板内所有「搜索」动作的统一出口）
         StatisticsManager.shared.record(.searchExecute)
         StatisticsManager.shared.record(.webSearchOpen)
-        NSWorkspace.shared.open(url)
+        if NSWorkspace.shared.open(url) {
+            HapticService.shared.perform(.searchCompleted)
+        }
         if service.clearSearchInputAfterWebAction {
             clearInput()
         }
@@ -1937,11 +1938,6 @@ public struct SearchSectionView: View {
             webFetchFailed = results.isEmpty
             webFallbackName = fallbackName
             fetchingEngineID = nil
-            if !isSearching, !(isIndexBuilding && (showFiles || selectedCategory == .files)),
-               feedbackGeneration != current {
-                feedbackGeneration = current
-                HapticFeedback.perform(.searchCompleted)
-            }
         }
     }
 
@@ -1989,9 +1985,6 @@ public struct SearchSectionView: View {
                 if showsWebResults, let engine = previewEngine, engine.supportsResultList {
                     fetchingEngineID = engine.id
                     fetchWebResults()
-                } else if !(isIndexBuilding && wantsFiles), feedbackGeneration != current {
-                    feedbackGeneration = current
-                    HapticFeedback.perform(.searchCompleted)
                 }
             }
         }

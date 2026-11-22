@@ -56,7 +56,7 @@ public final class AudioMixerController: ObservableObject {
             guard !readingOutput else { return }
             if setSystemVolume(Float(outputVolume)), oldValue != outputVolume,
                outputVolume == 0 || outputVolume == 1 {
-                HapticFeedback.perform(.volumeBoundary)
+                HapticService.shared.perform(.volumeBoundary)
             }
         }
     }

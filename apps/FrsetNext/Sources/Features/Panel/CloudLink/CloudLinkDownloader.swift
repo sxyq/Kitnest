@@ -81,7 +81,7 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
                 self.enqueueDownload(url: fileURL, preferredName: nil, provider: link.provider)
             case .failure(let reason):
                 Log.info("CloudLink", "解析失败")
-                HapticFeedback.perform(.transferFailed)
+                HapticService.shared.perform(.transferFailed)
                 Toast.show(reason, icon: "exclamationmark.triangle", isWarning: true)
                 if openBrowserOnFailure { NSWorkspace.shared.open(link.url) }
             }
@@ -351,13 +351,13 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
             guard let index = self.items.firstIndex(where: { $0.id == id }) else { return }
             if let error {
                 self.items[index].status = .failed(error)
-                HapticFeedback.perform(.transferFailed)
+                HapticService.shared.perform(.transferFailed)
                 Toast.show("下载失败：\(error)", icon: "exclamationmark.triangle", isWarning: true)
             } else if let localURL {
                 self.items[index].status = .finished
                 self.items[index].localURL = localURL
                 self.items[index].progress = 1
-                HapticFeedback.perform(.downloadCompleted)
+                HapticService.shared.perform(.downloadCompleted)
                 Toast.show("已下载：\(localURL.lastPathComponent)", icon: "checkmark.circle.fill")
                 Log.info("CloudLink", "下载完成")
                 // v95：使用统计接入（下载）

@@ -147,14 +147,14 @@ public final class AISummaryViewModel: ObservableObject {
         guard NSPasteboard.general.setString(text, forType: .string) else {
             didCopy = false
             errorMessage = "复制失败：无法写入剪贴板"
-            if haptic { HapticFeedback.perform(.operationFailed) }
+            if haptic { HapticService.shared.perform(.operationFailed) }
             return
         }
         errorMessage = nil
         didCopy = true
         // spec 13 §4：文本已复制场景（0x100412774，翻译/摘要结果复制）
         Toast.show("文本已复制", icon: "checkmark.circle.fill")
-        if haptic { HapticFeedback.perform(.copy) }
+        if haptic { HapticService.shared.perform(.copy) }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { self.didCopy = false }
     }
 
@@ -203,9 +203,9 @@ public final class AISummaryViewModel: ObservableObject {
                     self.isRunning = false
                     self.outputText = result.isError ? "" : result.text
                     self.errorMessage = result.isError ? result.text : nil
-                    if result.isError { HapticFeedback.perform(.operationFailed) }
+                    if result.isError { HapticService.shared.perform(.operationFailed) }
                     guard !result.isError, !result.text.isEmpty else { return false }
-                    HapticFeedback.perform(.aiCompleted)
+                    HapticService.shared.perform(.aiCompleted)
                     switch BuiltinTools.defaultAction {
                     case .copy:
                         self.copyResult(haptic: false)
@@ -235,7 +235,7 @@ public final class AISummaryViewModel: ObservableObject {
             await MainActor.run {
                 guard !Task.isCancelled, request == self.requestGeneration else { return }
                 self.isRunning = false
-                if !self.outputText.isEmpty { HapticFeedback.perform(.aiCompleted) }
+                if !self.outputText.isEmpty { HapticService.shared.perform(.aiCompleted) }
             }
         } catch {
             let partial = accumulated
@@ -245,7 +245,7 @@ public final class AISummaryViewModel: ObservableObject {
                 // 主动停止不报错；真实失败（如未配置 Key）必须如实提示，否则用户会以为「没反应」
                 self.errorMessage = error.isLLMCancellation ? nil : error.localizedDescription
                 self.outputText = partial
-                if !Task.isCancelled, !error.isLLMCancellation { HapticFeedback.perform(.operationFailed) }
+                if !Task.isCancelled, !error.isLLMCancellation { HapticService.shared.perform(.operationFailed) }
             }
         }
     }
