@@ -2201,7 +2201,7 @@ Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,BlockMenuItemAction
 Clipboard,Features/Clipboard/UI/LargeTextPreviewView.swift,AttributedTextView,init,init,32,KEEP,保存传入富文本及showsTableGrid开关，默认true保留Markdown表格网格；WordInlineContent传false，使Word预览不额外绘制Markdown网格
 Clipboard,Features/Clipboard/UI/LargeTextPreviewView.swift,AttributedTextView,makeNSView,func,37,KEEP,构造只读可选择的PreviewTextView及纵向NSScrollView，传入showsTableGrid、富文本和随视图宽度折行设置，再按网格开关建立单元格矩形缓存
 Clipboard,Features/Clipboard/UI/LargeTextPreviewView.swift,AttributedTextView,updateNSView,func,59,KEEP,SwiftUI更新时传递showsTableGrid；仅富文本内容不同才替换textStorage并刷新表格矩形缓存，保持现有滚动宿主
-Clipboard,Features/Clipboard/UI/LargeTextPreviewView.swift,PreviewTextView,refreshGridCache,func,83,KEEP,记录当前textStorage及容器宽度，showsTableGrid为false时清空矩形并直接返回；开启时仅对含textBlocks的段落获取字形及单元格矩形，非表格段落跳过，不强制全文排版
+Clipboard,Features/Clipboard/UI/LargeTextPreviewView.swift,PreviewTextView,refreshGridCache,func,83,KEEP,2026-11-23复读完整文件与调用：makeNSView及attributed文本变化时刷新；layout仅在textContainer宽度改变时刷新；段落枚举过滤textBlocks后才取glyphRange，普通大文本不触发全文排版
 Clipboard,Features/Clipboard/UI/LargeTextPreviewView.swift,PreviewTextView,draw,func,106,KEEP,NSTextView 覆盖，AppKit 绘制派发；描表格边框
 Clipboard,Features/Clipboard/UI/LargeTextPreviewView.swift,PreviewTextView,layout,func,119,KEEP,AppKit布局后仅在同一textStorage且容器宽度变化时重算表格矩形并请求重绘，不在每轮布局强制排版
 Clipboard,Features/Clipboard/UI/RecentClipboardWindow.swift,-,init,init,30,KEEP,创建 380pt 紧凑选择窗；列表行由复选框、类型图标、摘要和相对时间构成，底栏提供计数、取消和复制
