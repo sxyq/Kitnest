@@ -42,7 +42,9 @@ Kitnest（原名 FrsetNext）：macOS 菜单栏效率工具（arm64，macOS 13+�
       `NSRunningApplication.runningApplications(withBundleIdentifier:)`：进程列表在「主线程卡死」
       与「僵尸（defunct）」两种状态下都会说谎，两种情况下旧实现都会让新实例自杀。
     - **禁止无条件 `NSApp.terminate(nil)`**：先判断旧实例是否还活着；不确定时选择**接管**
-      （菜单栏重复一秒，比打不开一小时轻）。
+      （菜单栏重复一秒，比打不开一小时轻）。判活不能只看进程还在——必须看
+      `instance.heartbeat`（每 2s 一跳）和锁文件里的 `build=` 构建戳；心跳 >12s 或构建戳不一致
+      就接管，杀不掉就无锁启动，不准自杀。
     - 每次构建后必须跑 `bash tools/launch_smoke.sh`：杀掉全部本机 Kitnest 进程 → 冷启动 →
       确认日志出现新的 `启动完成` 且没有 `已有实例在运行` / `应用退出`。**不通过不算改完。**
     - 排查与成因：`docs/00-总览/开发工作流.md` 第六节「启动不了 / 点了没反应 / 卡死」。

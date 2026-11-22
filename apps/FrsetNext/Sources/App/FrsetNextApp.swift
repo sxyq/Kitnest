@@ -119,7 +119,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 只有「活着并且真的握着锁」的进程才会挡住我们——那正是可以判断、可以接管的场景。
         let lock = InstanceLock.shared
         if lock.acquire() {
-            Log.info("App", "获得实例锁（pid=\(getpid())）")
+            if lock.runningWithoutLock {
+                Log.warn("App", "无锁启动（pid=\(getpid())）：旧实例还活着但已判定失效，本次接管菜单栏")
+            } else {
+                Log.info("App", "获得实例锁（pid=\(getpid())）")
+            }
             return continueAfterSingleInstanceCheck()
         }
         // 锁被别人握着：它活着。看它是不是已经不省人事。
@@ -671,8 +675,21 @@ final class InstanceLock {
     private var fd: Int32 = -1
     /// 当前持锁进程的 pid（抢不到锁时读出来，用于判断要不要接管）
     private(set) var holderPid: pid_t = 0
+    /// 心跳定时器：持锁期间每 2s 触一次心跳文件，供下一个实例判断「它还活着吗」
+    private var heartbeat: DispatchSourceTimer?
+    /// 本次启动没拿到锁但仍然继续跑（旧实例已判定失效却杀不掉时的兜底）
+    private(set) var runningWithoutLock = false
 
     private var url: URL { AppDirectories.base.appendingPathComponent("instance.lock") }
+    /// 心跳文件：mtime 就是「最后一次证明自己活着」的时间。
+    private var heartbeatURL: URL { AppDirectories.base.appendingPathComponent("instance.heartbeat") }
+    /// 当前二进制的构建戳（用可执行文件的 mtime），用来识别「锁被更旧的构建占着」
+    private var buildStamp: String {
+        let path = Bundle.main.executableURL?.path ?? CommandLine.arguments[0]
+        let mtime = (try? FileManager.default.attributesOfItem(atPath: path)[.modificationDate] as? Date)
+            .flatMap { $0 }?.timeIntervalSince1970 ?? 0
+        return String(Int(mtime))
+    }
 
     /// 尝试拿锁。拿到返回 true（并把自己的 pid 写进锁文件）。
     /// 锁文件本身打不开时**放行**——不能因为一把锁把 App 彻底拦死。
@@ -687,22 +704,75 @@ final class InstanceLock {
     func acquire() -> Bool {
         if fd >= 0 { return true }
         try? FileManager.default.createDirectory(at: AppDirectories.base, withIntermediateDirectories: true)
-        if let handle = tryAcquire() { fd = handle; return true }
+        if let handle = tryAcquire() { fd = handle; startHeartbeat(); return true }
 
-        // 第一次没抢到：判断「握锁的那个」是不是还有资格握着。
+        // 第一次没抢到：判断「握锁的那个」还有没有资格握着。
+        // v284（用户：「当前这个 APP 又出现了不能打开」）：光看「进程还在」不够——
+        // 19:41 那个实例卡住了但没死，一直攥着锁，新版本每次点击都「礼让 → 退出」，
+        // 而它自己既不响应点击也不画菜单栏。三个判据，任一成立就接管：
         let holder = readHolderPid()
         holderPid = holder
+        let reason: String?
         if !isLegitimateHolder(holder) {
-            // 只回收**放了 3 秒以上**的锁：避免双击两下时把对方刚写好的锁当成残留。
-            let age = (try? FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate] as? Date)
-                .flatMap { $0 }.map { Date().timeIntervalSince($0) } ?? 99
-            if age > 3 {
-                Log.warn("App", "实例锁持有者 pid=\(holder) 不是活着的同 bundle 实例 → 回收残留锁")
-                try? FileManager.default.removeItem(at: url)
-                if let handle = tryAcquire() { fd = handle; return true }
-            }
+            reason = "不是活着的同 bundle 实例"
+        } else if isOutdatedBuild() {
+            reason = "是更旧的构建（构建戳不一致）"
+        } else if heartbeatStale() {
+            reason = "心跳超过 12s 没更新（卡死）"
+        } else {
+            reason = nil
         }
-        return false
+        guard let reason else { return false }
+
+        // 只回收放了 3 秒以上的锁：避免双击两下时把对方刚写好的锁当成残留。
+        let age = (try? FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate] as? Date)
+            .flatMap { $0 }.map { Date().timeIntervalSince($0) } ?? 99
+        guard age > 3 else { return false }
+
+        Log.warn("App", "接管实例锁：持有者 pid=\(holder) \(reason)")
+        if holder > 0 { kill(holder, SIGKILL) }
+        usleep(400_000)
+        if let handle = tryAcquire() { fd = handle; startHeartbeat(); return true }
+
+        // 杀不掉（沙箱/权限/不可中断）时**绝不能自杀**——用户要的是能把 App 打开。
+        // 旧实例已判定为废的（无心跳/旧构建），不会画出第二套菜单栏。
+        runningWithoutLock = true
+        Log.warn("App", "持有者 pid=\(holder) 无法结束 → 无锁启动（若看到两套菜单栏，请手动退出旧实例）")
+        // 无锁也要把「我在跑」写出去：锁文件里的 pid 改成自己、心跳照常跳。
+        // 否则下一次点击读到的还是那个已经废掉的 pid，会再起一个实例，越点越多。
+        try? "\(getpid())\nbuild=\(buildStamp)\n".write(to: url, atomically: true, encoding: .utf8)
+        startHeartbeat()
+        return true
+    }
+
+    /// 持锁期间维持心跳：2s 一次写文件，纯后台队列，不碰主线程。
+    private func startHeartbeat() {
+        touchHeartbeat()
+        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .utility))
+        timer.schedule(deadline: .now() + 2, repeating: 2)
+        timer.setEventHandler { [weak self] in self?.touchHeartbeat() }
+        timer.resume()
+        heartbeat = timer
+    }
+
+    private func touchHeartbeat() {
+        try? "\(getpid())\n".write(to: heartbeatURL, atomically: true, encoding: .utf8)
+    }
+
+    /// 心跳过期（文件不存在也算）→ 持锁方已经不省人事
+    private func heartbeatStale(within seconds: TimeInterval = 12) -> Bool {
+        guard let attrs = try? FileManager.default.attributesOfItem(atPath: heartbeatURL.path),
+              let mtime = attrs[.modificationDate] as? Date else { return true }
+        return Date().timeIntervalSince(mtime) > seconds
+    }
+
+    /// 锁里记的构建戳与当前二进制不一致 → 占着锁的是更旧的构建，应当让位。
+    private func isOutdatedBuild() -> Bool {
+        guard let text = try? String(contentsOf: url, encoding: .utf8) else { return false }
+        for line in text.split(separator: "\n") where line.hasPrefix("build=") {
+            return String(line.dropFirst(6)) != buildStamp
+        }
+        return false          // 旧格式没有 build= 行，不据此判断
     }
 
     /// 有资格握锁的只有一种：**还活着、而且确实是同 bundle 的 App 实例**。
@@ -731,7 +801,8 @@ final class InstanceLock {
         guard handle >= 0 else { return nil }
         if flock(handle, LOCK_EX | LOCK_NB) == 0 {
             ftruncate(handle, 0)
-            let text = "\(getpid())\n"
+            // 写两行：pid + 构建戳。构建戳让下一个实例能分辨「占着锁的是不是我之前的旧版本」。
+            let text = "\(getpid())\nbuild=\(buildStamp)\n"
             _ = text.withCString { write(handle, $0, strlen($0)) }
             fsync(handle)
             return handle

@@ -2874,6 +2874,16 @@ EVIDENCE.update({
         "acquire第一次与回收残留锁后各调一次；open带O_CREAT|O_RDWR|O_CLOEXEC防止fd被helper子进程继承，flock非阻塞抢锁成功后写入自身pid并返回fd",
     ("App/FrsetNextApp.swift", "InstanceLock.readHolderPid"):
         "acquire抢锁失败后读取锁文件里记录的持有者pid，读不到返回0，供是否回收残留锁的判断使用",
+    # v284（2026-11-22 20:45 用户：「当前这个 APP 又出现了不能打开」）：光看进程在不在不够，
+    # 卡死但没死的旧实例会一直攥着锁，让新版本永远礼让。
+    ("App/FrsetNextApp.swift", "InstanceLock.startHeartbeat"):
+        "持锁成功后启动2秒周期心跳（后台队列，不碰主线程）；无锁接管时也调一次，保证下一个实例能读到「我在跑」",
+    ("App/FrsetNextApp.swift", "InstanceLock.touchHeartbeat"):
+        "心跳定时器回调与启动时各写一次；把自身pid写入instance.heartbeat，文件mtime即最后存活时间",
+    ("App/FrsetNextApp.swift", "InstanceLock.heartbeatStale"):
+        "acquire抢锁失败后判活用；心跳文件缺失或mtime超过12秒即认定持锁方卡死，允许接管",
+    ("App/FrsetNextApp.swift", "InstanceLock.isOutdatedBuild"):
+        "acquire抢锁失败后判活用；比较锁文件里build=记录的二进制mtime与当前二进制，不一致说明占锁的是旧构建，应当让位",
     ("App/FrsetNextApp.swift", "InstanceLock.isLegitimateHolder"):
         "判断握锁者是否仍有资格：pid存在、不是僵尸、且NSRunningApplication的bundleIdentifier与本App一致；三类幽灵（已回收、僵尸、helper或pid复用）都返回false以便回收残留锁",
     ("App/FrsetNextApp.swift", "InstanceLock.acquire"):
