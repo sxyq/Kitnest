@@ -2922,6 +2922,16 @@ EVIDENCE.update({
     # 抽屉展开改纯图层动画，窗口尺寸不再逐帧变化。
     ("Features/Clipboard/UI/ClipboardPreviewWindow.swift", "playDrawerReveal"):
         "预览窗呈现与收回共用；锚点钉在靠主面板的竖直边，只对内容层做scaleX/scaleY与窗口alpha动画，完成后还原锚点；减弱动态效果时直接落位",
+    ("Core/UI/LiquidGlass.swift", "makeCoordinator"):
+        "NSViewRepresentable为每个玻璃背景实例保存样式签名，供updateNSView跳过未变化的材质重套",
+    ("Features/Island/IslandSurface.swift", "tint"):
+        "按外壳通透度生成黑色NSColor，供系统玻璃结构面使用单层着色",
+    ("Features/Island/IslandSurface.swift", "applyTint"):
+        "外壳通透度变化时只更新现有玻璃的tint，不重建采样视图或轮廓遮罩",
+    ("Features/Island/IslandSurface.swift", "applyMaterial"):
+        "外壳材质变化时切换已创建玻璃视图的显隐与纯色底，保留同一采样视图和轮廓状态",
+    ("Features/Monitor/Storage/DiskIndex.swift", "largestDirectories"):
+        "存储清理提示复用索引快照，递归前4层后按大小取12个目录；snapshot变化时由属性观察清除缓存",
 })
 
 if __name__ == "__main__":

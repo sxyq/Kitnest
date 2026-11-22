@@ -74,17 +74,24 @@ extension EnvironmentValues {
 //   · macOS 26+ 用真·NSGlassEffectView；旧系统回退 NSVisualEffectView（原观感）。
 
 extension LiquidGlass {
+    /// 结构面（窗口 / 悬浮面板 / 浮层）专用。
+    ///
+    /// 2026-11-23：这里**不再跟随「背景材质（纯色卡片/毛玻璃卡片）」**。
+    /// 旧实现把 `material == .solid`（默认值）传给 `solid:`，于是默认状态下
+    /// 主面板窗口玻璃其实是 `.windowBackground` 不透明底，外面再压
+    /// 「通透度底衬 + 磨砂霜感」两层色 —— 用户看到的是一片平灰，不是玻璃
+    /// （设置里却写着“系统玻璃”）。该开关只应决定**内容卡片**用实色还是毛玻璃；
+    /// 结构面永远采样背景（真实玻璃），只有辅助功能「降低透明度」才退化成不透明。
     static func makeView(frame: NSRect = .zero, cornerRadius: CGFloat,
                          material: NSVisualEffectView.Material = .hudWindow,
                          tint: NSColor? = nil, personalization: Personalization = .shared) -> NSView {
         makeView(frame: frame, cornerRadius: cornerRadius, material: material,
-                 tint: tint, solid: personalization.material == .solid)
+                 tint: tint, solid: false)
     }
 
     static func reapplyStyle(on view: NSView, cornerRadius: CGFloat, tint: NSColor?,
                              personalization: Personalization = .shared) {
-        reapplyStyle(on: view, cornerRadius: cornerRadius, tint: tint,
-                     solid: personalization.material == .solid)
+        reapplyStyle(on: view, cornerRadius: cornerRadius, tint: tint, solid: false)
     }
 }
 
@@ -99,10 +106,21 @@ struct LiquidGlassBackground: NSViewRepresentable {
     /// false = 不接管窗口阴影（调用方自己画内容阴影，窗口带透明留白时避免系统矩形阴影）
     var appliesWindowShadow: Bool = true
 
+    /// v282 同款签名防抖：`reapplyStyle` 会给整窗玻璃重新设 material/blending/state，
+    /// AppKit 随之作废整窗采样。数据刷新（性能数字、剪贴板列表）每秒都触发
+    /// updateNSView，没有防抖就等于每秒重采样一次玻璃 —— 这是高负载下
+    /// 「面板顿一下」的主要来源之一。签名没变就不碰材质。
+    final class Coordinator {
+        var signature: String?
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
     func makeNSView(context: Context) -> NSView {
         let view = LiquidGlass.makeView(cornerRadius: cornerRadius,
                                         tint: tint.map { NSColor($0) },
                                         personalization: previewPersonalization ?? .shared)
+        context.coordinator.signature = signature
         // SwiftUI 的 sheet 窗口默认不透明；不置透明的话玻璃只能采样到纯白底，
         // 看起来就是一块白板（2026-10-17 实测）。
         if isSettingsPreview {
@@ -118,6 +136,12 @@ struct LiquidGlassBackground: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
+        guard context.coordinator.signature != signature else {
+            // 圆角/材质没变：只在预览模式下补一次外观（预览是另一个窗口实例）
+            if isSettingsPreview { applyPreviewStyle(to: nsView) }
+            return
+        }
+        context.coordinator.signature = signature
         // 个性化「背景材质 / 圆角 / 着色」变更后重套样式（否则切「纯色卡片」不生效）
         LiquidGlass.reapplyStyle(on: nsView,
                                  cornerRadius: cornerRadius,
@@ -128,11 +152,21 @@ struct LiquidGlassBackground: NSViewRepresentable {
         }
     }
 
+    /// 与玻璃观感相关的全部输入。少一项会漏更新，多一项会白白重采样。
+    private var signature: String {
+        let p = previewPersonalization ?? .shared
+        return "\(Int(cornerRadius * 100))|\(tint?.description ?? "")|"
+            + "\(LiquidGlass.reduceTransparency)|\(p.glassOpacity)|\(p.glassBlur)"
+    }
+
     private func applyPreviewStyle(to view: NSView) {
         view.appearance = NSAppearance(named: colorScheme == .dark ? .darkAqua : .aqua)
         if let effect = view as? NSVisualEffectView {
-            effect.material = previewPersonalization?.material == .vibrancy ? .hudWindow : .windowBackground
-            effect.blendingMode = .withinWindow
+            // 预览窗自身的底是不透明的，仍走「采样」语义：卡片材质只影响卡片，
+            // 结构面保持毛玻璃；降低透明度时退化为不透明底。
+            let solid = LiquidGlass.reduceTransparency
+            effect.material = solid ? .windowBackground : .hudWindow
+            effect.blendingMode = solid ? .withinWindow : .behindWindow
         }
     }
 }
@@ -165,16 +199,22 @@ struct GlassSurface: View {
         let p = previewPersonalization ?? personalization
         let colors = ThemeAppearance(personalization: p, isMidnight: previewIsMidnight ?? appearance.isMidnight)
         ZStack {
-            if includesBlur {
-                LiquidGlassBackground(cornerRadius: cornerRadius,
-                                      tint: tint,
-                                      appliesWindowShadow: appliesWindowShadow)
-                    // 「背景材质」（纯色卡片/毛玻璃）切换必须重建 representable：
-                    // 只改颜色覆盖层的话，已创建的 NSVisualEffectView material 不会跟着变
-                    .id(p.material.rawValue)
+            if LiquidGlass.reduceTransparency {
+                // 辅助功能「降低透明度」：玻璃与霜感一律退化为可读的不透明底，
+                // 不再叠半透明色层（半透明正是该设置要关掉的东西）。
+                colors.windowSurface.opacity(1)
+            } else {
+                if includesBlur {
+                    LiquidGlassBackground(cornerRadius: cornerRadius,
+                                          tint: tint,
+                                          appliesWindowShadow: appliesWindowShadow)
+                        // 「背景材质」（纯色卡片/毛玻璃）切换必须重建 representable：
+                        // 只改颜色覆盖层的话，已创建的 NSVisualEffectView material 不会跟着变
+                        .id(p.material.rawValue)
+                }
+                colors.windowSurface
+                colors.glassFrost
             }
-            colors.windowSurface
-            colors.glassFrost
         }
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }

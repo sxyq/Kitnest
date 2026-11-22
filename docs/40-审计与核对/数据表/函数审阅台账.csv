@@ -113,9 +113,9 @@ Core,Core/Runtime/Personalization.swift,Personalization,flushPendingPersist,func
 Core,Core/Runtime/Personalization.swift,Personalization,flushPersist,func,272,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；persist:164 / flushPendingPersist:173
 Core,Core/Runtime/Personalization.swift,Personalization,migratedPreviewScale,func,290,KEEP,2026-11-21：v266 预览字号四档上移；读取 ui.clipboard.previewScale 与版本键，旧 0.9/1.0/1.1/1.25 一次性映射到 1.0/1.25/1.5/1.5 并写回版本 2；调用点 load:323
 Core,Core/Runtime/Personalization.swift,Personalization,load,func,310,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；init:146 调用
-Core,Core/Runtime/Personalization.swift,Personalization,color,func,393,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；load:209 / PersonalizationSettingsPane:786
-Core,Core/Runtime/Personalization.swift,Personalization,hex,func,403,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；accentColorHex:269 / Pane:203
-Core,Core/Runtime/Personalization.swift,Personalization,resetAll,func,425,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；PersonalizationSettingsPane.swift:765
+Core,Core/Runtime/Personalization.swift,Personalization,color,func,411,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；load:209 / PersonalizationSettingsPane:786
+Core,Core/Runtime/Personalization.swift,Personalization,hex,func,421,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；accentColorHex:269 / Pane:203
+Core,Core/Runtime/Personalization.swift,Personalization,resetAll,func,443,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；PersonalizationSettingsPane.swift:765
 Core,Core/Runtime/Preferences.swift,Preferences,init,init,10,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；static shared:6 构造
 Core,Core/Runtime/Preferences.swift,Preferences,value,func,16,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；binding:107 / 计算属性:91
 Core,Core/Runtime/Preferences.swift,Preferences,set,func,20,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；binding:108 / 计算属性 setter:92
@@ -178,31 +178,32 @@ Core,Core/UI/AppearanceTheme.swift,ThemeChromeModifier,body,func,206,KEEP,2026-1
 Core,Core/UI/ContinuousCorner.swift,NSBezierPath,continuousRoundedRect,func,20,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ScreenshotOverlay:453,477,491 等 8 处"
 Core,Core/UI/FlowLayout.swift,FlowHStack,sizeThatFits,func,13,KEEP,2026-11-20：监测模块按钮权限标签和部件形态复选项共用Layout测量；按建议宽逐项取固有尺寸及累计换行高度，无限定宽时返回实际行宽
 Core,Core/UI/FlowLayout.swift,FlowHStack,placeSubviews,func,30,KEEP,2026-11-20：SwiftUI排列回调按实际bounds重测并从左上逐行放置；当前三处均为少量按钮或标签，保留框架测量与放置两个阶段
-Core,Core/UI/LiquidGlass.swift,LiquidGlass,makeView,func,77,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；LiquidGlassBackground:129 / UnifiedGlassBackingView:259
-Core,Core/UI/LiquidGlass.swift,LiquidGlass,reapplyStyle,func,84,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；LiquidGlassBackground.updateNSView:144
-Core,Core/UI/LiquidGlass.swift,LiquidGlassBackground,makeNSView,func,102,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSViewRepresentable 协议，SwiftUI 派发
-Core,Core/UI/LiquidGlass.swift,LiquidGlassBackground,updateNSView,func,120,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSViewRepresentable 协议，SwiftUI 派发
-Core,Core/UI/LiquidGlass.swift,LiquidGlassBackground,applyPreviewStyle,func,131,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；LiquidGlassBackground.makeNSView/updateNSView 的设置预览分支共用：按预览 colorScheme 设置 aqua/darkAqua，按草稿材质选择 hudWindow/windowBackground，并固定 withinWindow 混合
-Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,init,init,199,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；UnifiedGlassBackingView:256 / adoptGlassSurface:544
-Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,init,init,214,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSView required init，子类定义必需
-Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,deinit,deinit,216,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；注销通知观察者（:212 注册）
-Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,layout,func,220,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSView layout 回调，铺满两层底衬
-Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,viewDidChangeEffectiveAppearance,func,226,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；AppKit 明暗外观变化回调
-Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,viewDidMoveToWindow,func,231,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；AppKit 上窗回调，取 window.effectiveAppearance
-Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,refreshColors,func,236,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；init:211 / 通知:214 / 回调:231,236"
-Core,Core/UI/LiquidGlass.swift,UnifiedGlassBackingView,init,init,252,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；installUnifiedGlassBackground:296 构造
-Core,Core/UI/LiquidGlass.swift,UnifiedGlassBackingView,init,init,265,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSView required init，子类定义必需
-Core,Core/UI/LiquidGlass.swift,UnifiedGlassBackingView,setContent,func,267,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；替换统一玻璃容器的内容视图并按 topInset 重排内部区域
-Core,Core/UI/LiquidGlass.swift,UnifiedGlassBackingView,layout,func,275,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSView layout 回调，铺满玻璃+底衬
-Core,Core/UI/LiquidGlass.swift,NSWindow,installUnifiedGlassBackground,func,295,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；applyOfficialChrome:51 + 5 个窗口调用
-Core,Core/UI/LiquidGlass.swift,WhiteGlassCard,body,func,387,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；WhiteGlassCard 经 whiteGlassCard:409 使用
-Core,Core/UI/LiquidGlass.swift,View,whiteGlassCard,func,426,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；CalendarSectionView.swift:57 调用
-Core,Core/UI/LiquidGlass.swift,SpringyIconButtonStyle,makeBody,func,438,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ButtonStyle 协议；PanelRootView:290,654"
-Core,Core/UI/LiquidGlass.swift,GlassPlate,body,func,465,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ViewModifier 协议；glassPlate 4 文件 7 处
-Core,Core/UI/LiquidGlass.swift,View,glassPlate,func,489,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；CommandPalette:295 / MonitorPopoutWindow 等
-Core,Core/UI/LiquidGlass.swift,View,glassCard,func,498,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；27 文件 40+ 处 .glassCard 调用
-Core,Core/UI/LiquidGlass.swift,GlassCard,body,func,517,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ViewModifier 协议；glassCard:496 派发
-Core,Core/UI/LiquidGlass.swift,NSWindow,adoptGlassSurface,func,534,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ArchiveFileBox.swift:394 调用
+Core,Core/UI/LiquidGlass.swift,LiquidGlass,makeView,func,85,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；LiquidGlassBackground:129 / UnifiedGlassBackingView:259
+Core,Core/UI/LiquidGlass.swift,LiquidGlass,reapplyStyle,func,92,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；LiquidGlassBackground.updateNSView:144
+Core,Core/UI/LiquidGlass.swift,LiquidGlassBackground,makeCoordinator,func,117,KEEP,NSViewRepresentable为每个玻璃背景实例保存样式签名，供updateNSView跳过未变化的材质重套
+Core,Core/UI/LiquidGlass.swift,LiquidGlassBackground,makeNSView,func,119,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSViewRepresentable 协议，SwiftUI 派发
+Core,Core/UI/LiquidGlass.swift,LiquidGlassBackground,updateNSView,func,138,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSViewRepresentable 协议，SwiftUI 派发
+Core,Core/UI/LiquidGlass.swift,LiquidGlassBackground,applyPreviewStyle,func,162,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；LiquidGlassBackground.makeNSView/updateNSView 的设置预览分支共用：按预览 colorScheme 设置 aqua/darkAqua，按草稿材质选择 hudWindow/windowBackground，并固定 withinWindow 混合
+Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,init,init,239,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；UnifiedGlassBackingView:256 / adoptGlassSurface:544
+Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,init,init,254,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSView required init，子类定义必需
+Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,deinit,deinit,256,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；注销通知观察者（:212 注册）
+Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,layout,func,260,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSView layout 回调，铺满两层底衬
+Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,viewDidChangeEffectiveAppearance,func,266,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；AppKit 明暗外观变化回调
+Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,viewDidMoveToWindow,func,271,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；AppKit 上窗回调，取 window.effectiveAppearance
+Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,refreshColors,func,276,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；init:211 / 通知:214 / 回调:231,236"
+Core,Core/UI/LiquidGlass.swift,UnifiedGlassBackingView,init,init,292,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；installUnifiedGlassBackground:296 构造
+Core,Core/UI/LiquidGlass.swift,UnifiedGlassBackingView,init,init,305,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSView required init，子类定义必需
+Core,Core/UI/LiquidGlass.swift,UnifiedGlassBackingView,setContent,func,307,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；替换统一玻璃容器的内容视图并按 topInset 重排内部区域
+Core,Core/UI/LiquidGlass.swift,UnifiedGlassBackingView,layout,func,315,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSView layout 回调，铺满玻璃+底衬
+Core,Core/UI/LiquidGlass.swift,NSWindow,installUnifiedGlassBackground,func,335,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；applyOfficialChrome:51 + 5 个窗口调用
+Core,Core/UI/LiquidGlass.swift,WhiteGlassCard,body,func,427,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；WhiteGlassCard 经 whiteGlassCard:409 使用
+Core,Core/UI/LiquidGlass.swift,View,whiteGlassCard,func,466,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；CalendarSectionView.swift:57 调用
+Core,Core/UI/LiquidGlass.swift,SpringyIconButtonStyle,makeBody,func,478,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ButtonStyle 协议；PanelRootView:290,654"
+Core,Core/UI/LiquidGlass.swift,GlassPlate,body,func,505,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ViewModifier 协议；glassPlate 4 文件 7 处
+Core,Core/UI/LiquidGlass.swift,View,glassPlate,func,529,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；CommandPalette:295 / MonitorPopoutWindow 等
+Core,Core/UI/LiquidGlass.swift,View,glassCard,func,538,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；27 文件 40+ 处 .glassCard 调用
+Core,Core/UI/LiquidGlass.swift,GlassCard,body,func,557,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ViewModifier 协议；glassCard:496 派发
+Core,Core/UI/LiquidGlass.swift,NSWindow,adoptGlassSurface,func,574,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ArchiveFileBox.swift:394 调用
 Core,Core/UI/LiquidGlassMaterial.swift,LiquidGlass,makeView,func,19,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；正式玻璃背景和刘海共用工厂，26+且非纯色、随焦点及系统玻璃开关允许时建NSGlassEffectView，其余建固定inactive的NSVisualEffectView；降低透明度走不透明材质
 Core,Core/UI/LiquidGlassMaterial.swift,LiquidGlass,reapplyStyle,func,66,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；LiquidGlassBackground更新共用已建容器重设圆角，真玻璃改tint，毛玻璃按solid与降低透明度更新材质/混合并固定inactive
 Core,Core/UI/LiquidGlassMaterial.swift,LiquidGlass,setCornerRadius,func,83,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；工厂、重套样式与刘海layout共用几何更新，真玻璃设cornerRadius，其余CALayer设连续圆角，不重设材质
@@ -2558,26 +2559,27 @@ Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,scan,func,442,
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,physicalSize,func,489,KEEP,2026-11-20：walk对普通文件与DT_UNKNOWN分支统一取st_blocks×512，零分配返回0；本地扫描根不把稀疏文件逻辑长度记成磁盘占用
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,retainFile,func,498,KEEP,2026-11-20：walk对普通文件调用，原100MB门槛和60项最大候选保持降序，只保留本层大文件用于可见树
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,walk,func,512,KEEP,2026-11-20：scan唯一根入口后递归，opendir/readdir/lstat不跟随链接；按原排除路径深度和节点数收尾，最大60项外目录以分类小计折叠，每万项main队列发进度
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,cacheURL,func,688,KEEP,2026-11-20：两范围读写和清缓存共用，以scope.rawValue组成原index文件名；实际内容为二进制plist并保留旧JSON读取
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,init,init,693,KEEP,2026-11-20：shared构造唯一DiskIndexStore，原缓存路径、串行queue及发布属性由该实例持有，窗口出现才加载
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,loadIfNeeded,func,699,KEEP,2026-11-20：存储窗口首次出现才读取清理记录，随后同串行队列读取范围缓存；loaded避免切换范围反复读旧记录覆盖新删除记录，不自动扫描
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,reloadFromCache,func,711,KEEP,2026-11-20：首次加载与scope.didSet调用，捕获请求scope与indexRevision；后台解码后仅在同范围、同版本且未扫描时发布，切范围和清缓存递增版本淘汰旧载入
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,decodeSnapshot,func,732,KEEP,2026-11-20：在原worker队列先读schema，再兼容plist与旧JSON；正常载入重算分类，删除处理另一范围缓存时按参数跳过首次汇总，裁剪后只重算一次
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,rescan,func,754,KEEP,2026-11-20：窗口扫描按钮与原storage深链创建scanner；进度、完成按对象身份确认当前扫描，worker先落盘再排主线程发布，取消后的旧回调不清除新扫描
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,cancelScan,func,787,KEEP,2026-11-20：窗口取消、Esc、切范围及清缓存共用；NSLock写取消后立即清scanner身份和进度，允许新扫描入原队列，无旧完成覆盖新状态
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,persist,func,794,KEEP,2026-11-20：扫描完成及trash在原worker内直接调用，以二进制plist原子写指定URL并传播错误，不在main再次排旧整树写盘
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,persistRecords,func,800,KEEP,2026-11-20：trash交付后保存当前记录副本，原queue中JSON编码和原子写盘，不持有窗口或新增服务
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,clearCache,func,810,KEEP,2026-11-20：存储设置调用，先撤销scanner再清snapshot递增indexRevision，原队列删两范围缓存；迟到的缓存及扫描回调不能恢复显示
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,invalidateCandidates,func,844,KEEP,2026-11-20：snapshot.didSet调用，清候选数组与scannedAt标记，indexRevision由原观察器递增供窗口导航及图形刷新
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,candidates,func,850,KEEP,2026-11-20：窗口候选列表调用，复用同scannedAt缓存；递归排除临时路径和.app子树，命中父候选后不再收子项，按大小排序
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,trash,func,886,KEEP,2026-11-20：窗口performTrash只移动索引中的真实路径至废纸篓；同串行队列在文件移动后取最新快照，统一裁剪内存与home/fullDisk缓存，缺失折叠明细则失效；发布核对revision，连续删除不恢复旧节点
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,removing,func,952,KEEP,2026-11-20：trash更新内存与两个范围缓存共用；按路径分隔判断交集，无交集沿用，根被移走或折叠导致目标节点缺失时失效该范围，其余仅裁剪已删除路径并重算总量与分类
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,findNode,func,972,KEEP,2026-11-20：窗口查找和trash确认对象及计数调用，按实际路径和disk-folded前缀沿相关子树递归，不搜索无关路径
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,independentPaths,func,984,KEEP,2026-11-20：窗口选择、提示词及trash操作共用，Set去重后沿父路径排除已选父目录所含子项；分类无用directories已删除，不再调用它
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,pruned,func,998,KEEP,2026-11-20：trash裁剪已删除路径时先按完整目录前缀判断交集，无关子树直接复用原值；仅目标祖先分支重建、排序并汇总大小，不复制整树
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,bytes,func,1021,KEEP,2026-11-20：存储窗口与堆块尺寸说明调用，系统十进制ByteCountFormatter格式；负值仅呈现0
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,shortBytes,func,1024,KEEP,2026-11-20：存储窗口和堆块紧凑标签调用，沿Finder十进制1000换算GB/MB/KB，显示一位小数或整数KB
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,date,func,1031,KEEP,2026-11-20：存储扫描日期与清理记录标签调用；按MM-dd HH:mm格式呈现本地时间，不改变索引状态
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,cacheURL,func,692,KEEP,2026-11-20：两范围读写和清缓存共用，以scope.rawValue组成原index文件名；实际内容为二进制plist并保留旧JSON读取
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,init,init,697,KEEP,2026-11-20：shared构造唯一DiskIndexStore，原缓存路径、串行queue及发布属性由该实例持有，窗口出现才加载
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,loadIfNeeded,func,703,KEEP,2026-11-20：存储窗口首次出现才读取清理记录，随后同串行队列读取范围缓存；loaded避免切换范围反复读旧记录覆盖新删除记录，不自动扫描
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,reloadFromCache,func,715,KEEP,2026-11-20：首次加载与scope.didSet调用，捕获请求scope与indexRevision；后台解码后仅在同范围、同版本且未扫描时发布，切范围和清缓存递增版本淘汰旧载入
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,decodeSnapshot,func,736,KEEP,2026-11-20：在原worker队列先读schema，再兼容plist与旧JSON；正常载入重算分类，删除处理另一范围缓存时按参数跳过首次汇总，裁剪后只重算一次
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,rescan,func,758,KEEP,2026-11-20：窗口扫描按钮与原storage深链创建scanner；进度、完成按对象身份确认当前扫描，worker先落盘再排主线程发布，取消后的旧回调不清除新扫描
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,cancelScan,func,791,KEEP,2026-11-20：窗口取消、Esc、切范围及清缓存共用；NSLock写取消后立即清scanner身份和进度，允许新扫描入原队列，无旧完成覆盖新状态
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,persist,func,798,KEEP,2026-11-20：扫描完成及trash在原worker内直接调用，以二进制plist原子写指定URL并传播错误，不在main再次排旧整树写盘
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,persistRecords,func,804,KEEP,2026-11-20：trash交付后保存当前记录副本，原queue中JSON编码和原子写盘，不持有窗口或新增服务
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,clearCache,func,814,KEEP,2026-11-20：存储设置调用，先撤销scanner再清snapshot递增indexRevision，原队列删两范围缓存；迟到的缓存及扫描回调不能恢复显示
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,invalidateCandidates,func,849,KEEP,2026-11-20：snapshot.didSet调用，清候选数组与scannedAt标记，indexRevision由原观察器递增供窗口导航及图形刷新
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,candidates,func,855,KEEP,2026-11-20：窗口候选列表调用，复用同scannedAt缓存；递归排除临时路径和.app子树，命中父候选后不再收子项，按大小排序
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,largestDirectories,func,889,KEEP,存储清理提示复用索引快照，递归前4层后按大小取12个目录；snapshot变化时由属性观察清除缓存
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,trash,func,909,KEEP,2026-11-20：窗口performTrash只移动索引中的真实路径至废纸篓；同串行队列在文件移动后取最新快照，统一裁剪内存与home/fullDisk缓存，缺失折叠明细则失效；发布核对revision，连续删除不恢复旧节点
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,removing,func,975,KEEP,2026-11-20：trash更新内存与两个范围缓存共用；按路径分隔判断交集，无交集沿用，根被移走或折叠导致目标节点缺失时失效该范围，其余仅裁剪已删除路径并重算总量与分类
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,findNode,func,995,KEEP,2026-11-20：窗口查找和trash确认对象及计数调用，按实际路径和disk-folded前缀沿相关子树递归，不搜索无关路径
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,independentPaths,func,1007,KEEP,2026-11-20：窗口选择、提示词及trash操作共用，Set去重后沿父路径排除已选父目录所含子项；分类无用directories已删除，不再调用它
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,pruned,func,1021,KEEP,2026-11-20：trash裁剪已删除路径时先按完整目录前缀判断交集，无关子树直接复用原值；仅目标祖先分支重建、排序并汇总大小，不复制整树
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,bytes,func,1044,KEEP,2026-11-20：存储窗口与堆块尺寸说明调用，系统十进制ByteCountFormatter格式；负值仅呈现0
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,shortBytes,func,1047,KEEP,2026-11-20：存储窗口和堆块紧凑标签调用，沿Finder十进制1000换算GB/MB/KB，显示一位小数或整数KB
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,date,func,1054,KEEP,2026-11-20：存储扫描日期与清理记录标签调用；按MM-dd HH:mm格式呈现本地时间，不改变索引状态
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,27,KEEP,2026-11-20：shared唯一程序化构造1080×720窗口、最小860×560，关闭保留窗口；原生所需coder入口拒绝归档构造，正式入口为私有init
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,49,KEEP,2026-11-20：shared唯一程序化构造1080×720窗口、最小860×560，关闭保留窗口；原生所需coder入口拒绝归档构造，正式入口为私有init
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,show,func,51,KEEP,2026-11-20：监测详情按钮与storage深链共用已有窗口；按参数扫描或延迟发下钻/提示词通知，下钻消费端统一退出分类显示
@@ -2605,12 +2607,11 @@ Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootVi
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigate,func,1061,KEEP,2026-11-20：深链、面包屑、根和图块共用，先退出分类模式再判是否同目录；下钻重建前缀，回祖先保留前进记录
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigateHistory,func,1073,KEEP,2026-11-20：手势、Esc、前后按钮和地图返回共用，只将历史游标移动到已存在索引，不重建目录树
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,jellyPulse,func,1082,KEEP,2026-11-21：v267 更 Q 弹——切层先把 jelly 压到 0.965（纵向 1.035）再以 spring(0.5/0.4) 弹回；reduceMotion 时跳过；调用点 navigate:945、navigateHistory:953；scaleEffect 应用点 868
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,topDirectories,func,1091,KEEP,2026-11-20：buildAgentPrompt唯一调用，局部visit遍历已保留树前4层的正大小目录，按字节降序取默认12项，父子可同时列出
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,buildAgentPrompt,func,1106,KEEP,2026-11-20：附属页预览和复制共用当前索引快照、候选及Top目录；概况复用statusLine与coverageHelp，准确列缓存时间、排除路径、跳过原因和截断状态，不执行删除，使用通用角色且无客户端选择参数
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,copyAgentPrompt,func,1153,KEEP,2026-11-20：附属页按钮调用同一无参buildAgentPrompt，写系统剪贴板后关闭提示词页；没有客户端选择器或agentKind状态
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,selectedBytesForPending,func,1334,KEEP,2026-11-20：删除确认框先去掉pendingTrash内已被父路径覆盖的项，再从当前快照合计真实节点字节，不操作文件
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,performTrash,func,1340,KEEP,2026-11-20：确认删除取出并清空pendingTrash，非空才交store.trash；按回传成功数、字节和lastError显示结果
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageCandidateRow,displayPath,func,1365,KEEP,2026-11-20：候选行只把当前home本身或home/后代缩写为~，其他路径原样显示，不误缩写同名前缀
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,buildAgentPrompt,func,1091,KEEP,2026-11-20：附属页预览和复制共用当前索引快照、候选及Top目录；概况复用statusLine与coverageHelp，准确列缓存时间、排除路径、跳过原因和截断状态，不执行删除，使用通用角色且无客户端选择参数
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,copyAgentPrompt,func,1138,KEEP,2026-11-20：附属页按钮调用同一无参buildAgentPrompt，写系统剪贴板后关闭提示词页；没有客户端选择器或agentKind状态
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,selectedBytesForPending,func,1319,KEEP,2026-11-20：删除确认框先去掉pendingTrash内已被父路径覆盖的项，再从当前快照合计真实节点字节，不操作文件
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,performTrash,func,1325,KEEP,2026-11-20：确认删除取出并清空pendingTrash，非空才交store.trash；按回传成功数、字节和lastError显示结果
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageCandidateRow,displayPath,func,1350,KEEP,2026-11-20：候选行只把当前home本身或home/后代缩写为~，其他路径原样显示，不误缩写同名前缀
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskVoronoiLayout,make,func,45,KEEP,DiskLayoutCache.tiles:133
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskVoronoiLayout,inradius,func,135,KEEP,DiskVoronoiLayout.make 在布局时计算标签质心到各边的最小距离，供标签档位和宽度复用；悬停不再求内切圆半径
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskLayoutCache,tiles,func,157,KEEP,StorageTreemap.body:171
@@ -2962,12 +2963,12 @@ Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,segmentHelp,
 Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,selectPage,func,393,KEEP,segmentItem 动作 :370/:387 回调
 Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,segmentItem,func,401,KEEP,pageSegments :369/386 调用
 Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,runCapture,func,468,KEEP,captureAction 四个菜单项 :481-485
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,closeBottomSearch,func,592,KEEP,onSubmit :536 与收起按钮 :538
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,toolbarIcon,func,603,KEEP,bottomToolbar :551/587/593 调用
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,captureButton,func,646,KEEP,toolbar :281 取色按钮
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,cachedBackgroundImage,func,747,KEEP,body 背景 :159 调用
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelToolbarLayout,sizeThatFits,func,799,KEEP,Layout 协议要求（SwiftUI 布局调用）
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelToolbarLayout,placeSubviews,func,805,KEEP,Layout 协议要求（SwiftUI 布局调用）
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,closeBottomSearch,func,602,KEEP,onSubmit :536 与收起按钮 :538
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,toolbarIcon,func,613,KEEP,bottomToolbar :551/587/593 调用
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,captureButton,func,656,KEEP,toolbar :281 取色按钮
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,cachedBackgroundImage,func,757,KEEP,body 背景 :159 调用
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelToolbarLayout,sizeThatFits,func,809,KEEP,Layout 协议要求（SwiftUI 布局调用）
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelToolbarLayout,placeSubviews,func,815,KEEP,Layout 协议要求（SwiftUI 布局调用）
 Panel,Features/Panel/Presentation/PanelSegments.swift,PanelSegments,migrateLegacyVisibility,func,21,KEEP,把旧showSystemStatus与panel.transferDock有效展示状态合并入分段键，移除重复展示键
 Panel,Features/Panel/Presentation/PanelSegments.swift,PanelSegments,title,func,36,KEEP,PanelRootView.swift:227/228/369/386
 Panel,Features/Panel/Presentation/PanelSegments.swift,PanelSegments,fullTitle,func,44,KEEP,PersonalizationSettingsPane.swift:148 勾选项标题

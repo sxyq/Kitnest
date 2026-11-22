@@ -361,19 +361,37 @@ public final class Personalization: ObservableObject {
         if d.object(forKey: Preferences.Keys.uiGlassStroke) != nil {
             glassStroke = min(1, max(0, d.double(forKey: Preferences.Keys.uiGlassStroke)))
         }
-        // v205：旧观感一次迁移到「天气 App 同款」默认（用户改过也先归位，之后可再调）
+        // v205 玻璃观感迁移。
+        //
+        // 2026-11-23 修正（任务：「玻璃配置迁移可能覆盖原先已经保存的用户参数」
+        // →「必须区分真实默认值和用户已保存值」）：
+        // 旧实现写的是「用户改过也先归位」——只要版本号没升就无条件把四个滑块
+        // 打回新默认，用户自己调好的参数会被静默清掉。现在只迁移**仍等于旧出厂
+        // 默认值（0.93/0.35/0.5/0.4）**的参数；用户调过的一律保留。
+        // 键缺失时上面的默认值已经是新口径，也不需要迁移。
         if d.integer(forKey: Self.glassLookVersionKey) < Self.currentGlassLookVersion {
-            glassOpacity = 0.60
-            glassBlur = 0.30
-            glassCardLift = 0.55
-            glassStroke = 0.30
-            // load 期间 didSet 不落盘，这里直接写入，避免每次启动都重新迁移
-            d.set(glassOpacity, forKey: Preferences.Keys.uiGlassOpacity)
-            d.set(glassBlur, forKey: Preferences.Keys.uiGlassBlur)
-            d.set(glassCardLift, forKey: Preferences.Keys.uiGlassCardLift)
-            d.set(glassStroke, forKey: Preferences.Keys.uiGlassStroke)
+            func migrateIfUntouched(_ key: String, old: Double, new: Double,
+                                    _ apply: (Double) -> Void) {
+                guard let stored = d.object(forKey: key) as? NSNumber else { return }
+                guard abs(stored.doubleValue - old) < 0.0005 else { return }   // 用户调过 → 保留
+                apply(new)
+                d.set(new, forKey: key)
+            }
+            migrateIfUntouched(Preferences.Keys.uiGlassOpacity, old: 0.93, new: 0.60) {
+                glassOpacity = $0
+            }
+            migrateIfUntouched(Preferences.Keys.uiGlassBlur, old: 0.35, new: 0.30) {
+                glassBlur = $0
+            }
+            migrateIfUntouched(Preferences.Keys.uiGlassCardLift, old: 0.5, new: 0.55) {
+                glassCardLift = $0
+            }
+            migrateIfUntouched(Preferences.Keys.uiGlassStroke, old: 0.4, new: 0.30) {
+                glassStroke = $0
+            }
+            // 只写版本号：无论是否迁移过，下一轮不再比对
             d.set(Self.currentGlassLookVersion, forKey: Self.glassLookVersionKey)
-            Log.info("personalization", "玻璃观感迁移：v2 天气 App 口径 0.60/0.30/0.55/0.30")
+            Log.info("personalization", "玻璃观感迁移：仅未改动参数对齐天气 App 口径（0.60/0.30/0.55/0.30）")
         }
 
     }

@@ -107,7 +107,10 @@ extension FloatingPanel {
     public func applyPersonalizedMaterial() {
         guard let content = contentView?.subviews.first ?? contentView else { return }
         let personalization = Personalization.shared
-        let signature = "\(personalization.material.rawValue)|\(personalization.cornerRadius)|\(LiquidGlass.reduceTransparency)"
+        // 2026-11-23：签名不再包含「背景材质」——该开关只管内容卡片，结构面玻璃
+        // 恒为采样态（见 LiquidGlass.makeView(personalization:)），
+        // 切换卡片材质不该让整窗玻璃重采样一次。
+        let signature = "\(Int(personalization.cornerRadius * 100))|\(LiquidGlass.reduceTransparency)"
         // 按窗口实例记账：面板重建（prepare 重新造窗）时签名不会误命中旧窗口。
         if Self.lastMaterialSignature[ObjectIdentifier(self)] == signature { return }
         Self.lastMaterialSignature[ObjectIdentifier(self)] = signature
