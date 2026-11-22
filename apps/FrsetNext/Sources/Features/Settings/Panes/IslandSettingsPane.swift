@@ -450,8 +450,6 @@ private struct IslandSettingsContent: View {
 
     private var peeks: some View {
         SettingsSection("收起态图标", collapsible: true, expanded: true) {
-            Text("以下图标用于真实刘海屏；普通屏的悬停短条仅显示搜索入口。")
-                .font(.system(size: 11)).foregroundStyle(.secondary)
             SettingsGroupBox {
                 SettingsRow(title: "附带信息") {
                     Toggle("附带信息", isOn: $draft.configuration.peeksShowValues).labelsHidden()
@@ -513,8 +511,6 @@ private struct IslandSettingsContent: View {
                     }
                 }
             }
-            Text("尺寸按行 × 列；五档均可保存，画布不足时适配显示；组件溢出时分页，隐藏组件仍可从全部功能进入")
-                .font(.system(size: 11)).foregroundStyle(.secondary)
         }
     }
 
@@ -548,8 +544,6 @@ private struct IslandSettingsContent: View {
                     Label("添加现有组件", systemImage: "plus")
                 }.disabled(draft.configuration.customWidgetOrder.count == IslandWidget.allCases.count)
             }
-            Text("组件来自 Kitnest 现有模块；空白页面有效，只有添加到此页的组件会显示。")
-                .font(.system(size: 11)).foregroundStyle(.secondary)
         }
     }
 

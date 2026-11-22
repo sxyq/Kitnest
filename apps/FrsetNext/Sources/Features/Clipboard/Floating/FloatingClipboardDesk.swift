@@ -1126,8 +1126,11 @@ private struct FloatingClipCard: View {
 
     private var imageBody: some View {
         Group {
+            // v282：浮动窗卡片最大也就 ~200pt 宽，按 320px 降采样解码即可，
+            // 没必要把整张截图读进来（同 ClipboardSectionView 的行卡）。
             if let image = isSettingsPreview ? previewImage :
-                ClipboardImageStorage.image(relativePath: item.imagePath ?? item.thumbnailPath) {
+                ClipboardImageStorage.thumbnail(relativePath: item.imagePath ?? item.thumbnailPath,
+                                                maxPixel: 320) {
                 GeometryReader { geo in
                     Image(nsImage: image).resizable().scaledToFit()
                         .frame(width: geo.size.width, height: geo.size.height)

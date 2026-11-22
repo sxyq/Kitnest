@@ -1012,6 +1012,13 @@ struct AppearancePreviewBlock: View {
                     .opacity(revealed ? 1 : 0)
                     .scaleEffect(revealScale, anchor: .top)
                     .offset(y: revealed ? 0 : -4)
+                    // v282（用户：「这里点了没有反应」）：预览区本身就是「重播」按钮。
+                    // 以前只有切换档位才会重播，用户点画面期待它演一遍，结果毫无反馈。
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        if scope != .notification { openReplay &+= 1 }
+                    }
+                    .help(scope == .notification ? "通知预览" : "点一下重播打开动画")
                     .padding(6)
                     .background {
                         if needsWallpaper {

@@ -351,17 +351,16 @@ struct GeneralSettingsPane: View {
                                 .textFieldStyle(.roundedBorder).frame(width: 200)
                         }
                     }
-                    Text("五种图标只显示一种；预览实时变化，保存后应用到菜单栏。动态预览使用固定示例速度。")
-                        .font(.system(size: 11)).foregroundStyle(.secondary)
                     SettingsDivider()
                     entryRow("菜单：打开面板", key: GlobalEntries.homeKey, draft: draft)
                     entryRow("菜单：性能监测设置", key: GlobalEntries.monitorPopoutKey, draft: draft)
                     entryRow("菜单栏：性能部件", key: GlobalEntries.statsBarKey, draft: draft)
-                    formRow("部件布局与颜色") {
-                        Button("前往部件设置") { StatsBarEngine.openSettings() }.controlSize(.small)
-                    }
-                    Text("图标与入口在本页保存；部件与颜色、排列与间距分别在对应页面保存。")
-                        .font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+                    // v282（用户：「这种前端上的说明性小词全部去掉，只留最基本的介绍」；
+                    // 「状态栏的部件……应该放在性能监测那部分，而不是放在这个入口」）：
+                    // 这里原来还有一段「图标与入口在本页保存……分别在对应页面保存」的
+                    // 解释文字，以及一行「前往部件设置」的跳转。部件设置现在就在
+                    // 「性能监测 › 菜单栏部件」里，入口页不该再挂第四个与部件相关的入口。
+                    // 解释文字同样删掉——侧栏已经说明了层级，界面里再讲一遍就是噪音。
                 }
             }
         }

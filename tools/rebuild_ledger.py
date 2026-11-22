@@ -2862,6 +2862,37 @@ EVIDENCE.update({
         "把位置记忆、逐屏页面记忆、离开保持展开与半隐藏开关写入共用偏好并应用",
     ("Features/StatusBar/StatusBarController.swift", "openFavoritesAction"):
         "状态栏全局收藏菜单项打开共享收藏窗口",
+    # v282（用户：「甚至无法打开了」）：僵尸进程占着 pid 且无法激活/结束，
+    # 必须从「已有实例」里排除，否则每次启动都会自杀。
+    # v282（用户：「点了之后它无法启动」）：单实例检查拆成「抢锁」与「抢到之后的启动路径」两段，
+    # 后者保留原来对官方原版 Frset 的提示。
+    ("App/FrsetNextApp.swift", "continueAfterSingleInstanceCheck"):
+        "抢到实例锁后的公共启动路径；2.5秒后检查官方原版com.maoux.frset是否在跑并提示重复菜单栏，其余沿用原单实例检查后半段",
+    ("App/FrsetNextApp.swift", "InstanceLock.acquire"):
+        "启动时抢占instance.lock的排他flock；抢到则写入自身pid返回true，抢不到读回持有者pid返回false，锁文件打不开时放行以免把App拦死",
+    ("App/FrsetNextApp.swift", "isZombie"):
+        "单实例检查过滤用；proc_pidinfo取pbi_status==SZOMB(5)判定僵尸，NSRunningApplication与kill(pid,0)都会把僵尸当成活进程",
+    # v282（2026-11-22 用户：「app卡死」「无法打开」）：卡死现场只留面包屑定不到帧，
+    # 看门狗线程改为对自己跑一次 sample，把主线程调用栈落到 logs/hang-*.txt。
+    ("Core/Runtime/LogArchive.swift", "captureHangStack"):
+        "看门狗判定主线程阻塞后由checkHang调用；后台队列启动/usr/bin/sample采本进程1秒，栈落logs/hang-*.txt；每轮卡死最多两次，避免长时间阻塞刷出大文件",
+    ("Core/Runtime/LogArchive.swift", "stamp"):
+        "卡死栈文件名用HHmmss时间戳，供captureHangStack区分同一轮多次采样",
+    # v282（用户：「甚至无法打开了，并且app卡死」）：卡死实例占着「同 bundle 已有实例」
+    # 会让所有重启都自杀；标记文件让新实例知道旧的那个已经不省人事。
+    ("Core/Runtime/LogArchive.swift", "freshHangMarker"):
+        "新实例启动做单实例检查时读取；标记修改时间在窗口期（默认120秒）内视为旧实例仍在阻塞，超期当作历史痕迹忽略",
+    ("Core/Runtime/LogArchive.swift", "writeHangMarker"):
+        "看门狗判定主线程阻塞且需要写日志时调用；把 pid 与时间写进logs/main-thread.hang，供下次启动判断是否接管",
+    ("Core/Runtime/LogArchive.swift", "clearHangMarker"):
+        "主线程恢复时删除logs/main-thread.hang，避免下一次正常启动被误判成旧实例卡死",
+    # v282（用户：「全方位性能优化……CPU 占用、存储表现」）：剪贴板行卡不再解码整图。
+    ("Features/Clipboard/Store/ClipboardFileStorages.swift", "thumbnail"):
+        "剪贴板行卡与浮动窗卡片专用；ImageIO按目标像素边长降采样解码，避免为50pt卡片解整张截图；缓存按路径@边长分桶，失败回退原图入口",
+    # v282（用户：「悬停到剪贴板预览，它的展开动画之前有，重新实现一下」）：
+    # 抽屉展开改纯图层动画，窗口尺寸不再逐帧变化。
+    ("Features/Clipboard/UI/ClipboardPreviewWindow.swift", "playDrawerReveal"):
+        "预览窗呈现与收回共用；锚点钉在靠主面板的竖直边，只对内容层做scaleX/scaleY与窗口alpha动画，完成后还原锚点；减弱动态效果时直接落位",
 })
 
 if __name__ == "__main__":

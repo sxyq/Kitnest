@@ -100,8 +100,6 @@ struct FloatingBallSettingsPane: View {
                 option("逐屏记住上次页面", key: FloatingBallSettings.rememberPageKey, fallback: true)
                 option("鼠标离开时保持小窗展开", key: FloatingBallSettings.keepOpenKey)
                 option("收起后贴边半隐藏", key: FloatingBallSettings.autoHideKey, fallback: true)
-                Text("按 Esc、点击小窗顶部收起按钮或小窗外部可收起，包括其他 App。所有已选组件均可翻页访问；复杂功能沿用原业务窗口。")
-                    .font(.system(size: 11)).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
             }
         }
         .id(revision)

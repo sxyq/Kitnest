@@ -70,6 +70,23 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
+    /// 进程是不是僵尸（已退出但父进程还没 wait，内核留着 pid 不放）。
+    ///
+    /// `NSRunningApplication` 会把僵尸也列出来，而 `kill(pid, 0)` 对僵尸同样返回成功——
+    /// 两个「看起来还活着」的判据都会骗人。只有 `proc_pidinfo` 的 pbi_status 说实话：
+    /// SZOMB(5) 就是僵尸。这类进程杀不掉、也不会响应 activate，唯一正确的处理是无视它。
+    ///
+    /// 注意：被沙箱/权限限制时 `proc_pidinfo` 会失败，此时本函数返回 false——
+    /// 所以「谁是唯一实例」的**权威判据是 InstanceLock 的文件锁**（见下），
+    /// 这里只作为附加信号。
+    private static func isZombie(_ pid: pid_t) -> Bool {
+        var info = proc_bsdinfo()
+        let size = Int32(MemoryLayout<proc_bsdinfo>.size)
+        let read = proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, size)
+        guard read == size else { return false }
+        return info.pbi_status == 5      // SZOMB（sys/proc.h）
+    }
+
     /// 菜单栏监控「唯一一套」：STATS 合并条。
     ///
     /// 两道防线：
@@ -79,16 +96,51 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     ///    共用 `~/Library/Application Support/FrsetStats/widgets.plist` 与 `engine.log`。
     ///    无法从进程内阻止它，因此只提示用户退出原版（避免误以为是我们重复创建）。
     private func enforceSingleMenubarOwner() -> Bool {
-        if let bid = Bundle.main.bundleIdentifier {
-            let others = NSRunningApplication.runningApplications(withBundleIdentifier: bid)
-                .filter { $0.processIdentifier != getpid() }
-            if let existing = others.first {
-                Log.info("App", "已有实例在运行（pid=\(existing.processIdentifier)）→ 本实例退出，保证菜单栏只有一套监控组件")
-                existing.activate(options: [.activateIgnoringOtherApps])
-                NSApp.terminate(nil)
-                return false
-            }
+        // v282（用户：「app卡死」「甚至无法打开了」）：**文件锁才是唯一权威**。
+        //
+        // 原来只靠 `NSRunningApplication.runningApplications(withBundleIdentifier:)`：
+        //   · 卡死的旧进程还活着 → 一直占位，新实例每次都「已有实例在运行 → 自杀」；
+        //   · 被 kill 掉的旧进程若没被父进程回收，会变成僵尸，内核留着 pid，
+        //     NSRunningApplication 照样把它列出来，而且它杀不掉、激活不了。
+        // 两种情况下用户看到的是同一件事：**App 打不开，重装也没用**。
+        //
+        // flock 天生绕开这两种情况：进程一死内核就关 fd，锁立刻释放（僵尸不持有锁）；
+        // 只有「活着并且真的握着锁」的进程才会挡住我们——那正是可以判断、可以接管的场景。
+        let lock = InstanceLock.shared
+        if lock.acquire() {
+            Log.info("App", "获得实例锁（pid=\(getpid())）")
+            return continueAfterSingleInstanceCheck()
         }
+        // 锁被别人握着：它活着。看它是不是已经不省人事。
+        let holder = lock.holderPid
+        let hung = LogArchive.freshHangMarker()
+        if hung, holder > 0 {
+            Log.warn("App", "实例锁持有者 pid=\(holder) 主线程阻塞 → 强制接管")
+            kill(holder, SIGKILL)
+            // 等内核释放锁（最多 2s），拿到就继续启动。
+            for _ in 0..<40 {
+                usleep(50_000)
+                if lock.acquire() {
+                    Log.warn("App", "已接管实例锁，旧进程 pid=\(holder) 被结束")
+                    return continueAfterSingleInstanceCheck()
+                }
+            }
+            Log.warn("App", "旧进程 pid=\(holder) 未释放实例锁，本次仍退出（避免两套菜单栏）")
+        }
+        if let bid = Bundle.main.bundleIdentifier,
+           let existing = NSRunningApplication.runningApplications(withBundleIdentifier: bid)
+            .first(where: { $0.processIdentifier != getpid() && !Self.isZombie($0.processIdentifier) }) {
+            Log.info("App", "已有实例在运行（pid=\(existing.processIdentifier)）→ 本实例退出，保证菜单栏只有一套监控组件")
+            existing.activate(options: NSApplication.ActivationOptions.activateIgnoringOtherApps)
+        } else {
+            Log.info("App", "实例锁被占用但找不到对应进程（pid=\(holder)）→ 本实例退出")
+        }
+        NSApp.terminate(nil)
+        return false
+    }
+
+    /// 拿到实例锁之后的公共启动路径（原单实例检查的后半段）。
+    private func continueAfterSingleInstanceCheck() -> Bool {
 
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
             let originals = NSRunningApplication.runningApplications(withBundleIdentifier: "com.maoux.frset")
@@ -583,5 +635,51 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 break
             }
         }
+    }
+}
+
+// MARK: - 单实例文件锁（v282）
+
+/// 「谁是唯一实例」的权威判据：对 `instance.lock` 持一把 `flock`。
+///
+/// 为什么不用进程列表（这是 2026-11-22「打不开了」的根因）：
+///   · 卡死的旧实例进程还活着，会一直占着「同 bundle 已有实例」这个位置；
+///   · 被强杀的实例如果父进程没回收，会变成僵尸：pid 还在、`kill(pid,0)` 还成功，
+///     但它既不能退出也不能激活，杀都杀不掉。
+/// 两种情况都会让新实例误以为「还有一个健康的自己在跑」而自杀。
+/// fd 是内核对象：进程一死就关，锁立刻释放，僵尸根本不持锁——判据天然干净。
+final class InstanceLock {
+    static let shared = InstanceLock()
+
+    private var fd: Int32 = -1
+    /// 当前持锁进程的 pid（抢不到锁时读出来，用于判断要不要接管）
+    private(set) var holderPid: pid_t = 0
+
+    private var url: URL { AppDirectories.base.appendingPathComponent("instance.lock") }
+
+    /// 尝试拿锁。拿到返回 true（并把自己的 pid 写进锁文件）。
+    /// 锁文件本身打不开时**放行**——不能因为一把锁把 App 彻底拦死。
+    @discardableResult
+    func acquire() -> Bool {
+        if fd >= 0 { return true }
+        try? FileManager.default.createDirectory(at: AppDirectories.base, withIntermediateDirectories: true)
+        let handle = Darwin.open(url.path, O_CREAT | O_RDWR, 0o644)
+        guard handle >= 0 else { return true }
+        if flock(handle, LOCK_EX | LOCK_NB) == 0 {
+            fd = handle
+            ftruncate(handle, 0)
+            let text = "\(getpid())\n"
+            _ = text.withCString { write(handle, $0, strlen($0)) }
+            fsync(handle)
+            return true
+        }
+        var buf = [UInt8](repeating: 0, count: 32)
+        lseek(handle, 0, SEEK_SET)
+        let n = read(handle, &buf, 31)
+        if n > 0, let s = String(bytes: buf.prefix(n), encoding: .utf8) {
+            holderPid = pid_t(s.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
+        }
+        close(handle)
+        return false
     }
 }
