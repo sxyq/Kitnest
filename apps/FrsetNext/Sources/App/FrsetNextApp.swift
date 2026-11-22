@@ -68,6 +68,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 Toast.show("提示条自检", icon: "checkmark.circle.fill")
             }
         }
+
+        // 排障探针（v283）：probe.openPanel=1 → 启动 4s 后自动打开主面板。
+        // 用途：本机没有辅助功能权限、点不到菜单栏图标时，仍能验证面板是否真的能渲染出来
+        // （「点了没反应」到底是没起来、还是起来了但画不出来，这个探针能分清）。
+        // 用完删键：`defaults delete com.sxyq.frsetnext probe.openPanel`。
+        if UserDefaults.standard.bool(forKey: "probe.openPanel") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+                Log.info("Panel", "探针 probe.openPanel：自动打开主面板")
+                PanelController.shared.show()
+            }
+        }
     }
 
     /// 进程是不是僵尸（已退出但父进程还没 wait，内核留着 pid 不放）。
