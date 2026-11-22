@@ -39,10 +39,34 @@ Kitnest（原名 FrsetNext）：macOS 菜单栏效率工具（arm64，macOS 13+�
 6. 更新后**本地重启 App**（只退出 Lite 进程，再打开 `/Applications/KitnestLite.app`），
    供用户随时查看效果
 
+11. **启动路径纪律（2026-11-22 「点了打不开」P0 之后新增，违反即视为未完成）**
+    - 启动路径（`applicationDidFinishLaunching` 到 `启动完成` 之间）**禁止任何同步 TCC / 同步 XPC / 同步等待**：
+      `CGPreflightScreenCaptureAccess`、`CGRequestScreenCaptureAccess`、`AXIsProcessTrusted`、
+      `SCShareableContent`、`AVCaptureDevice.authorizationStatus`、`NSAppleScript`、
+      `Process.waitUntilExit` 一律改「后台队列查询 → 回主线程发布」。
+      tccd 卡住会让 App 在画出第一个界面之前挂死，用户看到的就是“点了没反应”。
+    - **单实例判定只能用内核对象**（`InstanceLock` 的 `flock` + pid 文件），不得只用
+      `NSRunningApplication.runningApplications(withBundleIdentifier:)`：进程列表在「主线程卡死」
+      与「僵尸（defunct）」两种状态下都会说谎，两种情况下旧实现都会让新实例自杀。
+    - **禁止无条件 `NSApp.terminate(nil)`**：先判断旧实例是否还活着；不确定时选择**接管**
+      （菜单栏重复一秒，比打不开一小时轻）。判活不能只看进程还在——必须看
+      `instance.heartbeat`（每 2s 一跳）和锁文件里的 `build=` 构建戳；心跳 >12s 或构建戳不一致
+      就接管，杀不掉就无锁启动，不准自杀。
+    - 每次构建后必须跑 `bash tools/launch_smoke.sh`：杀掉全部本机 Kitnest 进程 → 冷启动 →
+      确认日志出现新的 `启动完成` 且没有 `已有实例在运行` / `应用退出`。**不通过不算改完。**
+    - 排查与成因：`docs/00-总览/开发工作流.md` 第六节「启动不了 / 点了没反应 / 卡死」。
+
 7. **窗口目录与函数 CSV 同步维护**：窗口、面板、附属表单、浮层及系统对话框新增、修改、移除，或收到窗口问题反馈时，在同一次改动中更新
    `docs/40-审计与核对/数据表/预览窗口排查.csv`。每个窗口或呈现入口单独一行，记录源码定位、尺寸约束、关闭与状态保留、日期及问题处理；同一窗口沿用编号，移除后保留历史记录，不另建平行目录。源码结论与实际运行结果分开填写，尚未实测就标记待实测。
 8. **屏幕录制授权身份固定**：本机部署只用 `build.sh` 声明的 FrsetDev 身份和指定 requirement；缺证书或身份不符就停止，不得退回临时签名。旧身份迁移后，macOS 不会把已有 TCC 记录自动改绑，需对最终安装版重新授权一次；身份固定后构建不得再要求重复授权。勿用 `tccutil reset` 清权限。
 9. **整机编译负载有上限**：本机 16GB 内存环境固定 no-WMO、Swift 并发 2、`nice -n 10`；不叠加多个完整构建，不用环境变量恢复全模块优化或无限并发。
+10. **外置变体分支随主线同步**：每次主线改完，跑 `bash tools/sync_variant.sh`
+    把 main 合入外置盘上的 `variant/without-transfer-cast`（去掉中转与文件传输、保留投屏）。
+    变体工作树在 `/Volumes/Lexar/Project/frset-rebuild-lite`，拔盘后 worktree 会变 prunable，
+    脚本会自动 `worktree prune` + 重建；合并冲突不自动解决，脚本会列出冲突文件。
+    外置盘属「可移除宗卷」，未授权时脚本会在第一步就明确报出来（不是静默跳过）；
+    拔盘后 `/Volumes` 里可能留下僵尸挂载点，`ls` 会卡在内核里，脚本已加 5s 超时。
+    需要连构建一起做就加 `--build`。
 
 ## 项目级 Skill（可复用操作，`.agent/skills/`）
 

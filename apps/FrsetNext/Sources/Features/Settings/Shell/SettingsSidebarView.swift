@@ -133,18 +133,15 @@ struct SettingsSidebarView: View {
             ForEach(SettingsGroup.allCases) { group in
                 groupHeader(group)
                 if state.expandedGroups.contains(group) {
-                    if group.sections.isEmpty {
-                        ForEach(group.pages, id: \.self) { page in
-                            navRow(page).id(page)
-                        }
-                    } else {
-                        // 三级：一级目录 → 二级小节 → 三级页面。
-                        ForEach(group.sections) { section in
-                            sectionHeader(section)
-                            if state.expandedSections.contains(section.id) {
-                                ForEach(section.pages, id: \.self) { page in
-                                    navRow(page, leading: 38).id(page)
-                                }
+                    // v282：所有目录都是三级——一级标题 → 二级小节 → 三级页面。
+                    // 单页小节（如「权限」「录屏」）渲染成不可折叠的小标题 + 一页，
+                    // 层级看得见，但不会为了点一页多按一次。
+                    ForEach(group.sections) { section in
+                        let collapsedCaption = section.pages.count == 1
+                        sectionHeader(section, isCaption: collapsedCaption)
+                        if collapsedCaption || state.expandedSections.contains(section.id) {
+                            ForEach(section.pages, id: \.self) { page in
+                                navRow(page, leading: 38).id(page)
                             }
                         }
                     }
@@ -164,12 +161,9 @@ struct SettingsSidebarView: View {
                 state.expandedGroups.remove(group)
             } else {
                 state.expandedGroups.insert(group)
-                // 展开目录时顺手展开一节：优先当前页所在小节，否则第一节。
-                // 否则点开一级目录只看到四个小节名，还要再点一次才见页面。
-                if !group.sections.isEmpty {
-                    let target = group.section(containing: state.selection) ?? group.sections.first
-                    if let target { state.expandedSections.insert(target.id) }
-                }
+                // v282：展开目录时把这一组的小节全部展开。以前只展开一节，
+                // 点开「入口与交互」只看到四个小节名，还要再点一次才见页面。
+                for section in group.sections { state.expandedSections.insert(section.id) }
             }
         } label: {
             HStack(spacing: 7) {
@@ -195,16 +189,26 @@ struct SettingsSidebarView: View {
     }
 
     /// 二级小节：可折叠标题行，比一级目录轻、比页面行重。
-    private func sectionHeader(_ section: SettingsSidebarSection) -> some View {
-        let expanded = state.expandedSections.contains(section.id)
+    /// - Parameter isCaption: 单页小节——只做分层用的小标题，不可折叠（避免多点一次）。
+    private func sectionHeader(_ section: SettingsSidebarSection, isCaption: Bool = false) -> some View {
+        let expanded = isCaption || state.expandedSections.contains(section.id)
         return Button {
+            guard !isCaption else { return }
             if expanded { state.expandedSections.remove(section.id) }
             else { state.expandedSections.insert(section.id) }
         } label: {
             HStack(spacing: 5) {
-                Image(systemName: expanded ? "chevron.down" : "chevron.right")
-                    .font(.system(size: 8, weight: .semibold))
-                    .frame(width: 10)
+                if isCaption {
+                    // 单页小节：用一个小圆点占位，保持与可折叠小节的视觉对齐
+                    Circle()
+                        .fill(Color.primary.opacity(0.25))
+                        .frame(width: 3, height: 3)
+                        .frame(width: 10)
+                } else {
+                    Image(systemName: expanded ? "chevron.down" : "chevron.right")
+                        .font(.system(size: 8, weight: .semibold))
+                        .frame(width: 10)
+                }
                 Text(section.title)
                     .font(.system(size: 11.5, weight: .medium))
                     .foregroundStyle(Color.primary.opacity(0.62))
@@ -217,7 +221,7 @@ struct SettingsSidebarView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .help(expanded ? "收起\(section.title)" : "展开\(section.title)")
+        .help(isCaption ? section.title : (expanded ? "收起\(section.title)" : "展开\(section.title)"))
         .accessibilityValue(expanded ? "已展开" : "已收起")
         .padding(.top, 3)
     }

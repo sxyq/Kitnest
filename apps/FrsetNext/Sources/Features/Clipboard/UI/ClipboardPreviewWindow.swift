@@ -170,25 +170,18 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
         let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         let duration = reduceMotion ? 0.1 : Personalization.shared.openAnimation.duration
         if !wasVisible {
-            // v279（用户：「悬停到剪贴板预览，它的展开动画之前有，重新实现一下」）：
-            // 从锚点那一行「拉开」——先落在 18pt 宽的窄条（高度=该行高度），
-            // 再展开成整窗；内容同步淡入。比单纯缩放更像抽屉，也不会闪白。
-            let target = w.frame
-            let startWidth: CGFloat = 18
-            let startHeight = max(48, min(anchorRectInScreen.height, target.height))
-            let startX = revealUnit.x >= 0.5 ? target.maxX - startWidth : target.minX
-            let startY = min(max(anchorRectInScreen.midY - startHeight / 2, target.minY), target.maxY - startHeight)
-            w.contentView?.alphaValue = 0
-            w.setFrame(NSRect(x: startX, y: startY, width: startWidth, height: startHeight), display: false)
-            // 轻量呈现：不激活 app、不抢面板焦点（key 在用户点击窗体时才取得）
+            // v282（用户：「悬停到剪贴板预览，它的展开动画之前有，重新实现一下」）：
+            // 抽屉式展开改成**纯图层**动画——窗口直接落在最终位置，只有内容层从
+            // 贴着面板的那条边拉出来（scaleX 0.04→1、scaleY 0.94→1、透明度 0→1）。
+            //
+            // v279 那版是逐帧改窗口 frame（18pt 窄条 → 整窗）：NSHostingView 每一帧
+            // 都要重新布局一遍 markdown/图片（预览窗最大 560×420），于是动画本身就卡，
+            // 看起来像「啪一下出现」而不是拉开。现在动画只发生在合成层，窗口尺寸一次不变，
+            // SwiftUI 只布局一次。
+            w.setFrame(w.frame, display: false)   // 由 place() 定好位置，这里不再改尺寸
+            w.alphaValue = 0
             w.orderFront(nil)
-            NSAnimationContext.runAnimationGroup { context in
-                context.duration = duration
-                context.timingFunction = Theme.Motion.caEaseOut
-                context.allowsImplicitAnimation = true
-                w.animator().setFrame(target, display: true)
-                w.contentView?.animator().alphaValue = 1
-            }
+            playDrawerReveal(on: w, duration: duration)
         } else {
             // 轻量呈现：不激活 app、不抢面板焦点
             w.orderFront(nil)
@@ -251,8 +244,65 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
                   let w, w.isVisible else { return }
             w.close()
         }
-        WindowReveal.playOut(on: w, to: revealUnit, scale: reduceMotion ? 1 : 0.97,
-                             duration: duration, completion: finish)
+        // v282：收起与展开同一套图层动画（推回贴面板的那条边），
+        // 不再用整窗缩放——那样收起来是「整块缩小」，和拉开的手感对不上。
+        playDrawerReveal(on: w, duration: duration, reversed: true, completion: finish)
+    }
+
+    // MARK: - 抽屉展开 / 收回（v282）
+
+    /// 贴着主面板的那条边把内容「拉出来 / 推回去」。
+    ///
+    /// 为什么不用窗口 frame 动画：预览窗是 NSHostingView 装的 markdown / 图片列表，
+    /// 每改一次窗口尺寸都要整棵树重排一次（560×420 实测 30~60ms/帧），帧率必然崩，
+    /// 观感就是「啪一下出现」。这里窗口尺寸从头到尾不变，只动合成层的 transform，
+    /// 主线程零布局，动画跑在渲染服务器上。
+    private func playDrawerReveal(on window: NSWindow,
+                                  duration: TimeInterval,
+                                  reversed: Bool = false,
+                                  completion: (() -> Void)? = nil) {
+        guard let content = window.contentView else {
+            window.alphaValue = 1
+            completion?()
+            return
+        }
+        content.wantsLayer = true
+        guard let layer = content.layer, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion else {
+            window.alphaValue = 1
+            completion?()
+            return
+        }
+        // 锚点放在靠近主面板的竖直边：预览在面板左侧 → 右边缘（x=1），反之左边缘（x=0）。
+        let edge: CGFloat = revealUnit.x >= 0.5 ? 1 : 0
+        let bounds = layer.bounds
+        layer.anchorPoint = CGPoint(x: edge, y: 0.5)
+        layer.position = CGPoint(x: bounds.width * edge, y: bounds.height * 0.5)
+
+        let identity = CATransform3DIdentity
+        let squashed = CATransform3DMakeScale(0.045, 0.94, 1)
+        let (from, to) = reversed ? (identity, squashed) : (squashed, identity)
+
+        let grow = CABasicAnimation(keyPath: "transform")
+        grow.fromValue = NSValue(caTransform3D: from)
+        grow.toValue = NSValue(caTransform3D: to)
+        grow.duration = duration
+        grow.timingFunction = Theme.Motion.caEaseOut
+        grow.isRemovedOnCompletion = true
+        layer.add(grow, forKey: "drawer.transform")
+        layer.transform = to
+
+        window.alphaValue = reversed ? 1 : 0
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = duration * (reversed ? 0.75 : 1)
+            context.timingFunction = Theme.Motion.caEaseOut
+            window.animator().alphaValue = reversed ? 0 : 1
+        } completionHandler: {
+            // 还原锚点，别把下一次呈现的坐标系带偏（position 同步补回）。
+            layer.anchorPoint = CGPoint(x: 0.5, y: 0.5)
+            layer.position = CGPoint(x: layer.bounds.width * 0.5, y: layer.bounds.height * 0.5)
+            if !reversed { window.alphaValue = 1 }
+            completion?()
+        }
     }
 
     // MARK: NSWindowDelegate

@@ -74,7 +74,10 @@ public enum MemoryHelperClient {
             "(/bin/launchctl enable system/\(helperLabel) >/dev/null 2>&1 || true)",
             "/bin/launchctl bootstrap system \(quote(installedPlistPath))"
         ]
-        switch AdministratorShell.run(commands.joined(separator: " && ")) {
+        let result = await Task.detached(priority: .userInitiated) {
+            AdministratorShell.run(commands.joined(separator: " && "))
+        }.value
+        switch result {
         case .success:
             // launchd 启动有延迟，轮询至多 6 秒
             for _ in 0..<30 {
@@ -184,7 +187,6 @@ enum AdministratorShell {
         let isCancelled: Bool
     }
 
-    @MainActor
     static func run(_ command: String) -> Result<String, Failure> {
         let source = "do shell script \"\(appleScriptEscape(command))\" with administrator privileges"
         var error: NSDictionary?

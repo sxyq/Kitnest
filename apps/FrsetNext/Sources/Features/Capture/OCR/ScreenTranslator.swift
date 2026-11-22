@@ -148,6 +148,11 @@ public enum ScreenTranslator {
         guard w > 0, h > 0 else { return nil }
         // 规范化 RGBA 缓冲：采样通道序确定的字节 + 高质量重绘
         guard let base = Self.rgbaBuffer(image: image, interpolation: .high) else { return nil }
+        guard let baseData = base.dataProvider?.data,
+              let basePointer = CFDataGetBytePtr(baseData),
+              base.bitsPerPixel / 8 >= 3 else { return nil }
+        let baseBytesPerRow = base.bytesPerRow
+        let baseBytesPerPixel = base.bitsPerPixel / 8
         guard let ctx = CGContext(data: nil, width: w, height: h,
                                   bitsPerComponent: 8, bytesPerRow: w * 4,
                                   space: CGColorSpaceCreateDeviceRGB(),
@@ -167,7 +172,10 @@ public enum ScreenTranslator {
             guard rect.width >= 6, rect.height >= 8 else { continue }
 
             // 底色：块外沿环带采样（RGBA 缓冲，通道序可靠）
-            let bg = Self.sampleBackground(buffer: base, rect: rect)
+            let bg = Self.sampleBackground(width: w, height: h,
+                                           bytesPerRow: baseBytesPerRow,
+                                           bytesPerPixel: baseBytesPerPixel,
+                                           pointer: basePointer, rect: rect)
             ctx.setFillColor(bg.cgColor)
             let fill = rect.insetBy(dx: -fillOutset, dy: -fillOutset)
             ctx.addPath(CGPath(roundedRect: fill, cornerWidth: 3, cornerHeight: 3, transform: nil))
@@ -219,13 +227,9 @@ public enum ScreenTranslator {
     }
 
     /// 块外沿环带平均色（规范化 RGBA 缓冲；上下左右取带均值，避开文字本身）
-    static func sampleBackground(buffer image: CGImage, rect: CGRect) -> NSColor {
-        let w = image.width, h = image.height
-        guard let data = image.dataProvider?.data, let ptr = CFDataGetBytePtr(data) else { return .white }
-        let bytesPerRow = image.bytesPerRow
-        let bpp = image.bitsPerPixel / 8
-        guard bpp >= 3 else { return .white }
-
+    static func sampleBackground(width w: Int, height h: Int,
+                                 bytesPerRow: Int, bytesPerPixel bpp: Int,
+                                 pointer ptr: UnsafePointer<UInt8>, rect: CGRect) -> NSColor {
         func pixel(_ x: Int, _ y: Int) -> (Int, Int, Int) {
             let cx = max(0, min(w - 1, x)), cy = max(0, min(h - 1, y))
             let off = cy * bytesPerRow + cx * bpp
@@ -269,28 +273,37 @@ public enum ScreenTranslator {
     /// 给定字号与最大宽度折行（CoreText 测宽，兼容中英混排）
     static func layout(_ text: String, font: CTFont, fontSize: CGFloat, maxWidth: CGFloat) -> TextLayout {
         let lineHeight = ceil(fontSize * 1.28)
-        func width(_ s: String) -> CGFloat {
-            guard let attr = CFAttributedStringCreate(nil, s as CFString,
-                                                      [kCTFontAttributeName: font] as CFDictionary) else { return 0 }
-            let line = CTLineCreateWithAttributedString(attr)
-            return CGFloat(CTLineGetTypographicBounds(line, nil, nil, nil))
-        }
         var lines: [String] = []
-        var current = ""
-        var currentWidth: CGFloat = 0
-        for ch in text {
-            let s = String(ch)
-            let cw = width(s)
-            if ch == "\n" || (currentWidth + cw > maxWidth && !current.isEmpty) {
-                lines.append(current)
-                current = ch == "\n" ? "" : s
-                currentWidth = ch == "\n" ? 0 : cw
-            } else {
-                current += s
-                currentWidth += cw
-            }
+        let source = text as NSString
+        guard let attributed = CFAttributedStringCreate(nil, text as CFString,
+                                                         [kCTFontAttributeName: font] as CFDictionary) else {
+            return TextLayout(lines: [text], lineHeight: lineHeight)
         }
-        if !current.isEmpty { lines.append(current) }
-        return TextLayout(lines: lines.isEmpty ? [""] : lines, lineHeight: lineHeight)
+        let typesetter = CTTypesetterCreateWithAttributedString(attributed)
+
+        var start = 0
+        while start < source.length {
+            let remaining = NSRange(location: start, length: source.length - start)
+            let newline = source.range(of: "\n", options: [], range: remaining)
+            let segmentEnd = newline.location == NSNotFound ? source.length : newline.location
+
+            if start == segmentEnd {
+                lines.append("")
+            } else {
+                while start < segmentEnd {
+                    let suggested = Int(CTTypesetterSuggestLineBreak(typesetter, start, Double(maxWidth)))
+                    let length = min(max(1, suggested), segmentEnd - start)
+                    lines.append(source.substring(with: NSRange(location: start, length: length)))
+                    start += length
+                }
+            }
+
+            guard newline.location != NSNotFound else { break }
+            start = newline.location + 1
+        }
+        if lines.isEmpty {
+            lines.append("")
+        }
+        return TextLayout(lines: lines, lineHeight: lineHeight)
     }
 }

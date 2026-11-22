@@ -8,6 +8,13 @@ import EventKit
 public final class CalendarService: ObservableObject {
     public static let shared = CalendarService()
 
+    private static let monthTitleFormatter: DateFormatter = {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy年M月"
+        formatter.locale = Locale(identifier: "zh_CN")
+        return formatter
+    }()
+
     private lazy var store = EKEventStore()
 
     @Published public private(set) var isAuthorized = false
@@ -148,9 +155,6 @@ public final class CalendarService: ObservableObject {
 
     /// 月份标题："2026年10月"
     public static func monthTitle(_ date: Date) -> String {
-        let fmt = DateFormatter()
-        fmt.dateFormat = "yyyy年M月"
-        fmt.locale = Locale(identifier: "zh_CN")
-        return fmt.string(from: date)
+        monthTitleFormatter.string(from: date)
     }
 }

@@ -63,7 +63,7 @@ Kitnest Lite 安装说明
 TXT
 
 rm -f "$OUT"
-hdiutil create -volname "$APP_NAME 1.0.0" -srcfolder "$STAGE" -ov -format ULMO "$OUT" >/dev/null
+hdiutil create -volname "$APP_NAME 1.0.0" -fs HFS+ -srcfolder "$STAGE" -ov -format ULFO "$OUT" >/dev/null
 
 # 挂载校验
 VOL=$(hdiutil attach "$OUT" -nobrowse -readonly -plist | python3 -c 'import plistlib, sys; print(next(e["mount-point"] for e in plistlib.loads(sys.stdin.buffer.read())["system-entities"] if "mount-point" in e))')

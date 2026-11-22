@@ -26,9 +26,30 @@ Kitnest（原名 FrsetNext，macOS 菜单栏工具）每次更改的固定收尾
    ```
    验收：输出含「已部署(原子)」且签名 requirement 与 `build.sh` 固定值一致。失败则看 /tmp/frsetnext_build.log 的首个 error。构建期间不要并行编辑源文件（build/ 清理可能打断）。
 
-2. **验证**：按 `frset-verify` skill 的方法截图/探针确认改动生效。
+2. **冷启动闸门（不可跳过）**：
+   ```bash
+   bash /Users/sunyiyang/Desktop/Project/frset-rebuild/tools/launch_smoke.sh 25
+   ```
+   它先 `pkill -9 -x Kitnest` 再冷启动，只认**本次新增**的日志行。验收：输出
+   「✓ 冷启动通过」且能看到 `获得实例锁` + `启动完成`。
 
-3. **git 提交**（格式必须含需求与文件）：
+   **为什么必须有这一步**（2026-11-22 P0 复盘）：那天改动全是 UI/性能，收尾只验证了
+   「改动生效」，没人从零启动过一次。结果单实例检查把卡死/僵尸的旧实例当成「健康实例」，
+   新进程无条件自杀；启动路径上还有两次同步 TCC 查询，tccd 一卡就挂在 `appTools begin`。
+   用户侧看到的是「点了 App 打不开」，而且重装都没用。
+
+   失败时不要重试了事，按输出提示抓栈：
+   ```bash
+   sample $(pgrep -x Kitnest | head -1) 3 -f /tmp/hang.txt
+   ```
+   并读 `docs/00-总览/开发工作流.md` 第六节「启动不了 / 点了没反应 / 卡死」。
+   该文档里还有两条硬纪律：**启动路径禁止同步 TCC/XPC**、**单实例只能用 flock 判定**。
+
+3. **验证**：按 `frset-verify` skill 的方法截图/探针确认改动生效。
+   没有辅助功能权限、点不到菜单栏图标时，用 `defaults write com.sxyq.frsetnext probe.openPanel -bool YES`
+   让 App 启动 4s 后自动开面板（验完 `defaults delete`）。
+
+4. **git 提交**（格式必须含需求与文件）：
    ```bash
    git -C /Users/sunyiyang/Desktop/Project/frset-rebuild add -A apps/FrsetNext/Sources apps/FrsetNext/Resources docs .agent/skills
    git -C /Users/sunyiyang/Desktop/Project/frset-rebuild commit -q -m "<type>(<scope>): <结论>
@@ -40,20 +61,20 @@ Kitnest（原名 FrsetNext，macOS 菜单栏工具）每次更改的固定收尾
    ```
    验收：`git log --oneline -1` 可见；`git status --short` 为空。
 
-4. **重打 DMG**（版本固定 1.0.0，用户分发用）：
+5. **重打 DMG**（版本固定 1.0.0，用户分发用）：
    ```bash
    /Users/sunyiyang/Desktop/Project/frset-rebuild/apps/FrsetNext/package_dmg.sh
    ```
    验收：输出「✓ DMG 已打包」且签名校验通过。
 
-5. **重启 App**（用户要求：更新后本地重启供随时查看）：
+6. **重启 App**（用户要求：更新后本地重启供随时查看）：
    ```bash
    pkill -f "Kitnest.app/Contents/MacOS/Kitnest" 2>/dev/null; sleep 2
    open -a /Applications/Kitnest.app; sleep 5
    open "kitnest://panel?page=home"
    ```
 
-6. **收尾报备**：简述 改动文件 / 对应需求 / DMG 路径，并附验证截图。
+7. **收尾报备**：简述 改动文件 / 对应需求 / DMG 路径，并附验证截图。
 
 ## 发版给用户（在线更新通道，v201）
 

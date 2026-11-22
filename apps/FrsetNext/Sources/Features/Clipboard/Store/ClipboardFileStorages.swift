@@ -293,6 +293,39 @@ public enum ClipboardImageStorage {
         return img
     }
 
+    /// 行缩略图专用：按目标像素边长**降采样解码**，不把原图整张读进内存。
+    ///
+    /// v282（用户：「全方位性能优化……CPU 占用、存储表现」）：
+    /// `image(relativePath:)` 是给预览窗要原图用的，但剪贴板列表每行只画 50pt
+    /// （1x 屏也就 50px、2x 100px）。原来的行卡直接走同一个入口，等于为了一行
+    /// 50pt 的卡片把 2940×1912 的整图（≈22MB 位图）解码出来——一屏 20 行就是
+    /// 400MB 级别的瞬时分配，HEIC 还要走一次完整解码流水线，滚动必然掉帧。
+    ///
+    /// 这里用 ImageIO 的 thumbnail API：解码器只解到目标尺寸（`kCGImageSourceThumbnailMaxPixelSize`），
+    /// 顺带处理 EXIF 方向。缓存按「路径@边长」分桶，换缩略图档位不会互相顶掉。
+    public static func thumbnail(relativePath: String?, maxPixel: CGFloat) -> NSImage? {
+        guard let path = relativePath, !path.isEmpty, maxPixel > 0 else { return nil }
+        let px = max(32, Int((maxPixel * 2).rounded()))      // 2x 上限，够视网膜屏
+        let key = "\(path)@\(px)" as NSString
+        if let hit = imageCache.object(forKey: key) { return hit }
+        guard let source = CGImageSourceCreateWithURL(
+            ClipboardFileStore.url(forRelativePath: path) as CFURL, nil) else {
+            return image(relativePath: path)
+        }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceShouldCacheImmediately: true,
+            kCGImageSourceThumbnailMaxPixelSize: px
+        ]
+        guard let cg = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
+            return image(relativePath: path)
+        }
+        let img = NSImage(cgImage: cg, size: NSSize(width: cg.width, height: cg.height))
+        imageCache.setObject(img, forKey: key, cost: cg.width * cg.height * 4)
+        return img
+    }
+
     // MARK: 内部
 
     private static func fileExtension(for data: Data) -> String {

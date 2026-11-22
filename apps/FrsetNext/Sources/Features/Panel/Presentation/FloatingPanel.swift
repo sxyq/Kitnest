@@ -96,10 +96,23 @@ extension FloatingPanel {
     }
 
     /// 「个性化 → 背景材质」即时切换（v166.5：统一走 LiquidGlass，保留 solid 语义）
+    ///
+    /// v282（用户：「打开动画非常卡顿不跟手」）：只在材质签名真的变了才重套。
+    /// 这个方法被 `syncPanelFrameToPersonalization()` 在**每次 show 前**调用，
+    /// 而给 NSVisualEffectView 重新赋 material/blendingMode/state 会让 AppKit
+    /// 作废整窗的玻璃采样——哪怕三个值一个都没变。那笔重采样正好压在点击路径上，
+    /// 是首屏「顿一下才出来」的主要来源之一（实测 show 里 128ms 的布局大头在这）。
+    private static var lastMaterialSignature: [ObjectIdentifier: String] = [:]
+
     public func applyPersonalizedMaterial() {
         guard let content = contentView?.subviews.first ?? contentView else { return }
+        let personalization = Personalization.shared
+        let signature = "\(personalization.material.rawValue)|\(personalization.cornerRadius)|\(LiquidGlass.reduceTransparency)"
+        // 按窗口实例记账：面板重建（prepare 重新造窗）时签名不会误命中旧窗口。
+        if Self.lastMaterialSignature[ObjectIdentifier(self)] == signature { return }
+        Self.lastMaterialSignature[ObjectIdentifier(self)] = signature
         LiquidGlass.reapplyStyle(on: content,
-                                 cornerRadius: Personalization.shared.cornerRadius,
+                                 cornerRadius: personalization.cornerRadius,
                                  tint: Self.glassTint)
     }
 }

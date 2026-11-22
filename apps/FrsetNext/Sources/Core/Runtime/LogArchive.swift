@@ -39,6 +39,8 @@ public final class LogArchive {
     private var watchdog: DispatchSourceTimer?
     private var statusTimer: DispatchSourceTimer?
     private var cleanupTimer: DispatchSourceTimer?
+    /// v282：本轮卡死已经抓过几次栈（抓到就给下一次留证据，不必每个判断周期都抓）
+    private var hangSamples = 0
     private var runLoopObserver: CFRunLoopObserver?
     private var started = false
     /// 启动时刻：前 10s 是预热期——bootstrap 在主线程同步跑模块启动，
@@ -184,13 +186,85 @@ public final class LogArchive {
                 appendRaw(level: "ERROR", tag: "HANG",
                           message: String(format: "主线程阻塞 %.1fs（footprint %.0fMB）最近操作：%@",
                                           stalled, mem, crumbs.isEmpty ? "（无）" : crumbs))
+                // v282（2026-11-22 用户：「app卡死」「甚至无法打开了」）：
+                // 卡死期间写一个标记文件——下次启动时新实例据此判断「旧的那个已经不省人事」，
+                // 接管菜单栏而不是直接退出。没有这个标记，卡死实例会让所有重启都变成
+                // 「已有实例在运行 → 退出」，用户看到的就是「打不开」。
+                writeHangMarker()
+                // 卡死栈：只留面包屑定不到具体帧（17:23 那次阻塞 260s+ 就是这么无解的）。
+                // 看门狗在后台线程，可以对**自己**跑 sample：主线程调用栈落到 logs/hang-*.txt。
+                // 每轮最多抓 2 次，避免长时间卡死刷出一堆几 MB 的文件。
+                if hangSamples < 2 {
+                    hangSamples += 1
+                    captureHangStack(index: hangSamples, stalled: stalled)
+                }
             }
         } else if let start = startedAt {
             beatLock.lock(); hangStartedAt = nil; beatLock.unlock()
+            hangSamples = 0
+            // 恢复了就把标记撤掉，别让下一次正常启动误判成「旧实例卡死」。
+            clearHangMarker()
             let total = CFAbsoluteTimeGetCurrent() - start
             appendRaw(level: "WARN", tag: "HANG",
                       message: String(format: "主线程已恢复（累计阻塞 %.1fs）", total))
         }
+    }
+
+    // MARK: - 卡死标记（跨进程）
+
+    /// 卡死标记文件：存在 = 有实例在最近 2 分钟内报告过主线程阻塞。
+    /// 新实例启动时读它 + 校验修改时间，决定「接管」还是「礼让」。
+    public static var hangMarkerURL: URL {
+        AppDirectories.sub("logs").appendingPathComponent("main-thread.hang")
+    }
+
+    /// 标记是否新鲜（默认 120s）。卡死实例被强杀后标记会残留，
+    /// 超过窗口期就当历史痕迹忽略。
+    public static func freshHangMarker(within seconds: TimeInterval = 120) -> Bool {
+        let url = hangMarkerURL
+        guard let attrs = try? FileManager.default.attributesOfItem(atPath: url.path),
+              let modified = attrs[.modificationDate] as? Date else { return false }
+        return Date().timeIntervalSince(modified) <= seconds
+    }
+
+    private func writeHangMarker() {
+        let url = Self.hangMarkerURL
+        let text = "pid=\(ProcessInfo.processInfo.processIdentifier)\nat=\(Date())\n"
+        try? text.write(to: url, atomically: true, encoding: .utf8)
+    }
+
+    private func clearHangMarker() {
+        try? FileManager.default.removeItem(at: Self.hangMarkerURL)
+    }
+
+    /// 抓当前进程的主线程栈（自己 sample 自己，不需要额外授权）。
+    /// 只落文件、不解析——崩溃/卡死复盘时用 Xcode 或文本直接看。
+    private func captureHangStack(index: Int, stalled: TimeInterval) {
+        let name = String(format: "hang-%@-%d.txt", Self.stamp(), index)
+        let url = directory.appendingPathComponent(name)
+        let pid = ProcessInfo.processInfo.processIdentifier
+        DispatchQueue.global(qos: .utility).async {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/sample")
+            // sample <pid> 1 -file <path>：采 1 秒，够覆盖卡死帧
+            task.arguments = ["\(pid)", "1", "-file", url.path]
+            task.standardOutput = FileHandle.nullDevice
+            task.standardError = FileHandle.nullDevice
+            do {
+                try task.run()
+                task.waitUntilExit()
+                self.appendRaw(level: "ERROR", tag: "HANG",
+                               message: String(format: "卡死栈已存 logs/%@（阻塞 %.1fs）", name, stalled))
+            } catch {
+                self.appendRaw(level: "WARN", tag: "HANG", message: "卡死栈抓取失败：\(error.localizedDescription)")
+            }
+        }
+    }
+
+    private static func stamp() -> String {
+        let f = DateFormatter()
+        f.dateFormat = "HHmmss"
+        return f.string(from: Date())
     }
 
     // MARK: 状态快照

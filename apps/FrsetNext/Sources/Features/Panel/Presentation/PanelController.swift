@@ -33,9 +33,17 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     private var lastWarmupAt: TimeInterval = 0
     /// 预热前的正常位置（取消预热时还原）
     private var warmupOrigin: NSPoint = .zero
-    /// v280：连击去抖——90ms 内的重复开合直接丢弃（人手两次点击间隔通常 ≥150ms，
-    /// 但连击会打出「刚起一腿就掉头」的抽动）
-    private var lastToggleAt: TimeInterval = 0
+    /// v282（用户：「反复点按会抽搐」「点了没反应」）：面板**想不想**可见，是开合的唯一真值。
+    ///
+    /// 以前 toggle 读的是 `panel.isVisible`，而它有三种「被人动过」的状态：
+    /// 预热把窗口 orderFront 到屏外（isVisible=true 但没打开）、神灯把窗口停到屏外抓快照
+    /// （同）、收起动画跑完前 orderOut 已生效（isVisible=false 但正在收）。读它决定方向，
+    /// 就会出现「该开却收」「该收却开」——抽搐与点了没反应都从这里长出来。
+    /// 现在方向只看这个意图位，窗口的物理状态只用于决定**怎么**播这一腿。
+    private var intendedVisible = false
+    /// v282：收起途中到达的「收起后要做的事」（截图等）——以前 `guard !isHiding else { return }`
+    /// 直接把 completion 丢了，调用方永远等不到，表现就是「点了没反应」。
+    private var pendingHideCompletions: [() -> Void] = []
 
     private override init() {
         super.init()
@@ -197,6 +205,9 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     /// 预热期间窗口是「已上屏但停在屏幕外」：对外必须当成未打开，
     /// 否则 toggle 会判成 hide、show 会走「已在屏上」分支而不挪回原位——
     /// 连点时的抽搐（面板闪一下/从错误位置长出）就是这么来的。
+    ///
+    /// v282：只负责把窗口搬回原位并下屏，**不改** intendedVisible——
+    /// 意图由调用方（show/hide/toggle）决定，这里替它改就会互相打架。
     private func cancelWarmup() {
         guard warmupOnScreen else { return }
         warmupToken += 1
@@ -215,17 +226,11 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
 
     /// 锚点开合（状态栏主图标点击）：展开时停到图标正下方并显示三角指示器
     public func toggle(atAnchor anchorRect: NSRect?) {
-        let now = ProcessInfo.processInfo.systemUptime
-        if now - lastToggleAt < 0.09 { return }
-        lastToggleAt = now
-        // v247：收起动画进行中再点 → 直接掉头重开。
-        // 原来这里会走 hide()，而 hide() 被 isHiding 挡住直接 return，
-        // 用户连点时第二下、第三下全被吞掉——这就是「连续点击鬼畜」的来源。
-        if isHiding || warmupOnScreen {
-            show(atAnchor: anchorRect)
-            return
-        }
-        if panel?.isVisible == true { hide() } else { show(atAnchor: anchorRect) }
+        // v282：**去掉 90ms 时间去抖**。去抖等于「这段时间内的点击都不算」，
+        // 用户感受就是点了没反应（v280 引入后立刻被反馈）。抽搐的真因是方向读错：
+        // 预热/停靠/收起中的窗口 isVisible 与「是否打开」不一致。现在方向只看意图位，
+        // 连点只会干净地掉头（神灯自己支持反向播），不会再逐帧抽搐。
+        if intendedVisible { hide() } else { show(atAnchor: anchorRect) }
     }
 
     public func show() {
@@ -239,8 +244,17 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     /// ③ 动画：presentation.anchored 驱动根视图顶部三角 + scaleEffect(anchor:.top)
     ///    「从图标长出来」，与监测独立窗（e466a3c）同款弹簧。
     public func show(atAnchor anchorRect: NSRect?) {
+        // v282：先在意图位上表态，后面的所有分支都按「要打开」走。
+        intendedVisible = true
         prepare()
         cancelWarmup()
+        // v282：收起途中又要求打开，上一轮的「收起后动作」永远不会被 hide 收尾触发
+        // （这一腿已经把 isHiding 清了）。当场放掉，别让截图这类动作卡在队列里。
+        if !pendingHideCompletions.isEmpty {
+            let pending = pendingHideCompletions
+            pendingHideCompletions.removeAll()
+            for work in pending { work() }
+        }
         guard let p = panel else { return }
         // v84（2026-10-20）：面板打开埋点（主图标 / 快捷键 / 深链统一收口）
         StatisticsManager.shared.record(.panelOpen)
@@ -368,12 +382,15 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         p.contentView?.layer?.removeAllAnimations()
         p.contentView?.layer?.transform = CATransform3DIdentity
         p.contentView?.layer?.opacity = 1      // 快照要抓完整不透明的面板
-        // v280（用户：「反复点按会抽搐」）：这里恢复神灯自带的 layout+display+flush。
-        // v279 曾为省一次玻璃重采样把它跳过，但连点时内容层刚被还原成不透明，
-        // 同一轮 runloop 尚未提交到窗口服务器，抓到的帧可能过期——表现出来就是抽一下。
-        // 省下的几十毫秒不值得用画面稳定性换。
+        // v282（用户：「打开动画非常卡顿不跟手」）：不再让神灯重做一次整窗 layout+display。
+        // v280 之所以把 skipInitialDisplay 去掉，是因为「同一轮 runloop 里刚还原的
+        // opacity 还没提交到窗口服务器，抓到的帧是空的」。真正要的只有**一次提交**：
+        // 上面已经 layoutSubtreeIfNeeded + displayIfNeeded，这里显式 flush 一次即可，
+        // 不需要再让 AppKit 重排一遍并重采样玻璃（那是点击路径上最大的一笔）。
+        CATransaction.flush()
         let usedGenie = GenieWarp.shared.playIn(window: p, slot: slot, duration: duration,
-                                                destination: origin, completion: finishShow)
+                                                destination: origin, skipInitialDisplay: true,
+                                                completion: finishShow)
         if !usedGenie {
             // 没走成神灯：先把窗口从屏外挪回原位再显示，否则会看不见面板
             if p.frame.origin != origin { p.setFrameOrigin(origin) }
@@ -422,8 +439,14 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
 
     /// 截图等动作在本轮面板真实隐藏后执行；已经隐藏则立即执行。
     func hide(completion: (() -> Void)?) {
+        // v282：收起同样先表态——这样收起途中再点图标，toggle 会正确判成「要打开」。
+        intendedVisible = false
         if warmupOnScreen { cancelWarmup(); completion?(); return }
         guard let p = panel, p.isVisible else { completion?(); return }
+        // v282（用户：「点了没反应」）：以前这里 `guard !isHiding else { return }` 直接把
+        // completion 丢了。截图/钉图都是「先收面板、收完再执行」，收起动画正好在跑时
+        // 再点一次截图，回调永不触发 = 点了没反应。现在排队，收尾时统一执行。
+        if let completion { pendingHideCompletions.append(completion) }
         guard !isHiding else { return }
         isHiding = true
         hideGeneration += 1
@@ -437,13 +460,13 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         // 原来这里要先等 dismiss 回调（最长 0.6s 兜底），展开动画照跑，
         // 用户看到的就是「点了没反应，然后突然抽走」。
         if GenieWarp.isOpening {
-            performHide(p, completion: completion)
+            performHide(p)
             return
         }
         // 原作行为（12 号 P8 waitsForPreviewClose）：面板收起前先等预览 popover 关闭
         MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .panelCollapse) { [weak self] in
             guard let self, self.hideGeneration == gen else { return }
-            self.performHide(p, completion: completion)
+            self.performHide(p)
         }
         // 兜底：预览窗收回动画被系统跳过 / 完成回调丢失时，0.6s 后强制进第二段
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { [weak self, weak p] in
@@ -454,7 +477,7 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
             // 抓到的是透明窗，播出来就是「动画中间整块消失一下」。
             guard self.hideGeneration == gen else { return }
             Log.warn("Panel", "收起超时（预览未关完），强制执行")
-            self.performHide(p, completion: completion)
+            self.performHide(p)
         }
     }
 
@@ -466,7 +489,7 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     /// 「CATransaction completion 不执行 → 窗口永远留在屏上」。
     private var hideGeneration = 0
 
-    private func performHide(_ p: NSWindow, completion: (() -> Void)?) {
+    private func performHide(_ p: NSWindow) {
         // v244：展开的漏斗还没跑完就要收 → 不 cancel（cancel 会把 alpha 拉回 1，
         // 面板先整块闪一下再抽走）。改成让 playOut 自己掉头，画面停在当前帧继续收。
         hideGeneration += 1
@@ -480,7 +503,10 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
             p.orderOut(nil)
             MonitorSampler.shared.setHomePanelActive(false)
             self.isHiding = false
-            completion?()
+            // v282：把这一轮所有「收起后要做的事」一次性放掉（含收起途中排队的）。
+            let pending = self.pendingHideCompletions
+            self.pendingHideCompletions.removeAll()
+            for work in pending { work() }
         }
         // v237：收起也走神灯——面板吸回同一个图标格子。
         // 与展开共用 presentation.anchorRect，保证「从哪来、回哪去」是同一个点。

@@ -10,12 +10,11 @@ struct SettingsSidebarSection: Identifiable, Hashable {
 
 /// 侧栏三级：一级目录 → 二级小节 → 三级页面；选中、搜索与旧链接仍以页面为单位。
 enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
-    case general, haptics, appearance, entryInteraction, clipboard, capture, searchAI, tools, monitor, data
+    case general, appearance, entryInteraction, clipboard, capture, searchAI, tools, monitor, data
     var id: String { rawValue }
     var title: String {
         switch self {
         case .general: return "常规"
-        case .haptics: return "触觉反馈"
         case .appearance: return "主题外观"
         case .entryInteraction: return "入口与交互"
         case .clipboard: return "剪贴板"
@@ -29,7 +28,6 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
     var systemImage: String {
         switch self {
         case .general: return "gearshape"
-        case .haptics: return "hand.tap"
         case .appearance: return "paintpalette"
         case .entryInteraction: return "rectangle.3.group"
         case .clipboard: return "doc.on.clipboard"
@@ -42,8 +40,10 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
     }
     var pages: [SettingsPage] {
         switch self {
-        case .general: return [.generalStart, .generalNotifications, .permissions]
-        case .haptics: return [.haptics]
+        // v282：触觉反馈原是一级目录，但只有一页——一级目录只有一页时，
+        // 侧栏会出现「点开目录 → 只有一个子项」的空壳层级。并进常规的独立小节，
+        // 层级深度不变，少一次废点击。
+        case .general: return [.generalStart, .generalNotifications, .permissions, .haptics]
         case .appearance: return [.generalPersonal, .appearanceText, .generalWindows]
         case .entryInteraction: return [.generalPanel, .panelBackground, .generalMenuBar, .menuBarArrangement,
                                         .shortcuts, .floatingBall, .clipboardFloating]
@@ -55,9 +55,26 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
         case .data: return [.configTransfer, .diagnostics, .about]
         }
     }
-    /// 三级分组：只给条目多的目录拆小节，避免两三条也硬套一层。
+    /// 二级小节：**每个**一级目录都拆——不再有「裸页面」目录，
+    /// 侧栏到处都是「一级标题 → 二级标题 → 三级页面」的同一套读法。
     var sections: [SettingsSidebarSection] {
         switch self {
+        case .general:
+            return [
+                .init(id: "general.startup", title: "启动与通知",
+                      pages: [.generalStart, .generalNotifications]),
+                .init(id: "general.permissions", title: "权限",
+                      pages: [.permissions]),
+                .init(id: "general.haptics", title: "触觉反馈",
+                      pages: [.haptics]),
+            ]
+        case .appearance:
+            return [
+                .init(id: "appearance.theme", title: "主题与文字",
+                      pages: [.generalPersonal, .appearanceText]),
+                .init(id: "appearance.window", title: "窗口与动效",
+                      pages: [.generalWindows]),
+            ]
         case .entryInteraction:
             return [
                 .init(id: "entryInteraction.panel", title: "主面板",
@@ -67,12 +84,12 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
                 .init(id: "entryInteraction.floating", title: "悬浮窗",
                       pages: [.floatingBall, .clipboardFloating]),
             ]
-        case .monitor:
+        case .clipboard:
             return [
-                .init(id: "monitor.window", title: "监测窗口",
-                      pages: [.monitorSettings]),
-                .init(id: "monitor.menuBar", title: "菜单栏部件",
-                      pages: [.monitorWidgets]),
+                .init(id: "clipboard.capture", title: "捕获与隐私",
+                      pages: [.clipboardCapture]),
+                .init(id: "clipboard.history", title: "历史与外观",
+                      pages: [.clipboardHistory, .clipboardAppearance]),
             ]
         case .capture:
             return [
@@ -85,8 +102,34 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
                 .init(id: "capture.workflow", title: "截图工作流",
                       pages: [.capture(.workflow)]),
             ]
-        default:
-            return []
+        case .searchAI:
+            return [
+                .init(id: "searchAI.search", title: "搜索",
+                      pages: [.search]),
+                .init(id: "searchAI.ai", title: "AI 服务",
+                      pages: [.ai]),
+            ]
+        case .tools:
+            return [
+                .init(id: "tools.collection", title: "工具集合",
+                      pages: [.tools, .aiText]),
+                .init(id: "tools.calendar", title: "日历",
+                      pages: [.calendar]),
+            ]
+        case .monitor:
+            return [
+                .init(id: "monitor.window", title: "监测窗口",
+                      pages: [.monitorSettings]),
+                .init(id: "monitor.menuBar", title: "菜单栏部件",
+                      pages: [.monitorWidgets]),
+            ]
+        case .data:
+            return [
+                .init(id: "data.config", title: "配置与诊断",
+                      pages: [.configTransfer, .diagnostics]),
+                .init(id: "data.about", title: "关于与更新",
+                      pages: [.about]),
+            ]
         }
     }
 

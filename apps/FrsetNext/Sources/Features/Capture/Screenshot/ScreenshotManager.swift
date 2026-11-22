@@ -539,7 +539,13 @@ public final class ScreenshotManager: ObservableObject {
     @Published public var isRecognizing = false
     @Published public var statusMessage: String?
     /// 是否已获得屏幕录制权限（供 UI 显示提示条）
-    @Published public private(set) var hasPermission: Bool = CGPreflightScreenCaptureAccess()
+    ///
+    /// v283（用户：「点了之后它无法启动」）：这里原来直接拿 `CGPreflightScreenCaptureAccess()`
+    /// 当初始值——那是**同步 TCC 查询**，在 ScreenshotManager 被构造的那一刻（bootstrap
+    /// 的 appTools 阶段）就会去问 tccd。tccd 一旦卡住（本机 17:23 实卡过 260s+），
+    /// 主线程连启动流程一起挂死：用户点图标什么都不发生，日志停在「appTools begin」。
+    /// 改成先 false，init 里丢后台查，查完回主线程发布。
+    @Published public private(set) var hasPermission: Bool = false
     /// 是否已完成一次「权威探测」（真实抓屏通道）
     private var permissionProbed = false
     /// 探测进行中（防重入）
@@ -579,7 +585,16 @@ public final class ScreenshotManager: ObservableObject {
         // v30（2026-10-18）：启动即打权限实况——TCC 授权按 code identity 校验，
         // ad-hoc 签名（cdhash）在重新构建后失效、证书签名（FrsetDev）跨构建保留。
         // 这行日志是"授权了却又提示没授权"类问题的第一判据。
-        Log.info("Capture", "屏幕录制权限启动实况：\(CGPreflightScreenCaptureAccess() ? "已获得" : "未获得")（bundle=\(Bundle.main.bundleIdentifier ?? "?")）")
+        //
+        // v283（用户：「点了之后它无法启动」）：**启动路径上不允许有同步 TCC 调用**。
+        // 这行原来直接在主线程调 CGPreflightScreenCaptureAccess()，和上面的属性初始值
+        // 一共两次同步 round-trip；tccd 卡住时会把启动整个挂死（日志停在 appTools begin）。
+        // 现在丢到后台查，查完回主线程更新状态——启动流程不再等 TCC。
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let granted = CGPreflightScreenCaptureAccess()
+            Log.info("Capture", "屏幕录制权限启动实况：\(granted ? "已获得" : "未获得")（bundle=\(Bundle.main.bundleIdentifier ?? "?")）")
+            DispatchQueue.main.async { self?.hasPermission = granted }
+        }
         // v77（2026-10-19 全盘排查）：启动不再用 SCK 探测。
         // `SCShareableContent` 属于屏幕录制 TCC 授权 API——放在 init 里会导致
         // **每次启动都请求一次权限**（用户实测「一直重复请求」）。改为只在用户

@@ -709,7 +709,10 @@ public struct ClipboardThumbnailView: View {
 
     private var image: NSImage? {
         if isSettingsPreview { return item.type == .image ? previewImage : nil }
-        return ClipboardImageStorage.image(relativePath: item.thumbnailPath ?? item.imagePath)
+        // v282：行卡只画 size×size，走降采样解码（见 ClipboardImageStorage.thumbnail）。
+        // 原来这里借道原图入口，一屏十几行会把整张 2940×1912 的位图都解出来。
+        return ClipboardImageStorage.thumbnail(relativePath: item.thumbnailPath ?? item.imagePath,
+                                               maxPixel: size)
     }
 
     // v137（性能审计 #6）：行卡文件图标缓存——NSWorkspace.icon(forFile:) 每次 body
