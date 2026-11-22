@@ -25,6 +25,12 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     private let presentation = PanelPresentationState()
     /// 启动空闲预热是否已排期（避免重复）
     private var warmupScheduled = false
+    /// v279：预热代次——预热期间用户真开了面板就作废收尾，别再 orderOut 把面板藏掉
+    private var warmupToken = 0
+    /// 预热已经把面板 orderFront 到屏外（此时 isVisible 已经是 true，不能再用它判断）
+    private var warmupOnScreen = false
+    /// 上次预热完成时刻：启动预热与 prepare 的 2s 定时器会各触发一次，20s 内只做一次
+    private var lastWarmupAt: TimeInterval = 0
 
     private override init() {
         super.init()
@@ -121,9 +127,13 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         //   预热关 → 存活 8 / 崩 0
         // 代价只是首次打开面板慢约 180ms，换掉 25% 的启动崩溃，值得。
         //
-        // 需要复测预热时可以 `defaults write com.sxyq.frsetnext probe.warmup -bool YES`。
-        if !UserDefaults.standard.bool(forKey: "probe.warmup") {
-            Log.info("Panel", "跳过预热（v173：预热会触发启动崩溃，默认关闭）")
+        // v279（2026-11-22 用户：「点开动画非常卡顿不跟手」）：重启预热，但换掉 v173
+        // 的崩溃姿势——不再把窗口设成 alpha=0（那会让窗口脱离正常显示周期，AppKit 在
+        // _postWindowNeedsUpdateConstraints 抛异常），改成「停到屏幕上沿之外、alpha 保持 1」，
+        // 窗口真实参与显示周期；GenieWarp 抓图前的停靠位已用同一姿势跑了六周无崩溃。
+        // 关掉用 `defaults write com.sxyq.frsetnext probe.warmup -bool NO`。
+        if UserDefaults.standard.object(forKey: "probe.warmup") as? Bool == false {
+            Log.info("Panel", "跳过预热（probe.warmup=NO）")
             return
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
@@ -131,12 +141,26 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         }
     }
 
+    /// 启动空闲预热入口：先建面板（首次 prepare 可能几百 ms），再离屏布局一次。
+    /// 由 AppBootstrap 在启动 3s 后调用；用户此刻通常还没点图标。
+    public func prewarmAtLaunch() {
+        if panel == nil { prepare() }
+        guard let p = panel, !p.isVisible else { return }
+        warmupPanel()
+    }
+
     private func warmupPanel() {
-        guard let p = panel, !p.isVisible, p.alphaValue == 1 else { return }
+        guard let p = panel, !p.isVisible else { return }
         let t0 = ProcessInfo.processInfo.systemUptime
-        let oldAlpha = p.alphaValue
-        p.alphaValue = 0                 // 离屏不可见：不留白闪
+        if t0 - lastWarmupAt < 20 { return }
+        lastWarmupAt = t0
+        warmupToken += 1
+        let token = warmupToken
+        // 停到屏幕上沿之外：完全不可见，但不是 alpha=0，窗口照常走显示周期。
+        let origin = p.frame.origin
+        p.setFrameOrigin(parkOrigin(for: p, origin: origin))
         p.orderFrontRegardless()         // 只上屏、不激活 app、不抢 key
+        warmupOnScreen = true
 
         // 关键：presentation.visible=false 时根视图是 opacity 0 / scale 0.93，
         // SwiftUI 会跳过不可见子树的布局（实测预热只花 45ms，等于没热）。
@@ -153,11 +177,12 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         //
         // 改成两段式：先让内容真布局一次，0.12s 后（下一轮 runloop）再收尾。
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self] in
-            guard let self, let p = self.panel else { return }
+            guard let self, let p = self.panel, self.warmupToken == token, self.warmupOnScreen else { return }
+            self.warmupOnScreen = false
             self.presentation.visible = false
             p.contentView?.layoutSubtreeIfNeeded()
             p.orderOut(nil)
-            p.alphaValue = oldAlpha
+            p.setFrameOrigin(origin)
             let ms = (ProcessInfo.processInfo.systemUptime - t0) * 1000
             Log.info("Panel", String(format: "预热完成 %.0fms", ms))
         }
@@ -217,6 +242,8 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
             presentation.anchored = false
         }
         let t0 = ProcessInfo.processInfo.systemUptime
+        warmupToken += 1                 // 作废在途预热收尾，别把刚打开的面板藏掉
+        warmupOnScreen = false
         hideGeneration += 1                 // 重开使旧预览完成回调与收尾失效。
         isHiding = false
         // v244：不再在开面板前 cancel 在途动画——那会把真窗 alpha 拉回 1，
@@ -312,8 +339,10 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         p.contentView?.layer?.removeAllAnimations()
         p.contentView?.layer?.transform = CATransform3DIdentity
         p.contentView?.layer?.opacity = 1      // 快照要抓完整不透明的面板
+        // v279：show 路径刚做完透明首帧布局，神灯不必再整窗重绘一遍（省一次玻璃重采样）
         let usedGenie = GenieWarp.shared.playIn(window: p, slot: slot, duration: duration,
-                                                destination: origin, completion: finishShow)
+                                                destination: origin, skipInitialDisplay: true,
+                                                completion: finishShow)
         if !usedGenie {
             // 没走成神灯：先把窗口从屏外挪回原位再显示，否则会看不见面板
             if p.frame.origin != origin { p.setFrameOrigin(origin) }

@@ -253,6 +253,13 @@ if [ -f "$APP/Contents/Frameworks/libonnxruntime.dylib" ]; then
     && echo "  ONNX Runtime 签名 ✓" || echo "  ⚠ ONNX Runtime 签名失败"
 fi
 
+# v279：发布构建删本地符号（12.3 万条 / 字符串表 25.7MB，占主二进制六成）。
+# 必须在签名前做，否则 strip 会让签名失效。保留全局/动态符号，运行与崩溃符号化不受影响。
+if [ "${KITNEST_KEEP_SYMBOLS:-0}" != "1" ]; then
+  xcrun strip -u -r "$APP/Contents/MacOS/$APP_NAME" 2>&1 | tail -1
+  echo "  strip: $(du -h "$APP/Contents/MacOS/$APP_NAME" | cut -f1)"
+fi
+
 echo "== 签名 =="
 # v30/v32（2026-10-18）：主程序始终使用固定 FrsetDev 身份。旧 TCC 记录在身份迁移
 # 后需重新授权一次；之后构建不得改签名身份。

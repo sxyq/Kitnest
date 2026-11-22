@@ -239,9 +239,11 @@ final class GenieWarp {
     @discardableResult
     func playIn(window: NSWindow, slot: NSRect, duration: TimeInterval,
                 destination: NSPoint? = nil,
+                skipInitialDisplay: Bool = false,
                 completion: (() -> Void)? = nil) -> Bool {
         play(window: window, slot: slot, opening: true, duration: duration,
-             destination: destination, completion: completion)
+             destination: destination, skipInitialDisplay: skipInitialDisplay,
+             completion: completion)
     }
 
     @discardableResult
@@ -271,6 +273,7 @@ final class GenieWarp {
 
     private func play(window: NSWindow, slot: NSRect, opening: Bool,
                       duration: TimeInterval, destination: NSPoint? = nil,
+                      skipInitialDisplay: Bool = false,
                       completion: (() -> Void)?) -> Bool {
         // 总开关：默认开。缺省也当开。
         if !Self.isEnabled { return false }
@@ -292,8 +295,14 @@ final class GenieWarp {
         // v246（实测）：调用方会把 contentView.layer.opacity 从 0 还原成 1 再抓图，
         // 但这一步在同一轮 runloop 里还没提交到窗口服务器——直接抓会拿到**整张单色空白帧**，
         // 于是整条漏斗动画都是纯色块。抓之前必须走一次显示 + 提交。
-        window.contentView?.layoutSubtreeIfNeeded()
-        window.displayIfNeeded()
+        // v279（用户：「点开动画卡顿不跟手」）：开面板的调用方刚刚在同一轮
+        // runloop 里做过 layout + display（PanelController.show 的透明首帧布局），
+        // 这里再整窗重绘一次等于白送一次玻璃重采样，正好压在点击路径上。
+        // 只有不经 show 的路径（如反向播放兜底）才需要自己补这一步。
+        if !skipInitialDisplay {
+            window.contentView?.layoutSubtreeIfNeeded()
+            window.displayIfNeeded()
+        }
         CATransaction.flush()
 
         var shot = Self.snapshot(of: window)
@@ -652,7 +661,7 @@ final class GenieWarp {
             rect: .null,
             option: .optionIncludingWindow,
             windowID: CGWindowID(window.windowNumber),
-            imageOption: [.boundsIgnoreFraming, .bestResolution]) else { return nil }
+            imageOption: [.boundsIgnoreFraming, .nominalResolution]) else { return nil }
 
         let w = raw.width, h = raw.height
         guard w > 0, h > 0 else { return nil }
