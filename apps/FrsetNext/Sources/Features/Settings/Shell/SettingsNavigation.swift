@@ -80,8 +80,10 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
                       pages: [.capture(.capture), .ocr, .watermark, .captureActions]),
                 .init(id: "capture.pin", title: "钉图与图帘",
                       pages: [.capture(.pin), .capture(.curtain)]),
-                .init(id: "capture.record", title: "录制与自动化",
-                      pages: [.capture(.recording), .capture(.workflow)]),
+                .init(id: "capture.record", title: "录屏",
+                      pages: [.capture(.recording)]),
+                .init(id: "capture.workflow", title: "截图工作流",
+                      pages: [.capture(.workflow)]),
             ]
         default:
             return []
