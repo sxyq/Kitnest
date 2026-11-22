@@ -9866,10 +9866,10 @@ Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,
 Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,var,monthTitle,309,0,1
 Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,func,isFestivalDay,315,7,4
 Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,func,shift,323,5,2
-Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,func,reload,329,16,5
-Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarDay,func,shortName,352,3,3
-Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarDay,var,lunarDisplay,356,0,1
-Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,Notification,let,calendarDidSelectDay,369,0,1
+Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,func,reload,329,11,4
+Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarDay,func,shortName,347,3,3
+Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarDay,var,lunarDisplay,351,0,1
+Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,Notification,let,calendarDidSelectDay,364,0,1
 Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,let,shared,9,0,1
 Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,let,monthTitleFormatter,11,0,1
 Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,var,store,18,0,1
@@ -9881,8 +9881,8 @@ Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,func,req
 Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,func,update,64,6,2
 Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,func,events,73,12,2
 Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,func,calendar,88,7,1
-Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,func,monthDays,98,57,16
-Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,func,monthTitle,157,3,1
+Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,func,monthDays,97,75,21
+Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,func,monthTitle,174,3,1
 Toolbox,Features/Toolbox/Calendar/HolidayManager.swift,HolidayManager,let,coveredYears,11,0,1
 Toolbox,Features/Toolbox/Calendar/HolidayManager.swift,Range,let,name,14,0,1
 Toolbox,Features/Toolbox/Calendar/HolidayManager.swift,Range,let,startMMdd,15,0,1

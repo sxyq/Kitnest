@@ -93,9 +93,9 @@ public final class CalendarService: ObservableObject {
         return calendar
     }
 
-    /// 生成月视图网格（固定 6 行 × 7 列 = 42 天）
-    /// - Parameter base: 目标月份内的任意日期
-    public func monthDays(for base: Date, firstWeekday: Int? = nil,
+    /// 生成覆盖 base 到 through 的月网格；未提供 through 时返回单个 42 天网格。
+    public func monthDays(for base: Date, through end: Date? = nil,
+                          firstWeekday: Int? = nil,
                           previewEvents: [CalendarEvent]? = nil,
                           showLunar: Bool? = nil,
                           today: Date = Date()) -> [CalendarDay] {
@@ -108,15 +108,32 @@ public final class CalendarService: ObservableObject {
         guard let gridStart = calendar.date(byAdding: .day, value: -offset, to: firstOfMonth) else { return [] }
 
         let showLunar = showLunar ?? Preferences.shared.calendarShowLunar
-        // 一次性查询整块网格（42 天）的事件并按天分桶，避免逐日最多 31 次 EventKit 查询
-        let gridEnd = calendar.date(byAdding: .day, value: 42, to: gridStart) ?? gridStart
+        guard let firstGridEnd = calendar.date(byAdding: .day, value: 42, to: gridStart) else { return [] }
+        let finalGridStart: Date
+        if let end, end >= firstGridEnd {
+            guard let endMonthStart = calendar.date(from: calendar.dateComponents([.year, .month], from: end)) else {
+                return []
+            }
+            let endOffset = (calendar.component(.weekday, from: endMonthStart) - calendar.firstWeekday + 7) % 7
+            guard let endGridStart = calendar.date(byAdding: .day, value: -endOffset, to: endMonthStart) else {
+                return []
+            }
+            finalGridStart = endGridStart
+        } else {
+            finalGridStart = gridStart
+        }
+        // 一次读取首尾网格的连续区间，避免查询及计算重叠日期两次。
+        guard let gridEnd = calendar.date(byAdding: .day, value: 42, to: finalGridStart),
+              let dayCount = calendar.dateComponents([.day], from: gridStart, to: gridEnd).day else {
+            return []
+        }
         var eventsByDay: [Date: [CalendarEvent]] = [:]
         for event in previewEvents ?? events(from: gridStart, to: gridEnd) {
             eventsByDay[calendar.startOfDay(for: event.startDate), default: []].append(event)
         }
 
         var days: [CalendarDay] = []
-        for index in 0..<42 {
+        for index in 0..<dayCount {
             guard let date = calendar.date(byAdding: .day, value: index, to: gridStart) else { continue }
             let weekday = calendar.component(.weekday, from: date)
 

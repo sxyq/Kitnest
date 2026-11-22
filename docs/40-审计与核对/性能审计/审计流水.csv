@@ -42,3 +42,4 @@
 2026-10-20 11:28:58,Core/UI/Toast.swift,present,normal,3s 自动隐藏 + 代际防串台；窗口复用，无每次创建开销
 2026-10-20 11:28:58,Core/UI/Toast.swift,ensureWindow,normal,单例窗口按需创建；层级 CGWindowLevelKey14，点击穿透，可跨 Space
 2026-11-21 07:43:11,Core/Runtime/AppUpdateChecker.swift,installUpdate,optimize_done,逐函数复核两个正式入口；SHA256按1 MiB块增量处理并移动URLSession临时ZIP；替换与界面语义不变，内存和耗时未实测
+2026-11-23 04:20:00,Features/Toolbox/Calendar/CalendarService.swift,monthDays,optimize_done,首尾月网格合并为连续日期区间；EventKit最多两次查询改为一次，重叠日期只生成一次；日期与事件口径保持，CPU耗时未测
