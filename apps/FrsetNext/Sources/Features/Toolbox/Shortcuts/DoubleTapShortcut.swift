@@ -97,22 +97,23 @@ public final class DoubleTapShortcutCenter {
     }
 
     /// 绑定某个动作的双击修饰键（幂等）
-    public func bind(actionID: String, modifier: DoubleTapModifier) {
+    @discardableResult
+    public func bind(actionID: String, modifier: DoubleTapModifier) -> Bool {
+        guard prepareMonitoring() else { return false }
         bindings[actionID] = modifier
         if !order.contains(actionID) { order.append(actionID) }
-        startMonitoringIfNeeded()
+        return true
     }
 
-    public func unbind(actionID: String) {
-        bindings.removeValue(forKey: actionID)
-        order.removeAll { $0 == actionID }
+    /// 保存组合键成功后一次替换双按绑定，沿用已有按下沿与 0.30 秒间隔。
+    func replaceBindings(_ newBindings: [String: DoubleTapModifier], orderedIDs: [String]) {
+        bindings = newBindings
+        order = orderedIDs.filter { newBindings[$0] != nil }
         if bindings.isEmpty { stopMonitoringIfNeeded() }
     }
 
-    public func unbindAll() {
-        bindings.removeAll()
-        order.removeAll()
-        stopMonitoringIfNeeded()
+    func cancelPreparedMonitoring() {
+        if bindings.isEmpty { stopMonitoringIfNeeded() }
     }
 
     /// 当前动作的修饰键（nil = 组合键模式）
@@ -125,18 +126,26 @@ public final class DoubleTapShortcutCenter {
 
     // MARK: 监听
 
-    private func startMonitoringIfNeeded() {
-        guard globalMonitor == nil else { return }
-        globalMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.flagsChanged]) { [weak self] event in
+    func prepareMonitoring() -> Bool {
+        if globalMonitor != nil { return true }
+        let global = NSEvent.addGlobalMonitorForEvents(matching: [.flagsChanged]) { [weak self] event in
             self?.handleFlags(event.modifierFlags)
         }
         // 本 App 处于前台时 global monitor 收不到事件，补一个 local monitor
-        localMonitor = NSEvent.addLocalMonitorForEvents(matching: [.flagsChanged]) { [weak self] event in
+        let local = NSEvent.addLocalMonitorForEvents(matching: [.flagsChanged]) { [weak self] event in
             self?.handleFlags(event.modifierFlags)
             return event
         }
+        guard let global, let local else {
+            if let global { NSEvent.removeMonitor(global) }
+            if let local { NSEvent.removeMonitor(local) }
+            return false
+        }
+        globalMonitor = global
+        localMonitor = local
         lastFlags = NSEvent.modifierFlags
         Log.info("DoubleTap", "双击快捷键监听已启动（辅助功能=\(Self.accessibilityTrusted ? "已授权" : "未授权（仍尝试）")）")
+        return true
     }
 
     private func stopMonitoringIfNeeded() {

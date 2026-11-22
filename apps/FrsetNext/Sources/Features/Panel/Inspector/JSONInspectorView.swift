@@ -1,3 +1,4 @@
+import CoreFoundation
 import SwiftUI
 
 // MARK: - JSON 可视化（树形 + 表格，像数据库表那样看层级）
@@ -8,7 +9,7 @@ import SwiftUI
 //   · 表格：根是对象数组时，把键并集变成列（像数据库表），行号列固定
 //
 // 性能策略：
-//   · 解析一次（JSONSerialization），节点数上限 20000，超过即标记 isTruncated（只保留前段）
+//   · 解析后计数至20001即标记超量，原值保留，子级按需展开
 //   · 子级**懒构建**：折叠时不建子节点模型，首次展开才生成（深/宽 JSON 展开单层成本可控）
 //   · 渲染用 LazyVStack + 递归子列表，不一次性铺开
 //   · 表格列只扫前 500 个元素推导键并集，避免为几 MB 文件扫全量
@@ -31,7 +32,7 @@ enum JSONNodeKind {
 
 /// 树节点（引用语义：展开状态与子级缓存要能被多处视图共享）
 final class JSONNodeModel: ObservableObject, Identifiable {
-    let id: String                 // 稳定路径，如 $.users[3].name
+    let id: String                 // 稳定路径，如 $["users"][3]["name"]
     let key: String?               // 对象成员名；数组元素为 nil
     let index: Int?                // 数组元素下标（树形左侧显示真实下标）
     let kind: JSONNodeKind
@@ -40,6 +41,7 @@ final class JSONNodeModel: ObservableObject, Identifiable {
     private(set) var childCount: Int
 
     private let raw: Any
+    private let depth: Int
     private var builtChildren: [JSONNodeModel]?
 
     @Published private(set) var children: [JSONNodeModel] = []
@@ -49,10 +51,11 @@ final class JSONNodeModel: ObservableObject, Identifiable {
         self.key = key
         self.index = index
         self.raw = raw
+        self.depth = depth
         self.path = path
         self.id = path
 
-        // 深度保护：超过 64 层不再建子级（防御性 JSON 深递归）
+        // 最多显示64层子级。
         let canDescend = depth < 64
 
         switch raw {
@@ -69,13 +72,10 @@ final class JSONNodeModel: ObservableObject, Identifiable {
             childCount = 0
             preview = string.count > 80 ? "\"" + String(string.prefix(80)) + "…\"" : "\"\(string)\""
         case let number as NSNumber:
-            kind = .number
+            let isBoolean = CFGetTypeID(number) == CFBooleanGetTypeID()
+            kind = isBoolean ? .bool : .number
             childCount = 0
-            preview = number.stringValue
-        case let bool as Bool:
-            kind = .bool
-            childCount = 0
-            preview = bool ? "true" : "false"
+            preview = isBoolean ? (number.boolValue ? "true" : "false") : number.stringValue
         default:
             kind = .null
             childCount = 0
@@ -85,21 +85,26 @@ final class JSONNodeModel: ObservableObject, Identifiable {
 
     var isExpandable: Bool { childCount > 0 }
 
+    var fullValue: String {
+        if let string = raw as? String { return string }
+        // raw只来自JSON解析；完整序列化在打开详情时执行。
+        let data = try! JSONSerialization.data(withJSONObject: raw,
+                                               options: [.fragmentsAllowed, .prettyPrinted, .sortedKeys])
+        return String(decoding: data, as: UTF8.self)
+    }
+
     /// 只构建子级、不改展开态：表格视图每次求值都要读子级，
     /// 用 toggle() 会一次展开一次收起（旧实现表格行会闪）。
     func ensureChildren() {
         if builtChildren == nil {
-            builtChildren = Self.makeChildren(raw: raw, parentPath: path, depth: 0)
+            builtChildren = Self.makeChildren(raw: raw, parentPath: path, depth: depth)
             children = builtChildren ?? []
         }
     }
 
     /// 首次展开时才生成子节点模型（懒构建）
     func toggle() {
-        if !isExpanded && builtChildren == nil {
-            builtChildren = Self.makeChildren(raw: raw, parentPath: path, depth: 0)
-            children = builtChildren ?? []
-        }
+        ensureChildren()
         isExpanded.toggle()
     }
 
@@ -111,7 +116,7 @@ final class JSONNodeModel: ObservableObject, Identifiable {
             // 键按首次出现顺序（JSONSerialization 的字典无序，这里按本地化排序保持稳定）
             let keys = dict.keys.sorted { $0.localizedStandardCompare($1) == .orderedAscending }
             for key in keys {
-                let childPath = "\(parentPath).\(key)"
+                let childPath = "\(parentPath)[\(String(reflecting: key))]"
                 result.append(JSONNodeModel(key: key, raw: dict[key]!,
                                             path: childPath, depth: depth + 1))
             }
@@ -131,7 +136,6 @@ final class JSONNodeModel: ObservableObject, Identifiable {
 /// 文档：一次解析 + 节点计数（截断保护）
 final class JSONDocument: ObservableObject {
     let root: JSONNodeModel
-    let totalNodeCount: Int
     let isTruncated: Bool
 
     static let maxNodes = 20000
@@ -144,17 +148,19 @@ final class JSONDocument: ObservableObject {
     /// JSONL 行统计（对齐 jlens：有效行 / 错误行可见，坏行不再整份报废）
     let sourceLineCount: Int
     let validLineCount: Int
+    let errorLineCount: Int
     /// 解析失败的行号（1 起，最多记 50 条，避免坏文件撑爆 UI）
     let errorLines: [Int]
 
     init?(text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
-        let allLines = trimmed.components(separatedBy: "\n")
+        let allLines = text.components(separatedBy: "\n")
         var object: Any?
         var isJSONL = false
         var validLines = 0
         var errors: [Int] = []
+        var errorCount = 0
 
         if let data = trimmed.data(using: .utf8),
            let parsed = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]) {
@@ -172,21 +178,23 @@ final class JSONDocument: ObservableObject {
                    o is [String: Any] || o is [Any] {
                     records.append(o)
                     validLines += 1
-                } else if errors.count < 50 {
-                    errors.append(index + 1)
+                } else {
+                    errorCount += 1
+                    if errors.count < 50 { errors.append(index + 1) }
                 }
             }
             // 有效行太少就不认（普通文本每行都会失败，避免把散文当 JSON）
-            guard !records.isEmpty, records.count >= errors.count else { return nil }
+            guard !records.isEmpty, records.count >= errorCount else { return nil }
             object = records
             isJSONL = true
         }
         guard let object else { return nil }
         self.isJSONL = isJSONL
-        self.sourceText = trimmed
+        self.sourceText = text
         self.sourceLineCount = allLines.count
         self.validLineCount = validLines
         self.errorLines = errors
+        self.errorLineCount = errorCount
         root = JSONNodeModel(key: nil, raw: object, path: "$", depth: 0)
         // 计数单独走一遍（不建模型，成本低；上限到了就停）
         var count = 0
@@ -205,7 +213,6 @@ final class JSONDocument: ObservableObject {
             }
         }
         walk(object)
-        totalNodeCount = count
         isTruncated = truncated
     }
 }
@@ -214,6 +221,7 @@ final class JSONDocument: ObservableObject {
 
 struct JSONInspectorView: View {
     @ObservedObject private var document: JSONDocument
+    @ObservedObject private var personalization = Personalization.shared
     @Stored private var mode: JSONViewMode = .tree
     @Stored private var searchText: String = ""
     /// 树形搜索命中的节点路径（含其所有祖先，便于自动展开到命中处）
@@ -236,7 +244,7 @@ struct JSONInspectorView: View {
         self.compact = compact
         _searchText = Stored(wrappedValue: initialQuery)
         // 首层自动展开：折叠的根节点只有一行，看不出结构（原版 JSON 预览打开即可见第一层）
-        if document.root.isExpandable, !document.root.isExpanded { document.root.toggle() }
+        if document.root.isExpandable, document.root.children.isEmpty { document.root.toggle() }
         _document = ObservedObject(wrappedValue: document)
         // 记录型（对象数组 / JSONL）默认进「表格」——像数据库表一样直接看数据
         var mode = initialMode
@@ -255,8 +263,8 @@ struct JSONInspectorView: View {
         case raw = "原始"
     }
 
-    private var fontSize: CGFloat { compact ? 11 : 12.5 }
-    private var rowHeight: CGFloat { compact ? 22 : 26 }
+    private var fontSize: CGFloat { (compact ? 11 : 12.5) * personalization.clipboardPreviewScale }
+    private var rowHeight: CGFloat { (compact ? 22 : 26) * personalization.clipboardPreviewScale }
     /// 左列（key）固定宽度：右侧值列越长越能看清，key 只做索引用
     private var keyWidth: CGFloat { compact ? 84 : 104 }
 
@@ -272,7 +280,7 @@ struct JSONInspectorView: View {
             VStack(spacing: 0) {
                 toolbar
                 if document.isTruncated {
-                    banner("文件过大，仅解析前 \(Self.maxNodesText) 个节点")
+                    banner("节点数超过\(Self.maxNodesText)，树形按需展开")
                 }
                 if document.isJSONL {
                     jsonlBanner
@@ -287,6 +295,7 @@ struct JSONInspectorView: View {
         .onChange(of: mode) { newMode in
             // 表格/卡片视图不依赖 matchedPaths，跳过递归；树形才需要
             if newMode == .tree { refreshMatches() }
+            if newMode != .table { tableState.discardRows() }
         }
     }
 
@@ -314,7 +323,7 @@ struct JSONInspectorView: View {
                 .foregroundStyle(bad.isEmpty ? Color.secondary : Color.orange)
             Text("JSONL · 共 \(total) 行 · 有效 \(valid) 行")
             if !bad.isEmpty {
-                Text("· 错误 \(bad.count) 行")
+                Text("· 错误 \(document.errorLineCount) 行")
                     .foregroundStyle(Color.orange)
                 Text("（第 \(bad.prefix(6).map(String.init).joined(separator: "、"))\(bad.count > 6 ? "…" : "") 行）")
             }
@@ -336,9 +345,7 @@ struct JSONInspectorView: View {
             }
             .pickerStyle(.segmented)
             .labelsHidden()
-            // 132 装不下「树形/表格/卡片/原始」四个分段：控件内部内容居中溢出，
-            // 首个分段会被窗口左边缘裁掉（实测「树形」只剩「形」）
-            .frame(width: compact ? 152 : 180)
+            .frame(width: compact ? 176 : 180)
 
             Spacer(minLength: 4)
 
@@ -683,6 +690,11 @@ private struct JSONTreeList: View {
 //   group 勾 A 后仍是 257 行）。@StateObject 的 storage 不跨副本共享。
 //   改成引用类型后，父视图持有一份、弹层与主表格拿的是同一个实例，@Published
 //   一改动两边同时刷新。
+private struct JSONTableRow {
+    let index: Int
+    let cells: [String]
+}
+
 private final class JSONTableState: ObservableObject {
     /// 排序列（nil = 原序；点表头切换 升/降）
     @Published var sortKey: String? = nil
@@ -693,9 +705,29 @@ private final class JSONTableState: ObservableObject {
     @Published var detail: JSONCellDetail? = nil
     /// 当前页（0 基）。搜索/筛选/排序变化后由 safePage 夹到有效范围。
     @Published var page: Int = 0
+
+    private weak var cachedDocument: JSONDocument?
+    private var cachedColumnKeys: [String] = []
+    private var cachedRows: [JSONTableRow] = []
+
+    func rows(for document: JSONDocument, columns: [String], make: () -> [JSONTableRow]) -> [JSONTableRow] {
+        guard cachedDocument !== document || cachedColumnKeys != columns else { return cachedRows }
+        cachedRows = make()
+        cachedDocument = document
+        cachedColumnKeys = columns
+        return cachedRows
+    }
+
+    func discardRows() {
+        cachedDocument = nil
+        cachedColumnKeys = []
+        cachedRows = []
+    }
 }
 
 private struct JSONTableView: View {
+    private typealias Row = JSONTableRow
+
     let document: JSONDocument
     let fontSize: CGFloat
     let query: String
@@ -728,7 +760,7 @@ private struct JSONTableView: View {
         }
     }
 
-    private var columns: [Column] {
+    private func makeColumns(shape: Shape) -> [Column] {
         switch shape {
         case .keyValue:
             return [Column(key: "键", width: fontSize * 9),
@@ -760,21 +792,6 @@ private struct JSONTableView: View {
         }
     }
 
-    /// 表格实际宽度：列宽 + 每列左右 8pt 内边距 + 行号列
-    private var tableWidth: CGFloat {
-        34 + columns.reduce(0) { $0 + $1.width + 8 }
-    }
-
-    /// 真实行数（未被 500 行上限截断的那个数）
-    private var totalRowCount: Int {
-        switch shape {
-        case .unsupported: return 0
-        default:
-            if document.root.children.isEmpty { document.root.ensureChildren() }
-            return document.root.children.count
-        }
-    }
-
     /// 每页行数（v191：对齐 jlens 的真分页；旧实现只渲染前 500 行 + 一句"仅显示前 500 行"）
     private static let pageSize = 500
     /// 表格处理行数上限：超大 JSON（十万级）全量字符串化会把窗口卡住，
@@ -784,17 +801,17 @@ private struct JSONTableView: View {
     private static let tableTopID = "jsonTableTop"
 
     /// 未过滤、未排序的全部行（列筛选的去重值从这里取，避免"筛完只剩一个选项"）
-    private var allRows: [(index: Int, cells: [String])] {
+    private func makeAllRows(shape: Shape, columns: [Column]) -> [Row] {
         switch shape {
         case .keyValue:
             if document.root.children.isEmpty { document.root.ensureChildren() }
             return document.root.children.prefix(Self.maxTableRows).enumerated().map { index, child in
-                (index, [child.key ?? "", displayValue(child.preview)])
+                Row(index: index, cells: [child.key ?? "", displayValue(child.preview)])
             }
         case .scalars:
             if document.root.children.isEmpty { document.root.ensureChildren() }
             return document.root.children.prefix(Self.maxTableRows).enumerated().map { index, child in
-                (index, [child.preview])
+                Row(index: index, cells: [child.preview])
             }
         case .objectRows:
             let cols = columns.map { $0.key }
@@ -802,15 +819,15 @@ private struct JSONTableView: View {
                 row.ensureChildren()
                 var map: [String: String] = [:]
                 for child in row.children { if let key = child.key { map[key] = child.preview } }
-                return (index, cols.map { displayValue(map[$0] ?? "—") })
+                return Row(index: index, cells: cols.map { displayValue(map[$0] ?? "—") })
             }
         case .unsupported:
             return []
         }
     }
 
-    private var rowValues: [(index: Int, cells: [String])] {
-        var rows = allRows
+    private func makeRowValues(rows: [Row], columns: [Column]) -> [Row] {
+        var rows = rows
 
         // ① 全局搜索：任意列包含查询词
         if !query.isEmpty {
@@ -848,27 +865,12 @@ private struct JSONTableView: View {
         return rows
     }
 
-    // MARK: 分页（v191：对齐 jlens）
-
-    /// 过滤后的总行数
-    private var filteredRowCount: Int { rowValues.count }
-    /// 总页数（至少 1 页，空结果也显示「第 1 / 1 页」）
-    private var pageCount: Int { max(1, (filteredRowCount + Self.pageSize - 1) / Self.pageSize) }
-    /// 当前页（越界自动夹到有效范围——搜索/筛选后行数变少时不会停在空页）
-    private var safePage: Int { min(max(0, state.page), pageCount - 1) }
-    /// 当前页要渲染的行
-    private var pagedRows: [(index: Int, cells: [String])] {
-        let start = safePage * Self.pageSize
-        guard start < filteredRowCount else { return [] }
-        return Array(rowValues.dropFirst(start).prefix(Self.pageSize))
-    }
-
-    /// 某列的去重值（最多 60 个，按出现顺序前 500 行统计）
-    private func distinctValues(for column: String) -> [String] {
+    /// 某列的去重值（最多60个，使用本轮未筛选行）
+    private func distinctValues(for column: String, columns: [Column], rows: [Row]) -> [String] {
         guard let colIndex = columns.firstIndex(where: { $0.key == column }) else { return [] }
         var seen: Set<String> = []
         var order: [String] = []
-        for row in allRows where row.cells.count > colIndex {
+        for row in rows where row.cells.count > colIndex {
             let value = row.cells[colIndex]
             if seen.insert(value).inserted {
                 order.append(value)
@@ -899,6 +901,8 @@ private struct JSONTableView: View {
     }
 
     var body: some View {
+        let shape = self.shape
+        let columns = makeColumns(shape: shape)
         if columns.isEmpty {
             VStack(spacing: 8) {
                 Text("当前 JSON 是单个值，没有可展开的表格")
@@ -909,10 +913,20 @@ private struct JSONTableView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
+            let allRows = state.rows(for: document, columns: columns.map(\.key)) {
+                makeAllRows(shape: shape, columns: columns)
+            }
+            let rowValues = makeRowValues(rows: allRows, columns: columns)
+            let totalRowCount = document.root.children.count
+            let filteredRowCount = rowValues.count
+            let pageCount = max(1, (filteredRowCount + Self.pageSize - 1) / Self.pageSize)
+            let safePage = min(max(0, state.page), pageCount - 1)
+            let pagedRows = Array(rowValues.dropFirst(safePage * Self.pageSize).prefix(Self.pageSize))
+            let tableWidth = 34 + columns.reduce(0) { $0 + $1.width + 8 }
             VStack(spacing: 0) {
                 if hasActiveFilter {
                     HStack(spacing: 6) {
-                        Text("显示 \(rowValues.count) / \(allRows.count) 行")
+                        Text("显示 \(filteredRowCount) / \(allRows.count) 行")
                             .font(.system(size: 10))
                             .foregroundStyle(.secondary)
                         if !query.isEmpty { Text("· 搜索「\(query)」").font(.system(size: 10)).foregroundStyle(.secondary) }
@@ -931,7 +945,7 @@ private struct JSONTableView: View {
                 ScrollViewReader { tableProxy in
                 ScrollView([.vertical, .horizontal], showsIndicators: true) {
                     LazyVStack(alignment: .leading, spacing: 0) {
-                        header.id(Self.tableTopID)
+                        header(columns: columns, rows: allRows).id(Self.tableTopID)
                         if rowValues.isEmpty, !query.isEmpty {
                             HStack(spacing: 6) {
                                 Image(systemName: "magnifyingglass")
@@ -955,9 +969,18 @@ private struct JSONTableView: View {
                                     let isLast = colIndex == row.cells.count - 1
                                     let width = columns[min(colIndex, columns.count - 1)].width
                                     Button {
-                                        state.detail = JSONCellDetail(column: columns[min(colIndex, columns.count - 1)].key,
-                                                                value: value,
-                                                                rowNumber: row.index + 1)
+                                        let column = columns[min(colIndex, columns.count - 1)].key
+                                        let node = document.root.children[row.index]
+                                        let fullValue: String
+                                        if shape == .keyValue {
+                                            fullValue = colIndex == 0 ? (node.key ?? "") : node.fullValue
+                                        } else if shape == .objectRows {
+                                            fullValue = node.children.first { $0.key == column }?.fullValue ?? "—"
+                                        } else {
+                                            fullValue = node.fullValue
+                                        }
+                                        state.detail = JSONCellDetail(column: column, value: fullValue,
+                                                                     rowNumber: row.index + 1)
                                     } label: {
                                         Text(value)
                                             .font(.system(size: fontSize - 1, design: .monospaced))
@@ -1040,7 +1063,7 @@ private struct JSONTableView: View {
         !query.isEmpty || state.columnFilters.contains { !$0.value.isEmpty }
     }
 
-    private var header: some View {
+    private func header(columns: [Column], rows: [Row]) -> some View {
         HStack(spacing: 0) {
             Text("#")
                 .font(.system(size: fontSize - 2, weight: .semibold))
@@ -1081,7 +1104,7 @@ private struct JSONTableView: View {
                     .popover(isPresented: Binding(
                         get: { state.filterPopoverColumn == column.key },
                         set: { if !$0 { state.filterPopoverColumn = nil } })) {
-                        filterPopover(for: column.key)
+                        filterPopover(for: column.key, columns: columns, rows: rows)
                     }
                 }
                 .frame(width: column.width, alignment: .leading)
@@ -1097,8 +1120,8 @@ private struct JSONTableView: View {
         !(state.columnFilters[column]?.isEmpty ?? true)
     }
 
-    private func filterPopover(for column: String) -> some View {
-        let values = distinctValues(for: column)
+    private func filterPopover(for column: String, columns: [Column], rows: [Row]) -> some View {
+        let values = distinctValues(for: column, columns: columns, rows: rows)
         return VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(column)

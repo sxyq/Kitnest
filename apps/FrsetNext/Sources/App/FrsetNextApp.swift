@@ -31,6 +31,7 @@ struct FrsetNextApp: App {
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
+        HapticFeedback.fireProbeIfRequested()
         // v43：菜单栏监控「唯一一套」护栏——先于任何模块启动执行。
         // 菜单栏监控的唯一实现是 STATS 合并条；多开实例/官方原版同跑都会各画一套，
         // 表现为菜单栏出现重复的 CPU/RAM/SSD 组件（用户 2026-10-18 反馈）。
@@ -38,8 +39,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         // 不显示 Dock 图标（菜单栏应用）
         NSApp.setActivationPolicy(.accessory)
+        for name in [NSWindow.didBecomeKeyNotification, NSWindow.didResignKeyNotification,
+                     NSWindow.didMiniaturizeNotification, NSWindow.didDeminiaturizeNotification,
+                     NSWindow.didChangeOcclusionStateNotification,
+                     NSWindow.willCloseNotification] {
+            NotificationCenter.default.addObserver(self, selector: #selector(updateDockPresence(_:)), name: name, object: nil)
+        }
         // v259：上次异常退出可能留下被 SIGSTOP 的应用，先无条件唤醒再干别的
         ProcessFreezer.shared.thawOrphans()
+        PanelSegments.migrateLegacyVisibility()
         AppBootstrap.start()
         // v127（ArcZip P3）：注册 NSServices 服务提供者（访达右键「解压到此处/解压到…/压缩」）。
         // 服务项声明在 Info.plist 的 NSServices；selector 回调落到 ArchiveServicesProvider。
@@ -93,8 +101,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // v127（ArcZip P3）：退出前确认未完成归档任务（ArchiveTaskQueue 是 arch-engine 的
     // 公开类型，只读调用）——有未完成任务时弹确认框，「返回」则取消退出。
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard ArchiveTaskQueue.shared.confirmQuitIfNeeded() else { return .terminateCancel }
-        return .terminateNow
+        let approved = ArchiveTaskQueue.shared.confirmQuitIfNeeded()
+        return AppUpdateChecker.shared.prepareToTerminate(approved: approved) ? .terminateNow : .terminateCancel
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -107,8 +115,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        if let window = sender.windows.first(where: { $0.styleMask.contains([.titled, .closable]) && !($0 is NSPanel && $0.hidesOnDeactivate) && ($0.isVisible || $0.isMiniaturized) }) {
+            window.deminiaturize(nil)
+            window.makeKeyAndOrderFront(nil)
+            return true
+        }
         ServiceLocator.panel?.show()
         return true
+    }
+
+    @objc private func updateDockPresence(_ notification: Notification) {
+        let closing = notification.name == NSWindow.willCloseNotification ? notification.object as? NSWindow : nil
+        DispatchQueue.main.async {
+            let hasDocument = NSApp.windows.contains {
+                $0 !== closing && !($0 is NSPanel && $0.hidesOnDeactivate) && $0.styleMask.contains([.titled, .closable]) && ($0.isVisible || $0.isMiniaturized)
+            }
+            let policy: NSApplication.ActivationPolicy = hasDocument ? .regular : .accessory
+            if NSApp.activationPolicy() != policy { NSApp.setActivationPolicy(policy) }
+        }
     }
 
     /// 程序化唤起入口：等价原版 `StatusBarController.showSettingsWindow:` 的 @objc
@@ -124,9 +148,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let files = urls.filter { $0.isFileURL }
         if !files.isEmpty {
             let archives = files.filter { ArchiveCore.isArchive($0) }
+            // v273（ArcZip 1.2.5 extraction.opening 对齐）：双击直接解压。
+            // 规则：设置开启才生效；按住 Shift 临时浏览；DMG/ISO 始终浏览。
+            let directExtract = UserDefaults.standard.bool(forKey: Preferences.Keys.archiveOpenDirectExtract)
+            let trashOriginal = UserDefaults.standard.bool(forKey: Preferences.Keys.archiveOpenTrashOriginal)
+            let shiftHeld = NSEvent.modifierFlags.contains(.shift)
             for (idx, url) in archives.enumerated() {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.15 + Double(idx) * 0.05) {
-                    ArchiveBrowserWindowController.show(url: url)
+                    if directExtract, !shiftHeld, ArchiveQuickExtract.isDirectEligible(url) {
+                        ArchiveQuickExtract.run(url: url, trashOriginal: trashOriginal)
+                    } else {
+                        ArchiveBrowserWindowController.show(url: url)
+                    }
                 }
             }
             if !archives.isEmpty { return }
@@ -135,8 +168,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // JSON 仍旧在 hover 预览里内联展示（JSONInspectorView）。
         }
         guard let url = urls.first,
-              url.scheme == "kitnest-lite" else { return }
-        Log.info("App", "URL 唤起: \(url.absoluteString)")
+              url.scheme == "kitnest" || url.scheme == "frsetnext"
+                || url.scheme == "kitnest-lite" else { return }
+        Log.info("App", "URL 唤起：\(url.scheme ?? "-")://\(url.host ?? "-")")
         // 窗口创建延后到下一 runloop：Apple Event 处理上下文内创建 NSWindow +
         // NSHostingView 会在 display cycle layout observer 中触发次级约束更新，
         // 导致 NSWindow._postWindowNeedsUpdateConstraints 异常（2026-10-16 实测：
@@ -150,7 +184,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case "settings":
                 let pane = comps?
                     .queryItems?.first(where: { $0.name == "pane" })?.value
-                ServiceLocator.settings?.open(pane: pane)
+                let field = comps?.queryItems?.first(where: { $0.name == "field" })?.value ?? url.fragment
+                ServiceLocator.settings?.open(pane: field.map { (pane ?? "general") + "#" + $0 } ?? pane)
             case "settingsprobe":
                 // v264 排障：单独打开某个设置区块（?block=recording|workflow|capture）
                 let block = comps?
@@ -239,7 +274,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     if let img = ImageProcessor.cgImage(from: URL(fileURLWithPath: path)) {
                         BeautifyController.shared.show(image: img)
                     } else {
-                        Log.warn("App", "demo beautify：图片不存在 \(path)")
+                        Log.warn("App", "demo beautify：图片不存在")
                     }
                 case "recorder":
                     StatsBarEngine.openRecorder()
@@ -264,14 +299,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                             let t0 = CFAbsoluteTimeGetCurrent()
                             let hits = FileNameIndex.shared.search(q, limit: 8)
                             let ms = (CFAbsoluteTimeGetCurrent() - t0) * 1000
-                            Log.info("FileIndex", String(format: "探针就绪：%d 条 · 占用 %@ · q=「%@」命中 %d 条 · 耗时 %.1f ms",
+                            Log.info("FileIndex", String(format: "探针就绪：%d 条 · 占用 %@ · 命中 %d 条 · 耗时 %.1f ms",
                                                          count,
                                                          ByteCountFormatter.string(fromByteCount: FileNameIndex.shared.diskBytes, countStyle: .file),
-                                                         q, hits.count, ms))
-                            for h in hits { Log.info("FileIndex", "  → \(h)") }
+                                                         hits.count, ms))
                             return
-                        case .failed(let m):
-                            Log.info("FileIndex", "探针失败：\(m)")
+                        case .failed:
+                            Log.info("FileIndex", "探针失败")
                             return
                         default:
                             try? await Task.sleep(nanoseconds: 1_000_000_000)
@@ -410,10 +444,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 if let file, let img = ImageProcessor.cgImage(from: URL(fileURLWithPath: file)),
                    let data = ImageProcessor.pngData(img) {
                     if let staged = ScreenshotManager.shared.stagePNG(data, pixelSize: CGSize(width: img.width, height: img.height)) {
-                        Log.info("App", "stagetest 暂存 → \(staged.path)")
+                        Log.info("App", "stagetest 暂存完成")
                         if commit {
                             let dest = ScreenshotManager.shared.commitToSaveDirectory(staged: staged)
-                            Log.info("App", "stagetest 保存 → \(dest?.path ?? "失败")")
+                            Log.info("App", "stagetest 保存\(dest == nil ? "失败" : "完成")")
                         }
                     }
                 } else {
@@ -446,7 +480,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 }
                 let fileURL = URL(fileURLWithPath: rawPath)
                 guard FileManager.default.fileExists(atPath: fileURL.path) else {
-                    Log.warn("App", "归档深链：文件不存在 \(rawPath)")
+                    Log.warn("App", "归档深链：文件不存在")
                     break
                 }
                 switch action {
@@ -492,7 +526,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                         CloudLinkCenterController.shared.show(link: link)
                     }
                 } else {
-                    Log.warn("App", "cloudlink 深链：无法识别网盘链接 \(raw)")
+                    Log.warn("App", "cloudlink 深链：无法识别网盘链接")
                 }
             case "toast":
                 // v89 视觉验收/排障深链：kitnest://toast?text=已复制&icon=checkmark.circle.fill

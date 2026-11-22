@@ -487,7 +487,7 @@
 | `presentDoubleTapCompatibilityTipIfNeeded()` | 467 | 无辅助功能权限且首次 → 弹提示窗（只弹一次）。 |
 | `shortcutBinding(for:)` | 474 | 用户覆盖优先，否则默认表。 |
 | `setShortcut(_:keyCode:modifiers:)` | 483 | 双击态先切回组合键；`bind` 失败返回 false；`keyCode=nil` 表示解绑（存空数组）。 |
-| `restoreDefaultShortcuts()` | 503 | 全注销 + `unbindAll` + 清两个 defaults 键 + 重新注册。 |
+| `applyShortcuts(_:)` | 当前实现 | 校验并准备组合键与双击绑定，替换两类绑定并保存偏好；双击绑定通过 `replaceBindings` 一次更新。 |
 | `userCustomizableToolID(for:)` | 514 | 仅 `colorPicker→colorpicker` 有用户自定义通道。 |
 | `beginScreenshotTranslate()` | 528 | 置挂起标志 + `captureAndOCR()`。 |
 | `takeScreenshotTranslatePending()` | 536 | 一次性消费标志（锁内）。 |

@@ -52,13 +52,13 @@ public enum PermissionKind: String, CaseIterable, Identifiable {
     public var purpose: String {
         switch self {
         case .screenRecording:
-            return "截图、长截图、OCR、取色、录屏都需要读取屏幕内容"
+            return "截图、录屏、OCR、取色"
         case .accessibility:
-            return "自动粘贴、划词工具条、全局快捷键与双击唤起需要监听/合成系统事件"
+            return "自动粘贴、划词条、全局热键"
         case .microphone:
-            return "录屏时录制麦克风声音（可选，仅录系统音则不授予）"
+            return "录屏收音，可不授"
         case .calendar:
-            return "主面板日历卡片读取日程与节假日（不授予则日历仅显示日期）"
+            return "主面板日程与节假日"
         }
     }
 

@@ -4,7 +4,7 @@ import SystemConfiguration   // SCDynamicStore：主接口 BSD 名
 // MARK: - STATS 深数据提供者（监测面板消费）
 //
 // 数据来源：FrsetStatsBar ObjC/C 模块的采集层（frset_stats_data.h，经桥接头直调）。
-// 与菜单栏引擎（合并条）各自采样——引擎服务 g_snap/部件，本提供者服务 SwiftUI 面板详情行。
+// 本提供者服务 SwiftUI 面板详情行，CPU 集群优先复用菜单栏引擎采样。
 //
 // 接入方式：MonitorSampler.sampleOnce() 在后台采样队列调用 refresh()（内部按成本节流），
 // 视图经 `StatsDataProvider.shared.current` 只读快照（与 MonitorExtra 同款旁路模式，
@@ -184,7 +184,6 @@ public final class StatsDataProvider {
     // v129（内存）：connHistory 双缓冲（见 refresh 内注释；仅采样队列单线程访问）
     private var connScratchA: [Int] = []
     private var connScratchB: [Int] = []
-    private var connScratchIndex = 0
 
     // 节流时间戳（systemUptime）
     private var lastProcAt: TimeInterval = -10
@@ -269,54 +268,47 @@ public final class StatsDataProvider {
         // （M 系列偶发缺 "Tiler Utilization %"）。0 = 无占用，-1 才是无数据。
         // v128：IOAccelerator 属性读取是 IOKit 注册表扫描，隐藏时并入 slow 档。
         if heavyDue {
-            let gpuPtr = UnsafeMutablePointer<Double>.allocate(capacity: 3)
-            defer { gpuPtr.deallocate() }
-            gpuPtr.initialize(repeating: 0, count: 3)
-            if frset_gpu_usage(gpuPtr, gpuPtr + 1, gpuPtr + 2) == 0 {
-                snap.gpuUsage = gpuPtr[0]
-                snap.gpuRenderer = gpuPtr[1]
-                snap.gpuTiler = gpuPtr[2]
+            var device = 0.0, renderer = 0.0, tiler = 0.0
+            if frset_gpu_usage(&device, &renderer, &tiler) == 0 {
+                snap.gpuUsage = device
+                snap.gpuRenderer = renderer
+                snap.gpuTiler = tiler
             }
         }
-        let nameBuf = UnsafeMutablePointer<CChar>.allocate(capacity: 128)
-        defer { nameBuf.deallocate() }
-        if snap.gpuModel.isEmpty, frset_gpu_model(nameBuf, 128) == 0 {
-            // 型号是静态信息，只取一次；此前每帧 String(cString:) 重建
-            snap.gpuModel = String(cString: nameBuf)
+        if snap.gpuModel.isEmpty {
+            let nameBuf = UnsafeMutablePointer<CChar>.allocate(capacity: 128)
+            defer { nameBuf.deallocate() }
+            if frset_gpu_model(nameBuf, 128) == 0 {
+                snap.gpuModel = String(cString: nameBuf)
+            }
         }
 
         mark("gpu")
 
         // ---- CPU 集群拓扑（sysctl perflevel；Intel 返回非 0）----
-        // v128：含 host_processor_info 自采（系统调用），隐藏时并入 slow 档
+        // 隐藏时并入 slow 档。
         if heavyDue {
-            let clusterPtr = UnsafeMutablePointer<Int32>.allocate(capacity: 3)
-            defer { clusterPtr.deallocate() }
-            if frset_cpu_clusters(clusterPtr, clusterPtr + 1, clusterPtr + 2) == 0 {
-                snap.cpuSuperCores = Int(clusterPtr[0])
-                snap.cpuEffCores = Int(clusterPtr[1])
-                snap.cpuMedCores = Int(clusterPtr[2])
-                // 集群占用（per_core 按集群顺序排列；需本层自采 CPU——C 层差分内部维护）
-                let cpuPtr = UnsafeMutablePointer<frset_cpu_t>.allocate(capacity: 1)
-                defer { cpuPtr.deallocate() }
-                frset_cpu_sample(cpuPtr)
-                let usagePtr = UnsafeMutablePointer<Double>.allocate(capacity: 3)
-                defer { usagePtr.deallocate() }
-                frset_cpu_cluster_usage(cpuPtr, clusterPtr[0], clusterPtr[1], clusterPtr[2],
-                                        usagePtr, usagePtr + 1, usagePtr + 2)
-                snap.clusterSuperUsage = usagePtr[0]
-                snap.clusterEffUsage = usagePtr[1]
-                snap.clusterMedUsage = usagePtr[2]
+            var superCores: Int32 = 0, effCores: Int32 = 0, medCores: Int32 = 0
+            if frset_cpu_clusters(&superCores, &effCores, &medCores) == 0 {
+                snap.cpuSuperCores = Int(superCores)
+                snap.cpuEffCores = Int(effCores)
+                snap.cpuMedCores = Int(medCores)
+                var cpu = frset_cpu_t()
+                FSStatsReadCPU(&cpu)
+                var superUsage = 0.0, effUsage = 0.0, medUsage = 0.0
+                frset_cpu_cluster_usage(&cpu, superCores, effCores, medCores,
+                                        &superUsage, &effUsage, &medUsage)
+                snap.clusterSuperUsage = superUsage
+                snap.clusterEffUsage = effUsage
+                snap.clusterMedUsage = medUsage
             }
         }
 
         mark("cpuCluster")
 
         // ---- 内存构成（host_statistics64，轻；与 STATS 引擎同口径）----
-        let memPtr = UnsafeMutablePointer<frset_mem_t>.allocate(capacity: 1)
-        defer { memPtr.deallocate() }
-        frset_mem_sample(memPtr)
-        let mem = memPtr.pointee
+        var mem = frset_mem_t()
+        frset_mem_sample(&mem)
         snap.memTotal = mem.total
         snap.memUsed = mem.used
         snap.memWired = mem.wired
@@ -330,10 +322,8 @@ public final class StatsDataProvider {
         // v128：AppleSmartBattery 属性字典读取（~30 键 + 2 次 SMC 单键）属 IOKit
         // 扫描，隐藏时并入 slow 档（g_snap 的 1s 电池采样不受影响，状态栏照常）
         if heavyDue {
-            let battPtr = UnsafeMutablePointer<frset_battery_t>.allocate(capacity: 1)
-            defer { battPtr.deallocate() }
-            frset_battery_sample(battPtr)
-            let batt = battPtr.pointee
+            var batt = frset_battery_t()
+            frset_battery_sample(&batt)
             snap.battery = StatsBattery(
                 present: batt.present != 0,
                 percent: Int(batt.percent),
@@ -361,10 +351,8 @@ public final class StatsDataProvider {
         mark("battery")
 
         // ---- 网络连通性（C 层后台线程；本调用非阻塞读缓存）----
-        let connPtr = UnsafeMutablePointer<frset_conn_t>.allocate(capacity: 1)
-        defer { connPtr.deallocate() }
-        frset_conn_sample(connPtr)
-        let conn = connPtr.pointee
+        var conn = frset_conn_t()
+        frset_conn_sample(&conn)
         snap.connStatus = StatsConnStatus(rawValue: Int(conn.status)) ?? .unknown
         snap.connLatencyMs = conn.latency_ms
         snap.connJitterMs = conn.jitter_ms
@@ -375,26 +363,15 @@ public final class StatsDataProvider {
             // v129（内存）：connHistory 双缓冲复用——原来每帧 map 出新 [Int]（90×8B
             // + 数组头），refresh 每 0.5~1.5s 一帧是稳定小块churn；交替**原地**回填
             // 另一份 scratch（上一份此时已被 storage 释放、refcount=1）零分配。
-            connScratchIndex ^= 1
-            if connScratchIndex == 0 {
-                connScratchA.removeAll(keepingCapacity: true)
-                withUnsafePointer(to: conn) { base in
-                    connScratchA.reserveCapacity(historyCount)
-                    for i in 0..<historyCount {
-                        connScratchA.append(Int(FSStatsConnHistoryAt(base, Int32(i))))
-                    }
+            swap(&connScratchA, &connScratchB)
+            connScratchA.removeAll(keepingCapacity: true)
+            connScratchA.reserveCapacity(historyCount)
+            withUnsafePointer(to: conn) { base in
+                for i in 0..<historyCount {
+                    connScratchA.append(Int(FSStatsConnHistoryAt(base, Int32(i))))
                 }
-                snap.connHistory = connScratchA
-            } else {
-                connScratchB.removeAll(keepingCapacity: true)
-                withUnsafePointer(to: conn) { base in
-                    connScratchB.reserveCapacity(historyCount)
-                    for i in 0..<historyCount {
-                        connScratchB.append(Int(FSStatsConnHistoryAt(base, Int32(i))))
-                    }
-                }
-                snap.connHistory = connScratchB
             }
+            snap.connHistory = connScratchA
         }
 
         mark("conn")
@@ -405,11 +382,10 @@ public final class StatsDataProvider {
         // 本档（原先每帧 getifaddrs + SCDynamicStore，显示层不需要这么勤）。
         if slowDue {
             lastSlowAt = now
-            let capPtr = UnsafeMutablePointer<UInt64>.allocate(capacity: 2)
-            defer { capPtr.deallocate() }
-            frset_disk_capacity(capPtr, capPtr + 1)
-            snap.diskTotalBytes = capPtr[0]
-            snap.diskFreeBytes = capPtr[1]
+            var totalBytes: UInt64 = 0, freeBytes: UInt64 = 0
+            frset_disk_capacity(&totalBytes, &freeBytes)
+            snap.diskTotalBytes = totalBytes
+            snap.diskFreeBytes = freeBytes
 
             let diskBuf = UnsafeMutablePointer<CChar>.allocate(capacity: 128)
             defer { diskBuf.deallocate() }
@@ -424,10 +400,8 @@ public final class StatsDataProvider {
             }
 
             // SMART（C 层 30s 缓存）
-            let smartPtr = UnsafeMutablePointer<frset_smart_t>.allocate(capacity: 1)
-            defer { smartPtr.deallocate() }
-            if frset_disk_smart(smartPtr) == 0 {
-                let s = smartPtr.pointee
+            var s = frset_smart_t()
+            if frset_disk_smart(&s) == 0 {
                 snap.smart = StatsSMART(
                     available: s.available != 0,
                     temperatureC: Int(s.temperature_c),
@@ -474,8 +448,7 @@ public final class StatsDataProvider {
                 if let cached = sensorMeta[key] {
                     meta = cached
                 } else {
-                    var groupOut: Int32 = 0
-                    let official = key.withCString { frset_sensor_name($0, &groupOut) }
+                    let official = key.withCString { frset_sensor_name($0, nil) }
                     // v129：未收录键回落「中文类别（键名）」——纯英文简写（TPDA/PHPB 等
                     // Apple Silicon 键不在官方名表）对用户不可读，扫描层 category 最可靠
                     // v132：供电轨三件套族优先（V×I=P 已实测精确吻合，见 railFamilyName）
@@ -553,7 +526,7 @@ public final class StatsDataProvider {
     /// 并把 C 层取样上限放宽到 64——否则带多个 Helper 的 App（Chrome/Edge）会被截断，
     /// 展开后看不到真正的「大头」子进程。UI 侧只展示前 N 组。
     /// v86（用户反馈「图标没有正确展现 / 归类不准」）：改成**按可执行路径的 .app bundle 归类**，
-    /// 与注入版 frset_proc_grouped 同一口径——不再按进程名猜 App。
+    /// 复用 appBundlePath 读取宿主应用目录，不再按进程名猜 App。
     ///   · 归类键 = `/Applications/X.app`（Chrome 的 N 个 Helper/Renderer 自动归一行）
     ///   · 图标路径 = 同一个 bundle 路径 → NSWorkspace 直接取宿主 App 图标（不再靠名字匹配表）
     ///   · 无 .app 的守护进程/CLI = 按可执行路径独立成行，图标取该可执行文件图标
@@ -561,18 +534,15 @@ public final class StatsDataProvider {
     /// 抬高输出上限不增加扫描成本，却能保证「聚合后的排名」完整（大 App 不再被 64 截断）。
     ///
     /// v191：`private` → 模块内可见。网络常驻统计（NetworkFlowTracker 的后台节拍）
-    /// 需要在不打开监测页时也读 nettop 缓存；procBuffer 本身有锁，两个调用方串行安全。
+    /// 需要在不打开监测页时也读 nettop 缓存；两个调用方均在 MonitorSampler 采样队列执行。
     static func readProcList(kind: Int, max: Int) -> [StatsProcItem] {
         // v129（内存）：sampleMax 640→512——C 层 FRSET_PROC_CAP=512（v128 起），
         // 640 的输出缓冲纯浪费：每次调用 640×612B≈392KB → 313KB，且每周期
         // 3 kind + 1 net 共 4 次调用（峰值 152MB 的 churn 源之一）。
         // 输出缓冲改静态复用：313KB 每周期 4 次 malloc/free 是 malloc zone
         // 碎片化的主要推手（footprint 里表现为 non-object 小块+脏页滞留）；
-        // 本函数只被 StatsDataProvider.refresh 调用（MonitorSampler 采样队列单线程），
-        // 但保留锁防御性串行化。buffer 只在函数内使用，无跨调用状态。
+        // refresh 与 NetworkFlowTracker 在同一采样队列共用此缓冲和上轮组序。
         let sampleMax = 512   // 恒等于 procBuffer 容量（C 层 FRSET_PROC_CAP=512 也截断在此）
-        procBufferLock.lock()
-        defer { procBufferLock.unlock() }
         let ptr = procBuffer
         // kind 3 = 网络：走 nettop 后台差分（frset_net_top，字段 disk_r/disk_w = 下载/上传）
         let n = (kind == 3) ? frset_net_top(ptr, Int32(sampleMax))
@@ -611,17 +581,18 @@ public final class StatsDataProvider {
             } else {
                 key = path
             }
-            var acc = groups[key] ?? Acc()
-            if acc.displayName.isEmpty {
-                acc.displayName = bundle.map { appDisplayName(bundle: $0) }
+            // 在字典内追加，避免局部 Acc 与字典共享 kids 时逐次复制已有子进程。
+            if groups[key, default: Acc()].displayName.isEmpty {
+                groups[key, default: Acc()].displayName = bundle.map { appDisplayName(bundle: $0) }
                     ?? String(cString: FSStatsProcName(&item))
-                acc.iconPath = bundle ?? path
+                groups[key, default: Acc()].iconPath = bundle ?? path
             }
-            acc.cpu += item.cpu; acc.mem += item.mem
-            acc.r += item.disk_r; acc.w += item.disk_w
-            acc.kids.append(ChildRec(idx: i, pid: item.pid,
-                                     cpu: item.cpu, mem: item.mem, r: item.disk_r, w: item.disk_w))
-            groups[key] = acc
+            groups[key, default: Acc()].cpu += item.cpu
+            groups[key, default: Acc()].mem += item.mem
+            groups[key, default: Acc()].r += item.disk_r
+            groups[key, default: Acc()].w += item.disk_w
+            groups[key, default: Acc()].kids.append(ChildRec(idx: i, pid: item.pid,
+                cpu: item.cpu, mem: item.mem, r: item.disk_r, w: item.disk_w))
         }
         // 组内子进程按当前维度降序（同样分桶，避免展开后行序抖动）
         func sortChildren(_ list: inout [StatsProcItem]) {
@@ -653,9 +624,7 @@ public final class StatsDataProvider {
         //   直接按原始值排：1.5s 刷新时 0.1% / 1MB 级噪声会让行序反复跳动（点不中想展开的行）；
         //   纯分桶再按名称：0% 与 1% 会在桶边界交错，看起来像没排序。
         //   现在同桶内保持上一轮相对次序，只有指标实质变化才换位（既稳定又不会明显乱序）。
-        orderLock.lock()
         let previous = lastOrders[kind] ?? [:]
-        orderLock.unlock()
         var ordered = groups.map { (key: $0.key, acc: $0.value) }
         ordered.sort { a, b in
             let ra = rank(a.acc), rb = rank(b.acc)
@@ -668,41 +637,40 @@ public final class StatsDataProvider {
         }
         var snapshot: [String: Int] = [:]
         for (index, entry) in ordered.enumerated() { snapshot[entry.key] = index }
-        orderLock.lock()
         lastOrders[kind] = snapshot
-        orderLock.unlock()
         var result: [StatsProcItem] = []
         result.reserveCapacity(Swift.min(max, ordered.count))
         for entry in ordered.prefix(max) {
             let acc = entry.acc
-            var kids: [StatsProcItem] = acc.kids.map { rec in
-                var raw = ptr[rec.idx]
-                return StatsProcItem(pid: rec.pid,
-                                     name: String(cString: FSStatsProcName(&raw)),
-                                     cpu: rec.cpu, memBytes: rec.mem,
-                                     diskRead: rec.r, diskWrite: rec.w,
-                                     iconPath: acc.iconPath)
+            var kids: [StatsProcItem] = []
+            if acc.kids.count > 1 {
+                kids = acc.kids.map { rec in
+                    var raw = ptr[rec.idx]
+                    return StatsProcItem(pid: rec.pid,
+                                         name: String(cString: FSStatsProcName(&raw)),
+                                         cpu: rec.cpu, memBytes: rec.mem,
+                                         diskRead: rec.r, diskWrite: rec.w,
+                                         iconPath: acc.iconPath)
+                }
+                sortChildren(&kids)
             }
-            sortChildren(&kids)
             result.append(StatsProcItem(pid: acc.kids.first?.pid ?? 0, name: acc.displayName,
                                         cpu: acc.cpu, memBytes: acc.mem,
                                         diskRead: acc.r, diskWrite: acc.w,
                                         pids: acc.kids.map(\.pid),
                                         iconPath: acc.iconPath,
-                                        children: kids.count > 1 ? kids : []))
+                                        children: kids))
         }
         return result
     }
 
-    /// 上一轮组序（按 kind 分开存：CPU/内存/磁盘/网络 各自独立，互不冲掉对方次序）
+    /// 各指标的上一轮组序；只在 MonitorSampler 采样队列访问。
     private static var lastOrders: [Int: [String: Int]] = [:]
-    private static let orderLock = NSLock()
 
     // v129（内存）：frset_proc_t 输出缓冲静态复用（512×612B≈313KB，见 readProcList）
     private static let procBuffer = UnsafeMutablePointer<frset_proc_t>.allocate(capacity: 512)
-    private static let procBufferLock = NSLock()
 
-    /// 可执行路径 → 宿主 `.app` 路径（与 C 层 frset_bundle_of 同规则：截到第一个 ".app" 为止）。
+    /// 可执行路径 → 宿主 `.app` 路径，截到第一个 ".app" 为止。
     /// 例：`/Applications/Google Chrome.app/Contents/Frameworks/…/Helper` → `/Applications/Google Chrome.app`
     static func appBundlePath(_ path: String) -> String? {
         guard let range = path.range(of: ".app/") else { return nil }
@@ -762,7 +730,7 @@ public final class StatsDataProvider {
     }
 
     /// 主网络接口 BSD 名（SCDynamicStore，官方 Net 模块同源）
-    private static func primaryInterfaceName() -> String {
+    static func primaryInterfaceName() -> String {
         guard let store = SCDynamicStoreCreate(nil, "FrsetNext" as CFString, nil, nil),
               let value = SCDynamicStoreCopyValue(store, "State:/Network/Global/IPv4" as CFString) as? [String: Any],
               let name = value["PrimaryInterface"] as? String else { return "" }
@@ -801,9 +769,8 @@ public final class StatsDataProvider {
     /// 供设置页传感器选择器使用：官方名表命中用官方中文名，
     /// 其次供电轨三件套族（V×I=P 实测验证），最后按 SMC 首字母族推断
     public static func sensorDisplayName(_ key: String) -> String {
-        var groupOut: Int32 = 0
         let official: String? = key.withCString { cKey in
-            guard let ptr = frset_sensor_name(cKey, &groupOut) else { return nil }
+            guard let ptr = frset_sensor_name(cKey, nil) else { return nil }
             return String(cString: ptr)
         }
         if let official, !official.isEmpty { return official }

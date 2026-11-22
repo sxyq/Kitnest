@@ -16,10 +16,6 @@ public final class MonitorSampler: ObservableObject {
     @Published public private(set) var history: History = History()
     /// 是否正在采样
     @Published public private(set) var isRunning: Bool = false
-    /// 单调递增的采样序号（仅用于设置页显示「已采样 N 次」）。
-    /// v183：不再 @Published——它原本每 tick 额外触发一次全量重绘，
-    /// 而同一 tick 里 sample/history 已经各发一次，这一个纯属多余。
-    public private(set) var tick: UInt64 = 0
 
     /// 历史缓冲（公开只读属性，供图表组件直接取用）
     public struct History {
@@ -31,6 +27,11 @@ public final class MonitorSampler: ObservableObject {
         public var diskWrite: [Double] = []
         public var gpu: [Double] = []
         public var power: [Double] = []
+        public var timestamps: [Double] = []
+        public var intervals: [Double] = []
+        public var memoryPressure: [Double] = []
+        public var battery: [Double] = []
+        public var temperatures: [String: [Double]] = [:]
 
         public init() {}
     }
@@ -41,14 +42,14 @@ public final class MonitorSampler: ObservableObject {
     private static let perfProbe = ProcessInfo.processInfo.environment["FRSET_PERF_PROBE"] != nil
 
     private let reader = MonitorReader()
-    private let samplingQueue = DispatchQueue(label: "com.frset.monitor.sampler", qos: .utility)
+    // 深层采样与常驻网络聚合共用，避免网络定时器在主线程读取进程。
+    let samplingQueue = DispatchQueue(label: "com.frset.monitor.sampler", qos: .utility)
     private let lock = NSLock()
 
     private var buffers = Buffers()
     // v129（内存）：History 快照双缓冲（见 sampleOnce 内注释）
     private var scratchA = History()
     private var scratchB = History()
-    private var scratchIndex = 0
     private var pendingWork: DispatchWorkItem?
     private var observers: [NSObjectProtocol] = []
 
@@ -97,6 +98,11 @@ public final class MonitorSampler: ObservableObject {
         var diskWrite = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
         var gpu = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
         var power = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
+        var timestamps = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
+        var intervals = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
+        var memoryPressure = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
+        var battery = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
+        var temperatures: [String: MonitorHistoryBuffer] = [:]
     }
 
     private init() {
@@ -108,6 +114,7 @@ public final class MonitorSampler: ObservableObject {
             queue: .main
         ) { [weak self] _ in
             self?.applyPreferences()
+            NetworkFlowTracker.shared.applyKeepAlivePreference()
         })
     }
 
@@ -123,7 +130,7 @@ public final class MonitorSampler: ObservableObject {
         guard pendingWork == nil else { lock.unlock(); return }
         lock.unlock()
         applyPreferences()
-        samplingQueue.async { [weak self] in self?.sampleOnce() }
+        refresh()
     }
 
     public func stop() {
@@ -141,7 +148,10 @@ public final class MonitorSampler: ObservableObject {
 
     /// 立即采样一帧（不等待定时器）
     public func refresh() {
-        samplingQueue.async { [weak self] in self?.sampleOnce() }
+        samplingQueue.async { [weak self] in
+            guard MonitorPreferences.isEnabled else { return }
+            self?.sampleOnce()
+        }
     }
 
     // MARK: - 内部
@@ -211,8 +221,12 @@ public final class MonitorSampler: ObservableObject {
         // 最坏情况是拿到相邻两 tick 的混合快照（≤0.5s），不影响观感与正确性。
         let cSnap = g_snap
         let gSnapValid = (cSnap.valid != 0)
-
-        let result = reader.readResult(needFull: !gSnapValid)
+        let deepSample = StatsDataProvider.shared.current
+        let sensors = deepSample.sensors
+        let swapUsed = deepSample.memSwapUsed
+        let memoryPressureLevel = deepSample.memPressureLevel
+        let gpuUsage = deepSample.gpuUsage
+        let result = reader.readResult(needFull: !gSnapValid, sensors: sensors, swapUsed: swapUsed)
         let t2 = probe ? DispatchTime.now().uptimeNanoseconds : 0
         if probe {
             let ms = { (a: UInt64, b: UInt64) in Double(b - a) / 1_000_000 }
@@ -250,9 +264,26 @@ public final class MonitorSampler: ObservableObject {
                 sample.batteryLevel = cSnap.batteryPercent / 100.0
             }
         }
-        let loadAverages = reader.loadAverages()
+        let loadAverages = gSnapValid
+            ? [cSnap.load1, cSnap.load5, cSnap.load15]
+            : reader.loadAverages()
 
         lock.lock()
+        let now = Date().timeIntervalSince1970
+        let interval = uiActive ? MonitorPreferences.refreshInterval : max(MonitorPreferences.refreshInterval, 5)
+        let previousCount = buffers.timestamps.count
+        buffers.timestamps.append(now)
+        buffers.intervals.append(interval)
+        buffers.memoryPressure.append(memoryPressureLevel > 0 ? Double(memoryPressureLevel) : .nan)
+        buffers.battery.append(sample.batteryLevel ?? .nan)
+        for name in Set(buffers.temperatures.keys).union(sample.temperatures.keys) {
+            if buffers.temperatures[name] == nil {
+                var buffer = MonitorHistoryBuffer(capacity: Self.historyCapacity)
+                for _ in 0..<previousCount { buffer.append(.nan) }
+                buffers.temperatures[name] = buffer
+            }
+            buffers.temperatures[name]!.append(sample.temperatures[name] ?? .nan)
+        }
         buffers.cpu.append(sample.cpuUsage)
         let memoryRatio = sample.memoryTotal > 0 ? Double(sample.memoryUsed) / Double(sample.memoryTotal) : 0
         buffers.memory.append(memoryRatio)
@@ -260,57 +291,36 @@ public final class MonitorSampler: ObservableObject {
         buffers.netUpload.append(Double(sample.netUpload))
         buffers.diskRead.append(Double(sample.diskRead))
         buffers.diskWrite.append(Double(sample.diskWrite))
-        let gpuUsage = StatsDataProvider.shared.current.gpuUsage
-        buffers.gpu.append(gpuUsage >= 0 ? gpuUsage : 0)
-        if let watts = sample.powerWatts {
-            buffers.power.append(watts)
-        } else if buffers.power.count > 0 {
-            // 失去读数时断开功耗曲线，不把缺失采样画成 0 W。
-            buffers.power = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
-        }
-        // v129（内存）：History 快照双缓冲轮换——每 tick 7 个 values() 新数组
-        //（480B×7 + History 结构拷贝）改为复用两个 scratch 的底座；
-        // 交替发布后旧快照已释放（refcount 回 1），回填即原地写
-        //（removeAll(keepingCapacity:)），稳态零分配，砍掉每 tick 7 个小数组
-        //（32B/48B 直方图峰值源之一）。
-        scratchIndex ^= 1
-        let snapshot: History
-        if scratchIndex == 0 {
-            buffers.cpu.values(into: &scratchA.cpu)
-            buffers.memory.values(into: &scratchA.memory)
-            buffers.netDownload.values(into: &scratchA.netDownload)
-            buffers.netUpload.values(into: &scratchA.netUpload)
-            buffers.diskRead.values(into: &scratchA.diskRead)
-            buffers.diskWrite.values(into: &scratchA.diskWrite)
-            buffers.gpu.values(into: &scratchA.gpu)
-            buffers.power.values(into: &scratchA.power)
-            snapshot = scratchA
-        } else {
-            buffers.cpu.values(into: &scratchB.cpu)
-            buffers.memory.values(into: &scratchB.memory)
-            buffers.netDownload.values(into: &scratchB.netDownload)
-            buffers.netUpload.values(into: &scratchB.netUpload)
-            buffers.diskRead.values(into: &scratchB.diskRead)
-            buffers.diskWrite.values(into: &scratchB.diskWrite)
-            buffers.gpu.values(into: &scratchB.gpu)
-            buffers.power.values(into: &scratchB.power)
-            snapshot = scratchB
-        }
+        buffers.gpu.append(gpuUsage >= 0 ? gpuUsage : .nan)
+        buffers.power.append(sample.powerWatts ?? .nan)
+        // 先换到旧缓冲，保留上一帧的底层数组供正在显示的视图使用。
+        swap(&scratchA, &scratchB)
+        buffers.cpu.values(into: &scratchA.cpu)
+        buffers.memory.values(into: &scratchA.memory)
+        buffers.netDownload.values(into: &scratchA.netDownload)
+        buffers.netUpload.values(into: &scratchA.netUpload)
+        buffers.diskRead.values(into: &scratchA.diskRead)
+        buffers.diskWrite.values(into: &scratchA.diskWrite)
+        buffers.gpu.values(into: &scratchA.gpu)
+        buffers.power.values(into: &scratchA.power)
+        buffers.timestamps.values(into: &scratchA.timestamps)
+        buffers.intervals.values(into: &scratchA.intervals)
+        buffers.memoryPressure.values(into: &scratchA.memoryPressure)
+        buffers.battery.values(into: &scratchA.battery)
+        for (name, buffer) in buffers.temperatures { buffer.values(into: &scratchA.temperatures[name, default: []]) }
+        let snapshot = scratchA
         lock.unlock()
 
         // 补充字段写入旁路容器（峰值/累计/负载）
-        // v129（内存）：两次 MonitorExtra.update 合并为一次（原来峰值段/累计段
-        // 各拿一次锁、各包一个闭包，每 tick 双份）。
-        let previousPeaks = MonitorExtra.current
         let netIn = MonitorFormat.u64(Double(sample.netDownload) * MonitorPreferences.refreshInterval)
         let netOut = MonitorFormat.u64(Double(sample.netUpload) * MonitorPreferences.refreshInterval)
         MonitorExtra.update { extra in
             extra.compressedMemory = result.compressedMemory
             extra.loadAverages = loadAverages
-            extra.netPeakDownload = max(previousPeaks.netPeakDownload, sample.netDownload)
-            extra.netPeakUpload = max(previousPeaks.netPeakUpload, sample.netUpload)
-            extra.diskPeakRead = max(previousPeaks.diskPeakRead, sample.diskRead)
-            extra.diskPeakWrite = max(previousPeaks.diskPeakWrite, sample.diskWrite)
+            extra.netPeakDownload = max(extra.netPeakDownload, sample.netDownload)
+            extra.netPeakUpload = max(extra.netPeakUpload, sample.netUpload)
+            extra.diskPeakRead = max(extra.diskPeakRead, sample.diskRead)
+            extra.diskPeakWrite = max(extra.diskPeakWrite, sample.diskWrite)
             extra.updatedAt = Date()
             // 累计流量（自本进程启动起累加，重启清零）
             // v168：用回绕加法 `&+=`。netIn/netOut 已经饱和到 UInt64.max，
@@ -321,7 +331,6 @@ public final class MonitorSampler: ObservableObject {
 
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
-            self.tick &+= 1          // 先自增：随后 sample 发布时设置页读到的是新值
             self.sample = sample
             self.history = snapshot
         }
@@ -331,6 +340,8 @@ public final class MonitorSampler: ObservableObject {
     public func resetHistory() {
         lock.lock()
         buffers = Buffers()
+        scratchA = History()
+        scratchB = History()
         lock.unlock()
         MonitorExtra.reset()
         DispatchQueue.main.async { [weak self] in

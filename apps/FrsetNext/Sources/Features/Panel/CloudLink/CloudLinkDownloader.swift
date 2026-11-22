@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import WebKit
 
 // MARK: - 网盘「解析下载」（LinkSwift 思路的最小可用实现）
@@ -37,7 +38,7 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
 
     @Published private(set) var items: [Item] = []
 
-    private var resolver: LinkPageResolver?
+    private var resolvers: [UUID: LinkPageResolver] = [:]
 
     /// 可直接下载的扩展名（用于「直链」判定与页面抓取过滤）
     private static let fileExtensions: Set<String> = [
@@ -47,19 +48,13 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
         "png", "jpg", "jpeg", "gif", "webp", "apk", "exe", "txt", "md", "json"
     ]
 
-    private var downloadsDirectory: URL {
-        let url = URL(fileURLWithPath: CloudLinkSettings.downloadDirectory, isDirectory: true)
-        try? FileManager.default.createDirectory(at: url, withIntermediateDirectories: true)
-        return url
-    }
-
     // MARK: - 入口
 
     /// - Parameter openBrowserOnFailure: 解析失败时是否兜底打开分享页
     ///   （UI 按钮走 true；自动化测试深链走 false，避免弹满浏览器标签）
     func start(link: CloudDriveLink, openBrowserOnFailure: Bool = true) {
         let direct = Self.isDirectFileURL(link.url) && !link.isSharePage
-        Log.info("CloudLink", "解析下载：provider=\(link.provider.rawValue) direct=\(direct) engine=\(CloudLinkSettings.engine.rawValue) url=\(link.url.absoluteString)")
+        Log.info("CloudLink", "解析下载：provider=\(link.provider.rawValue) direct=\(direct) engine=\(CloudLinkSettings.engine.rawValue)")
 
         if CloudLinkSettings.engine == .copy, direct {
             NSPasteboard.general.clearContents()
@@ -74,17 +69,19 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
         }
 
         Toast.show("正在解析\(link.provider.displayName)页面…", icon: "arrow.down.circle")
+        let resolverID = UUID()
         let resolver = LinkPageResolver()
-        self.resolver = resolver
+        resolvers[resolverID] = resolver
         resolver.resolve(pageURL: link.url) { [weak self] result in
             guard let self else { return }
-            self.resolver = nil
+            self.resolvers.removeValue(forKey: resolverID)
             switch result {
             case .success(let fileURL):
                 Toast.show("已解析到直链，开始下载", icon: "checkmark.circle.fill")
                 self.enqueueDownload(url: fileURL, preferredName: nil, provider: link.provider)
             case .failure(let reason):
-                Log.info("CloudLink", "解析失败：\(reason)")
+                Log.info("CloudLink", "解析失败")
+                HapticFeedback.perform(.transferFailed)
                 Toast.show(reason, icon: "exclamationmark.triangle", isWarning: true)
                 if openBrowserOnFailure { NSWorkspace.shared.open(link.url) }
             }
@@ -121,7 +118,7 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
         items.insert(item, at: 0)
         let id = item.id
         pending.append(Job(id: id, url: url, name: name, provider: provider))
-        Log.info("CloudLink", "入队：\(name)（等待 \(pending.count)，并发上限 \(CloudLinkSettings.maxConcurrent)）")
+        Log.info("CloudLink", "任务入队（等待 \(pending.count)，并发上限 \(CloudLinkSettings.maxConcurrent)）")
         pump()
     }
 
@@ -194,10 +191,23 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
                 case .file(let dest):
                     try FileManager.default.moveItem(at: tempURL, to: dest)
                     self.finish(id: job.id, localURL: dest)
+                case .replacement(let dest):
+                    let directory = try FileManager.default.url(for: .itemReplacementDirectory,
+                                                                in: .userDomainMask,
+                                                                appropriateFor: dest, create: true)
+                    defer { try? FileManager.default.removeItem(at: directory) }
+                    let incoming = directory.appendingPathComponent(filename)
+                    try FileManager.default.moveItem(at: tempURL, to: incoming)
+                    guard Darwin.rename(incoming.path, dest.path) == 0 else {
+                        throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno),
+                                      userInfo: [NSFilePathErrorKey: dest.path])
+                    }
+                    self.finish(id: job.id, localURL: dest)
                 }
                 self.release()
             } catch {
-                self.handleFailure(job, reason: error.localizedDescription)
+                self.finish(id: job.id, error: error.localizedDescription)
+                self.release()
             }
         }
         task.resume()
@@ -287,7 +297,7 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
         if job.attempt < CloudLinkSettings.retryCount {
             var next = job
             next.attempt += 1
-            Log.info("CloudLink", "下载失败（\(reason)），第 \(next.attempt)/\(CloudLinkSettings.retryCount) 次重试")
+            Log.info("CloudLink", "下载失败，第 \(next.attempt)/\(CloudLinkSettings.retryCount) 次重试")
             release()
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in
                 guard let self else { return }
@@ -302,17 +312,18 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
 
     private enum Destination {
         case file(URL)
+        case replacement(URL)
         case skipped
     }
 
     private func destination(for filename: String) throws -> Destination {
-        let dir = downloadsDirectory
+        let dir = URL(fileURLWithPath: CloudLinkSettings.downloadDirectory, isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let dest = dir.appendingPathComponent(filename)
         guard FileManager.default.fileExists(atPath: dest.path) else { return .file(dest) }
         switch CloudLinkSettings.conflictPolicy {
         case .overwrite:
-            try FileManager.default.removeItem(at: dest)
-            return .file(dest)
+            return .replacement(dest)
         case .skip:
             return .skipped
         case .rename:
@@ -340,13 +351,15 @@ final class CloudLinkDownloader: NSObject, ObservableObject {
             guard let index = self.items.firstIndex(where: { $0.id == id }) else { return }
             if let error {
                 self.items[index].status = .failed(error)
+                HapticFeedback.perform(.transferFailed)
                 Toast.show("下载失败：\(error)", icon: "exclamationmark.triangle", isWarning: true)
             } else if let localURL {
                 self.items[index].status = .finished
                 self.items[index].localURL = localURL
                 self.items[index].progress = 1
+                HapticFeedback.perform(.downloadCompleted)
                 Toast.show("已下载：\(localURL.lastPathComponent)", icon: "checkmark.circle.fill")
-                Log.info("CloudLink", "下载完成：\(localURL.path)")
+                Log.info("CloudLink", "下载完成")
                 // v95：使用统计接入（下载）
                 StatisticsManager.shared.record(.fileDownload)
                 if CloudLinkSettings.revealAfterDownload {
@@ -383,6 +396,11 @@ final class LinkPageResolver: NSObject, WKNavigationDelegate {
     private var completion: ((Result) -> Void)?
     private var timeoutWork: DispatchWorkItem?
     private var selectedScript: String?
+    private static let cookieDomains: Set<String> = [
+        "baidu.com", "aliyundrive.com", "alipan.com", "139.com", "189.cn",
+        "xunlei.com", "quark.cn", "uc.cn", "123pan.com", "123pan.cn",
+        "123684.com", "123865.com", "123952.com", "123912.com"
+    ]
 
     func resolve(pageURL: URL, completion: @escaping (Result) -> Void) {
         self.completion = completion
@@ -450,7 +468,7 @@ final class LinkPageResolver: NSObject, WKNavigationDelegate {
             } catch (e) {}
           });
           const html = document.documentElement.innerHTML;
-          const re = /https?:\\/\\/[^"'\\\\\\s<>]+?\\.(?:zip|rar|7z|tar|gz|dmg|pkg|iso|mp4|mkv|mov|avi|mp3|flac|wav|pdf|epub|docx?|xlsx?|pptx?|png|jpe?g|gif|webp|apk|exe|txt|md|json)(?:\\?[^"'\\\\\\s<>]*)?/gi;
+          const re = /https?:\\/\\/[^"'\\\\\\s<>]+?\\.(?:tar\\.gz|zip|rar|7z|tar|gz|dmg|pkg|iso|mp4|mkv|mov|avi|mp3|flac|wav|pdf|epub|docx?|xlsx?|pptx?|png|jpe?g|gif|webp|apk|exe|txt|md|json)(?:[?#][^"'\\\\\\s<>]*)?(?=$|["'\\\\\\s<>])/gi;
           (html.match(re) || []).forEach(u => found.add(u.replace(/&amp;/g, '&')));
           return Array.from(found).slice(0, 12);
         })()
@@ -473,13 +491,10 @@ final class LinkPageResolver: NSObject, WKNavigationDelegate {
     /// 把 WKWebView 的 cookie 同步给 URLSession（很多直链校验登录态）
     private func syncCookiesFrom(_ webView: WKWebView, completion: @escaping () -> Void) {
         webView.configuration.websiteDataStore.httpCookieStore.getAllCookies { cookies in
-            for cookie in cookies where cookie.domain.hasSuffix(".baidu.com")
-                || cookie.domain.hasSuffix(".aliyundrive.com")
-                || cookie.domain.hasSuffix(".alipan.com")
-                || cookie.domain.hasSuffix(".quark.cn")
-                || cookie.domain.hasSuffix(".123pan.com")
-                || cookie.domain.hasSuffix(".123684.com")
-                || cookie.domain.hasSuffix(".xunlei.com") {
+            for cookie in cookies {
+                let rawDomain = cookie.domain.lowercased()
+                let domain = rawDomain.hasPrefix(".") ? String(rawDomain.dropFirst()) : rawDomain
+                guard Self.cookieDomains.contains(where: { domain == $0 || domain.hasSuffix("." + $0) }) else { continue }
                 HTTPCookieStorage.shared.setCookie(cookie)
             }
             completion()

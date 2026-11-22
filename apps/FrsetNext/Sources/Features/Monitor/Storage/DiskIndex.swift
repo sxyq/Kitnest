@@ -37,6 +37,39 @@ struct DiskNode: Codable, Identifiable, Hashable {
     var children: [DiskNode]
     /// 合成项目仅用于展示，不对应可操作的文件路径。
     var isAggregate: Bool = false
+    /// 折叠目录保留的互斥分类与路径字节；旧缓存缺少此项时不推测分类。
+    var foldedCategorySummary: [DiskDataCategory]? = nil
+
+    init(path: String, name: String, isDirectory: Bool, size: Int64, ownSize: Int64,
+         foldedCount: Int, children: [DiskNode], isAggregate: Bool = false,
+         foldedCategorySummary: [DiskDataCategory]? = nil) {
+        self.path = path
+        self.name = name
+        self.isDirectory = isDirectory
+        self.size = size
+        self.ownSize = ownSize
+        self.foldedCount = foldedCount
+        self.children = children
+        self.isAggregate = isAggregate
+        self.foldedCategorySummary = foldedCategorySummary
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case path, name, isDirectory, size, ownSize, foldedCount, children, isAggregate, foldedCategorySummary
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        path = try values.decode(String.self, forKey: .path)
+        name = try values.decode(String.self, forKey: .name)
+        isDirectory = try values.decode(Bool.self, forKey: .isDirectory)
+        size = try values.decode(Int64.self, forKey: .size)
+        ownSize = try values.decode(Int64.self, forKey: .ownSize)
+        foldedCount = try values.decode(Int.self, forKey: .foldedCount)
+        children = try values.decode([DiskNode].self, forKey: .children)
+        isAggregate = try values.decodeIfPresent(Bool.self, forKey: .isAggregate) ?? false
+        foldedCategorySummary = try values.decodeIfPresent([DiskDataCategory].self, forKey: .foldedCategorySummary)
+    }
 
     var id: String { path }
 
@@ -58,11 +91,70 @@ struct DiskIndexSnapshot: Codable {
     ///
     /// v264 把深度上限从 6 放到 64、大小口径改成 st_blocks —— 旧缓存（无此字段）
     /// 的节点数只有真实量的 1/16、总量只有 1/4，继续拿来展示等于骗人。
-    /// 版本不符就当作「没有索引」，让用户重新扫一次。
+    /// 显式版本不符仍作废；无版本旧缓存保留目录树，分类小计缺失时提示重新扫描。
     var schema: Int? = nil
     /// 随索引生成的互斥分类汇总，窗口交互只读取结果。
     var dataCategories: [DiskDataCategory] = []
     var excludedPaths: [String] = []
+    var categorySummaryIssue: String? = nil
+
+    init(scope: String,
+         rootPath: String,
+         scannedAt: TimeInterval,
+         totalBytes: Int64,
+         nodeCount: Int,
+         skippedCount: Int,
+         root: DiskNode,
+         truncated: Bool? = nil,
+         schema: Int? = nil,
+         dataCategories: [DiskDataCategory] = [],
+         excludedPaths: [String] = [],
+         categorySummaryIssue: String? = nil) {
+        self.scope = scope
+        self.rootPath = rootPath
+        self.scannedAt = scannedAt
+        self.totalBytes = totalBytes
+        self.nodeCount = nodeCount
+        self.skippedCount = skippedCount
+        self.root = root
+        self.truncated = truncated
+        self.schema = schema
+        self.dataCategories = dataCategories
+        self.excludedPaths = excludedPaths
+        self.categorySummaryIssue = categorySummaryIssue
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case scope, rootPath, scannedAt, totalBytes, nodeCount, skippedCount
+        case root, truncated, schema, dataCategories, excludedPaths, categorySummaryIssue
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        scope = try values.decode(String.self, forKey: .scope)
+        rootPath = try values.decode(String.self, forKey: .rootPath)
+        scannedAt = try values.decode(TimeInterval.self, forKey: .scannedAt)
+        totalBytes = try values.decode(Int64.self, forKey: .totalBytes)
+        nodeCount = try values.decode(Int.self, forKey: .nodeCount)
+        skippedCount = try values.decode(Int.self, forKey: .skippedCount)
+        root = try values.decode(DiskNode.self, forKey: .root)
+        truncated = try values.decodeIfPresent(Bool.self, forKey: .truncated)
+        schema = try values.decodeIfPresent(Int.self, forKey: .schema)
+        dataCategories = try values.decodeIfPresent([DiskDataCategory].self, forKey: .dataCategories) ?? []
+        excludedPaths = try values.decodeIfPresent([String].self, forKey: .excludedPaths) ?? []
+        categorySummaryIssue = try values.decodeIfPresent(String.self, forKey: .categorySummaryIssue)
+    }
+
+    mutating func recomputeDataCategories() {
+        switch DiskDataCategory.summarize(root) {
+        case .success(let categories):
+            dataCategories = categories
+            categorySummaryIssue = nil
+        case .failure(let issue):
+            dataCategories = []
+            categorySummaryIssue = issue.message
+        }
+    }
 }
 
 enum DiskDataKind: String, Codable, CaseIterable, Identifiable {
@@ -79,7 +171,11 @@ enum DiskDataKind: String, Codable, CaseIterable, Identifiable {
     }
 
     static func match(_ node: DiskNode) -> Self? {
-        switch node.name {
+        match(path: node.path, name: node.name)
+    }
+
+    static func match(path: String, name: String) -> Self? {
+        switch name {
         case "Caches", "cache", "caches", ".cache", ".npm", ".pnpm-store", ".yarn",
              ".uv", "__pycache__", ".pytest_cache", "go-build": return .caches
         case "Logs", "logs": return .logs
@@ -87,49 +183,134 @@ enum DiskDataKind: String, Codable, CaseIterable, Identifiable {
              "Pods", "DerivedData": return .development
         default: break
         }
-        let parent = (node.path as NSString).deletingLastPathComponent
+        let parent = (path as NSString).deletingLastPathComponent
         if (parent as NSString).lastPathComponent == "Library" {
-            if ["Application Support", "Containers", "Group Containers"].contains(node.name) {
+            if ["Application Support", "Containers", "Group Containers"].contains(name) {
                 return .applicationSupport
             }
-            if node.name == "Developer" { return .development }
+            if name == "Developer" { return .development }
         }
-        if node.path == "/private/var/log" || node.path == "/var/log" { return .logs }
-        if node.path == "/Applications/Xcode.app" { return .development }
+        if path == "/private/var/log" || path == "/var/log" { return .logs }
+        if path == "/Applications/Xcode.app" { return .development }
         return nil
     }
 }
 
-struct DiskDataCategory: Codable, Identifiable {
+struct DiskDataPath: Codable, Hashable, Identifiable {
+    let path: String
+    let bytes: Int64
+    var id: String { path }
+}
+
+struct DiskDataCategory: Codable, Hashable, Identifiable {
     let kind: DiskDataKind
     let bytes: Int64
-    let directories: [String]
+    var pathBytes: [DiskDataPath]? = nil
     var id: String { kind.id }
+
+    enum SummaryFailure: Error {
+        case foldedDetailsMissing
+        case totalMismatch
+
+        var message: String {
+            switch self {
+            case .foldedDetailsMissing:
+                return "此缓存的折叠目录只保存总字节与项目数，缺少内部类别小计及逐路径字节；无法还原精确分类，请重新扫描。"
+            case .totalMismatch:
+                return "分类路径字节合计与索引目录总量不一致，无法显示精确分类，请重新扫描。"
+            }
+        }
+    }
+
+    struct Accumulator {
+        private struct Key: Hashable {
+            let kind: DiskDataKind
+            let path: String
+        }
+
+        private var sizes: [Key: Int64] = [:]
+
+        init() {}
+
+        mutating func add(kind: DiskDataKind, path: String, bytes: Int64) {
+            guard bytes > 0 else { return }
+            sizes[Key(kind: kind, path: path), default: 0] += bytes
+        }
+
+        mutating func merge(_ other: Accumulator) {
+            for (key, bytes) in other.sizes {
+                sizes[key, default: 0] += bytes
+            }
+        }
+
+        mutating func merge(_ categories: [DiskDataCategory]) -> Bool {
+            for category in categories {
+                guard let paths = category.pathBytes,
+                      paths.reduce(Int64(0), { $0 + $1.bytes }) == category.bytes else {
+                    return false
+                }
+                for item in paths {
+                    add(kind: category.kind, path: item.path, bytes: item.bytes)
+                }
+            }
+            return true
+        }
+
+        var totalBytes: Int64 { sizes.values.reduce(Int64(0), +) }
+
+        func categories() -> [DiskDataCategory] {
+            DiskDataKind.allCases.map { kind in
+                var paths: [DiskDataPath] = []
+                for (key, bytes) in sizes where key.kind == kind {
+                    paths.append(DiskDataPath(path: key.path, bytes: bytes))
+                }
+                paths.sort {
+                    if $0.bytes == $1.bytes { return $0.path < $1.path }
+                    return $0.bytes > $1.bytes
+                }
+                return DiskDataCategory(
+                    kind: kind,
+                    bytes: paths.reduce(Int64(0), { $0 + $1.bytes }),
+                    pathBytes: paths
+                )
+            }
+        }
+    }
+
     var node: DiskNode {
         DiskNode(path: id, name: kind.title, isDirectory: false, size: bytes,
                  ownSize: bytes, foldedCount: 0, children: [], isAggregate: true)
     }
 
-    static func summarize(_ root: DiskNode) -> [Self] {
-        var sizes: [DiskDataKind: Int64] = [:]
-        var directories: [DiskDataKind: Set<String>] = [:]
-        func visit(_ node: DiskNode, kind: DiskDataKind, origin: String) {
+    static func summarize(_ root: DiskNode) -> Result<[Self], SummaryFailure> {
+        var summary = Accumulator()
+        func visit(_ node: DiskNode, kind: DiskDataKind, origin: String) -> SummaryFailure? {
+            if node.isDirectory && node.foldedCount > 0 && !node.children.contains(where: { $0.isAggregate }) {
+                return .foldedDetailsMissing
+            }
+            if node.isAggregate {
+                guard let folded = node.foldedCategorySummary,
+                      summary.merge(folded) else {
+                    return .foldedDetailsMissing
+                }
+                return nil
+            }
             let matched = node.isDirectory && !node.isAggregate ? DiskDataKind.match(node) : nil
             let kind = matched ?? kind
             let origin = matched == nil ? origin : node.path
             // 父目录只贡献未展示的直接文件；子节点各贡献一次。
             let bytes = node.isDirectory ? node.ownSize : node.size
-            if bytes > 0 {
-                sizes[kind, default: 0] += bytes
-                directories[kind, default: []].insert(origin)
+            summary.add(kind: kind, path: origin, bytes: bytes)
+            for child in node.children {
+                if let issue = visit(child, kind: kind, origin: origin) { return issue }
             }
-            for child in node.children { visit(child, kind: kind, origin: origin) }
+            return nil
         }
-        visit(root, kind: .other, origin: root.path)
-        return DiskDataKind.allCases.map {
-            Self(kind: $0, bytes: sizes[$0, default: 0],
-                 directories: DiskIndexStore.independentPaths(Array(directories[$0, default: []])))
+        if let issue = visit(root, kind: .other, origin: root.path) {
+            return .failure(issue)
         }
+        guard summary.totalBytes == root.size else { return .failure(.totalMismatch) }
+        return .success(summary.categories())
     }
 }
 
@@ -241,7 +422,7 @@ final class DiskIndexScanner {
     /// 400 万覆盖整块启动卷；折叠后实际节点 ~40 万，内存峰值 ~150MB，
     /// 且只存在于「存储管理窗口打开 + 手动点扫描」的这几十秒里。
     static let maxNodes = 4_000_000
-    /// 索引结构版本：深度/大小口径一变就 +1，旧缓存自动失效
+    /// 索引结构版本：深度/大小口径变化时递增；无版本旧缓存保留目录索引。
     static let schemaVersion = 6
     /// 每层保留的最大子项。24 太少了：`~` 下有 30+ 个目录，
     /// `.workbuddy` 这种中等大小的会被折进「其余 N 项」，再也点不进去。
@@ -257,7 +438,7 @@ final class DiskIndexScanner {
 
     func cancel() { cancelled = true }
 
-    /// 后台队列执行；progress 在主线程回调（nodeCount, 当前路径）
+    /// 后台队列执行并完成；progress 在主线程回调（nodeCount, 当前路径）。
     func scan(scope: DiskScanScope,
               queue: DispatchQueue,
               progress: @escaping (Int, String) -> Void,
@@ -268,21 +449,24 @@ final class DiskIndexScanner {
             var counter = 0
             var skipped = 0
             let excluded = scope.excludedPrefixes   // 一次算好，递归里不重复拼路径数组
-            let root = self.walk(scope.rootPath,
-                                 depth: 0,
-                                 excluded: excluded,
-                                 counter: &counter,
-                                 skipped: &skipped,
-                                 progress: progress)
-            guard !self.cancelled, let root else {
-                DispatchQueue.main.async { completion(nil) }
+            let result = self.walk(scope.rootPath,
+                                   depth: 0,
+                                   inheritedKind: .other,
+                                   inheritedOrigin: scope.rootPath,
+                                   excluded: excluded,
+                                   counter: &counter,
+                                   skipped: &skipped,
+                                   progress: progress)
+            guard !self.cancelled, let result else {
+                completion(nil)
                 return
             }
+            let root = result.node
             Log.info("DiskIndex", String(format: "扫描完成：%d 条目 · 跳过 %d 处 · %.1f GB · %.1f 秒",
                                          counter, skipped,
                                          Double(root.size) / 1_073_741_824,
                                          CFAbsoluteTimeGetCurrent() - startedAt))
-            var snapshot = DiskIndexSnapshot(scope: scope.rawValue,
+            let snapshot = DiskIndexSnapshot(scope: scope.rawValue,
                                              rootPath: scope.rootPath,
                                              scannedAt: Date().timeIntervalSince1970,
                                              totalBytes: root.size,
@@ -290,10 +474,10 @@ final class DiskIndexScanner {
                                              skippedCount: skipped,
                                              root: root,
                                              truncated: counter >= Self.maxNodes,
-                                             schema: Self.schemaVersion)
-            snapshot.dataCategories = DiskDataCategory.summarize(root)
-            snapshot.excludedPaths = excluded
-            DispatchQueue.main.async { completion(snapshot) }
+                                             schema: Self.schemaVersion,
+                                             dataCategories: result.summary.categories(),
+                                             excludedPaths: excluded)
+            completion(snapshot)
         }
     }
 
@@ -303,14 +487,7 @@ final class DiskIndexScanner {
     /// 实际只占 13GB，用 st_size 会让「已索引」虚高、与 df 对不上（v264 实测）。
     /// `st_blocks`（512 字节块）才是 df/du 的口径。稀疏文件也靠它算对。
     private static func physicalSize(_ st: stat) -> Int64 {
-        let blocks = Int64(st.st_blocks) * 512
-        // 少数文件系统（网络卷 / FAT）不报 st_blocks，退回逻辑大小
-        return blocks > 0 ? blocks : Int64(st.st_size)
-    }
-
-    /// 子目录名称用于递归；文件只保留本层最大的有限候选。
-    private struct DirEntry {
-        let name: String
+        Int64(st.st_blocks) * 512
     }
 
     private struct FileEntry {
@@ -332,9 +509,12 @@ final class DiskIndexScanner {
     /// **目录不再 lstat**（APFS 上 d_type 可靠），少掉约 20% 的 syscall；
     /// 只有普通文件才取 `st_size`。实测 `find ~` 205 万条目 35 秒，
     /// 这套走法与之同量级。
-    private func walk(_ path: String, depth: Int, excluded: [String],
+    private func walk(_ path: String, depth: Int,
+                      inheritedKind: DiskDataKind, inheritedOrigin: String,
+                      excluded: [String],
                       counter: inout Int, skipped: inout Int,
-                      progress: @escaping (Int, String) -> Void) -> DiskNode? {
+                      progress: @escaping (Int, String) -> Void)
+        -> (node: DiskNode, summary: DiskDataCategory.Accumulator)? {
         if cancelled { return nil }
         if excluded.contains(where: { path == $0 || path.hasPrefix($0 + "/") }) {
             skipped += 1
@@ -343,7 +523,13 @@ final class DiskIndexScanner {
         guard let dir = opendir(path) else { skipped += 1; return nil }
         defer { closedir(dir) }
 
-        var subdirs: [DirEntry] = []
+        let name = (path as NSString).lastPathComponent.isEmpty
+            ? "/" : (path as NSString).lastPathComponent
+        let matched = DiskDataKind.match(path: path, name: name)
+        let kind = matched ?? inheritedKind
+        let origin = matched == nil ? inheritedOrigin : path
+
+        var subdirs: [String] = []
         var fileBytes: Int64 = 0
         var files: [FileEntry] = []
         var st = stat()
@@ -361,13 +547,12 @@ final class DiskIndexScanner {
                 String(cString: raw.baseAddress!.assumingMemoryBound(to: CChar.self))
             }
             if name == "." || name == ".." { continue }
-            let full = path == "/" ? "/" + name : path + "/" + name
             let dtype = ent.pointee.d_type
 
             if dtype == dtDir {
-                subdirs.append(DirEntry(name: name))
+                subdirs.append(name)
             } else if dtype == dtReg {
-                guard lstat(full, &st) == 0 else { skipped += 1; continue }
+                guard lstat(path == "/" ? "/" + name : path + "/" + name, &st) == 0 else { skipped += 1; continue }
                 let bytes = Self.physicalSize(st)
                 fileBytes += bytes
                 retainFile(name, size: bytes, in: &files)
@@ -377,11 +562,11 @@ final class DiskIndexScanner {
                 continue
             } else {
                 // DT_UNKNOWN（网络卷 / 部分文件系统）：退回 lstat 判断
-                guard lstat(full, &st) == 0 else { skipped += 1; continue }
+                guard lstat(path == "/" ? "/" + name : path + "/" + name, &st) == 0 else { skipped += 1; continue }
                 let mode = st.st_mode & ifmt
                 if mode == iflnk { skipped += 1; continue }
                 if mode == ifdir {
-                    subdirs.append(DirEntry(name: name))
+                    subdirs.append(name)
                 } else {
                     let bytes = Self.physicalSize(st)
                     fileBytes += bytes
@@ -394,35 +579,45 @@ final class DiskIndexScanner {
             // 实测会把面板刷成幻灯片。1 万条一次（约 250ms）足够看清进度。
             if counter % 10_000 == 0 {
                 let c = counter
+                let full = path == "/" ? "/" + name : path + "/" + name
                 DispatchQueue.main.async { progress(c, full) }
             }
             if counter >= Self.maxNodes { break }
         }
 
-        var children = files.map {
-            DiskNode(path: path == "/" ? "/" + $0.name : path + "/" + $0.name,
-                     name: $0.name, isDirectory: false, size: $0.size,
-                     ownSize: $0.size, foldedCount: 0, children: [])
+        var children: [(node: DiskNode, summary: DiskDataCategory.Accumulator)] = files.map {
+            (node: DiskNode(path: path == "/" ? "/" + $0.name : path + "/" + $0.name,
+                            name: $0.name, isDirectory: false, size: $0.size,
+                            ownSize: $0.size, foldedCount: 0, children: []),
+             summary: DiskDataCategory.Accumulator())
         }
         var ownSize = fileBytes - files.reduce(Int64(0)) { $0 + $1.size }
         var folded = 0
         var foldedBytes: Int64 = 0
+        var foldedSummary = DiskDataCategory.Accumulator()
+        var summary = DiskDataCategory.Accumulator()
+        summary.add(kind: kind, path: origin, bytes: fileBytes)
         if depth < Self.maxDepth {
-            for e in subdirs {
+            for name in subdirs {
                 if counter >= Self.maxNodes { break }
-                if let child = walk(path == "/" ? "/" + e.name : path + "/" + e.name,
-                                    depth: depth + 1, excluded: excluded,
+                if let child = walk(path == "/" ? "/" + name : path + "/" + name,
+                                    depth: depth + 1,
+                                    inheritedKind: kind,
+                                    inheritedOrigin: origin,
+                                    excluded: excluded,
                                     counter: &counter, skipped: &skipped,
                                     progress: progress) {
-                    let index = children.firstIndex { $0.size < child.size } ?? children.count
-                    children.insert(child, at: index)
+                    summary.merge(child.summary)
+                    let index = children.firstIndex { $0.node.size < child.node.size } ?? children.count
+                    children.insert((node: child.node, summary: child.summary), at: index)
                     if children.count > Self.childrenPerDirectory {
                         let removed = children.removeLast()
-                        if removed.isDirectory {
+                        if removed.node.isDirectory {
                             folded += 1
-                            foldedBytes += removed.size
+                            foldedBytes += removed.node.size
+                            foldedSummary.merge(removed.summary)
                         } else {
-                            ownSize += removed.size
+                            ownSize += removed.node.size
                         }
                     }
                 }
@@ -430,23 +625,24 @@ final class DiskIndexScanner {
         }
         // 文件与目录共用 60 项；被折叠的目录计入合成子节点，直接文件留在 ownSize。
         if folded > 0 {
-            children.append(DiskNode(path: "disk-folded:" + path,
-                                     name: "其余 \(folded) 项",
-                                     isDirectory: false,
-                                     size: foldedBytes,
-                                     ownSize: foldedBytes,
-                                     foldedCount: folded,
-                                     children: [], isAggregate: true))
+            children.append((
+                node: DiskNode(path: "disk-folded:" + path,
+                               name: "其余 \(folded) 项",
+                               isDirectory: false,
+                               size: foldedBytes,
+                               ownSize: foldedBytes,
+                               foldedCount: folded,
+                               children: [], isAggregate: true,
+                               foldedCategorySummary: foldedSummary.categories()),
+                summary: DiskDataCategory.Accumulator()
+            ))
         }
-        let total = ownSize + children.reduce(Int64(0)) { $0 + $1.size }
-        let node = DiskNode(path: path,
-                            name: (path as NSString).lastPathComponent.isEmpty ? "/" : (path as NSString).lastPathComponent,
-                            isDirectory: true,
-                            size: total,
-                            ownSize: ownSize,
-                            foldedCount: folded,
-                            children: children.sorted { $0.size > $1.size })
-        return node
+        let visibleChildren = children.map(\.node).sorted { $0.size > $1.size }
+        let total = ownSize + visibleChildren.reduce(Int64(0)) { $0 + $1.size }
+        let node = DiskNode(path: path, name: name, isDirectory: true,
+                            size: total, ownSize: ownSize, foldedCount: folded,
+                            children: visibleChildren)
+        return (node: node, summary: summary)
     }
 }
 
@@ -474,7 +670,15 @@ final class DiskIndexStore: ObservableObject {
     @Published private(set) var records: [CleanupRecord] = []
     /// v211（用户：「它同时扫描的是一个全盘，包括点开头的这些目录，然后还有就是其他目录」）：
     /// 默认就是整块启动卷；个人目录留在设置里做「只想清理自己文件」的快速选项。
-    @Published var scope: DiskScanScope = .fullDisk
+    @Published var scope: DiskScanScope = .fullDisk {
+        didSet {
+            if scope != oldValue {
+                cancelScan()
+                snapshot = nil
+                reloadFromCache()
+            }
+        }
+    }
 
     private let queue = DispatchQueue(label: "com.frsetnext.diskindex", qos: .utility)
     private var scanner: DiskIndexScanner?
@@ -495,21 +699,26 @@ final class DiskIndexStore: ObservableObject {
     func loadIfNeeded() {
         guard !loaded else { return }
         loaded = true
+        let url = recordsURL
+        queue.async { [weak self] in
+            let data = try? Data(contentsOf: url)
+            let records = data.flatMap { try? JSONDecoder().decode([CleanupRecord].self, from: $0) } ?? []
+            DispatchQueue.main.async { self?.records = records }
+        }
         reloadFromCache(autoScanIfMissing: false)
     }
 
     func reloadFromCache(autoScanIfMissing: Bool = false) {
-        let url = cacheURL(for: scope)
-        let recordsURL = self.recordsURL
+        let requestedScope = scope
+        let revision = indexRevision
+        let url = cacheURL(for: requestedScope)
         queue.async { [weak self] in
             let data = try? Data(contentsOf: url, options: .mappedIfSafe)
             let snap = data.flatMap { Self.decodeSnapshot($0) }
-            let recData = try? Data(contentsOf: recordsURL)
-            let recs = recData.flatMap { try? JSONDecoder().decode([CleanupRecord].self, from: $0) } ?? []
             DispatchQueue.main.async {
-                guard let self else { return }
+                guard let self, self.scope == requestedScope,
+                      self.indexRevision == revision, !self.isScanning else { return }
                 self.snapshot = snap
-                self.records = recs
                 if snap == nil, autoScanIfMissing { self.rescan() }
             }
         }
@@ -520,21 +729,24 @@ final class DiskIndexStore: ObservableObject {
     /// 深度放开后节点从 15 万涨到 40 万，同样的树用 JSON 要 80MB、解码 2~3 秒；
     /// 二进制 plist 小一半、解码快 3 倍。旧缓存是 JSON，先试 plist 再回落 JSON，
     /// 升级后第一次打开仍能读出来（只是慢一次）。
-    private static func decodeSnapshot(_ data: Data) -> DiskIndexSnapshot? {
+    private static func decodeSnapshot(_ data: Data, recomputeCategories: Bool = true) -> DiskIndexSnapshot? {
         struct Header: Decodable { let schema: Int? }
         let schema = (try? PropertyListDecoder().decode(Header.self, from: data))?.schema
             ?? (try? JSONDecoder().decode(Header.self, from: data))?.schema
         // 先读版本，过期的大树不再生成上百万个 Swift 节点。
-        guard schema == DiskIndexScanner.schemaVersion else {
+        guard schema == nil || schema == DiskIndexScanner.schemaVersion else {
             Log.info("DiskIndex", "旧版索引缓存（schema=\(schema.map(String.init) ?? "无")），已作废，请重新扫描")
             return nil
         }
-        let snap: DiskIndexSnapshot?
+        var snap: DiskIndexSnapshot
         if let s = try? PropertyListDecoder().decode(DiskIndexSnapshot.self, from: data) {
             snap = s
+        } else if let s = try? JSONDecoder().decode(DiskIndexSnapshot.self, from: data) {
+            snap = s
         } else {
-            snap = try? JSONDecoder().decode(DiskIndexSnapshot.self, from: data)
+            return nil
         }
+        if recomputeCategories { snap.recomputeDataCategories() }
         return snap
     }
 
@@ -547,39 +759,42 @@ final class DiskIndexStore: ObservableObject {
         lastError = nil
         progressText = "正在索引…"
         let currentScope = scope
+        let url = cacheURL(for: currentScope)
         s.scan(scope: currentScope, queue: queue,
-               progress: { [weak self] count, path in
-                   self?.progressText = "已索引 \(count) 项 · \(path)"
+               progress: { [weak self, s] count, path in
+                   guard let self, self.scanner === s else { return }
+                   self.progressText = "已索引 \(count) 项 · \(path)"
                },
-               completion: { [weak self] snap in
-                   guard let self else { return }
-                   self.isScanning = false
-                   self.scanner = nil
-                   guard let snap else {
-                       self.lastError = "扫描已取消或无法读取"
-                       return
+               completion: { [weak self, s] snap in
+                   if let snap, DispatchQueue.main.sync(execute: { self?.scanner === s }) {
+                       do { try Self.persist(snap: snap, to: url) }
+                       catch { Log.warn("DiskIndex", "索引缓存写入失败：\(error.localizedDescription)") }
                    }
-                   self.snapshot = snap
-                   self.progressText = ""
-                   self.persist(snap: snap, for: currentScope)
+                   DispatchQueue.main.async { [weak self, s] in
+                       guard let self, self.scanner === s else { return }
+                       self.isScanning = false
+                       self.scanner = nil
+                       self.progressText = ""
+                       guard let snap else {
+                           self.lastError = "扫描已取消或无法读取"
+                           return
+                       }
+                       self.snapshot = snap
+                   }
                })
     }
 
     func cancelScan() {
         scanner?.cancel()
+        scanner = nil
         isScanning = false
         progressText = ""
     }
 
-    private func persist(snap: DiskIndexSnapshot, for scope: DiskScanScope) {
-        let url = cacheURL(for: scope)
-        queue.async {
-            let encoder = PropertyListEncoder()
-            encoder.outputFormat = .binary
-            if let data = try? encoder.encode(snap) {
-                try? data.write(to: url, options: .atomic)
-            }
-        }
+    private static func persist(snap: DiskIndexSnapshot, to url: URL) throws {
+        let encoder = PropertyListEncoder()
+        encoder.outputFormat = .binary
+        try encoder.encode(snap).write(to: url, options: .atomic)
     }
 
     private func persistRecords() {
@@ -593,6 +808,7 @@ final class DiskIndexStore: ObservableObject {
     }
 
     func clearCache() {
+        cancelScan()
         snapshot = nil
         let urls = DiskScanScope.allCases.map { cacheURL(for: $0) }
         queue.async { for u in urls { try? FileManager.default.removeItem(at: u) } }
@@ -669,9 +885,10 @@ final class DiskIndexStore: ObservableObject {
     /// 返回成功移入废纸篓的路径数；同时更新内存树与缓存。
     func trash(paths: [String], completion: @escaping (Int, Int64) -> Void) {
         let unique = Self.independentPaths(paths)
-        let original = snapshot
-        let root = original?.root
+        let root = snapshot?.root
+        let caches = DiskScanScope.allCases.map { ($0, cacheURL(for: $0)) }
         queue.async { [weak self] in
+            guard let self else { return }
             var moved = Set<String>()
             var errors: [String] = []
             for p in unique {
@@ -691,19 +908,36 @@ final class DiskIndexStore: ObservableObject {
             let bytes = moved.reduce(Int64(0)) { sum, p in
                 sum + (Self.findNode(root, path: p)?.size ?? 0)
             }
-            var updated = original
-            if !moved.isEmpty, var s = updated {
-                s.root = Self.pruned(s.root, removing: moved)
-                s.totalBytes = s.root.size
-                s.dataCategories = DiskDataCategory.summarize(s.root)
-                updated = s
+            let state = DispatchQueue.main.sync { (snapshot: self.snapshot, revision: self.indexRevision) }
+            let update = state.snapshot.map { Self.removing(moved, from: $0) }
+            if !moved.isEmpty {
+                for (scope, url) in caches {
+                    do {
+                        let mutation: (changed: Bool, snapshot: DiskIndexSnapshot?)
+                        if let update, state.snapshot?.scope == scope.rawValue {
+                            mutation = update
+                        } else {
+                            guard FileManager.default.fileExists(atPath: url.path) else { continue }
+                            let data = try Data(contentsOf: url, options: .mappedIfSafe)
+                            guard let snapshot = Self.decodeSnapshot(data, recomputeCategories: false) else { continue }
+                            mutation = Self.removing(moved, from: snapshot)
+                        }
+                        guard mutation.changed else { continue }
+                        if let cached = mutation.snapshot {
+                            try Self.persist(snap: cached, to: url)
+                        } else if FileManager.default.fileExists(atPath: url.path) {
+                            try FileManager.default.removeItem(at: url)
+                        }
+                    } catch {
+                        errors.append("\(url.lastPathComponent)：\(error.localizedDescription)")
+                    }
+                }
             }
-            DispatchQueue.main.async {
+            DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
                 self.lastError = errors.isEmpty ? nil : errors.joined(separator: "\n")
-                if !moved.isEmpty, let s = updated {
-                    self.snapshot = s
-                    self.persist(snap: s, for: DiskScanScope(rawValue: s.scope) ?? self.scope)
+                if let update, update.changed, self.indexRevision == state.revision {
+                    self.snapshot = update.snapshot
                 }
                 let record = CleanupRecord(at: Date().timeIntervalSince1970,
                                            paths: unique, bytes: bytes,
@@ -714,6 +948,25 @@ final class DiskIndexStore: ObservableObject {
                 completion(moved.count, bytes)
             }
         }
+    }
+
+    private static func removing(_ paths: Set<String>, from snapshot: DiskIndexSnapshot)
+        -> (changed: Bool, snapshot: DiskIndexSnapshot?) {
+        let root = snapshot.rootPath
+        let affected = Set(paths.filter {
+            root == "/" || $0 == root || $0.hasPrefix(root + "/")
+                || root.hasPrefix($0 == "/" ? "/" : $0 + "/")
+        })
+        guard !affected.isEmpty else { return (false, snapshot) }
+        guard !affected.contains(where: { root == $0 || root.hasPrefix($0 == "/" ? "/" : $0 + "/") }),
+              affected.allSatisfy({ findNode(snapshot.root, path: $0) != nil }) else {
+            return (true, nil)
+        }
+        var updated = snapshot
+        updated.root = pruned(updated.root, removing: affected)
+        updated.totalBytes = updated.root.size
+        updated.recomputeDataCategories()
+        return (true, updated)
     }
 
     static func findNode(_ node: DiskNode?, path: String) -> DiskNode? {
@@ -743,6 +996,9 @@ final class DiskIndexStore: ObservableObject {
 
     /// 从树里删掉指定路径并重算父节点大小
     static func pruned(_ node: DiskNode, removing paths: Set<String>) -> DiskNode {
+        guard paths.contains(where: { $0.hasPrefix(node.path == "/" ? "/" : node.path + "/") }) else {
+            return node
+        }
         var n = node
         let kept = n.children
             .filter { !paths.contains($0.path) }

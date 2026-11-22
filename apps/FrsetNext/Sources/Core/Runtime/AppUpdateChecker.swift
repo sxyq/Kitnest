@@ -24,6 +24,7 @@ public final class AppUpdateChecker {
 
     /// 官方更新清单；用户仍可在 设置 → 关于 覆盖（清空即回到默认）
     public static let defaultFeedURL = "https://calorieai.sxyq27.online/kitnest-site/kitnest/lite/stable/latest.json"
+    private static let updateSigningRequirement = "identifier \"com.sxyq.frsetnext\" and certificate leaf = H\"2efbee27cefef9f60c03ba222a972127d9286542\""
 
     /// 清单更新后广播（WhatsNew 与状态栏用）
     public static let feedDidUpdateNotification = Notification.Name("frset.update.feedDidUpdate")
@@ -72,6 +73,7 @@ public final class AppUpdateChecker {
     }
 
     private var pollTimer: Timer?
+    private var pendingInstaller: (runner: Process, work: URL)?
 
     // MARK: - 检查
 
@@ -96,15 +98,15 @@ public final class AppUpdateChecker {
 
     private func check(manual: Bool) {
         let feed = feedURL
-        guard let url = URL(string: feed) else {
-            if manual { Toast.show("更新源地址无效（设置 → 关于）", icon: "arrow.triangle.2.circlepath") }
+        guard let url = URL(string: feed), url.scheme?.lowercased() == "https" else {
+            if manual { Toast.show("更新源必须使用有效的 HTTPS 地址（设置 → 关于）", icon: "arrow.triangle.2.circlepath") }
             return
         }
         if manual { Toast.show("正在检查更新…", icon: "arrow.triangle.2.circlepath") }
         var request = URLRequest(url: url, timeoutInterval: 10)
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.cachePolicy = .reloadIgnoringLocalCacheData
-        URLSession.shared.dataTask(with: request) { [weak self] data, _, error in
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
             DispatchQueue.main.async {
                 guard let self else { return }
                 Preferences.shared.set(Keys.lastCheckAt, Date().timeIntervalSince1970)
@@ -115,6 +117,12 @@ public final class AppUpdateChecker {
                     }
                     return
                 }
+                guard let http = response as? HTTPURLResponse,
+                      (200..<300).contains(http.statusCode),
+                      http.url?.scheme?.lowercased() == "https" else {
+                    if manual { Toast.show("更新清单未通过 HTTPS 响应检查", icon: "exclamationmark.shield", isWarning: true) }
+                    return
+                }
                 guard let data,
                       let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                     if manual { Toast.show("更新源返回格式不符（需要 build 字段）",
@@ -123,7 +131,7 @@ public final class AppUpdateChecker {
                 }
 
                 let latestBuild = Self.parseBuild(obj, currentBuild: self.currentBuild)
-                Log.info("Update", "清单已拉取：远端 build=\(latestBuild) / 当前 build=\(self.currentBuild) / 源 \(feed)")
+                Log.info("Update", "清单已拉取：远端 build=\(latestBuild) / 当前 build=\(self.currentBuild) / 源主机 \(url.host ?? "")")
                 // 先落缓存再广播：WhatsNew 与状态栏总能读到最新说明（含离线）
                 Preferences.shared.set(Keys.cachedFeed, String(data: data, encoding: .utf8) ?? "")
                 Preferences.shared.set(Keys.availableBuild, latestBuild)
@@ -198,10 +206,12 @@ public final class AppUpdateChecker {
         let alert = NSAlert()
         alert.alertStyle = .informational
         alert.messageText = "发现新版本 v\(versionName)（build \(build)）"
-        let canAutoInstall = !(zipURL ?? "").isEmpty
+        let canAutoInstall = zipURL.flatMap(URL.init(string:))?.scheme?.lowercased() == "https"
+            && Self.isValidSHA256(sha256)
         alert.informativeText = (notes.isEmpty ? "" : String(notes.prefix(400)) + "\n\n")
             + "当前 v\(currentVersion) · build \(currentBuild)。"
-            + (canAutoInstall ? "\n点「立即更新」将下载整包并替换本应用（自动保留上一版备份）。" : "")
+            + (canAutoInstall ? "\n点「立即更新」将下载整包并替换本应用（自动保留上一版备份）。"
+                              : (!(zipURL ?? "").isEmpty ? "\n更新包缺少 HTTPS 地址或 SHA-256，不能自动安装。" : ""))
         var buttons: [String] = []
         if canAutoInstall { buttons.append("立即更新") }
         buttons.append("前往下载")
@@ -214,7 +224,7 @@ public final class AppUpdateChecker {
         switch chosen {
         case "立即更新":
             if let zipURL, let url = URL(string: zipURL) {
-                installUpdate(zipURL: url, expectedSHA256: sha256.isEmpty ? nil : sha256)
+                installUpdate(zipURL: url, expectedSHA256: sha256)
             }
         case "前往下载":
             if let url = URL(string: pageURL) { NSWorkspace.shared.open(url) }
@@ -235,9 +245,35 @@ public final class AppUpdateChecker {
     //   ⑤ 本应用退出，脚本接管
     // 风险控制：旧版本一定先备份成 /Applications/Kitnest.app.bak，失败可手动回滚。
 
+    /// v201（2026-11-20「代码安全质量保证」）：复用原退出确认，取消时不启动替换。
+    func prepareToTerminate(approved: Bool) -> Bool {
+        guard let pending = pendingInstaller else { return approved }
+        pendingInstaller = nil
+        guard approved else {
+            try? FileManager.default.removeItem(at: pending.work)
+            Toast.show("已取消更新", icon: "xmark.circle")
+            return false
+        }
+        do {
+            try pending.runner.run()
+            return true
+        } catch {
+            try? FileManager.default.removeItem(at: pending.work)
+            Toast.show("更新未能启动：\(error.localizedDescription)",
+                       icon: "exclamationmark.triangle", isWarning: true)
+            return false
+        }
+    }
+
     public func installUpdate(zipURL: URL, expectedSHA256: String?) {
+        guard zipURL.scheme?.lowercased() == "https", let expectedSHA256,
+              Self.isValidSHA256(expectedSHA256) else {
+            Toast.show("更新包缺少有效的 SHA-256 或未使用 HTTPS，已取消安装",
+                       icon: "exclamationmark.shield", isWarning: true)
+            return
+        }
         Toast.show("开始下载更新…", icon: "arrow.down.circle")
-        URLSession.shared.downloadTask(with: zipURL) { tmp, _, error in
+        URLSession.shared.downloadTask(with: zipURL) { tmp, response, error in
             guard let tmp else {
                 DispatchQueue.main.async {
                     Toast.show("下载失败：\(error?.localizedDescription ?? "未知错误")",
@@ -245,27 +281,35 @@ public final class AppUpdateChecker {
                 }
                 return
             }
-            do {
-                let data = try Data(contentsOf: tmp)
-                if let expectedSHA256 {
-                    let digest = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
-                    guard digest.lowercased() == expectedSHA256.lowercased() else {
-                        DispatchQueue.main.async {
-                            Toast.show("校验失败：sha256 不匹配，已中止更新",
-                                       icon: "exclamationmark.shield", isWarning: true)
-                        }
-                        return
-                    }
+            guard let http = response as? HTTPURLResponse,
+                  (200..<300).contains(http.statusCode),
+                  http.url?.scheme?.lowercased() == "https" else {
+                try? FileManager.default.removeItem(at: tmp)
+                DispatchQueue.main.async {
+                    Toast.show("更新包下载未通过 HTTPS 响应检查", icon: "exclamationmark.shield", isWarning: true)
                 }
-                let work = URL(fileURLWithPath: NSTemporaryDirectory())
-                    .appendingPathComponent("frset-update-\(UUID().uuidString)", isDirectory: true)
+                return
+            }
+            let work = URL(fileURLWithPath: NSTemporaryDirectory())
+                .appendingPathComponent("frset-update-\(UUID().uuidString)", isDirectory: true)
+            do {
+                let file = try FileHandle(forReadingFrom: tmp)
+                var hasher = SHA256()
+                while let chunk = try file.read(upToCount: 1 << 20), !chunk.isEmpty {
+                    hasher.update(data: chunk)
+                }
+                try file.close()
+                let digest = hasher.finalize().map { String(format: "%02x", $0) }.joined()
+                guard digest.lowercased() == expectedSHA256.lowercased() else {
+                    DispatchQueue.main.async {
+                        Toast.show("校验失败：SHA-256 不匹配，已中止更新",
+                                   icon: "exclamationmark.shield", isWarning: true)
+                    }
+                    return
+                }
                 try FileManager.default.createDirectory(at: work, withIntermediateDirectories: true)
                 let zip = work.appendingPathComponent("update.zip")
-                var handedToInstaller = false
-                defer {
-                    if !handedToInstaller { try? FileManager.default.removeItem(at: work) }
-                }
-                try data.write(to: zip)
+                try FileManager.default.moveItem(at: tmp, to: zip)
 
                 let unzip = Process()
                 unzip.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
@@ -273,76 +317,86 @@ public final class AppUpdateChecker {
                 try unzip.run()
                 unzip.waitUntilExit()
                 guard unzip.terminationStatus == 0 else {
-                    DispatchQueue.main.async { Toast.show("解压失败，已中止", icon: "exclamationmark.triangle", isWarning: true) }
-                    return
+                    throw NSError(domain: "Kitnest.Update", code: Int(unzip.terminationStatus),
+                                  userInfo: [NSLocalizedDescriptionKey: "更新包解压失败"])
                 }
                 // 找到 .app
                 let payload = work.appendingPathComponent("payload")
                 let appName = (try? FileManager.default.contentsOfDirectory(atPath: payload.path))?
                     .first { $0.hasSuffix(".app") }
                 guard let appName else {
-                    DispatchQueue.main.async { Toast.show("更新包里没有 .app", icon: "exclamationmark.triangle", isWarning: true) }
-                    return
+                    throw NSError(domain: "Kitnest.Update", code: 1,
+                                  userInfo: [NSLocalizedDescriptionKey: "更新包里没有应用"])
                 }
                 let newApp = payload.appendingPathComponent(appName)
-                guard Bundle(url: newApp)?.bundleIdentifier == Bundle.main.bundleIdentifier else {
-                    DispatchQueue.main.async {
-                        Toast.show("更新包不是 Kitnest Lite，请在关于页恢复精简版更新源", icon: "exclamationmark.triangle", isWarning: true)
-                    }
-                    return
-                }
-                let signature = Process()
-                signature.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
-                signature.arguments = ["-v", "--deep", "--strict", newApp.path]
-                try signature.run()
-                signature.waitUntilExit()
-                guard signature.terminationStatus == 0 else {
-                    DispatchQueue.main.async {
-                        Toast.show("更新包签名无效，当前版本已保留", icon: "exclamationmark.triangle", isWarning: true)
-                    }
-                    return
+                let verifier = Process()
+                verifier.executableURL = URL(fileURLWithPath: "/usr/bin/codesign")
+                // requirement 前的 = 表示内联表达式，否则 codesign 会把它当文件路径。
+                verifier.arguments = ["--verify", "--deep", "--strict",
+                                      "--test-requirement==\(Self.updateSigningRequirement)", newApp.path]
+                verifier.standardOutput = FileHandle.nullDevice
+                verifier.standardError = FileHandle.nullDevice
+                try verifier.run()
+                verifier.waitUntilExit()
+                guard verifier.terminationStatus == 0 else {
+                    throw NSError(domain: "Kitnest.Update", code: Int(verifier.terminationStatus),
+                                  userInfo: [NSLocalizedDescriptionKey: "更新应用签名验证失败"])
                 }
 
-                // 验证精简版签名后等待旧进程退出；移动完整应用，不建立本地备份。
+                // 替换脚本：先保留运行版本，再安装通过签名校验的新版本。
                 let script = """
                 #!/bin/sh
-                set -e
-                trap 'rm -rf "\(work.path)"; rm -f "$0"' EXIT
-                while kill -0 \(ProcessInfo.processInfo.processIdentifier) 2>/dev/null; do sleep 0.2; done
-                PREVIOUS="/Applications/.KitnestLite.app.replacing.\(ProcessInfo.processInfo.processIdentifier)"
-                mv "/Applications/KitnestLite.app" "$PREVIOUS"
-                if ! mv "\(newApp.path)" "/Applications/KitnestLite.app"; then
-                    mv "$PREVIOUS" "/Applications/KitnestLite.app"
-                    exit 1
+                PID="$1"
+                NEW="$2"
+                APP="$3"
+                WORK="$4"
+                BACKUP="$APP.bak"
+                PREVIOUS="$APP.rollback.$$"
+                trap '/bin/rm -rf "$WORK"' EXIT
+                fail() {
+                  /usr/bin/osascript -e 'on run argv' -e 'display alert "Kitnest 更新未完成" message (item 1 of argv) as critical' -e 'end run' "$1"
+                  exit 1
+                }
+                while /bin/kill -0 "$PID" 2>/dev/null; do /bin/sleep 0.1; done
+                if [ -d "$APP" ]; then
+                  /bin/mv "$APP" "$PREVIOUS" || fail "无法暂存当前版本，更新没有完成。"
                 fi
-                rm -rf "$PREVIOUS"
-                /usr/bin/xattr -dr com.apple.quarantine "/Applications/KitnestLite.app" 2>/dev/null || true
-                /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "/Applications/KitnestLite.app"
-                open "/Applications/KitnestLite.app"
+                /usr/bin/ditto "$NEW" "$APP" || {
+                  if /bin/rm -rf "$APP" && /bin/mv "$PREVIOUS" "$APP"; then
+                    /usr/bin/open "$APP"
+                    fail "安装新版失败，已恢复当前版本。"
+                  fi
+                  fail "安装失败，当前版本未能恢复。请查看 $PREVIOUS。"
+                }
+                if [ -e "$BACKUP" ]; then /bin/rm -rf "$BACKUP" || fail "新版已安装；无法轮换旧备份，请保留 $PREVIOUS。"; fi
+                /bin/mv "$PREVIOUS" "$BACKUP" || fail "新版已安装；当前版本保留在 $PREVIOUS。"
+                /usr/bin/open "$APP" || fail "Kitnest 已更新，但未能自动打开。请从应用程序打开。"
                 """
-                let scriptURL = URL(fileURLWithPath: NSTemporaryDirectory())
-                    .appendingPathComponent("kitnest-lite-swap.sh")
+                let scriptURL = work.appendingPathComponent("frset-swap.sh")
                 try script.write(to: scriptURL, atomically: true, encoding: .utf8)
-                try FileManager.default.setAttributes([.posixPermissions: 0o755],
-                                                      ofItemAtPath: scriptURL.path)
                 let runner = Process()
                 runner.executableURL = URL(fileURLWithPath: "/bin/sh")
-                runner.arguments = [scriptURL.path]
-                try runner.run()
-                handedToInstaller = true
+                runner.arguments = [scriptURL.path, String(ProcessInfo.processInfo.processIdentifier),
+                                    newApp.path, "/Applications/\(appName)", work.path]
                 DispatchQueue.main.async {
-                    Toast.show("更新就绪，正在重启完成替换…", icon: "arrow.triangle.2.circlepath")
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                        NSApp.terminate(nil)
-                    }
+                    self.pendingInstaller = (runner, work)
+                    Toast.show("更新已下载，正在准备重启…", icon: "arrow.triangle.2.circlepath")
+                    NSApp.terminate(nil)
                 }
             } catch {
+                try? FileManager.default.removeItem(at: work)
                 DispatchQueue.main.async {
                     Toast.show("更新失败：\(error.localizedDescription)",
                                icon: "exclamationmark.triangle", isWarning: true)
                 }
             }
         }.resume()
+    }
+
+    private static func isValidSHA256(_ value: String) -> Bool {
+        value.utf8.count == 64 && value.utf8.allSatisfy {
+            (48...57).contains($0) || (65...70).contains($0) || (97...102).contains($0)
+        }
     }
 
     // MARK: - 版本比较（旧 tag_name 兼容路径仍用）

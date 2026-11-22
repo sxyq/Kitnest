@@ -2,17 +2,33 @@ import AppKit
 import SwiftUI
 
 final class MonitorWidgetsSettingsDraft: SettingsEditableDraft {
+    enum Scope { case widgets, arrangement }
+    let scope: Scope
+    static let arrangementKeys: Set<String> = ["CombinedModules", "Widgets_spacing", "CombinedModules_spacing",
+        "CombinedModules_separator", "CombinedModules_separatorColor", "Widgets_order"]
     @Published var configuration: [String: Any]
+    @Published var selectedModule = "CPU"
+    @Published var previewDark = false
     private var saved: [String: Any]
     let modules = FSBarAllModules() as? [String] ?? []
 
-    init() {
+    init(scope: Scope = .widgets) {
+        self.scope = scope
         let values = FSBarConfigurationSnapshot() as? [String: Any] ?? [:]
         configuration = values
         saved = values
     }
 
-    var isDirty: Bool { !NSDictionary(dictionary: configuration).isEqual(to: saved) }
+    private func owns(_ key: String) -> Bool {
+        if scope == .arrangement { return Self.arrangementKeys.contains(key) }
+        return !key.hasSuffix("_updateInterval") && modules.contains {
+            key.hasPrefix($0 + "_") || ($0 == "Power" && (key.hasPrefix("CPUPower_") || key.hasPrefix("GPUPower_")))
+        }
+    }
+    var isDirty: Bool {
+        !NSDictionary(dictionary: configuration.filter { owns($0.key) })
+            .isEqual(to: saved.filter { owns($0.key) })
+    }
     var orderedModules: [String] { FSBarOrderedModules(configuration) as? [String] ?? modules }
     var merged: Bool {
         get { bool("CombinedModules", default: false) }
@@ -22,7 +38,6 @@ final class MonitorWidgetsSettingsDraft: SettingsEditableDraft {
         get { FSBarConfigurationSpacing(configuration) }
         set {
             configuration["Widgets_spacing"] = String(format: "%.1f", newValue)
-            configuration["CombinedModules_spacing"] = String(format: "%.1f", newValue)
         }
     }
     func bool(_ key: String, default value: Bool) -> Bool {
@@ -33,11 +48,30 @@ final class MonitorWidgetsSettingsDraft: SettingsEditableDraft {
         return configuration[key] as? String ?? value
     }
     func forms(_ module: String) -> [String] {
-        let supported = FSBarFormsForModule(module) as? [String] ?? []
-        return string(module + "_widget", default: "").split(separator: ",").map(String.init).filter(supported.contains)
+        FSBarConfiguredForms(module, configuration) as? [String] ?? []
+    }
+    var powerMetrics: [String] {
+        FSBarPowerMetrics(configuration) as? [String] ?? []
     }
     func setForms(_ module: String, _ forms: [String]) {
+        if module == "Power" {
+            let metrics = powerMetrics
+            if configuration["Power_metrics"] == nil || (!forms.isEmpty && metrics.isEmpty) {
+                configuration["Power_metrics"] = (metrics.isEmpty ? MonitorWidgetsPane.powerMetricItems.map(\.0) : metrics)
+                    .joined(separator: ",")
+            }
+        }
         configuration[module + "_widget"] = forms.joined(separator: ",")
+    }
+    func setPowerMetric(_ metric: String, _ enabled: Bool) {
+        var selected = powerMetrics
+        if configuration["Power_metrics"] == nil {
+            configuration["Power_widget"] = forms("Power").joined(separator: ",")
+        }
+        if enabled { selected.append(metric) }
+        else { selected.removeAll { $0 == metric } }
+        configuration["Power_metrics"] = MonitorWidgetsPane.powerMetricItems.map(\.0)
+            .filter(selected.contains).joined(separator: ",")
     }
     func move(_ module: String, by offset: Int) {
         var order = orderedModules
@@ -52,20 +86,20 @@ final class MonitorWidgetsSettingsDraft: SettingsEditableDraft {
         setForms(module, order)
     }
     func restoreModule(_ module: String) {
-        for key in Array(configuration.keys) where key.hasPrefix(module + "_") {
+        let prefixes = module == "Power" ? ["Power_", "CPUPower_", "GPUPower_"] : [module + "_"]
+        for key in Array(configuration.keys) where owns(key) && prefixes.contains(where: { key.hasPrefix($0) }) {
             configuration.removeValue(forKey: key)
         }
         let defaults = FSBarDefaultConfiguration() as? [String: Any] ?? [:]
-        for (key, value) in defaults where key.hasPrefix(module + "_") { configuration[key] = value }
+        for (key, value) in defaults where owns(key) && prefixes.contains(where: { key.hasPrefix($0) }) { configuration[key] = value }
     }
     func restoreDefaults() {
-        for module in modules { restoreModule(module) }
-        for key in ["CombinedModules", "Widgets_spacing", "CombinedModules_spacing",
-                    "CombinedModules_separator", "CombinedModules_separatorColor", "Widgets_order"] {
+        discard()
+        for key in Array(configuration.keys) where owns(key) {
             configuration.removeValue(forKey: key)
         }
         let defaults = FSBarDefaultConfiguration() as? [String: Any] ?? [:]
-        for (key, value) in defaults where !modules.contains(where: { key.hasPrefix($0 + "_") }) {
+        for (key, value) in defaults where owns(key) {
             configuration[key] = value
         }
     }
@@ -77,13 +111,17 @@ final class MonitorWidgetsSettingsDraft: SettingsEditableDraft {
     func importStats() {
         restoreDefaults()
         let imported = FSBarImportedConfiguration() as? [String: Any] ?? [:]
-        for (key, value) in imported { configuration[key] = value }
+        for (key, value) in imported where owns(key) { configuration[key] = value }
+    }
+    func refreshUnownedValues() {
+        let current = FSBarConfigurationSnapshot() as? [String: Any] ?? [:]
+        configuration = current.filter { !owns($0.key) }.merging(configuration.filter { owns($0.key) }) { _, draft in draft }
     }
     func save() -> String? {
         let changed = configuration.filter { key, value in
-            !NSObjectEqual(value, saved[key])
+            owns(key) && !NSObjectEqual(value, saved[key])
         }
-        let removed = saved.keys.filter { configuration[$0] == nil }
+        let removed = saved.keys.filter { owns($0) && configuration[$0] == nil }
         if let reason = FSBarSaveConfiguration(changed, removed) { return reason }
         saved = configuration
         FSBarReloadFromStore()
@@ -100,84 +138,89 @@ struct MonitorWidgetsPane: View {
     var body: some View {
         SettingsDraftEditor(id: "monitorWidgets", makeDraft: { MonitorWidgetsSettingsDraft() }) { draft in
             MonitorWidgetsContent(draft: draft)
+                .onAppear { draft.refreshUnownedValues() }
         }
     }
 }
 
 private struct MonitorWidgetsContent: View {
     @ObservedObject var draft: MonitorWidgetsSettingsDraft
+    @Environment(\.settingsTargetField) private var targetField
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             SettingsGroupBox {
                 Text("菜单栏预览 · 固定示例数值").font(.system(size: 11)).foregroundStyle(.secondary)
-                ForEach([false, true], id: \.self) { dark in
-                    Text(dark ? "深色背景" : "浅色背景").font(.system(size: 11)).foregroundStyle(.secondary)
-                    ScrollView(.horizontal) {
-                        MonitorWidgetsPreview(configuration: draft.configuration, modules: draft.orderedModules, dark: dark)
-                            .fixedSize().padding(8)
-                    }
-                    .background(dark ? Color(.sRGB, white: 0.12, opacity: 1) : Color(.sRGB, white: 0.94, opacity: 1))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                Text("数值槽按格式定宽；读数、单位变化与充电状态不会移动相邻部件。标签、单位及排列调整先预览，保存后应用。")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+                Picker("背景场景", selection: $draft.previewDark) {
+                    Text("浅色背景").tag(false)
+                    Text("深色背景").tag(true)
                 }
-                if draft.orderedModules.allSatisfy({ draft.forms($0).isEmpty }) {
-                    Text("所有部件已隐藏").font(.system(size: 11)).foregroundStyle(.secondary)
+                .pickerStyle(.segmented).frame(width: 220)
+                ScrollView(.horizontal) {
+                    MonitorWidgetsPreview(configuration: draft.configuration, modules: [draft.selectedModule], dark: draft.previewDark)
+                        .fixedSize().padding(8)
                 }
-                SettingsDivider()
-                SettingsRow(title: "合并模块", subtitle: "拆分模式由系统保留每项 16pt 间隙；排列顺序用于合并条") {
-                    Toggle("合并模块", isOn: $draft.merged).labelsHidden().toggleStyle(.switch).controlSize(.small)
+                .background(draft.previewDark ? Color(.sRGB, white: 0.12, opacity: 1) : Color(.sRGB, white: 0.94, opacity: 1))
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                if draft.forms(draft.selectedModule).isEmpty {
+                    Text("当前部件已隐藏").font(.system(size: 11)).foregroundStyle(.secondary)
                 }
-                SettingsRow(title: "部件间距", subtitle: "同时作用于内部留白和合并条间距") {
-                    HStack(spacing: 8) {
-                        Slider(value: $draft.spacing, in: 0...24, step: 0.5).frame(width: 150)
-                            .accessibilityLabel("部件间距")
-                        Text(String(format: "%.1f pt", draft.spacing)).monospacedDigit().frame(width: 50)
-                    }
-                }
-                if draft.merged {
-                    SettingsRow(title: "分隔线") {
-                        Toggle("分隔线", isOn: boolBinding("CombinedModules_separator", true))
-                            .labelsHidden().toggleStyle(.switch).controlSize(.small)
-                    }
-                    if draft.bool("CombinedModules_separator", default: true) {
-                        SettingsRow(title: "分隔线颜色") {
-                            ColorKeyControl(value: stringBinding("CombinedModules_separatorColor", "monochrome"))
+                SettingsRow(title: "选择部件") {
+                    Picker("选择部件", selection: $draft.selectedModule) {
+                        ForEach(draft.orderedModules, id: \.self) { module in
+                            Text(FSBarModuleName(module) ?? module).tag(module)
                         }
-                    }
+                    }.labelsHidden().frame(width: 180)
                 }
             }
-            ForEach(draft.orderedModules, id: \.self) { module in moduleCard(module) }
+            moduleCard(draft.selectedModule)
             SettingsGroupBox {
                 SettingsRow(title: "重新导入 Stats 配置", subtitle: "只替换当前草稿；保存后应用") {
                     Button("重新导入") { draft.importStats() }.controlSize(.small)
                 }
             }
         }
+        .onAppear { selectTarget(targetField) }
+        .onChange(of: targetField) { selectTarget($0) }
+    }
+
+    private func selectTarget(_ target: String?) {
+        if let module = target, draft.modules.contains(module) { draft.selectedModule = module }
     }
 
     private func moduleCard(_ module: String) -> some View {
         let enabled = draft.forms(module)
         let all = FSBarFormsForModule(module) as? [String] ?? []
-        let index = draft.orderedModules.firstIndex(of: module)!
         return SettingsGroupBox {
             HStack(spacing: 8) {
                 Label(FSBarModuleName(module) ?? module, systemImage: MonitorWidgetsPane.moduleSymbol(module))
                     .font(.system(size: 12, weight: .semibold))
                 Spacer()
-                Button { draft.move(module, by: -1) } label: { Image(systemName: "arrow.up") }
-                    .disabled(index == 0).help("上移模块")
-                Button { draft.move(module, by: 1) } label: { Image(systemName: "arrow.down") }
-                    .disabled(index == draft.orderedModules.count - 1).help("下移模块")
                 Button("恢复默认") { draft.restoreModule(module) }.controlSize(.small)
                 Toggle("显示" + (FSBarModuleName(module) ?? module), isOn: Binding(
                     get: { !draft.forms(module).isEmpty },
                     set: { draft.setForms(module, $0 ? Array(all.prefix(1)) : []) }))
                     .labelsHidden().toggleStyle(.switch).controlSize(.small)
             }
-            if module.hasSuffix("Power") {
-                Text(module == "Power" ? "整机系统负载，包含芯片、屏幕及其他硬件；适配器输入另列。" : "IOReport 能量差分，单位 W；与整机功耗同时显示，不重复相加。")
+            if module == "Power" {
+                Text("第一排整机，第二排 CPU 与 GPU；关闭指标后紧凑重排。整机是系统负载，适配器输入另列；CPU/GPU 按能量差分计算。")
                     .font(.system(size: 11)).foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+            }
+            if module == "Power" {
+                SettingsDivider()
+                optionRow("监测指标") {
+                    HStack(spacing: 12) {
+                        ForEach(MonitorWidgetsPane.powerMetricItems, id: \.0) { item in
+                            Toggle(item.1, isOn: Binding(
+                                get: { draft.powerMetrics.contains(item.0) },
+                                set: { draft.setPowerMetric(item.0, $0) }))
+                                .toggleStyle(.checkbox).font(.system(size: 11))
+                        }
+                    }
+                }
             }
             if !enabled.isEmpty {
                 SettingsDivider()
@@ -191,13 +234,6 @@ private struct MonitorWidgetsContent: View {
                                 draft.setForms(module, next)
                             }))
                             .toggleStyle(.checkbox).font(.system(size: 11))
-                    }
-                }
-                optionRow("更新间隔") {
-                    HStack {
-                        Slider(value: numberBinding(module + "_updateInterval", "1"), in: 1...60, step: 1)
-                            .frame(width: 130).accessibilityLabel("更新间隔")
-                        Text(draft.string(module + "_updateInterval", default: "1") + " 秒").monospacedDigit()
                     }
                 }
                 if module == "Sensors" {
@@ -238,8 +274,8 @@ private struct MonitorWidgetsContent: View {
     private func optionRow<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         HStack(spacing: 12) {
             Text(title).font(.system(size: 12)).foregroundStyle(.secondary).frame(width: 96, alignment: .leading)
+            Spacer(minLength: 12)
             content()
-            Spacer(minLength: 0)
         }.frame(minHeight: 26)
     }
     private func boolBinding(_ key: String, _ value: Bool) -> Binding<Bool> {
@@ -266,6 +302,65 @@ private struct MonitorWidgetsContent: View {
             HStack {
                 Slider(value: numberBinding(keyPrefix + key, value), in: min...max, step: step).frame(width: 130)
                 Text(draft.string(keyPrefix + key, default: value) + unit).monospacedDigit().frame(width: 50)
+            }
+        }
+    }
+}
+
+struct MenuBarArrangementPane: View {
+    var body: some View {
+        SettingsDraftEditor(id: "menuBarArrangement", makeDraft: { MonitorWidgetsSettingsDraft(scope: .arrangement) }) { draft in
+            MenuBarArrangementContent(draft: draft).onAppear { draft.refreshUnownedValues() }
+        }
+    }
+}
+
+private struct MenuBarArrangementContent: View {
+    @ObservedObject var draft: MonitorWidgetsSettingsDraft
+    var body: some View {
+        SettingsGroupBox {
+            Picker("背景场景", selection: $draft.previewDark) {
+                Text("浅色背景").tag(false)
+                Text("深色背景").tag(true)
+            }
+            .pickerStyle(.segmented).frame(width: 220)
+            ScrollView(.horizontal) {
+                MonitorWidgetsPreview(configuration: draft.configuration, modules: draft.orderedModules, dark: draft.previewDark)
+                    .fixedSize().padding(8)
+            }
+            .background(draft.previewDark ? Color(.sRGB, white: 0.12, opacity: 1) : Color(.sRGB, white: 0.94, opacity: 1))
+            .clipShape(RoundedRectangle(cornerRadius: 6))
+            SettingsRow(title: "合并模块", subtitle: "拆分模式由系统保留每项 16pt 间隙；排列顺序用于合并条") {
+                Toggle("合并模块", isOn: $draft.merged).labelsHidden().toggleStyle(.switch).controlSize(.small)
+            }
+            SettingsRow(title: "部件间距", subtitle: "相邻部件、图标与文字共用此间距；不叠加左右留白") {
+                Slider(value: $draft.spacing, in: 0...24, step: 0.5).frame(width: 150)
+                Text(String(format: "%.1f pt", draft.spacing)).monospacedDigit().frame(width: 50)
+            }
+            if draft.merged {
+                SettingsRow(title: "分隔线") {
+                    Toggle("分隔线", isOn: Binding(get: { draft.bool("CombinedModules_separator", default: true) },
+                        set: { draft.configuration["CombinedModules_separator"] = $0 }))
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                }
+                if draft.bool("CombinedModules_separator", default: true) {
+                    SettingsRow(title: "分隔线颜色") {
+                        ColorKeyControl(value: Binding(get: { draft.string("CombinedModules_separatorColor", default: "monochrome") },
+                            set: { draft.configuration["CombinedModules_separatorColor"] = $0 }))
+                    }
+                }
+            }
+            SettingsDivider()
+            ForEach(Array(draft.orderedModules.enumerated()), id: \.element) { index, module in
+                SettingsRow(title: FSBarModuleName(module) ?? module) {
+                    Button { draft.move(module, by: -1) } label: { Image(systemName: "arrow.up") }
+                        .disabled(index == 0).help("上移模块")
+                    Button { draft.move(module, by: 1) } label: { Image(systemName: "arrow.down") }
+                        .disabled(index == draft.orderedModules.count - 1).help("下移模块")
+                }
+            }
+            SettingsRow(title: "重新导入 Stats 排列", subtitle: "只替换排列草稿；保存后应用") {
+                Button("重新导入") { draft.importStats() }.controlSize(.small)
             }
         }
     }
@@ -351,9 +446,45 @@ extension MonitorWidgetsPane {
         ("arrow.up.arrow.down", "arrow.up.arrow.down"), ("thermometer.medium", "thermometer.medium"),
         ("battery.100", "battery.100"), ("display", "display"), ("bolt.fill", "bolt.fill"), ("fan", "fan")
     ]
+    static let powerMetricItems: [(String, String)] = [
+        ("Power", "整机"), ("CPUPower", "CPU"), ("GPUPower", "GPU")
+    ]
 
     /// 每个形态的选项组（标题 / 选项），与 frset_barsettings.m 的 FSFormSettingsView 一一对应
     static func optionGroups(module: String, form: String) -> [OptionGroup] {
+        if module == "Power" {
+            switch form {
+            case "mini":
+                return [OptionGroup(title: "外观", options: [
+                    .toggle("标签", "label", true), .color("颜色", "color", "monochrome")
+                ])]
+            case "line_chart":
+                return [
+                    OptionGroup(title: "显示", options: [
+                        .toggle("标签", "label", true),
+                        .toggle("边框", "box", true),
+                        .toggle("外框", "frame", false)
+                    ]),
+                    OptionGroup(title: "外观", options: [
+                        .color("颜色", "color", "monochrome")
+                    ]),
+                    OptionGroup(title: "数据", options: [
+                        .slider("历史点数", "historyCount", "60", 10, 120, 10, unit: " 点")
+                    ])
+                ]
+            case "icon":
+                return [
+                    OptionGroup(title: "显示", options: [
+                        .toggle("标签", "label", true), .color("颜色", "color", "monochrome")
+                    ]),
+                    OptionGroup(title: "图标", options: [
+                        .menu("图标", "icon", iconSymbols, moduleSymbol(module))
+                    ])
+                ]
+            default:
+                return []
+            }
+        }
         switch form {
         case "mini":
             return [OptionGroup(title: "外观", options: [

@@ -1,6 +1,11 @@
 import AppKit
 import SwiftUI
 
+enum ArchiveCreationPreferences {
+    static let passwordEnabled = "archive.create.passwordEnabled"
+    static let encryptFileNames = "archive.create.encryptFileNames"
+}
+
 // MARK: - 创建压缩包面板（v124；ArcZip「压缩用途预设」5 种 + 强度 6 档 + 密码 + 分卷）
 //
 // 入口：面板「压缩…」按钮 / kitnest://archive?action=compress&path=…
@@ -14,6 +19,7 @@ public final class ArchiveCreateModel: ObservableObject {
     @Published public var usePassword = false
     @Published public var password = ""
     @Published public var showPassword = false
+    @Published public var encryptFileNames = false
     @Published public var volumeEnabled = false
     @Published public var volumeMB = 200
     @Published public var outputName = ""
@@ -28,6 +34,7 @@ public final class ArchiveCreateModel: ObservableObject {
     private var currentTaskID: UUID?
 
     public let files: [URL]
+    public let windowsNameIssues: [(name: String, reason: String, suggested: String)]
     /// 输出目录（默认取第一个文件所在目录）
     public let outputDir: URL
 
@@ -39,6 +46,7 @@ public final class ArchiveCreateModel: ObservableObject {
 
     public init(files: [URL]) {
         self.files = files
+        self.windowsNameIssues = ArchiveCore.windowsNameIssues(files.map { $0.lastPathComponent })
         self.outputDir = files.first?.deletingLastPathComponent()
             ?? FileManager.default.homeDirectoryForCurrentUser
         let stem = files.count == 1
@@ -46,6 +54,8 @@ public final class ArchiveCreateModel: ObservableObject {
             : (files.first?.deletingLastPathComponent().lastPathComponent ?? "归档")
         self.outputName = stem
         applyPreset(0)
+        usePassword = UserDefaults.standard.bool(forKey: ArchiveCreationPreferences.passwordEnabled)
+        encryptFileNames = UserDefaults.standard.bool(forKey: ArchiveCreationPreferences.encryptFileNames)
     }
 
     /// 套用预设：格式 + 强度（用户之后手改不回滚）
@@ -60,16 +70,18 @@ public final class ArchiveCreateModel: ObservableObject {
 
     /// 格式变了就跟着改扩展名，避免「名字.zip 内容是 7z」
     public func syncOutputExtension() {
-        let base = (outputName as NSString).deletingPathExtension
-        let ext = format == "tar.gz" ? "tar.gz" : format
-        outputName = base + "." + ext
+        let suffix = ["tar.gz", "7z", "zip"].first { outputName.lowercased().hasSuffix("." + $0) }
+        let base = suffix.map { String(outputName.dropLast($0.count + 1)) } ?? outputName
+        outputName = base + "." + format
         // v164：tar.gz 走「tar → gzip」两趟，gzip 是单流、没有分卷；切到该格式就顺手关掉分卷，
         // 免得点了「创建」才被核心层拒绝
         if !supportsVolumes { volumeEnabled = false }
+        if !supportsPassword { usePassword = false }
     }
 
     /// 分卷能力：tar.gz 没有分卷（7zz 的 -v 只会切 tar，产出 .tar.001 且没有 gz 那一趟）
     public var supportsVolumes: Bool { format != "tar.gz" }
+    public var supportsPassword: Bool { format != "tar.gz" }
 
     public var outputURL: URL {
         outputDir.appendingPathComponent(outputName)
@@ -78,15 +90,10 @@ public final class ArchiveCreateModel: ObservableObject {
     /// ZIP 的密码只支持 ASCII（ArcZip「中文密码支持」：引导改用 7z）
     public var passwordWarning: String? {
         guard usePassword, !password.isEmpty else { return nil }
-        if format != "7z" && password.unicodeScalars.contains(where: { $0.value > 127 }) {
+        if format == "zip" && password.unicodeScalars.contains(where: { $0.value > 127 }) {
             return "ZIP 密码仅支持 ASCII；中文密码请把格式改为 7z"
         }
         return nil
-    }
-
-    /// v127（ArcZip P2）：Windows 文件名问题摘要（面板黄条 + 弹窗列表）
-    public var windowsNameIssues: [(name: String, reason: String, suggested: String)] {
-        ArchiveCore.windowsNameIssues(files.map { $0.lastPathComponent })
     }
 
     public var windowsNameWarning: String? {
@@ -111,6 +118,7 @@ public final class ArchiveCreateModel: ObservableObject {
         if usePassword {
             guard !password.isEmpty else { errorText = "请填写密码，或关闭密码保护"; return }
         }
+        syncOutputExtension()
         // v127（ArcZip P2）：Windows 文件名修正——有问题就弹窗列出，
         // 「用建议名继续 / 保持原名」二选一只改包内名，磁盘原名不动
         if !nameCheckConfirmed {
@@ -135,7 +143,8 @@ public final class ArchiveCreateModel: ObservableObject {
             files: files, to: outputURL, level: level,
             password: usePassword ? password : nil,
             volumeMB: volumeEnabled ? volumeMB : 0,
-            useWindowsSafeNames: useWindowsSafeNames) { [weak self] ok, msg in
+            useWindowsSafeNames: useWindowsSafeNames,
+            encryptFileNames: usePassword && format == "7z" && encryptFileNames) { [weak self] ok, msg in
             guard let self else { return }
             self.busy = false
             self.currentTaskID = nil
@@ -148,6 +157,7 @@ public final class ArchiveCreateModel: ObservableObject {
 // MARK: 视图
 
 public struct ArchiveCreateView: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @ObservedObject public var model: ArchiveCreateModel
     /// 创建成功后回调（关闭窗口/刷新）
@@ -164,28 +174,35 @@ public struct ArchiveCreateView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             header
             Divider()
-            presetPicker
-                .disabled(model.busy)
-            Divider()
-            options
-                .disabled(model.busy)
-            if let warn = model.windowsNameWarning {
-                Label(warn, systemImage: "exclamationmark.triangle.fill")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.orange)
-            }
-            if let warn = model.passwordWarning {
-                Label(warn, systemImage: "exclamationmark.triangle.fill")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.orange)
-            }
-            if let err = model.errorText {
-                Label(err, systemImage: "xmark.octagon.fill")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.red)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    presetPicker
+                        .disabled(model.busy)
+                    Divider()
+                    options
+                        .disabled(model.busy)
+                    Button("默认应用与 Finder 压缩服务设置") { ServiceLocator.settings?.open(pane: "archive") }
+                        .buttonStyle(.link).font(.system(size: 11))
+                    if let warn = model.windowsNameWarning {
+                        Label(warn, systemImage: "exclamationmark.triangle.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.orange)
+                    }
+                    if let warn = model.passwordWarning {
+                        Label(warn, systemImage: "exclamationmark.triangle.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.orange)
+                    }
+                    if let err = model.errorText {
+                        Label(err, systemImage: "xmark.octagon.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.red)
+                    }
+                }
+                .padding(.trailing, 4)
             }
             Divider()
             footer
@@ -194,13 +211,17 @@ public struct ArchiveCreateView: View {
                 ArchiveProgressPanel(compact: true)
             }
         }
-        .padding(14)
-        .frame(width: 460)
+        .padding(12)
+        .frame(width: 500, height: 560)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: model.presetIndex)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: model.usePassword)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: model.volumeEnabled)
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.18), value: model.format)
     }
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 3) {
-            Text("创建压缩包")
+            Label("创建压缩包", systemImage: "archivebox.fill")
                 .font(.system(size: 13, weight: .semibold))
             Text("将 \(model.files.count) 个项目压缩为一个归档")
                 .font(.system(size: 11))
@@ -211,48 +232,82 @@ public struct ArchiveCreateView: View {
     // MARK: 用途预设
 
     private var presetPicker: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("用途预设")
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(.secondary)
-            ForEach(Array(ArchiveCore.presets.enumerated()), id: \.element.id) { idx, preset in
-                Button {
-                    model.applyPreset(idx)
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: model.presetIndex == idx
-                              ? "checkmark.circle.fill" : "circle")
-                            .foregroundStyle(model.presetIndex == idx ? Theme.accent : .secondary)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(preset.title)
-                                .font(.system(size: 11, weight: .medium))
-                            Text(preset.detail)
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                        Spacer()
-                        Text(preset.format.uppercased())
-                            .font(.system(size: 11, design: .monospaced))
-                            .foregroundStyle(Theme.tertiaryText)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .padding(.vertical, 1)
+        VStack(alignment: .leading, spacing: 7) {
+            HStack {
+                Label("用途预设", systemImage: "square.grid.2x2")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("选择后仍可调整格式与强度")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
             }
+            let columns = [GridItem(.flexible(), spacing: 7), GridItem(.flexible(), spacing: 7)]
+            LazyVGrid(columns: columns, spacing: 7) {
+                ForEach(Array(ArchiveCore.presets.enumerated()), id: \.element.id) { idx, preset in
+                    let selected = model.presetIndex == idx
+                    let selectedFill = selected ? Theme.accent.opacity(0.09) : Color.primary.opacity(0.035)
+                    let selectedStroke = selected ? Theme.accent.opacity(0.62) : Color.primary.opacity(0.08)
+                    let selectionSymbol = selected ? "checkmark.circle.fill" : "circle"
+                    Button {
+                        withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.16)) { model.applyPreset(idx) }
+                    } label: {
+                        HStack(spacing: 7) {
+                            Image(systemName: preset.symbol)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(selected ? Theme.accent : .secondary)
+                                .frame(width: 18)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(preset.title)
+                                    .font(.system(size: 10.5, weight: .medium))
+                                    .lineLimit(1)
+                                Text(preset.detail)
+                                    .font(.system(size: 9.5))
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            Spacer(minLength: 3)
+                            Text(preset.format.uppercased())
+                                .font(.system(size: 9, weight: .medium, design: .monospaced))
+                                .foregroundStyle(selected ? Theme.accent : Theme.tertiaryText)
+                            Image(systemName: selectionSymbol)
+                                .font(.system(size: 11))
+                                .foregroundStyle(selected ? Theme.accent : Color.secondary)
+                        }
+                        .padding(.horizontal, 7)
+                        .frame(maxWidth: .infinity, minHeight: 39, alignment: .leading)
+                        .background(RoundedRectangle(cornerRadius: 6)
+                            .fill(selectedFill))
+                        .overlay(RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(selectedStroke, lineWidth: selected ? 1 : 0.5))
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(selected ? .isSelected : [])
+                    .gridCellColumns(idx == ArchiveCore.presets.count - 1 ? 2 : 1)
+                }
+            }
+            Label("用途图标 · 格式标识 · 选中状态", systemImage: "info.circle")
+                .font(.system(size: 9.5))
+                .foregroundStyle(.tertiary)
         }
     }
 
     // MARK: 选项
 
     private var options: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
+            Label("输出设置", systemImage: "doc.badge.gearshape").font(.system(size: 11, weight: .semibold))
             HStack {
                 Text("文件名").frame(width: 56, alignment: .leading)
                 TextField("", text: $model.outputName)
                     .textFieldStyle(.roundedBorder)
                     .font(.system(size: 11))
             }
+            Divider().opacity(0.6)
+            Label("格式与压缩强度", systemImage: "slider.horizontal.3")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(.secondary)
             HStack {
                 Text("格式").frame(width: 56, alignment: .leading)
                 Picker("", selection: $model.format) {
@@ -273,10 +328,17 @@ public struct ArchiveCreateView: View {
                 .labelsHidden()
                 .frame(width: 110)
             }
+            Text("保存到：\(model.outputDir.path)")
+                .font(.system(size: 11)).foregroundStyle(.secondary)
+                .lineLimit(2).truncationMode(.middle)
+            Divider()
+            Label("安全与分卷", systemImage: "lock.shield").font(.system(size: 11, weight: .semibold))
             HStack {
                 Toggle("密码保护", isOn: $model.usePassword)
                     .toggleStyle(.checkbox)
                     .font(.system(size: 11))
+                    .disabled(!model.supportsPassword)
+                    .help("ZIP 密码仅支持 ASCII；中文密码请使用 7z")
                 if model.usePassword {
                     HStack(spacing: 4) {
                         if model.showPassword {
@@ -299,6 +361,18 @@ public struct ArchiveCreateView: View {
                     .frame(width: 190)
                 }
                 Spacer()
+            }
+            if !model.supportsPassword {
+                Text("TAR.GZ 不支持加密；密码保护请选 ZIP 或 7z。")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+            } else if model.usePassword {
+                if model.format == "7z" {
+                    Toggle("加密文件名（隐藏归档目录）", isOn: $model.encryptFileNames)
+                        .toggleStyle(.checkbox).font(.system(size: 11))
+                } else {
+                    Text("ZIP 仅加密内容；隐藏文件名请选 7z。")
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
+                }
             }
             HStack {
                 Toggle("分卷压缩", isOn: $model.volumeEnabled)
@@ -391,11 +465,11 @@ public final class ArchiveCreateWindowController: NSWindowController, NSWindowDe
         self.model = ArchiveCreateModel(files: files)
         self.key = key
         let hosting: NSHostingController<ArchiveCreateView>
-        let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 460, height: 520),
-                           styleMask: [.titled, .closable], backing: .buffered, defer: false)
+        let win = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 500, height: 560),
+                           styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         // v272：固定尺寸文档窗——补齐三能力位避免黄/绿空心，min/max 锁死
-        win.contentMinSize = NSSize(width: 460, height: 520)
-        win.contentMaxSize = NSSize(width: 460, height: 520)
+        win.contentMinSize = NSSize(width: 500, height: 560)
+        win.contentMaxSize = NSSize(width: 500, height: 560)
         win.title = "创建压缩包"
         win.isReleasedWhenClosed = false
         // v181（UI 一致性检查 R3）：这是文档级窗口（.titled + .closable），

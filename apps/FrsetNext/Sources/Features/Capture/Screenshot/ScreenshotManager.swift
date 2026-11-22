@@ -29,26 +29,23 @@ enum NativeRegionCapture {
 
     /// 抓指定屏幕的整屏原生像素图（screencapture，同步 ~200ms，**禁止主线程调用**）
     static func captureScreen(_ screen: NSScreen) -> CGImage? {
-        // 连续截图时保留屏幕上的提示，仅让支持窗口排除的采集通道取图。
-        if #available(macOS 14.0, *),
-           DispatchQueue.main.sync(execute: { MenuBarToastManager.shared.captureExcludedWindowID != nil }),
-           let displayID = ScreenSnapshot.displayID(of: screen) {
-            return ScreenSnapshot.sckCaptureSync(displayID: displayID)
-        }
-        let idx = (NSScreen.screens.firstIndex(of: screen) ?? 0) + 1
+        guard let displayID = ScreenSnapshot.displayID(of: screen),
+              let idx = ScreenSnapshot.screencaptureDisplayIndex(for: displayID) else { return nil }
+        return captureScreenOnDisplay(index: idx)
+    }
+
+    static func captureScreenOnDisplay(index: Int) -> CGImage? {
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent("frset-capture-\(UUID().uuidString).png")
         defer { try? FileManager.default.removeItem(at: tmp) }
 
-        if let img = run(arguments: ["-x", "-D\(idx)", tmp.path], tmp: tmp) { return img }
-        // -D 索引在某些多屏布局下不匹配 → 退回不带 -D（抓主屏）
-        return run(arguments: ["-x", tmp.path], tmp: tmp)
+        return run(arguments: ["-x", "-D\(index)", tmp.path], tmp: tmp)
     }
 
     /// 按 AppKit 全局坐标（左下原点，点）截一块区域
     static func capture(appKitRect: CGRect) -> CGImage? {
         guard appKitRect.width >= 1, appKitRect.height >= 1 else { return nil }
-        let screen = NSScreen.screens.first { $0.frame.intersects(appKitRect) } ?? NSScreen.main
+        let screen = NSScreen.screens.first { $0.frame.contains(appKitRect) }
         guard let screen, let full = captureScreen(screen) else { return nil }
         // crop 内部按 image.width / screenFrame.width 自适应缩放，
         // 所以 2x 整屏图裁出来就是 2x 区域
@@ -73,10 +70,14 @@ enum NativeRegionCapture {
             Log.warn("Capture", "原生像素截图：screencapture 超时")
             return nil
         }
-        guard task.terminationStatus == 0,
-              let data = try? Data(contentsOf: tmp),
+        guard task.terminationStatus == 0 else {
+            Log.warn("Capture", "原生像素截图：screencapture 退出码 \(task.terminationStatus)")
+            return nil
+        }
+        guard let data = try? Data(contentsOf: tmp),
               let src = CGImageSourceCreateWithData(data as CFData, nil),
               let img = CGImageSourceCreateImageAtIndex(src, 0, nil) else {
+            Log.warn("Capture", "原生像素截图：输出图像无法读取")
             return nil
         }
         return img
@@ -89,6 +90,23 @@ enum NativeRegionCapture {
 /// - ScreenCaptureKit（macOS 14+）：原作技术栈（otool 实证已链接该框架），异步、不含光标；
 /// - CGWindowListCreateImage：低版本回退，同步，覆盖层快照（放大镜）也走这条路。
 enum ScreenSnapshot {
+
+    private final class SynchronousImageResult: @unchecked Sendable {
+        private let lock = NSLock()
+        private var image: CGImage?
+
+        func store(_ image: CGImage?) {
+            lock.lock()
+            self.image = image
+            lock.unlock()
+        }
+
+        func load() -> CGImage? {
+            lock.lock()
+            defer { lock.unlock() }
+            return image
+        }
+    }
 
     // MARK: 旧 API 兼容层（2026-10-18 修复「长截屏不可用 / 区域截图黑屏」）
     //
@@ -136,10 +154,218 @@ enum ScreenSnapshot {
         cgCapture(rect: cgRect(for: screen))
     }
 
+    static func isUsableImage(_ image: CGImage, size: CGSize, opaque: Bool = true) -> Bool {
+        guard size.width > 0, size.height > 0,
+              CGFloat(image.width) >= size.width, CGFloat(image.height) >= size.height,
+              abs(CGFloat(image.width) / CGFloat(image.height) - size.width / size.height) <= 0.02 else {
+            return false
+        }
+        guard let context = CGContext(data: nil, width: 16, height: 16, bitsPerComponent: 8,
+                                      bytesPerRow: 64, space: CGColorSpaceCreateDeviceRGB(),
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue),
+              let data = context.data else { return true }
+        context.draw(image, in: CGRect(x: 0, y: 0, width: 16, height: 16))
+        let pixels = data.bindMemory(to: UInt8.self, capacity: 16 * 16 * 4)
+        let alpha = (0..<256).map { pixels[$0 * 4 + 3] }
+        return opaque
+            ? alpha.filter { $0 >= 240 }.count >= 244
+            : alpha.contains { $0 > 0 }
+    }
+
+    static func windowImageMatchesFrozen(_ image: CGImage, frozen: CGImage,
+                                         windowRect: CGRect, clickPoint: CGPoint,
+                                         screenFrame: CGRect) -> Bool {
+        guard image.width > 0, image.height > 0, frozen.width > 0, frozen.height > 0,
+              windowRect.width > 0, windowRect.height > 0,
+              screenFrame.width > 0, screenFrame.height > 0 else { return false }
+        let visibleRect = windowRect.intersection(screenFrame)
+        guard visibleRect.contains(clickPoint) else { return false }
+        let clickX = min(max(Int((clickPoint.x - windowRect.minX) / windowRect.width
+                                 * CGFloat(image.width)), 0), image.width - 1)
+        let clickY = min(max(Int((windowRect.maxY - clickPoint.y) / windowRect.height
+                                 * CGFloat(image.height)), 0), image.height - 1)
+        let frozenClickX = min(max(Int((clickPoint.x - screenFrame.minX) / screenFrame.width
+                                       * CGFloat(frozen.width)), 0), frozen.width - 1)
+        let frozenClickY = min(max(Int((screenFrame.maxY - clickPoint.y) / screenFrame.height
+                                       * CGFloat(frozen.height)), 0), frozen.height - 1)
+        guard let clicked = pixelColor(image, x: clickX, y: clickY),
+              let frozenClicked = pixelColor(frozen, x: frozenClickX, y: frozenClickY),
+              sameColor(clicked, frozenClicked) else { return false }
+        for fy in [0.25, 0.5, 0.75] {
+            for fx in [0.25, 0.5, 0.75] {
+                let screenX = visibleRect.minX + visibleRect.width * fx
+                let screenY = visibleRect.maxY - visibleRect.height * fy
+                let imageX = min(max(Int((screenX - windowRect.minX) / windowRect.width
+                                         * CGFloat(image.width)), 0), image.width - 1)
+                let imageY = min(max(Int((windowRect.maxY - screenY) / windowRect.height
+                                         * CGFloat(image.height)), 0), image.height - 1)
+                let frozenX = min(max(Int((screenX - screenFrame.minX) / screenFrame.width
+                                          * CGFloat(frozen.width)), 0), frozen.width - 1)
+                let frozenY = min(max(Int((screenFrame.maxY - screenY) / screenFrame.height
+                                          * CGFloat(frozen.height)), 0), frozen.height - 1)
+                guard let candidate = pixelColor(image, x: imageX, y: imageY),
+                      let reference = pixelColor(frozen, x: frozenX, y: frozenY),
+                      sameColor(candidate, reference) else { return false }
+            }
+        }
+        return true
+    }
+
+    private static func monochromeColor(_ image: CGImage) -> SIMD3<Int>? {
+        guard let context = CGContext(data: nil, width: 32, height: 32, bitsPerComponent: 8,
+                                      bytesPerRow: 128, space: CGColorSpaceCreateDeviceRGB(),
+                                      bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue),
+              let data = context.data else { return nil }
+        context.interpolationQuality = .none
+        context.draw(image, in: CGRect(x: 0, y: 0, width: 32, height: 32))
+        let pixels = data.bindMemory(to: UInt8.self, capacity: 32 * 32 * 4)
+        var minimum = [255, 255, 255]
+        var maximum = [0, 0, 0]
+        for index in 0..<1024 {
+            let offset = index * 4
+            for channel in 0..<3 {
+                let value = Int(pixels[offset + channel])
+                minimum[channel] = min(minimum[channel], value)
+                maximum[channel] = max(maximum[channel], value)
+            }
+        }
+        guard (0..<3).allSatisfy({ maximum[$0] - minimum[$0] <= 1 }) else { return nil }
+        return SIMD3((minimum[0] + maximum[0]) / 2,
+                     (minimum[1] + maximum[1]) / 2,
+                     (minimum[2] + maximum[2]) / 2)
+    }
+
+    private static func sameColor(_ lhs: SIMD3<Int>, _ rhs: SIMD3<Int>) -> Bool {
+        abs(lhs.x - rhs.x) <= 3 && abs(lhs.y - rhs.y) <= 3 && abs(lhs.z - rhs.z) <= 3
+    }
+
+    private static func averageDifference(_ lhs: CGImage, _ rhs: CGImage,
+                                          screenFrame: CGRect, excluding rect: CGRect? = nil) -> Double? {
+        guard let a = ImageProcessor.rgbaBuffer(lhs, targetWidth: 32),
+              let b = ImageProcessor.rgbaBuffer(rhs, targetWidth: 32),
+              a.width == b.width, a.height == b.height,
+              screenFrame.width > 0, screenFrame.height > 0 else { return nil }
+        var total = 0
+        var samples = 0
+        for index in 0..<(a.width * a.height) {
+            let column = index % a.width
+            let row = index / a.width
+            let point = CGPoint(x: screenFrame.minX + (CGFloat(column) + 0.5) / CGFloat(a.width) * screenFrame.width,
+                                y: screenFrame.maxY - (CGFloat(row) + 0.5) / CGFloat(a.height) * screenFrame.height)
+            if let rect, rect.contains(point) { continue }
+            for channel in 0..<3 {
+                let offset = index * 4 + channel
+                total += abs(Int(a.pixels[offset]) - Int(b.pixels[offset]))
+            }
+            samples += 1
+        }
+        return samples > 0 ? Double(total) / Double(samples * 3) : nil
+    }
+
+    private static func pixelColor(_ image: CGImage, x: Int, y: Int) -> SIMD3<Int>? {
+        guard let pixel = image.cropping(to: CGRect(x: x, y: y, width: 1, height: 1)) else { return nil }
+        var bytes = [UInt8](repeating: 0, count: 4)
+        return bytes.withUnsafeMutableBytes { buffer -> SIMD3<Int>? in
+            guard let context = CGContext(data: buffer.baseAddress, width: 1, height: 1,
+                                          bitsPerComponent: 8, bytesPerRow: 4,
+                                          space: CGColorSpaceCreateDeviceRGB(),
+                                          bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+            context.draw(pixel, in: CGRect(x: 0, y: 0, width: 1, height: 1))
+            let channels = buffer.bindMemory(to: UInt8.self)
+            return SIMD3(Int(channels[0]), Int(channels[1]), Int(channels[2]))
+        }
+    }
+
+    /// 在激活应用前交叉核对原生与 SCK 冻结帧；Retina 原生图仅在画面对照通过时使用。
+    static func captureScreenForScreenshot(_ screen: NSScreen) async -> CGImage? {
+        let toastFrame = await MainActor.run {
+            MenuBarToastManager.shared.captureExcludedWindowFrame
+        }
+        let toastVisible = toastFrame != nil
+        let nativeDisplayIndex = displayID(of: screen).flatMap(screencaptureDisplayIndex(for:))
+        async let nativeResult = Task.detached(priority: .userInitiated) {
+            nativeDisplayIndex.flatMap(NativeRegionCapture.captureScreenOnDisplay(index:))
+        }.value
+        let native = await nativeResult
+        let usableNative = native.flatMap { isUsableImage($0, size: screen.frame.size) ? $0 : nil }
+        if !toastVisible, let usableNative, monochromeColor(usableNative) == nil {
+            Log.info("Capture", "冻结帧通道：screencapture，\(usableNative.width)×\(usableNative.height)px")
+            return usableNative
+        }
+        let sck: CGImage?
+        if toastVisible {
+            if #available(macOS 14.0, *), let displayID = displayID(of: screen) {
+                sck = await Task.detached(priority: .userInitiated) {
+                    sckCaptureSync(displayID: displayID)
+                }.value
+            } else {
+                sck = nil
+            }
+        } else {
+            sck = await captureScreenAdaptive(screen: screen)
+        }
+        let usableSCK = sck.flatMap { isUsableImage($0, size: screen.frame.size) ? $0 : nil }
+        if let usableSCK, let usableNative {
+            if toastVisible {
+                if let difference = averageDifference(usableSCK, usableNative,
+                                                      screenFrame: screen.frame, excluding: toastFrame),
+                   difference > 18 {
+                    Log.error("Capture", "排除通知卡区域后两路整屏图仍不一致，取消截图")
+                    return nil
+                }
+                Log.info("Capture", "冻结帧通道：SCK（通知卡排除）")
+                return usableSCK
+            }
+            let sckColor = monochromeColor(usableSCK)
+            let nativeColor = monochromeColor(usableNative)
+            if let sckColor, let nativeColor, !sameColor(sckColor, nativeColor) {
+                Log.error("Capture", "两路整屏图均为纯色且颜色不一致，取消截图")
+                return nil
+            }
+            if sckColor != nil, nativeColor == nil {
+                return usableNative
+            }
+            if nativeColor != nil, sckColor == nil { return usableSCK }
+            let difference = averageDifference(usableSCK, usableNative, screenFrame: screen.frame)
+            if let difference, difference > 18 {
+                Log.error("Capture", "SCK 与原生整屏图画面对照差异过大，取消截图")
+                return nil
+            }
+            if difference != nil {
+                Log.info("Capture", "冻结帧画面对照一致，采用原生分辨率 \(usableNative.width)×\(usableNative.height)px")
+                return usableNative
+            }
+            Log.warn("Capture", "画面对照缓存不可用，保留先冻结的 SCK 画面")
+            return usableSCK
+        }
+        if let usableSCK {
+            Log.warn("Capture", "原生抓屏失败或图像异常，使用 SCK 冻结帧 \(usableSCK.width)×\(usableSCK.height)px")
+            return usableSCK
+        }
+        if let usableNative {
+            Log.warn("Capture", "SCK 抓屏失败或图像异常，使用同屏原生冻结帧 \(usableNative.width)×\(usableNative.height)px")
+            return usableNative
+        }
+        Log.error("Capture", "SCK 与原生整屏抓取均无可用图像，取消截图")
+        return nil
+    }
+
     /// NSScreen → CGDirectDisplayID
     static func displayID(of screen: NSScreen) -> CGDirectDisplayID? {
         guard let num = screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber else { return nil }
         return CGDirectDisplayID(num.uint32Value)
+    }
+
+    static func screencaptureDisplayIndex(for displayID: CGDirectDisplayID) -> Int? {
+        var count: UInt32 = 0
+        guard CGGetOnlineDisplayList(0, nil, &count) == .success, count > 0 else { return nil }
+        var displayIDs = [CGDirectDisplayID](repeating: 0, count: Int(count))
+        guard displayIDs.withUnsafeMutableBufferPointer({
+            CGGetOnlineDisplayList(count, $0.baseAddress, &count)
+        }) == .success else { return nil }
+        let ordered = [CGMainDisplayID()] + displayIDs.prefix(Int(count)).filter { $0 != CGMainDisplayID() }
+        guard let index = ordered.firstIndex(of: displayID) else { return nil }
+        return index + 1
     }
 
     // MARK: v162 抓屏通道自适应（按系统版本选 API，杜绝「新版系统上主线程同步调 legacy」类死锁）
@@ -182,7 +408,10 @@ enum ScreenSnapshot {
         switch channel {
         case .sckAsync:
             if #available(macOS 14.0, *), let displayID = displayID(of: screen) {
-                if let img = try? await sckCapture(displayID: displayID) { return img }
+                if let image = await Task.detached(priority: .userInitiated, operation: {
+                    sckCaptureSync(displayID: displayID)
+                }).value { return image }
+                Log.warn("Capture", "SCK 整屏抓取失败或超时，回退同屏 legacy 通道")
             }
             return await Task.detached(priority: .userInitiated) { cgCapture(screen: screen) }.value
         case .legacyBackground:
@@ -218,13 +447,33 @@ enum ScreenSnapshot {
     @available(macOS 14.0, *)
     static func sckCaptureSync(displayID: CGDirectDisplayID) -> CGImage? {
         let sem = DispatchSemaphore(value: 0)
-        var img: CGImage?
-        Task {
-            img = try? await sckCapture(displayID: displayID)
+        let result = SynchronousImageResult()
+        let task = Task.detached(priority: .userInitiated) {
+            result.store(try? await sckCapture(displayID: displayID))
             sem.signal()
         }
-        sem.wait()
-        return img
+        guard sem.wait(timeout: .now() + 4) == .success else {
+            task.cancel()
+            Log.warn("Capture", "ScreenCaptureKit 整屏抓取超时")
+            return nil
+        }
+        return result.load()
+    }
+
+    @available(macOS 14.0, *)
+    static func sckCaptureWindowSync(windowID: CGWindowID) -> CGImage? {
+        let sem = DispatchSemaphore(value: 0)
+        let result = SynchronousImageResult()
+        let task = Task.detached(priority: .userInitiated) {
+            result.store(try? await sckCapture(windowID: windowID))
+            sem.signal()
+        }
+        guard sem.wait(timeout: .now() + 4) == .success else {
+            task.cancel()
+            Log.warn("Capture", "ScreenCaptureKit 窗口抓取超时")
+            return nil
+        }
+        return result.load()
     }
 
     /// ScreenCaptureKit 抓整屏（macOS 14+）
@@ -234,7 +483,7 @@ enum ScreenSnapshot {
     @available(macOS 14.0, *)
     static func sckCapture(displayID: CGDirectDisplayID) async throws -> CGImage {
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-        guard let display = content.displays.first(where: { $0.displayID == displayID }) ?? content.displays.first else {
+        guard let display = content.displays.first(where: { $0.displayID == displayID }) else {
             throw CaptureError.captureFailed
         }
         let toastID = await MainActor.run { MenuBarToastManager.shared.captureExcludedWindowID }
@@ -300,6 +549,7 @@ public final class ScreenshotManager: ObservableObject {
 
     private var overlays: [ScreenshotOverlayWindow] = []
     private var captureGeneration = 0
+    private var captureSessionCompletion: (() -> Void)?
     private var returnApplication: NSRunningApplication?
     // v128（内存优化）：原缩略图缓存无界，截图目录大时长期驻留只涨不落。
     // 加 countLimit=48 + totalCostLimit=20MB，写入按像素字节记账（w*h*4）。
@@ -514,7 +764,9 @@ public final class ScreenshotManager: ObservableObject {
 
     /// 截图主入口（v267：唯一的拾取方式就是「自适应」——悬停窗口单击截整窗、
     /// 直接拖拽截自定义范围、单击空白桌面截全屏，不再需要先选模式）。
-    public func captureRegion() { startCapture(flow: .toolbar) }
+    public func captureRegion(completion: (() -> Void)? = nil) {
+        startCapture(flow: .toolbar, completion: completion)
+    }
 
     @MainActor
     func handleScreenshotShortcut() {
@@ -555,12 +807,18 @@ public final class ScreenshotManager: ObservableObject {
     /// 截图后直接屏幕翻译（OCR→翻译→按坐标画回→钉回原位）
     public func captureAndScreenTranslate() { startCapture(flow: .direct(.screenTranslate)) }
 
-    private func startCapture(flow: PendingFlow) {
+    private func startCapture(flow: PendingFlow, completion: (() -> Void)? = nil) {
+        captureSessionCompletion?()
+        captureSessionCompletion = completion
         captureGeneration += 1
         let generation = captureGeneration
         returnApplication = NSWorkspace.shared.frontmostApplication
         Task { @MainActor in
-            guard await ensureScreenRecordingPermission() else { return }
+            guard await ensureScreenRecordingPermission() else {
+                HapticFeedback.perform(.operationFailed)
+                self.finishCaptureSession()
+                return
+            }
             guard generation == self.captureGeneration else { return }
             self.beginCapture(flow: flow, generation: generation)
         }
@@ -592,8 +850,8 @@ public final class ScreenshotManager: ObservableObject {
             Log.info("Capture", String(format: "截图快照冻结完成 %.0fms（抓帧前未改窗口状态）", ms))
             guard self.isCapturing, generation == self.captureGeneration else { return }
             // 画面已冻结，这时才激活 App 铺覆盖层；此后的窗口收起不会影响已抓到的帧
-            if !snapshots.isEmpty { NSApp.activate(ignoringOtherApps: true) }
             for (screen, snapshot) in snapshots {
+                guard let snapshot else { continue }
                 let window = ScreenshotOverlayWindow(screen: screen, snapshot: snapshot)
                 if case .toolbar = flow { window.overlayView.recentClipboardHint = self.recentClipboardHint }
                 // v264：固定比例（设置里选中哪组就锁哪组；没选 = 自由 + ⇧ 正方形）
@@ -607,9 +865,9 @@ public final class ScreenshotManager: ObservableObject {
                 }
                 // v266：同一个覆盖层两种模式都能用，窗口模式的提交回调必须同时接上，
                 // 否则默认「窗口自动识别」时点窗口不会有任何反应。
-                window.overlayView.onWindowCommit = { [weak self, weak window] rect, windowID in
+                window.overlayView.onWindowCommit = { [weak self, weak window] rect, windowID, clickPoint in
                     guard let self = self, let window = window else { return }
-                    self.commitWindow(rect: rect, windowID: windowID, window: window)
+                    self.commitWindow(rect: rect, windowID: windowID, clickPoint: clickPoint, window: window)
                 }
                 window.overlayView.onWindowsCommit = { [weak self, weak window] items in
                     guard let self = self, let window = window else { return }
@@ -629,7 +887,9 @@ public final class ScreenshotManager: ObservableObject {
             if self.overlays.isEmpty {
                 self.isCapturing = false
                 self.statusMessage = CaptureError.captureFailed.errorDescription
+                HapticFeedback.perform(.operationFailed)
                 Toast.show("截图失败：没有可用屏幕", icon: "exclamationmark.triangle", isWarning: true)
+                self.finishCaptureSession()
             }
         }
     }
@@ -639,7 +899,7 @@ public final class ScreenshotManager: ObservableObject {
     static func acquireScreenSnapshots() async -> [(screen: NSScreen, image: CGImage?)] {
         var result: [(NSScreen, CGImage?)] = []
         for screen in NSScreen.screens {
-            let image = await ScreenSnapshot.captureScreenAdaptive(screen: screen)
+            let image = await ScreenSnapshot.captureScreenForScreenshot(screen)
             result.append((screen, image))
         }
         return result
@@ -658,29 +918,17 @@ public final class ScreenshotManager: ObservableObject {
         lastSelectionAppKit = global
         let flow = pendingFlow
 
-        // v166.7：产物按「屏幕原生像素」重抓（screencapture，~200ms，必须后台）。
-        // 覆盖层那张快照是 1x，只作为兜底——它裁出来的图在 Retina 上少一半像素。
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let native = NativeRegionCapture.capture(appKitRect: global)
-            let fallback: CGImage? = native == nil
-                ? snapshot.flatMap { ImageProcessor.crop($0, rectInPoints: global, screenFrame: screenFrame) }
-                : nil
-            DispatchQueue.main.async {
-                guard let self else { return }
-                guard let image = native ?? fallback else {
-                    self.statusMessage = CaptureError.captureFailed.errorDescription
-                    // 屏幕级反馈：失败不能只写在面板状态里（面板此刻根本没开）
-                    Toast.show("截图失败，请重试", icon: "exclamationmark.triangle", isWarning: true)
-                    return
-                }
-                if native != nil {
-                    Log.info("Capture", "选区截图：\(Int(global.width))×\(Int(global.height))pt → \(image.width)×\(image.height)px（原生像素）")
-                } else {
-                    Log.warn("Capture", "选区截图：原生像素通道不可用，回退 1x 快照裁剪")
-                }
-                self.finishRegion(image, flow: flow, global: global)
-            }
+        guard let snapshot,
+              let image = ImageProcessor.crop(snapshot, rectInPoints: global, screenFrame: screenFrame) else {
+            statusMessage = CaptureError.captureFailed.errorDescription
+            HapticFeedback.perform(.operationFailed)
+            Log.error("Capture", "选区截图失败：没有有效的触发时冻结帧")
+            Toast.show("截图失败，请重试", icon: "exclamationmark.triangle", isWarning: true)
+            finishCaptureSession()
+            return
         }
+        Log.info("Capture", "选区截图使用触发时冻结帧：\(Int(global.width))×\(Int(global.height))pt → \(image.width)×\(image.height)px")
+        finishRegion(image, flow: flow, global: global)
     }
 
     /// 选区截图拿到图之后的收尾（原 commitRegion 的 switch 部分）
@@ -693,14 +941,18 @@ public final class ScreenshotManager: ObservableObject {
             let pixel = CGSize(width: cropped.width, height: cropped.height)
             guard let data = ImageProcessor.pngData(cropped),
                   let url = stagePNG(data, pixelSize: pixel) else {
+                HapticFeedback.perform(.operationFailed)
                 Toast.show("截图暂存失败，请检查磁盘空间", icon: "exclamationmark.triangle", isWarning: true)
+                finishCaptureSession()
                 return
             }
             registerCaptured(url: url, data: data, playSound: true)
+            HapticFeedback.perform(.screenshot)
             autoDetectQR(in: cropped)   // v130⑤：自动检测二维码
             // v267：右下角拖拽角标整套移除（用户：「之前不是没让你加」）。
             // 截图完成后只保留动作工具条，不再有任何自动浮在右下角的预览窗。
-            CaptureActionChain.present(image: cropped, url: url, selectionAppKit: global)
+            CaptureActionChain.present(image: cropped, url: url, selectionAppKit: global,
+                                       completion: takeCaptureSessionCompletion())
         }
     }
 
@@ -708,6 +960,17 @@ public final class ScreenshotManager: ObservableObject {
         captureGeneration += 1
         closeOverlays()
         isCapturing = false
+        finishCaptureSession()
+    }
+
+    private func takeCaptureSessionCompletion() -> (() -> Void)? {
+        let completion = captureSessionCompletion
+        captureSessionCompletion = nil
+        return completion
+    }
+
+    private func finishCaptureSession() {
+        takeCaptureSessionCompletion()?()
     }
 
     private func closeOverlays() {
@@ -720,20 +983,22 @@ public final class ScreenshotManager: ObservableObject {
     /// 全屏截图：抓鼠标所在屏幕（v162：自适应通道，按系统版本选 SCK/legacy）
     public func captureFullScreen() {
         Task { @MainActor in
-            guard await ensureScreenRecordingPermission() else { return }
-            guard let screen = currentScreen() else { return }
+            guard await ensureScreenRecordingPermission() else {
+                HapticFeedback.perform(.operationFailed)
+                return
+            }
+            guard let screen = currentScreen() else {
+                HapticFeedback.perform(.operationFailed)
+                return
+            }
             let action = defaultAction
             self.currentModeTag = "full"   // v130②：历史库模式标签
 
             // v166.7：优先原生像素（screencapture，后台）；失败才回退 1x 的 SCK/legacy
-            var image = await Task.detached(priority: .userInitiated) {
-                NativeRegionCapture.captureScreen(screen)
-            }.value
-            if image == nil {
-                image = await ScreenSnapshot.captureScreenAdaptive(screen: screen)
-            }
+            let image = await ScreenSnapshot.captureScreenForScreenshot(screen)
             guard let image = image else {
                 self.statusMessage = CaptureError.captureFailed.errorDescription
+                HapticFeedback.perform(.operationFailed)
                 Log.error("Capture", "全屏截图失败")
                 // v274：面板此刻没开，只写 statusMessage 用户什么也看不到；
                 // 与 commitFullScreen / commitWindow 的失败分支保持一致给 Toast。
@@ -764,26 +1029,21 @@ public final class ScreenshotManager: ObservableObject {
     /// 拿到图后交给 `finishRegion`，与拖框截图共用一条收尾路径（落盘 + 动作条 + 历史）。
     private func commitFullScreen(screen: NSScreen) {
         let flow = pendingFlow
+        let snapshot = overlays.first(where: { $0.screen === screen })?.overlayView.snapshot
         closeOverlays()
         isCapturing = false
         currentModeTag = "full"
         let global = screen.frame
         lastSelectionAppKit = global
-        Task { @MainActor in
-            var image = await Task.detached(priority: .userInitiated) {
-                NativeRegionCapture.captureScreen(screen)
-            }.value
-            if image == nil {
-                image = await ScreenSnapshot.captureScreenAdaptive(screen: screen)
-            }
-            guard let image else {
-                self.statusMessage = CaptureError.captureFailed.errorDescription
-                Toast.show("截图失败，请重试", icon: "exclamationmark.triangle", isWarning: true)
-                return
-            }
-            Log.info("Capture", "空白单击全屏：\(image.width)×\(image.height)px")
-            self.finishRegion(image, flow: flow, global: global)
+        guard let snapshot else {
+            statusMessage = CaptureError.captureFailed.errorDescription
+            HapticFeedback.perform(.operationFailed)
+            Toast.show("截图失败，请重试", icon: "exclamationmark.triangle", isWarning: true)
+            finishCaptureSession()
+            return
         }
+        Log.info("Capture", "空白单击全屏使用触发时冻结帧：\(snapshot.width)×\(snapshot.height)px")
+        finishRegion(snapshot, flow: flow, global: global)
     }
 
     // MARK: 窗口截图（v267：并入自适应，不再是一个独立模式）
@@ -808,7 +1068,8 @@ public final class ScreenshotManager: ObservableObject {
     }
 
     /// 提交窗口选择：优先 SCK 窗口级抓取（排除遮挡窗口），回退覆盖层快照裁剪
-    private func commitWindow(rect: CGRect, windowID: CGWindowID, window: ScreenshotOverlayWindow) {
+    private func commitWindow(rect: CGRect, windowID: CGWindowID, clickPoint: CGPoint,
+                              window: ScreenshotOverlayWindow) {
         let screenFrame = window.frame
         let snapshot = window.overlayView.snapshot
         closeOverlays()
@@ -820,16 +1081,35 @@ public final class ScreenshotManager: ObservableObject {
         Log.info("Capture", "窗口截图：windowID=\(windowID) rect=\(Int(global.width))×\(Int(global.height))pt @\(Int(global.minX)),\(Int(global.minY))")
 
         Task { @MainActor in
-            var image: CGImage?
-            if windowID != 0, #available(macOS 14.0, *) {
-                image = try? await ScreenSnapshot.sckCapture(windowID: windowID)
+            let frozen = snapshot.flatMap {
+                ImageProcessor.crop($0, rectInPoints: global, screenFrame: screenFrame)
             }
-            if image == nil, let snapshot {
-                image = ImageProcessor.crop(snapshot, rectInPoints: global, screenFrame: screenFrame)
+            var image = frozen
+            if windowID != 0, #available(macOS 14.0, *) {
+                if let windowImage = await Task.detached(priority: .userInitiated, operation: {
+                    ScreenSnapshot.sckCaptureWindowSync(windowID: windowID)
+                }).value,
+                   ScreenSnapshot.isUsableImage(windowImage, size: global.size, opaque: false) {
+                    if frozen != nil, let snapshot {
+                        if ScreenSnapshot.windowImageMatchesFrozen(
+                            windowImage, frozen: snapshot, windowRect: global,
+                            clickPoint: clickPoint, screenFrame: screenFrame) {
+                            image = windowImage
+                        } else {
+                            Log.info("Capture", "窗口截图沿用触发时冻结帧，SCK 结果未通过画面对照")
+                        }
+                    } else {
+                        image = windowImage
+                    }
+                } else if frozen != nil {
+                    Log.info("Capture", "窗口截图沿用触发时冻结帧，SCK 结果未通过画面对照")
+                }
             }
             guard let image else {
                 self.statusMessage = CaptureError.captureFailed.errorDescription
+                HapticFeedback.perform(.operationFailed)
                 Toast.show("窗口截图失败，请重试", icon: "exclamationmark.triangle", isWarning: true)
+                self.finishCaptureSession()
                 return
             }
             // 与区域截图同一条收尾路径（落盘 + 广播 + 动作工具条/默认动作）
@@ -840,12 +1120,16 @@ public final class ScreenshotManager: ObservableObject {
                 let pixel = CGSize(width: image.width, height: image.height)
                 guard let data = ImageProcessor.pngData(image),
                       let url = self.stagePNG(data, pixelSize: pixel) else {
+                    HapticFeedback.perform(.operationFailed)
                     Toast.show("截图暂存失败，请检查磁盘空间", icon: "exclamationmark.triangle", isWarning: true)
+                    self.finishCaptureSession()
                     return
                 }
                 self.registerCaptured(url: url, data: data, playSound: true)
+                HapticFeedback.perform(.screenshot)
                 self.autoDetectQR(in: image)   // v130⑤：自动检测二维码
-                CaptureActionChain.present(image: image, url: url, selectionAppKit: global)
+                CaptureActionChain.present(image: image, url: url, selectionAppKit: global,
+                                           completion: self.takeCaptureSessionCompletion())
             }
         }
     }
@@ -857,34 +1141,51 @@ public final class ScreenshotManager: ObservableObject {
     /// 为什么拼成一张而不是存多个文件：多选的用途基本是「写文档 / 发群里对比」，
     /// 存成 5 个文件用户还得再拼一次；一张图直接能拖走。
     /// 需要单独文件时，单窗口截图本来就还在。
-    private func commitWindows(items: [(rect: CGRect, windowID: CGWindowID)],
+    private func commitWindows(items: [(rect: CGRect, windowID: CGWindowID, clickPoint: CGPoint)],
                                window: ScreenshotOverlayWindow) {
         let screenFrame = window.frame
         let snapshot = window.overlayView.snapshot
         closeOverlays()
         isCapturing = false
         currentModeTag = "window"
-        guard !items.isEmpty else { return }
+        guard !items.isEmpty else { finishCaptureSession(); return }
 
         Task { @MainActor in
             var images: [CGImage] = []
             for item in items {
                 var image: CGImage?
-                if item.windowID != 0, #available(macOS 14.0, *) {
-                    image = try? await ScreenSnapshot.sckCapture(windowID: item.windowID)
+                let global = item.rect.offsetBy(dx: screenFrame.origin.x, dy: screenFrame.origin.y)
+                let frozen = snapshot.flatMap {
+                    ImageProcessor.crop($0, rectInPoints: global, screenFrame: screenFrame)
                 }
-                if image == nil, let snapshot {
-                    let global = item.rect.offsetBy(dx: screenFrame.origin.x, dy: screenFrame.origin.y)
-                    image = ImageProcessor.crop(snapshot, rectInPoints: global, screenFrame: screenFrame)
+                image = frozen
+                if item.windowID != 0, #available(macOS 14.0, *),
+                   let windowImage = await Task.detached(priority: .userInitiated, operation: {
+                       ScreenSnapshot.sckCaptureWindowSync(windowID: item.windowID)
+                   }).value,
+                   ScreenSnapshot.isUsableImage(windowImage, size: global.size, opaque: false) {
+                    if frozen != nil, let snapshot {
+                        if ScreenSnapshot.windowImageMatchesFrozen(
+                            windowImage, frozen: snapshot, windowRect: global,
+                            clickPoint: item.clickPoint, screenFrame: screenFrame) {
+                            image = windowImage
+                        }
+                    } else {
+                        image = windowImage
+                    }
                 }
                 if let image { images.append(image) }
             }
             guard !images.isEmpty else {
+                HapticFeedback.perform(.operationFailed)
                 Toast.show("窗口截图失败，请重试", icon: "exclamationmark.triangle", isWarning: true)
+                self.finishCaptureSession()
                 return
             }
             guard let composed = Self.composeVertically(images) else {
+                HapticFeedback.perform(.operationFailed)
                 Toast.show("窗口图片合成失败", icon: "exclamationmark.triangle", isWarning: true)
+                self.finishCaptureSession()
                 return
             }
             Log.info("Capture", "窗口多选：\(images.count) 个窗口 → \(composed.width)×\(composed.height)px")
@@ -896,11 +1197,15 @@ public final class ScreenshotManager: ObservableObject {
                 guard let data = ImageProcessor.pngData(composed),
                       let url = self.stagePNG(data, pixelSize: CGSize(width: composed.width,
                                                                       height: composed.height)) else {
+                    HapticFeedback.perform(.operationFailed)
                     Toast.show("截图暂存失败，请检查磁盘空间", icon: "exclamationmark.triangle", isWarning: true)
+                    self.finishCaptureSession()
                     return
                 }
                 self.registerCaptured(url: url, data: data, playSound: true)
-                CaptureActionChain.present(image: composed, url: url, selectionAppKit: .zero)
+                HapticFeedback.perform(.screenshot)
+                CaptureActionChain.present(image: composed, url: url, selectionAppKit: .zero,
+                                           completion: self.takeCaptureSessionCompletion())
             }
         }
     }
@@ -952,6 +1257,7 @@ public final class ScreenshotManager: ObservableObject {
     private func handle(_ image: CGImage, action: CaptureDefaultAction) {
         guard let data = ImageProcessor.pngData(image) else {
             statusMessage = CaptureError.saveFailed.errorDescription
+            HapticFeedback.perform(.operationFailed)
             Toast.show("截图失败：图片编码失败", icon: "exclamationmark.triangle", isWarning: true)
             return
         }
@@ -961,9 +1267,11 @@ public final class ScreenshotManager: ObservableObject {
                                         : stagePNG(data, pixelSize: pixel)) else {
             statusMessage = CaptureError.saveFailed.errorDescription
             Toast.show("截图保存失败，请检查保存路径", icon: "exclamationmark.triangle", isWarning: true)
+            HapticFeedback.perform(.operationFailed)
             return
         }
         registerCaptured(url: url, data: data, playSound: true)
+        HapticFeedback.perform(.screenshot)
         autoDetectQR(in: image)   // v130（SnowShot 对齐）⑤：截图完成后自动检测二维码
         apply(action, to: image, url: url)
     }
@@ -978,6 +1286,8 @@ public final class ScreenshotManager: ObservableObject {
         // v130②：历史入库（异步生成缩略图；mode 缺省用本次截图入口标签）
         CaptureHistoryStore.shared.record(url: url, mode: mode ?? currentModeTag)
         lastHistoryPath = url.path
+        NotificationCenter.default.post(name: .tutorialScreenshotCaptured, object: nil,
+                                        userInfo: ["path": url.path])
         // 不直接调用剪贴板模块：由 App 层接线把这条回调接到剪贴板历史入库
         CaptureEventBus.onImageCaptured?(url, data)
     }
@@ -1080,14 +1390,21 @@ public final class ScreenshotManager: ObservableObject {
     }
 
     public func copyToPasteboard(_ image: CGImage) -> Bool {
+        copyToPasteboard(image, encodedPNG: ImageProcessor.pngData(image))
+    }
+
+    func copyToPasteboard(_ image: CGImage, encodedPNG: Data?) -> Bool {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        if let data = ImageProcessor.pngData(image) {
+        if let data = encodedPNG {
             pasteboard.setData(data, forType: NSPasteboard.PasteboardType("public.png"))
         }
         let copied = pasteboard.writeObjects([ImageProcessor.nsImage(image)])
         if !copied {
             Toast.show("复制失败：未能写入截图", icon: "exclamationmark.triangle", isWarning: true)
+        } else {
+            NotificationCenter.default.post(name: .tutorialScreenshotCopied, object: nil,
+                                            userInfo: ["path": lastHistoryPath ?? ""])
         }
         return copied
     }
@@ -1123,32 +1440,43 @@ public final class ScreenshotManager: ObservableObject {
         recent = Array(items.sorted { $0.createdAt > $1.createdAt }.prefix(60))
     }
 
-    /// 缩略图（带内存缓存）
+    /// 读取已有缩略图缓存；未命中时由 loadThumbnail 在后台生成。
     public func thumbnail(for url: URL, maxSide: CGFloat = 240) -> NSImage? {
-        if let cached = thumbCache.object(forKey: url as NSURL) { return cached }
-        // v128（内存优化）：包 autoreleasepool——缩略图生成（CGImage 解码 + 缩放）
-        // 在列表滚动时成批触发，临时对象显式 drain
-        return autoreleasepool {
-            guard let cg = ImageProcessor.cgImage(from: url) else { return nil }
-            let image = ImageProcessor.nsImage(ImageProcessor.scaled(cg, maxSide: maxSide))
-            // v128（内存优化）：按像素字节记账，配合 totalCostLimit 控制缓存驻留
-            thumbCache.setObject(image, forKey: url as NSURL,
-                                 cost: Int(image.size.width * image.size.height * 4))
-            return image
-        }
+        thumbCache.object(forKey: url as NSURL)
+    }
+
+    @MainActor
+    public func loadThumbnail(for url: URL, maxSide: CGFloat = 240) async -> NSImage? {
+        if let cached = thumbnail(for: url, maxSide: maxSide) { return cached }
+        let maxPixelSize = Int(maxSide.rounded(.up))
+        let cgImage = await Task.detached(priority: .utility) { () -> CGImage? in
+            guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+            let options: [CFString: Any] = [
+                kCGImageSourceCreateThumbnailFromImageAlways: true,
+                kCGImageSourceCreateThumbnailWithTransform: true,
+                kCGImageSourceShouldCacheImmediately: true,
+                kCGImageSourceThumbnailMaxPixelSize: maxPixelSize
+            ]
+            return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+        }.value
+        guard !Task.isCancelled, let cgImage else { return nil }
+        let image = ImageProcessor.nsImage(cgImage)
+        thumbCache.setObject(image, forKey: url as NSURL,
+                             cost: Int(image.size.width * image.size.height * 4))
+        return image
     }
 
     // MARK: OCR
 
     /// 识别一张图（结果写入 ocrText，并广播给剪贴板等模块）
     public func recognize(_ image: CGImage) {
-        guard let data = ImageProcessor.pngData(image) else { return }
+        guard let data = ImageProcessor.pngData(image) else { HapticFeedback.perform(.operationFailed); return }
         recognize(imageData: data)
     }
 
     /// v139：动作条「翻译」——识字后直接打开结果窗的翻译页签（自动提取并翻译）
     public func recognizeAndTranslate(_ image: CGImage) {
-        guard let data = ImageProcessor.pngData(image) else { return }
+        guard let data = ImageProcessor.pngData(image) else { HapticFeedback.perform(.operationFailed); return }
         recognize(imageData: data, autoTranslate: true)
     }
 
@@ -1160,7 +1488,7 @@ public final class ScreenshotManager: ObservableObject {
     /// 信息可以让用户手动选择」。所以这两个动作不再自动写剪贴板，
     /// 窗口里可以框选、可以点复制、可以切翻译页签。
     public func recognizeShowing(_ image: CGImage) {
-        guard let data = ImageProcessor.pngData(image) else { return }
+        guard let data = ImageProcessor.pngData(image) else { HapticFeedback.perform(.operationFailed); return }
         recognize(imageData: data, forceWindow: true)
     }
 
@@ -1171,13 +1499,18 @@ public final class ScreenshotManager: ObservableObject {
             defer { self.isRecognizing = false }
             do {
                 let text = try await OCRService.shared.recognizeText(imageData: imageData, quality: .thorough)
+                guard !Task.isCancelled else { return }
                 self.ocrText = text
                 self.statusMessage = text.isEmpty ? CaptureError.noText.errorDescription : nil
                 // spec 13 §4：未读取到文字场景（0x10000d45c，空识别结果分支）
                 if text.isEmpty {
                     Toast.show("未读取到文字", icon: "exclamationmark.circle.fill")
+                    HapticFeedback.perform(.operationFailed)
                 }
                 if !text.isEmpty {
+                    NotificationCenter.default.post(name: .tutorialScreenshotOCRCompleted, object: nil,
+                                                    userInfo: ["path": self.lastHistoryPath ?? ""])
+                    HapticFeedback.perform(.ocr)
                     CaptureEventBus.onTextRecognized?(text)
                     // v130（SnowShot 对齐）②：OCR 文本回填截图历史（历史窗可按文本搜索）
                     if let p = self.lastHistoryPath {
@@ -1191,14 +1524,17 @@ public final class ScreenshotManager: ObservableObject {
                         CaptureOCRNotify.show(text: text)
                         return
                     }
-                    if !inline, forceWindow || self.ocrShowResultWindow || autoTranslate,
+                    if !inline, forceWindow || self.ocrShowResultWindow || autoTranslate
+                        || QuickTutorialController.shared.isScreenshotActive,
                        let cg = ScreenshotOCRDirectImageStore.shared.image(for: imageData) {
                         ScreenshotOCRWindowController.shared.show(sourceImage: cg, imageData: imageData,
                                                                   text: text, autoTranslate: autoTranslate)
                     }
                 }
             } catch {
+                guard !Task.isCancelled, !error.isLLMCancellation else { return }
                 Toast.show("文字识别失败", icon: "exclamationmark.circle.fill")   // spec 13 §4：OCR 失败场景
+                HapticFeedback.perform(.operationFailed)
                 self.statusMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
                 Log.error("Capture", "OCR 失败: \(error.localizedDescription)")
             }
@@ -1215,7 +1551,6 @@ public final class ScreenshotManager: ObservableObject {
             Toast.show(statusMessage!, icon: "exclamationmark.triangle", isWarning: true)
             return
         }
-        CaptureEventBus.onTextRecognized?(ocrText)
         statusMessage = "识别结果已复制"
     }
 
@@ -1246,10 +1581,12 @@ public final class ScreenshotManager: ObservableObject {
     public func saveStitchedResult(_ image: CGImage, overlaps: [Int]) -> URL? {
         guard let data = ImageProcessor.pngData(image) else {
             statusMessage = CaptureError.saveFailed.errorDescription
+            HapticFeedback.perform(.operationFailed)
             return nil
         }
         guard let url = savePNG(data, pixelSize: CGSize(width: image.width, height: image.height)) else {
             statusMessage = CaptureError.saveFailed.errorDescription
+            HapticFeedback.perform(.operationFailed)
             return nil
         }
         recent.insert(CapturedImage(url: url, createdAt: Date()), at: 0)
@@ -1259,6 +1596,7 @@ public final class ScreenshotManager: ObservableObject {
         CaptureEventBus.onImageCaptured?(url, data)
         let total = overlaps.reduce(0, +)
         statusMessage = "长截图已保存（重叠 \(total) 像素）"
+        HapticFeedback.perform(.screenshot)
         return url
     }
 

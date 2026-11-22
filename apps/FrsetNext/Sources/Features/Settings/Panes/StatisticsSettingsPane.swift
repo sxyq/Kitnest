@@ -1,44 +1,27 @@
 import AppKit
-import ServiceManagement
 import SwiftUI
 import UniformTypeIdentifiers
 
-// MARK: - 数据与统计设置页（页签 id "statistics"）
-//
-// 承载 spec 17 S12「设置导出/导入携带统计数据」与 Q6/Q7/Q8 的出口：
-// - Q6 total(event:)          → 「关键指标」区逐事件累计（此前零调用点）
-// - Q7 reviewRequestUsage()   → 「评分请求口径」行（此前零调用点）
-// - Q8 exportAll()/importMerge() → `.frsetconfig` 导出 / MAX 合并导入（此前零调用点）
-//
-// 导入语义（spec 17 S12 / spec 18 F8）：
-// - 统计数据走 `importMerge` 的事务内 `MAX(旧, 新, 0)`，**不覆盖较新/削减后的数据**；
-// - 偏好设置按白名单逐键写回 UserDefaults；不在白名单的键一律忽略，
-//   解析失败的键按原作 `settings.invalid-` 前缀落标记，供「导入结果」行展示。
+// MARK: - 独立配置导入导出页
+// 配置导入即时应用，仅包含偏好；旧文件的统计内容由解码器忽略。
 
 // MARK: - 导出文件结构（.frsetconfig / JSON）
 
-/// `.frsetconfig` 顶层结构：格式标识 + 版本号 + 导出时间 + 偏好键值 + 事件计数数组
+/// `.frsetconfig` 配置结构；菜单部件可选，沿用已有配置文件。
 struct FrsetConfigFile: Codable {
     /// 格式标识（导入时校验，防止把任意 JSON 当配置导入）
     let format: String
-    /// 结构版本（后续字段演进用；当前仅 1）
+    /// 版本2支持快捷键字典及数值数组，仍读取版本1。
     let version: Int
     /// 导出时间（ISO-8601）
     let exportedAt: String
     /// 偏好键值（白名单内的键；不含凭证 / 历史 / 标签）
     let preferences: [String: PreferenceValue]
-    /// 统计数据行（day + event_name + count，对应 usage_daily_metrics 窄表）
-    let statistics: [FrsetConfigStatRow]
+    var menuBarWidgets: [String: PreferenceValue]? = nil
 
     static let formatIdentifier = "frsetconfig"
-    static let currentVersion = 1
+    static let currentVersion = 2
 
-    /// 单条统计行（day / event_name / count）
-    struct FrsetConfigStatRow: Codable {
-        let day: String
-        let event: String
-        let count: Int
-    }
 }
 
 /// 偏好值的可编码包装（UserDefaults 值域 → JSON）
@@ -46,6 +29,7 @@ struct FrsetConfigFile: Codable {
 /// 原作 `.frsetconfig` 内部结构 ⬜ 未探明，重建取 JSON（键面=键名，值为带类型判别的对象）。
 /// Data（自定义引擎表等二进制偏好）以 base64 字符串承载，避免 JSONEncoder 失败。
 enum PreferenceValue: Codable {
+    case null
     case bool(Bool)
     case int(Int)
     case double(Double)
@@ -53,6 +37,8 @@ enum PreferenceValue: Codable {
     case strings([String])
     /// base64 编码的 Data
     case data(String)
+    indirect case array([PreferenceValue])
+    indirect case dictionary([String: PreferenceValue])
 
     /// 由 UserDefaults 原始值构造；不支持的类型返回 nil（该键将被跳过）
     ///
@@ -68,9 +54,18 @@ enum PreferenceValue: Codable {
             return
         }
         switch defaultsValue {
+        case is NSNull:         self = .null
         case let v as String:   self = .string(v)
         case let v as [String]: self = .strings(v)
         case let v as Data:     self = .data(v.base64EncodedString())
+        case let v as [Any]:
+            let values = v.compactMap { PreferenceValue(defaultsValue: $0) }
+            guard values.count == v.count else { return nil }
+            self = .array(values)
+        case let v as [String: Any]:
+            let values = v.compactMapValues { PreferenceValue(defaultsValue: $0) }
+            guard values.count == v.count else { return nil }
+            self = .dictionary(values)
         default: return nil
         }
     }
@@ -78,12 +73,15 @@ enum PreferenceValue: Codable {
     /// 还原为可写回 UserDefaults 的原生值
     var defaultsValue: Any {
         switch self {
+        case .null:               return NSNull()
         case .bool(let v):        return v
         case .int(let v):         return v
         case .double(let v):      return v
         case .string(let v):      return v
         case .strings(let v):     return v
         case .data(let v):        return Data(base64Encoded: v) ?? Data()
+        case .array(let v):       return v.map(\.defaultsValue)
+        case .dictionary(let v):  return v.mapValues(\.defaultsValue)
         }
     }
 
@@ -93,12 +91,15 @@ enum PreferenceValue: Codable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let type = try c.decode(String.self, forKey: .type)
         switch type {
+        case "null":        self = .null
         case "bool":        self = .bool(try c.decode(Bool.self, forKey: .value))
         case "int":         self = .int(try c.decode(Int.self, forKey: .value))
         case "double":      self = .double(try c.decode(Double.self, forKey: .value))
         case "string":      self = .string(try c.decode(String.self, forKey: .value))
         case "strings":     self = .strings(try c.decode([String].self, forKey: .value))
         case "data":        self = .data(try c.decode(String.self, forKey: .value))
+        case "array":       self = .array(try c.decode([PreferenceValue].self, forKey: .value))
+        case "dictionary":  self = .dictionary(try c.decode([String: PreferenceValue].self, forKey: .value))
         default:
             throw DecodingError.dataCorruptedError(forKey: .type, in: c,
                                                   debugDescription: "未知的偏好值类型: \(type)")
@@ -108,213 +109,63 @@ enum PreferenceValue: Codable {
     func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
         switch self {
+        case .null:               try c.encode("null", forKey: .type)
         case .bool(let v):        try c.encode("bool", forKey: .type);    try c.encode(v, forKey: .value)
         case .int(let v):         try c.encode("int", forKey: .type);     try c.encode(v, forKey: .value)
         case .double(let v):      try c.encode("double", forKey: .type);  try c.encode(v, forKey: .value)
         case .string(let v):      try c.encode("string", forKey: .type);  try c.encode(v, forKey: .value)
         case .strings(let v):     try c.encode("strings", forKey: .type); try c.encode(v, forKey: .value)
         case .data(let v):        try c.encode("data", forKey: .type);    try c.encode(v, forKey: .value)
+        case .array(let v):       try c.encode("array", forKey: .type); try c.encode(v, forKey: .value)
+        case .dictionary(let v):  try c.encode("dictionary", forKey: .type); try c.encode(v, forKey: .value)
         }
     }
 }
 
-// MARK: - 统计与数据页
+// MARK: - 配置页
+
 
 struct StatisticsSettingsPane: View {
-    // 评分请求口径（Q7）
-    @Stored private var reviewUsage: Int = 0
-    // 关键指标（Q6：逐事件累计）
-    @Stored private var clipboardCaptureTotal: Int = 0
-    @Stored private var screenshotTotal: Int = 0
-    @Stored private var toolTotal: Int = 0
-    @Stored private var activeDays: Int = 0
-    @Stored private var storedItems: Int = 0
-    /// v107：各大功能累计（event → count）
-    @Stored private var featureCounts: [String: Int] = [:]
     // 上次导入/导出结果提示
     @Stored private var lastActionResult: String? = nil
     @Stored private var lastActionFailed = false
     @Stored private var isBusy = false
-    /// v115：图表刷新纪元——「刷新统计」时 +1 强制 StatisticsChartsView 重建重拉
-    @Stored private var chartsEpoch = 0
 
     /// 导入前的确认弹窗（spec 18 F8：Import Settings Confirm Title/Message）
-    @Stored private var pendingImportURL: URL? = nil
+    @Stored private var pendingImport: FrsetConfigFile? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            // v115：与用量统计窗同源的三层图表（指标卡 / 总览+30 天柱状 / 活动热力图）
-            chartsSection
-            metricsSection
-            featureSection
-            reviewSection
             transferSection
             infoSection
         }
-        .onAppear(perform: refresh)
         .confirmationDialog("导入配置？", isPresented: importConfirmBinding, titleVisibility: .visible) {
-            Button("导入", role: .destructive) { performImport(pendingImportURL) }
+            Button("导入", role: .destructive) { performImport(pendingImport) }
             Button("取消", role: .cancel) {}
         } message: {
-            Text("导入会用配置文件中的偏好设置覆盖当前设置，统计数据按较大值合并（不会削减已有计数）。")
-        }
-    }
-
-    // MARK: 用量图表（v115：复用统计窗 StatisticsChartsView，同源数据装载）
-
-    private var chartsSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 6) {
-                Text("用量图表")
-                    .font(.system(size: 15, weight: .semibold))
-                Text("与「使用统计」窗同源 · 数据仅存储在本机")
-                    .font(.system(size: 11))
-                    .foregroundStyle(Theme.tertiaryText)
-                Spacer()
-                Button("刷新") {
-                    refresh()
-                    chartsEpoch += 1
-                }
-                .controlSize(.small)
-                .disabled(isBusy)
-            }
-            StatisticsChartsView()
-                .id(chartsEpoch)
-                .padding(12)
-                .background(Color(NSColor.textBackgroundColor).opacity(0.5),
-                            in: RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous)
-                        .strokeBorder(Color.primary.opacity(0.06), lineWidth: 1)
-                )
+            Text("\(pendingImport?.preferences.count ?? 0) 项偏好、\(pendingImport?.menuBarWidgets?.count ?? 0) 项菜单部件参数。导入立即应用；旧文件中的使用统计忽略。")
         }
     }
 
     private var importConfirmBinding: Binding<Bool> {
-        Binding(get: { pendingImportURL != nil },
-                set: { if !$0 { pendingImportURL = nil } })
+        Binding(get: { pendingImport != nil },
+                set: { if !$0 { pendingImport = nil } })
     }
 
-    // MARK: 关键指标（Q6 total(event:) 出口）
-
-    private var metricsSection: some View {
-        SettingsSection("使用统计") {
-            SettingsGroupBox {
-                SettingsRow(icon: "doc.on.clipboard", title: "剪贴板捕获",
-                            subtitle: "累计捕获次数（clipboard_capture）") {
-                    Text("\(clipboardCaptureTotal)")
-                        .font(.system(size: 13, weight: .medium))
-                        .monospacedDigit()
-                }
-                SettingsDivider()
-                SettingsRow(icon: "camera.viewfinder", title: "屏幕截图",
-                            subtitle: "累计截图次数（screenshot_capture）") {
-                    Text("\(screenshotTotal)")
-                        .font(.system(size: 13, weight: .medium))
-                        .monospacedDigit()
-                }
-                SettingsDivider()
-                SettingsRow(icon: "square.and.pencil", title: "划词工具",
-                            subtitle: "累计工具执行成功次数（tool_execute_success）") {
-                    Text("\(toolTotal)")
-                        .font(.system(size: 13, weight: .medium))
-                        .monospacedDigit()
-                }
-                SettingsDivider()
-                SettingsRow(icon: "calendar", title: "活跃天数",
-                            subtitle: "有过任意埋点事件的天数") {
-                    Text("\(activeDays)")
-                        .font(.system(size: 13, weight: .medium))
-                        .monospacedDigit()
-                }
-                SettingsDivider()
-                SettingsRow(icon: "square.stack.3d.up", title: "本地存储条目",
-                            subtitle: "剪贴板库中的条目总数") {
-                    Text("\(storedItems)")
-                        .font(.system(size: 13, weight: .medium))
-                        .monospacedDigit()
-                }
-                SettingsDivider()
-                SettingsRow(icon: "arrow.clockwise", title: "刷新统计",
-                            subtitle: "重新读取统计库与剪贴板库（含上方图表）") {
-                    Button("刷新") {
-                        refresh()
-                        chartsEpoch += 1
-                    }
-                    .controlSize(.small)
-                    .disabled(isBusy)
-                }
-            }
-        }
-    }
-
-    // MARK: 功能明细（v107：各大功能累计，含活动监测）
-
-    /// 大功能计数表（icon / 标题 / 事件键 / 说明）
-    private static let featureMetrics: [(icon: String, title: String, event: String, note: String)] = [
-        ("doc.on.doc", "历史复制", AnalyticsEvent.historyCopy.eventName, "从历史列表复制"),
-        ("doc.on.clipboard.fill", "剪贴板粘贴", AnalyticsEvent.clipboardPaste.eventName, "粘贴回目标应用"),
-        ("magnifyingglass", "搜索执行", AnalyticsEvent.searchExecute.eventName, "面板搜索"),
-        ("safari", "网页搜索", AnalyticsEvent.webSearchOpen.eventName, "搜索引擎跳转"),
-        ("sparkles", "AI 请求", "ai_request_count", "AI 对话/摘要"),
-        ("character.bubble", "翻译", AnalyticsEvent.translationUse.eventName, "划词翻译"),
-        ("text.viewfinder", "OCR 识别", AnalyticsEvent.ocrUse.eventName, "图片文字提取"),
-        ("camera.on.rectangle", "长截图", AnalyticsEvent.longScreenshot.eventName, "滚动长截图"),
-        ("pin", "贴图", AnalyticsEvent.pinImage.eventName, "图片置顶贴到桌面"),
-        ("pencil.tip.crop.circle", "标注编辑", AnalyticsEvent.annotateEdit.eventName, "截图标注保存"),
-        ("record.circle", "屏幕录制", AnalyticsEvent.screenRecord.eventName, "录屏"),
-        ("arrow.down.circle", "网盘下载", AnalyticsEvent.fileDownload.eventName, "网盘解析下载"),
-        ("macwindow", "悬浮剪贴板", AnalyticsEvent.floatingClipboardActivate.eventName, "悬浮窗激活"),
-        ("rectangle.3.group", "面板打开", AnalyticsEvent.panelOpen.eventName, "主面板唤起"),
-        ("gauge", "监测中心", AnalyticsEvent.monitorPanelOpen.eventName, "性能监测页打开"),
-        ("waveform.path.ecg", "活动监测", AnalyticsEvent.activityMonitorClick.eventName, "活动监测入口"),
-        ("gearshape", "设置打开", AnalyticsEvent.settingsOpen.eventName, "设置窗口"),
-    ]
-
-    private var featureSection: some View {
-        SettingsSection("功能明细") {
-            SettingsGroupBox {
-                ForEach(Array(Self.featureMetrics.enumerated()), id: \.offset) { idx, m in
-                    if idx > 0 { SettingsDivider() }
-                    SettingsRow(icon: m.icon, title: m.title, subtitle: "\(m.note)（\(m.event)）") {
-                        Text("\(featureCounts[m.event] ?? 0)")
-                            .font(.system(size: 13, weight: .medium))
-                            .monospacedDigit()
-                    }
-                }
-            }
-        }
-    }
-
-    // MARK: 评分请求口径（Q7 reviewRequestUsage 出口）
-
-    private var reviewSection: some View {
-        SettingsSection("评分") {
-            SettingsGroupBox {
-                SettingsRow(icon: "star", title: "评分请求口径",
-                            subtitle: "history_copy + screenshot_capture 累计次数，原作据此决定何时请求评分") {
-                    Text("\(reviewUsage)")
-                        .font(.system(size: 13, weight: .medium))
-                        .monospacedDigit()
-                }
-            }
-        }
-    }
-
-    // MARK: 导出 / 导入（Q8 exportAll / importMerge 出口）
+    // MARK: 独立配置导入与导出
 
     private var transferSection: some View {
         SettingsSection("配置导出与导入") {
             SettingsGroupBox {
                 SettingsRow(icon: "square.and.arrow.up", title: "导出配置",
-                            subtitle: "将偏好设置与统计数据写入 .frsetconfig 文件") {
+                            subtitle: "将已保存偏好与菜单部件配置写入 .frsetconfig 文件") {
                     Button("导出…") { performExport() }
                         .controlSize(.small)
                         .disabled(isBusy)
                 }
                 SettingsDivider()
                 SettingsRow(icon: "square.and.arrow.down", title: "导入配置",
-                            subtitle: "从 .frsetconfig 恢复偏好设置，统计数据按较大值合并") {
+                            subtitle: "独立即时操作：从 .frsetconfig 恢复偏好与菜单部件配置") {
                     Button("导入…") { chooseImportFile() }
                         .controlSize(.small)
                         .disabled(isBusy)
@@ -333,43 +184,10 @@ struct StatisticsSettingsPane: View {
         SettingsSection("说明") {
             SettingsGroupBox {
                 SettingsRow(icon: "info.circle", title: "导出内容",
-                            subtitle: "仅包含偏好设置与统计数据，不含剪贴板历史、标签与 AI 凭证") {}
+                            subtitle: "仅包含偏好与菜单部件配置，不含剪贴板内容、标签、凭证、临时预览和使用统计") {}
                 SettingsDivider()
-                SettingsRow(icon: "arrow.triangle.merge", title: "合并规则",
-                            subtitle: "统计数据按 MAX(已有, 导入, 0) 合并，导入不会削减本机计数") {}
-            }
-        }
-    }
-
-    // MARK: 数据装载
-
-    private func refresh() {
-        let mgr = StatisticsManager.shared
-        let events = Array(mgr.trackedEventNames)
-        DispatchQueue.global(qos: .userInitiated).async {
-            let review = mgr.reviewRequestUsage()                       // Q7
-            let capture = mgr.total(event: AnalyticsEvent.clipboardCapture.eventName)          // Q6
-            // v84：截图总数合并截图族全部事件（截图 / 长截图 / 贴图 / 标注）
-            let screenshot = [AnalyticsEvent.screenshotCapture,
-                              .longScreenshot, .pinImage, .annotateEdit]
-                .reduce(0) { $0 + mgr.total(event: $1.eventName) }                             // Q6
-            let tool = mgr.total(event: AnalyticsEvent.toolExecuteSuccess.eventName)          // Q6
-            let days = mgr.activeDaysCount(events: events)                                    // Q3
-            let stored = Int((try? DatabaseManager.shared.clipboard.scalarInt(
-                "SELECT COUNT(*) FROM clipboard_items")) ?? 0)
-            // v107：各大功能累计
-            var feats: [String: Int] = [:]
-            for m in Self.featureMetrics {
-                feats[m.event] = mgr.total(event: m.event)
-            }
-            DispatchQueue.main.async {
-                self.reviewUsage = review
-                self.clipboardCaptureTotal = capture
-                self.screenshotTotal = screenshot
-                self.toolTotal = tool
-                self.activeDays = days
-                self.storedItems = stored
-                self.featureCounts = feats
+                SettingsRow(icon: "clock", title: "独立采样间隔",
+                            subtitle: "各菜单部件间隔单独恢复；主监测间隔不覆盖部件间隔") {}
             }
         }
     }
@@ -383,38 +201,21 @@ struct StatisticsSettingsPane: View {
         panel.canCreateDirectories = true
         panel.prompt = "导出"
         guard panel.runModal() == .OK, let url = panel.url else { return }
-
-        isBusy = true
-        // exportAll() 走 StatisticsManager 串行队列（同步查询），放后台避免卡 UI
-        DispatchQueue.global(qos: .userInitiated).async {
-            let rows = StatisticsManager.shared.exportAll()          // Q8
-            let file = FrsetConfigFile(
-                format: FrsetConfigFile.formatIdentifier,
-                version: FrsetConfigFile.currentVersion,
-                exportedAt: Self.iso8601Now(),
-                preferences: Self.exportablePreferences(),
-                statistics: rows.map { .init(day: $0.0, event: $0.1, count: $0.2) }
-            )
-            do {
-                let encoder = JSONEncoder()
-                encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
-                try encoder.encode(file).write(to: url, options: .atomic)
-                StatisticsManager.shared.record(AnalyticsEvent.settingsExportSuccess)
-                DispatchQueue.main.async {
-                    self.isBusy = false
-                    self.lastActionFailed = false
-                    self.lastActionResult = "已导出 \(rows.count) 条统计数据与 \(file.preferences.count) 项偏好到 \(url.lastPathComponent)"
-                    Toast.show("导出成功", icon: "checkmark.circle.fill")
-                }
-            } catch {
-                Log.error("Settings", "导出配置失败: \(error.localizedDescription)")
-                DispatchQueue.main.async {
-                    self.isBusy = false
-                    self.lastActionFailed = true
-                    self.lastActionResult = "写入失败：\(error.localizedDescription)"
-                    Toast.show("导出失败", icon: "exclamationmark.triangle.fill", isWarning: true)
-                }
-            }
+        do {
+            let file = FrsetConfigFile(format: FrsetConfigFile.formatIdentifier,
+                version: FrsetConfigFile.currentVersion, exportedAt: Self.iso8601Now(),
+                preferences: try Self.exportablePreferences(), menuBarWidgets: Self.exportableMenuBarConfiguration())
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes]
+            try encoder.encode(file).write(to: url, options: .atomic)
+            StatisticsManager.shared.record(AnalyticsEvent.settingsExportSuccess)
+            lastActionFailed = false
+            lastActionResult = "已导出 \(file.preferences.count) 项偏好与 \(file.menuBarWidgets?.count ?? 0) 项菜单部件配置到 \(url.lastPathComponent)"
+            Toast.show("导出成功", icon: "checkmark.circle.fill")
+        } catch {
+            lastActionFailed = true
+            lastActionResult = "写入失败：\(error.localizedDescription)"
+            Toast.show("导出失败", icon: "exclamationmark.triangle.fill", isWarning: true)
         }
     }
 
@@ -427,120 +228,132 @@ struct StatisticsSettingsPane: View {
         panel.allowsMultipleSelection = false
         panel.prompt = "导入"
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        pendingImportURL = url
-    }
-
-    private func performImport(_ url: URL?) {
-        pendingImportURL = nil
-        guard let url else { return }
-
-        let previousLaunchAtLogin = Preferences.shared.launchAtLogin
         isBusy = true
         DispatchQueue.global(qos: .userInitiated).async {
             do {
-                let data = try Data(contentsOf: url)
-                let file = try JSONDecoder().decode(FrsetConfigFile.self, from: data)
-                guard file.format == FrsetConfigFile.formatIdentifier else {
-                    throw ConfigImportError.badFormat
-                }
-                guard file.version <= FrsetConfigFile.currentVersion else {
-                    throw ConfigImportError.unsupportedVersion(file.version)
-                }
-                let invalid = Self.applyPreferences(file.preferences)
-                // 统计数据走 MAX 合并事务（不覆盖较新数据）
-                StatisticsManager.shared.importMerge(
-                    file.statistics.map { ($0.day, $0.event, $0.count) })   // Q8
-                Log.info("Settings", "导入配置完成：偏好 \(file.preferences.count) 项 / 统计 \(file.statistics.count) 条")
-                DispatchQueue.main.async {
-                    let incoming = file.preferences
-                    let defaults = UserDefaults.standard
-                    var launchError: String?
-                    if case .string(let raw)? = incoming["appearance"], let mode = AppearanceMode(rawValue: raw) {
-                        AppearanceManager.shared.apply(mode)
-                    }
-                    if case .string(let language)? = incoming["language"] {
-                        LanguageManager.shared.apply(language)
-                    }
-                    if case .bool(let enabled)? = incoming[Preferences.Keys.launchAtLogin] {
-                        do {
-                            if enabled { try SMAppService.mainApp.register() }
-                            else { try SMAppService.mainApp.unregister() }
-                        } catch {
-                            Preferences.shared.launchAtLogin = previousLaunchAtLogin
-                            launchError = "开机启动未应用：\(error.localizedDescription)"
-                        }
-                    }
-                    if incoming[Preferences.Keys.panelWidth] != nil || incoming[Preferences.Keys.panelHeight] != nil {
-                        NotificationCenter.default.post(name: Personalization.didChangeNotification, object: nil)
-                    }
-                    if incoming[Preferences.Keys.floatingOriginX] != nil || incoming[Preferences.Keys.floatingOriginY] != nil
-                        || incoming[Preferences.Keys.floatingWidth] != nil || incoming[Preferences.Keys.floatingHeight] != nil {
-                        let controller = FloatingClipboardWindowController.shared
-                        controller.window?.setFrame(controller.state.clampedFrame(), display: true)
-                    }
-                    if case .bool(let pinned)? = incoming["floatingClipboard.pinned"] {
-                        let controller = FloatingClipboardWindowController.shared
-                        controller.store.isPinned = pinned
-                        controller.applyPinLevel()
-                    }
-                    if case .bool(let visible)? = incoming["floatingClipboard.visible"] {
-                        if visible { FloatingClipboardWindowController.shared.show() }
-                        else { FloatingClipboardWindowController.shared.hide() }
-                    }
-                    if incoming[Preferences.Keys.aiBaseURL] != nil {
-                        for provider in LLMProviderKind.allCases {
-                            AIProviderModelDiscoveryCache.shared.invalidate(provider)
-                        }
-                    }
-                    if incoming[Preferences.Keys.aiProvider] != nil || incoming[Preferences.Keys.aiModel] != nil
-                        || incoming[Preferences.Keys.aiBaseURL] != nil {
-                        LLMService.shared.reload()
-                    }
-                    if incoming[Preferences.Keys.monitorRefreshInterval] != nil {
-                        let seconds = MonitorPreferences.refreshInterval
-                        MonitorPreferences.refreshInterval = seconds
-                        if let modules = FSBarAllModules() as? [String] {
-                            for module in modules {
-                                FSBarCfgSet(module, nil, "updateInterval", NSNumber(value: Int(max(1, seconds.rounded()))))
-                            }
-                        }
-                        FSBarReloadFromStore()
-                    }
-                    if incoming[Preferences.Keys.monitorCombinedMode] != nil {
-                        MonitorPreferences.combinedMode = defaults.bool(forKey: Preferences.Keys.monitorCombinedMode)
-                    }
-                    if incoming[Preferences.Keys.calendarShowLunar] != nil {
-                        CalendarService.shared.refreshAuthorization()
-                    }
-                    if incoming[Preferences.Keys.captureSavePath] != nil {
-                        ScreenshotManager.shared.reloadRecent()
-                    }
-                    // v126（性能审计 F1190）：搜索设置重载回主线程——SearchServiceManager 是
-                    // ObservableObject，load() 会写 @Published；原来在后台队列调用会触发
-                    // SwiftUI「后台线程发布变更」未定义行为。放在状态刷新之前，页面仍能立即反映导入结果。
-                    SearchServiceManager.shared.reloadFromDefaults()
-                    self.isBusy = false
-                    self.lastActionFailed = !invalid.isEmpty || launchError != nil
-                    let result = invalid.isEmpty
-                        ? "已导入 \(file.preferences.count) 项偏好，\(file.statistics.count) 条统计数据按较大值合并"
-                        : "已导入，但有 \(invalid.count) 个键被忽略（不属于可导入的偏好键）"
-                    self.lastActionResult = result + (launchError.map { "；" + $0 } ?? "")
-                    self.refresh()
-                    if !self.lastActionFailed { StatisticsManager.shared.record(AnalyticsEvent.settingsImportSuccess) }
-                    Toast.show(self.lastActionFailed ? "导入未完全成功" : "导入成功",
-                               icon: self.lastActionFailed ? "exclamationmark.triangle" : "checkmark.circle.fill",
-                               isWarning: self.lastActionFailed)
-                }
+                let file = try JSONDecoder().decode(FrsetConfigFile.self, from: Data(contentsOf: url))
+                guard file.format == FrsetConfigFile.formatIdentifier else { throw ConfigImportError.badFormat }
+                guard file.version <= FrsetConfigFile.currentVersion else { throw ConfigImportError.unsupportedVersion(file.version) }
+                DispatchQueue.main.async { self.pendingImport = file; self.isBusy = false }
             } catch {
-                Log.error("Settings", "导入配置失败: \(error.localizedDescription)")
                 DispatchQueue.main.async {
                     self.isBusy = false
                     self.lastActionFailed = true
                     self.lastActionResult = "导入失败：\(error.localizedDescription)"
-                    Toast.show("导入失败", icon: "exclamationmark.triangle.fill", isWarning: true)
                 }
             }
         }
+    }
+
+    private func performImport(_ file: FrsetConfigFile?) {
+        pendingImport = nil
+        guard let file else { return }
+        let invalid = file.preferences.keys.filter { !Self.exportablePreferenceKeySet.contains($0) }
+        let saved = FSBarConfigurationSnapshot() as? [String: Any] ?? [:]
+        let widgets = (file.menuBarWidgets ?? [:]).filter {
+            Self.isMenuBarConfigurationKey($0.key) && !($0.value.defaultsValue as! NSObject).isEqual(saved[$0.key])
+        }.mapValues(\.defaultsValue)
+        if !widgets.isEmpty, let reason = FSBarSaveConfiguration(widgets, []) {
+            lastActionFailed = true; lastActionResult = reason
+            return
+        }
+        if !widgets.isEmpty { FSBarReloadFromStore(); FSRunCatIconApplySavedConfiguration() }
+        if let reason = Self.applyImportedPreferences(file.preferences) {
+            lastActionFailed = true; lastActionResult = reason
+            return
+        }
+        lastActionFailed = !invalid.isEmpty
+        lastActionResult = "已应用 \(file.preferences.count - invalid.count) 项偏好与 \(widgets.count) 项菜单部件配置"
+            + (invalid.isEmpty ? "" : "；忽略 \(invalid.count) 个偏好键")
+        StatisticsManager.shared.record(AnalyticsEvent.settingsImportSuccess)
+    }
+
+    static func applyImportedPreferences(_ supplied: [String: PreferenceValue]) -> String? {
+        let defaults = UserDefaults.standard
+        let incoming = supplied.filter {
+            exportablePreferenceKeySet.contains($0.key) && !($0.value.defaultsValue as! NSObject).isEqual(defaults.object(forKey: $0.key))
+        }
+        let startup = StartupSettingsDraft()
+        if case .bool(let enabled)? = incoming[Preferences.Keys.launchAtLogin] { startup.launchAtLogin = enabled }
+        if case .string(let language)? = incoming["language"] { startup.language = language }
+        if startup.isDirty, let reason = startup.save() { return reason }
+        var shortcuts: [String: AppBootstrap.ShortcutBinding] = [:]
+        let combinations = supplied["shortcuts.bindings"]?.defaultsValue as? [String: [UInt32]]
+        let doubleTaps = supplied["shortcuts.doubleTap"]?.defaultsValue as? [String: String]
+        let toolBindings = supplied["toolbox.toolShortcuts"]?.defaultsValue as? [String: [UInt32]]
+        for entry in AppBootstrap.shortcutSettingsEntries {
+            let pair = entry.id.hasPrefix("tool.") ? toolBindings?[String(entry.id.dropFirst(5))] :
+                (combinations?[entry.id] ?? (entry.id == "colorpicker" ? combinations?["colorPicker"] ?? toolBindings?["colorpicker"] : nil))
+            let rawModifier = doubleTaps?[entry.id] ?? (entry.id == "colorpicker" ? doubleTaps?["colorPicker"] : nil)
+            var value = AppBootstrap.shortcutSettingsValue(for: entry.id)
+            if let pair {
+                guard pair.isEmpty || pair.count == 2 else { return "\(entry.title)：导入的组合键数据格式错误" }
+                value = AppBootstrap.ShortcutBinding(trigger: pair.isEmpty ? .unbound : .combination,
+                                                     keyCode: pair.first, modifiers: pair.last ?? 0)
+            }
+            if let rawModifier {
+                guard AppBootstrap.supportsDoubleTap(for: entry.id), let modifier = DoubleTapModifier(rawValue: rawModifier) else {
+                    return "\(entry.title)：导入的双按修饰键无效"
+                }
+                value.trigger = .doubleTap; value.doubleTap = modifier
+            }
+            if value != AppBootstrap.shortcutSettingsValue(for: entry.id) { shortcuts[entry.id] = value }
+        }
+        if !shortcuts.isEmpty, let reason = AppBootstrap.applyShortcuts(shortcuts) { return reason }
+        applyPreferences(incoming.filter {
+            !["shortcuts.bindings", "shortcuts.doubleTap", "toolbox.toolShortcuts",
+              Preferences.Keys.launchAtLogin, "language"].contains($0.key)
+        })
+        guard defaults.synchronize() else { return "配置写入磁盘失败" }
+        if incoming["showSystemStatus"] != nil {
+            PanelSegments.migrateLegacyVisibility()
+            NotificationCenter.default.post(name: Personalization.didChangeNotification, object: nil)
+        }
+        if case .string(let raw)? = incoming["appearance"], let mode = AppearanceMode(rawValue: raw) {
+            AppearanceManager.shared.apply(mode)
+        }
+        if incoming.keys.contains(where: { $0.hasPrefix("ui.") }) { Personalization.shared.reloadFromDefaults() }
+        if incoming[Preferences.Keys.panelWidth] != nil || incoming[Preferences.Keys.panelHeight] != nil ||
+            incoming.keys.contains(where: { $0.hasPrefix("panel.segment.") }) {
+            NotificationCenter.default.post(name: Personalization.didChangeNotification, object: nil)
+        }
+        let floating = FloatingClipDeskStore.shared
+        if incoming[FloatingClipPrefs.layoutKey] != nil { floating.layout = FloatingClipPrefs.layout }
+        if incoming[FloatingClipPrefs.cardSizeKey] != nil { floating.cardSize = FloatingClipPrefs.cardSize }
+        if incoming[FloatingClipPrefs.splitRatioKey] != nil { floating.splitRatio = FloatingClipPrefs.splitRatio }
+        if incoming[FloatingClipPrefs.hoverPreviewKey] != nil { floating.hoverPreviewEnabled = FloatingClipPrefs.hoverPreviewEnabled }
+        if incoming[Preferences.Keys.floatingOriginX] != nil || incoming[Preferences.Keys.floatingOriginY] != nil ||
+            incoming[Preferences.Keys.floatingWidth] != nil || incoming[Preferences.Keys.floatingHeight] != nil {
+            let controller = FloatingClipboardWindowController.shared
+            controller.window?.setFrame(controller.state.clampedFrame(), display: true)
+        }
+        if case .bool(let pinned)? = incoming["floatingClipboard.pinned"] {
+            let controller = FloatingClipboardWindowController.shared
+            controller.store.isPinned = pinned
+            controller.applyPinLevel()
+        }
+        let serviceChanged = incoming.keys.contains { $0 == Preferences.Keys.aiBaseURL || $0.hasPrefix("ai.baseURL.") }
+        if serviceChanged {
+            for provider in LLMProviderKind.allCases { AIProviderModelDiscoveryCache.shared.invalidate(provider) }
+        }
+        if incoming[Preferences.Keys.aiProvider] != nil || incoming[Preferences.Keys.aiModel] != nil || serviceChanged {
+            LLMService.shared.reload()
+        }
+        if incoming.keys.contains(where: { $0.hasPrefix("monitor.") }) {
+            NotificationCenter.default.post(name: MonitorPreferences.didChangeNotification, object: nil)
+        }
+        if incoming.keys.contains(where: { $0.hasPrefix("menu-bar-icon-") || $0.hasPrefix("entry.") }) {
+            MenuBarIconStyleApplier.shared.refresh()
+            NotificationCenter.default.post(name: GlobalEntries.didChangeNotification, object: nil)
+        }
+        if incoming.keys.contains(where: { $0.hasPrefix("shelf.") }) {
+            NotificationCenter.default.post(name: .curtainPreferencesChanged, object: nil)
+        }
+        if incoming[Preferences.Keys.calendarShowLunar] != nil { CalendarService.shared.refreshAuthorization() }
+        if incoming[Preferences.Keys.captureSavePath] != nil { ScreenshotManager.shared.reloadRecent() }
+        if case .string(let feedURL)? = incoming["update.feedURL"] { AppUpdateChecker.shared.feedURL = feedURL }
+        SearchServiceManager.shared.reloadFromDefaults()
+        return nil
     }
 
     // MARK: 偏好白名单
@@ -569,7 +382,8 @@ struct StatisticsSettingsPane: View {
     /// - `AppearanceManager` / `LanguageManager` 的键为各自文件内私有常量，此处按字面量写死；
     /// - 跨模块扩展键（Clipboard / Panel 的 `public extension Preferences.Keys`）在本模块
     ///   typecheck（Core+Models+Storage+本目录）下不可见，故同样写字面量并在此注释说明。
-    static let exportablePreferenceKeys: [String] = [
+    static let exportablePreferenceKeys: [String] = {
+        var keys: [String] = [
         // 通用
         Preferences.Keys.launchAtLogin,
         Preferences.Keys.menuBarIconsVisible,
@@ -587,13 +401,13 @@ struct StatisticsSettingsPane: View {
         // 剪贴板
         Preferences.Keys.clipboardRetentionDays,
         Preferences.Keys.clipboardStorageLimitMB,
+        Preferences.Keys.clipboardIgnoredApps, "automaticScreenshotOCREnabled",
         "clipboard.autoPaste",                    // ClipboardManager.swift 的 Keys 扩展
         // 悬浮剪贴板窗
         Preferences.Keys.floatingOriginX,
         Preferences.Keys.floatingOriginY,
         Preferences.Keys.floatingWidth,
         Preferences.Keys.floatingHeight,
-        "floatingClipboard.visible",
         "floatingClipboard.pinned",
         // 悬停预览（PanelPreviewPreferences.swift 的 Keys 扩展）
         "hoverPreviewInMainWindowEnabled",
@@ -606,12 +420,18 @@ struct StatisticsSettingsPane: View {
         Preferences.Keys.captureSound,
         Preferences.Keys.captureSavePath,
         Preferences.Keys.ocrLanguages,
+        "ocr.autoDetectLanguages", "capture.defaultAction", "capture.ocrShowResultWindow", "capture.delaySeconds",
+        CaptureFileName.keyTemplate, MosaicTextOnly.keyEnabled, CaptureOCRNotify.keySilent, CaptureOCRNotify.keySeconds,
+        Watermark.keyEnabled, Watermark.keyText, Watermark.keyOpacity, Watermark.keyAngle, Watermark.keyTile, Watermark.keyScale,
         // AI（不含凭证：凭证在 CredentialStore 加密文件里）
         Preferences.Keys.aiProvider,
         Preferences.Keys.aiModel,
         Preferences.Keys.aiBaseURL,
+        AISettings.keyDefaultAction, AISettings.keyTemperature, AISettings.keyMaxTokens, AISettings.keySystemPrompt,
+        AISettings.keyTranslationProvider, AISettings.keyOCRRefiner, CustomAIToolStore.storageKey,
         // 工具箱
         Preferences.Keys.toolboxEnabled,
+        BuiltinTools.defaultActionKey, "shortcuts.bindings", "shortcuts.doubleTap", "toolbox.toolShortcuts",
         Preferences.Keys.calendarShowLunar,
         // 搜索（SearchServiceManager.Keys，为私有枚举，按字面量写）
         "clearSearchInputAfterWebAction",
@@ -620,10 +440,53 @@ struct StatisticsSettingsPane: View {
         "activeBarItems",
         // 埋点开关（D5：analyticsEnabled）
         "analyticsEnabled",
-    ]
+        FloatingClipPrefs.layoutKey, FloatingClipPrefs.cardSizeKey,
+        FloatingClipPrefs.hoverPreviewKey, FloatingClipPrefs.splitRatioKey,
+        PanelSegments.homeKey, PanelSegments.monitorKey, PanelSegments.orderKey,
+        GlobalEntries.homeKey, GlobalEntries.monitorPopoutKey, GlobalEntries.statsBarKey,
+        Preferences.Keys.panelPinned, Preferences.Keys.panelWidthV2,
+        Preferences.Keys.calendarFirstWeekday, "showCalendar", "showSystemStatus",
+        MonitorPreferences.keyEnabled, MonitorPreferences.keyShowTemperatures,
+        MonitorPreferences.keyFlowTopN, MonitorPreferences.keyNetworkKeepAlive,
+        CaptureToolbarStyle.preferenceKey, CaptureRatioStore.keyItems, CaptureRatioStore.keySelected,
+        PinStyle.keyBorderWidth, PinStyle.keyBorderColor, PinStyle.keyCorner, PinStyle.keyShadow,
+        PinStyle.keyMagnet, PinStyle.keyOpacity, PinStyle.keyAutoHide,
+        Preferences.Keys.curtainEnabled, Preferences.Keys.curtainRopeStyle, Preferences.Keys.curtainDisplayDuration,
+        Preferences.Keys.curtainMaxCards, Preferences.Keys.curtainAttachOnCapture, Preferences.Keys.curtainCardWidth,
+        Preferences.Keys.curtainRailScales, Preferences.Keys.curtainRevealOnHover,
+        RecordingOptions.keyCursor, RecordingOptions.keyCameraCorner, RecordingOptions.keyCameraScale,
+        RecordingOptions.keyKeys, RecordingOptions.keyClicks, "update.feedURL",
+        RecordingOptions.keyFPS, RecordingOptions.keyAudio, RecordingOptions.keyCamera, RecordingOptions.keyCameraDevice,
+        RecordingOptions.keyExcluded, RecordingOptions.keySavePath,
+        ]
+        keys += PersonalizationSettingsPart.allCases.flatMap { $0.personalizationFields.map(\.key) }
+        keys += MonitorModuleID.allCases.map { MonitorPreferences.keyEnabled(for: $0) }
+        keys += LLMProviderKind.allCases.map { AISettings.baseURLKey(for: $0) }
+        keys += ToolRegistry.all.map { "toolbox.tool.\($0.id).enabled" }
+        return keys
+    }()
+
+    static func isMenuBarConfigurationKey(_ key: String) -> Bool {
+        MonitorWidgetsSettingsDraft.arrangementKeys.contains(key) || key == "Bar_MainIconCat" ||
+            (FSBarAllModules() as? [String] ?? []).contains {
+                key.hasPrefix($0 + "_") || ($0 == "Power" && (key.hasPrefix("CPUPower_") || key.hasPrefix("GPUPower_")))
+            }
+    }
+
+    static func exportableMenuBarConfiguration() -> [String: PreferenceValue] {
+        var configuration = (FSBarDefaultConfiguration() as? [String: Any] ?? [:])
+            .merging(FSBarConfigurationSnapshot() as? [String: Any] ?? [:]) { _, saved in saved }
+        for module in FSBarAllModules() as? [String] ?? [] {
+            configuration[module + "_updateInterval"] = configuration[module + "_updateInterval"] ?? "1"
+        }
+        configuration["Widgets_order"] = FSBarOrderedModules(configuration)
+        configuration["Bar_MainIconCat"] = MenuBarIconStyleStore.current == .cat
+        return configuration.filter { isMenuBarConfigurationKey($0.key) }
+            .compactMapValues { PreferenceValue(defaultsValue: $0) }
+    }
 
     /// 导出时读取白名单内的偏好键值（未落盘的键不写入）
-    static func exportablePreferences() -> [String: PreferenceValue] {
+    static func exportablePreferences() throws -> [String: PreferenceValue] {
         let defaults = UserDefaults.standard
         var out: [String: PreferenceValue] = [:]
         out.reserveCapacity(exportablePreferenceKeys.count)
@@ -632,6 +495,91 @@ struct StatisticsSettingsPane: View {
                   let value = PreferenceValue(defaultsValue: raw) else { continue }
             out[key] = value
         }
+        for (key, value) in Personalization.shared.preferenceValues where exportablePreferenceKeySet.contains(key) {
+            out[key] = value.flatMap { PreferenceValue(defaultsValue: $0) } ?? .null
+        }
+        let effective: [String: Any] = [
+            "appearance": AppearanceManager.shared.mode.rawValue,
+            "language": LanguageManager.shared.overrideDisplayLanguage,
+            Preferences.Keys.launchAtLogin: Preferences.shared.launchAtLogin,
+            MenuBarIconStyleStore.customSymbolKey: MenuBarIconStyleStore.customSymbol,
+            FloatingClipPrefs.layoutKey: FloatingClipPrefs.layout.rawValue,
+            FloatingClipPrefs.cardSizeKey: FloatingClipPrefs.cardSize.rawValue,
+            FloatingClipPrefs.hoverPreviewKey: FloatingClipPrefs.hoverPreviewEnabled,
+            FloatingClipPrefs.splitRatioKey: Double(FloatingClipPrefs.splitRatio),
+            PanelSegments.homeKey: Preferences.shared.value(PanelSegments.homeKey, default: true),
+            PanelSegments.monitorKey: Preferences.shared.value(PanelSegments.monitorKey, default: true),
+            PanelSegments.orderKey: PanelSegments.encode(PanelSegments.order),
+            Preferences.Keys.panelWidth: Preferences.shared.value(Preferences.Keys.panelWidth, default: 400.0),
+            GlobalEntries.homeKey: GlobalEntries.isEnabled(GlobalEntries.homeKey),
+            GlobalEntries.monitorPopoutKey: GlobalEntries.isEnabled(GlobalEntries.monitorPopoutKey),
+            GlobalEntries.statsBarKey: GlobalEntries.isEnabled(GlobalEntries.statsBarKey),
+            CaptureToolbarStyle.preferenceKey: CaptureToolbarStyle.current.rawValue,
+            CaptureRatioStore.keySelected: CaptureRatioStore.selectedID,
+            PinStyle.keyBorderWidth: PinStyle.borderWidth, PinStyle.keyBorderColor: PinStyle.borderColorToken,
+            PinStyle.keyCorner: PinStyle.cornerRadius, PinStyle.keyShadow: PinStyle.shadow,
+            PinStyle.keyMagnet: PinStyle.magnet, PinStyle.keyOpacity: PinStyle.opacity, PinStyle.keyAutoHide: PinStyle.chromeAutoHide,
+            Preferences.Keys.curtainEnabled: CurtainPref.enabled, Preferences.Keys.curtainRopeStyle: CurtainPref.ropeStyle.rawValue,
+            Preferences.Keys.curtainDisplayDuration: CurtainPref.displayDuration, Preferences.Keys.curtainMaxCards: CurtainPref.maxCards,
+            Preferences.Keys.curtainAttachOnCapture: CurtainPref.attachOnCapture, Preferences.Keys.curtainCardWidth: Double(CurtainPref.cardWidth),
+            Preferences.Keys.curtainRailScales: CurtainPref.railScalesWithCards, Preferences.Keys.curtainRevealOnHover: CurtainPref.revealOnHover,
+            RecordingOptions.keyCursor: RecordingOptions.defaultShowsCursor, RecordingOptions.keyCameraCorner: RecordingOptions.cameraCorner.rawValue,
+            RecordingOptions.keyCameraScale: RecordingOptions.cameraScale, RecordingOptions.keyKeys: RecordingOptions.showKeys,
+            RecordingOptions.keyClicks: RecordingOptions.showClicks,
+            Preferences.Keys.floatingOriginX: Double(FloatingClipboardPinState.shared.originX),
+            Preferences.Keys.floatingOriginY: Double(FloatingClipboardPinState.shared.originY),
+            Preferences.Keys.floatingWidth: Double(FloatingClipboardPinState.shared.width),
+            Preferences.Keys.floatingHeight: Double(FloatingClipboardPinState.shared.height),
+            "floatingClipboard.pinned": FloatingClipboardPinState.shared.isPinned,
+            "update.feedURL": AppUpdateChecker.shared.feedURL,
+            Preferences.Keys.clipboardRetentionDays: Preferences.shared.value(Preferences.Keys.clipboardRetentionDays, default: 30),
+            Preferences.Keys.clipboardStorageLimitMB: Preferences.shared.value(Preferences.Keys.clipboardStorageLimitMB, default: 2048),
+            Preferences.Keys.clipboardAutoPaste: Preferences.shared.value(Preferences.Keys.clipboardAutoPaste, default: false),
+            Preferences.Keys.clipboardIgnoredApps: Preferences.shared.value(Preferences.Keys.clipboardIgnoredApps, default: [String]()),
+            "automaticScreenshotOCREnabled": Preferences.shared.value("automaticScreenshotOCREnabled", default: true),
+            Preferences.Keys.calendarFirstWeekday: Preferences.shared.calendarFirstWeekday,
+            Preferences.Keys.calendarShowLunar: Preferences.shared.calendarShowLunar,
+            "showCalendar": Preferences.shared.value("showCalendar", default: true),
+            Preferences.Keys.captureSound: Preferences.shared.value(Preferences.Keys.captureSound, default: true),
+            Preferences.Keys.captureSavePath: Preferences.shared.value(Preferences.Keys.captureSavePath, default: ""),
+            Preferences.Keys.ocrLanguages: Preferences.shared.value(Preferences.Keys.ocrLanguages, default: ["zh-Hans", "en-US"]),
+            "ocr.autoDetectLanguages": OCRService.autoDetectLanguages,
+            "capture.defaultAction": ScreenshotManager.shared.defaultAction.rawValue,
+            "capture.ocrShowResultWindow": ScreenshotManager.shared.ocrShowResultWindow,
+            "capture.delaySeconds": ScreenshotManager.shared.delaySeconds,
+            CaptureFileName.keyTemplate: CaptureFileName.template,
+            CaptureOCRNotify.keySilent: CaptureOCRNotify.isSilent, CaptureOCRNotify.keySeconds: CaptureOCRNotify.seconds,
+            MosaicTextOnly.keyEnabled: MosaicTextOnly.isEnabled,
+            Watermark.keyEnabled: Watermark.isEnabled, Watermark.keyText: Watermark.text,
+            Watermark.keyOpacity: Watermark.opacity, Watermark.keyAngle: Watermark.angle,
+            Watermark.keyTile: Watermark.tile, Watermark.keyScale: Watermark.scale,
+            RecordingOptions.keyFPS: RecordingOptions.defaultFPS, RecordingOptions.keyAudio: RecordingOptions.defaultAudio.rawValue,
+            RecordingOptions.keyCamera: RecordingOptions.cameraEnabled, RecordingOptions.keyCameraDevice: RecordingOptions.cameraDeviceID,
+            RecordingOptions.keyExcluded: RecordingOptions.excludedBundleIDs, RecordingOptions.keySavePath: RecordingOptions.savePathRaw,
+            Preferences.Keys.aiProvider: AISettings.providerKind.rawValue, Preferences.Keys.aiModel: AISettings.selectedModel,
+            AISettings.keyDefaultAction: AISummaryAction.storedDefault.rawValue,
+            BuiltinTools.defaultActionKey: BuiltinTools.defaultAction.rawValue,
+        ]
+        for (key, value) in effective { out[key] = PreferenceValue(defaultsValue: value) }
+        for style in MenuBarIconStyle.allCases where style != .cat {
+            out[style.preferenceKey] = .bool(MenuBarIconStyleStore.current == style)
+        }
+        for provider in LLMProviderKind.allCases { out[AISettings.baseURLKey(for: provider)] = .string(AISettings.baseURL(for: provider).absoluteString) }
+        for tool in ToolRegistry.all { out["toolbox.tool.\(tool.id).enabled"] = .bool(ToolRegistry.isEnabled(id: tool.id)) }
+        var combinations: [String: PreferenceValue] = [:], doubles: [String: PreferenceValue] = [:], tools: [String: PreferenceValue] = [:]
+        for entry in AppBootstrap.shortcutSettingsEntries {
+            let value = AppBootstrap.shortcutSettingsValue(for: entry.id)
+            let pair: [PreferenceValue] = value.keyCode.map { [.int(Int($0)), .int(Int(value.modifiers))] } ?? []
+            if entry.id.hasPrefix("tool.") { tools[String(entry.id.dropFirst(5))] = .array(pair) }
+            else {
+                combinations[entry.id] = .array(pair)
+                if value.trigger == .doubleTap { doubles[entry.id] = .string(value.doubleTap.rawValue) }
+            }
+        }
+        out["shortcuts.bindings"] = .dictionary(combinations)
+        out["shortcuts.doubleTap"] = .dictionary(doubles)
+        out["toolbox.toolShortcuts"] = .dictionary(tools)
+        out[CaptureRatioStore.keyItems] = .data(try JSONEncoder().encode(CaptureRatioStore.customItems).base64EncodedString())
         return out
     }
 
@@ -640,7 +588,7 @@ struct StatisticsSettingsPane: View {
     private static let exportablePreferenceKeySet: Set<String> = Set(exportablePreferenceKeys)
 
     /// 写回导入的偏好键值
-    /// - Returns: 被忽略（不在白名单内）的键名；按原作 `settings.invalid-` 前缀落标记
+    /// - Returns: 被忽略（不在白名单内）的键名。
     @discardableResult
     static func applyPreferences(_ incoming: [String: PreferenceValue]) -> [String] {
         let whitelist = exportablePreferenceKeySet
@@ -648,11 +596,10 @@ struct StatisticsSettingsPane: View {
         var ignored: [String] = []
         for (key, value) in incoming {
             if whitelist.contains(key) {
-                defaults.set(value.defaultsValue, forKey: key)
+                if case .null = value { defaults.removeObject(forKey: key) }
+                else { defaults.set(value.defaultsValue, forKey: key) }
             } else {
                 ignored.append(key)
-                // 原作无效键标记前缀（spec 18 F8 / SettingsStore @0x100b50070）
-                defaults.set(true, forKey: "settings.invalid-\(key)")
             }
         }
         return ignored.sorted()

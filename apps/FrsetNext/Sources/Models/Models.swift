@@ -37,7 +37,7 @@ public struct ClipboardItem: Codable, Identifiable, Hashable, Sendable {
     public let imagePath: String?
     public let thumbnailPath: String?
     public let isGeneratedByTool: Bool
-    public let isNote: Bool
+    public var isNote: Bool
     public let sourceToolAnalyticsId: String?
     public let sourceToolKeyword: String?
     public let textPath: String?
@@ -53,6 +53,11 @@ public struct ClipboardItem: Codable, Identifiable, Hashable, Sendable {
     public var aliasTitle: String?
     public var tagIDs: [String]
     public let fileCategories: Int
+    private var favoriteFlag: Bool? = nil
+    public var isFavorite: Bool {
+        get { favoriteFlag ?? false }
+        set { favoriteFlag = newValue }
+    }
 
     public init(id: String = UUID().uuidString,
                 type: ClipboardItemType,
@@ -79,6 +84,7 @@ public struct ClipboardItem: Codable, Identifiable, Hashable, Sendable {
                 dedupeKey: String,
                 aliasTitle: String? = nil,
                 tagIDs: [String] = [],
+                isFavorite: Bool = false,
                 fileCategories: Int? = nil) {
         self.id = id; self.type = type; self.content = content; self.title = title
         self.subtitle = subtitle; self.timestamp = timestamp; self.sourceApp = sourceApp
@@ -91,6 +97,7 @@ public struct ClipboardItem: Codable, Identifiable, Hashable, Sendable {
         self.imageDimensionUnit = imageDimensionUnit; self.payloadKey = payloadKey
         self.storageBytes = storageBytes; self.dedupeKey = dedupeKey
         self.aliasTitle = aliasTitle; self.tagIDs = tagIDs
+        self.favoriteFlag = isFavorite
         self.fileCategories = fileCategories ?? (type == .file ? ClipboardFileCategories.classify(content ?? "") : 0)
     }
 

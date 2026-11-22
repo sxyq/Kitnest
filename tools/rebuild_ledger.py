@@ -38,13 +38,231 @@ FUNC_KINDS = ("func", "init", "deinit", "subscript")
 
 # 已重命名：台账旧名 → 现名
 RENAMES = {
+    ("Features/StatusBar/StatusBarMenuBuilder.swift", "StatusBarMenuBuilder", "customIconSubmenu"): "customIconItem",
+    ("Features/AI/Views/AICredentialJournal.swift", "AICredentialJournalStore", "loadAll"): "decodeLines",
     ("Features/TransferDock/UI/TransferDockLoginView.swift", "Coordinator", "checkCookies"): "check",
 }
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
-    ("Core/UI/AirDropSendEngine.swift", "send"):
-        "从中转模块迁出原生隔空投送发送方法，AppBootstrap 接收截图和剪贴板的同一通知；只调用系统分享，不再依赖中转存储或投屏",
+    ("Features/Capture/Workflow/WorkflowSettingsPane.swift", "init"):
+        "2026-11-21：工作流设置草稿只读取一次配置，当前值与已保存值共用同一组UUID，首次示例不会因两次随机身份生成而被标成未保存",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "readAndIngest"):
+        "2026-11-21：由poll调用；粘贴板读取失败时仅初次调用安排强制poll补读，可替换已有普通计数Timer且不续排补读，成功后的忽略规则和入库沿原实现",
+    ("Features/Clipboard/UI/ClipboardTableHostView.swift", "deinit"):
+        "2026-11-20：Coordinator释放时移除bind持有的回顶block observer，结束宿主重建后的旧通知注册；滚动代理仍只弱持有视图",
+    ("Features/Monitor/Storage/DiskIndex.swift", "removing"):
+        "2026-11-20：trash更新内存与两个范围缓存共用；按路径分隔判断交集，无交集沿用，根被移走或折叠导致目标节点缺失时失效该范围，其余仅裁剪已删除路径并重算总量与分类",
+    ("Core/Runtime/AppUpdateChecker.swift", "prepareToTerminate"):
+        "2026-11-20：AppDelegate完成原归档退出确认后调用；无待更新时返回原结果，取消清本次目录，允许才启动等待原PID退出的替换程序；启动失败取消退出并提示",
+    ("Features/Island/IslandController.swift", "rememberPage"):
+        "2026-11-20：主线草稿页面变化与selectPage共用；正式记忆模式且当前屏幕页面发生变化时写入lastPageByDisplay，持久化成功再发布配置，失败显示原提示",
+    ("Features/Island/IslandController.swift", "selectDeepLinkPage"):
+        "2026-11-21：kitnest://island?page=...使用；任务页沿原selectPage策略更新，功能详情页仅切换当前显示页，不覆盖固定或记忆页配置",
+    ("Features/Island/IslandController.swift", "openIsland"):
+        "2026-11-21：公开open()与open(page:)共用；未指定目标时应用固定/记忆展开策略，深链指定目标时保留该页并展开，不再被默认页策略覆盖",
+    ("Features/Island/IslandDisplay.swift", "entrySize"):
+        "2026-11-20：主线草稿入口尺寸属性与entryFrame共用；真实刘海读左右安全区间距和顶部安全高度，普通屏沿配置宽度及28pt高度",
+    ("Features/Island/IslandDisplay.swift", "entryFrame"):
+        "2026-11-20：主线草稿入口刷新与鼠标命中共用；真实刘海按安全区居中，普通屏按左中右位置及配置宽度定位，沿逻辑点和frame负坐标计算",
+    ("Features/Island/IslandContent.swift", "applyTagChange"):
+        "2026-11-20：IslandRootView接收TagStore增量通知；映射整体替换或缺少变更信息时重新查询，单标签删除清除对应筛选，仅更新受影响已加载行的tagIDs",
+    ("Features/Archive/UI/ArchiveHTMLPreview.swift", "openExternalLink"):
+        "2026-11-20：归档网页两种导航回调共用，仅主文档由用户点击的HTTP、HTTPS或mailto链接交系统打开；自动重定向不唤起外部应用",
+    ("Features/CodePreview/CodePreviewView.swift", "updateText"):
+        "2026-11-20：两个NSTextView宿主装入或更换正文时调用，记录UTF-16行首、更新宽度及请求一次重绘；滚动只读取偏移表",
+    ("Features/TransferDock/Cast/TransferCastEngines.swift", "prepareLaunch"):
+        "2026-11-20：镜像和独立应用窗口在后台调用；同一串行队列准备改名文件和剪贴板参数，能力缓存只在该队列访问",
+    ("Features/TransferDock/Cast/TransferCastEngines.swift", "runMirror"):
+        "2026-11-20：startMirror准备完毕回主线程调用；沿原启动、控制条挂载和保持设备唤醒顺序，stderr后台保留末6行，退出按当前PID卸载",
+    ("Features/TransferDock/Transfer/TransferDockService.swift", "isLoginDomain"):
+        "2026-11-20：登录页候选cookie与saveCookies写入共用；域名转小写，仅接受heytap.com/oppo.com本身及点分子域，保留前导点的域Cookie，拒绝同字尾的其他根域",
+    ("Features/TransferDock/Android/ADBExtrasEngine.swift", "runSync"):
+        "2026-11-20：异步run及后台目录枚举、图标助手和通知读取共用唯一执行体；自动解析或保留显式设备；并发消费两条pipe且等待汇合，完成取消原超时任务并返回输出及退出状态；只由后台调用",
+    ("Features/TransferDock/Cast/DeviceAppCatalog.swift", "scores"):
+        "2026-11-20：load每轮排序前调用一次；一次读取使用记录和当前时间，按次数乘14天半衰期计算各应用分数；排序比较只查本轮字典，缺记录仍为0",
+    ("Features/TransferDock/Transfer/MCPServer.swift", "close"):
+        "2026-11-19：MCP网络失败、取消、接收EOF与响应发送完成共用；在服务串行队列移除登记连接、解绑状态回调并取消会话，stop清空同一连接集合",
+    ("Features/TransferDock/Android/AndroidWebDAVServer.swift", "close"):
+        "2026-11-19：WebDAV网络失败、取消、头或正文提前结束及响应完成共用；在原服务队列移除连接并解绑取消，关闭服务后迟到响应不再发送",
+    ("Features/TransferDock/Android/AndroidWebDAVServer.swift", "escapeXML"):
+        "2026-11-19：entryXML中的href和displayname共用；依次转义与号及左右尖括号，使文件名作为XML文本而非标签解释",
+    ("App/FrsetNextApp.swift", "updateDockPresence"):
+        "2026-11-18：AppDelegate注册窗口激活、最小化、恢复与关闭通知；存在可见或最小化的独立标题窗口时切换regular显示Dock图标，最后窗口关闭切回accessory，关闭通知排除正在关闭的窗口",
+    ("Features/Archive/Table/ArchiveEntryTable.swift", "update"):
+        "2026-11-18：归档表格viewFor复用行和行初始化共用；更新图标锁路径标记名称大小与压缩率，保留既有控件和约束",
+    ("Features/Archive/Table/ArchiveHoverPreview.swift", "windowClosed"):
+        "2026-11-18：归档浏览控制器关窗后调用；仅取消本归档待显示预览，全部归档窗口关闭才清共享缓存；切换表格和网格不清他窗缓存",
+    ("Features/Archive/Core/ArchiveCore.swift", "extractionDirectory"):
+        "2026-11-17：extractEntryToTemp返回的嵌套文件路径，按临时根组件数定位本次唯一的首层提取目录；缩略图、悬停缓存与撤销快照共用精确删除单位",
+    ("Features/Archive/Core/ArchiveUndoStack.swift", "deinit"):
+        "2026-11-17：Snapshot仅由删除前提取和添加后复制两处构造，持有独立临时根目录；撤销重做及异步回调共享同一引用，最后引用释放才删目录，失败沿原Log提示",
+    ("Features/Archive/UI/ArchiveTextPreview.swift", "header"):
+        "2026-11-17：body传入本轮唯一分类结果，图标和名称不重复触发内容识别；dirty与编辑按钮沿原Binding和闭包消费",
+    ("Features/Archive/UI/ArchiveTextPreview.swift", "rendered"):
+        "2026-11-17：body传入同轮分类结果，复用原Markdown/JSON/代码/文本组件；正文仍来自draft，不再保留未读取text入参",
+    ("Features/Panel/Inspector/JSONInspectorView.swift", "makeColumns"):
+        "2026-11-17：JSONTableView.body每轮调用一次；沿原表型和前500条字段集合生成列序与宽度，同一列结果传给行构造筛选排序表头和单元格",
+    ("Features/Panel/Inspector/JSONInspectorView.swift", "makeAllRows"):
+        "JSONTableView.body调用；按文档对象与列键复用已构造的最多50000行，离开表格视图时由JSONTableState释放；原筛选排序及分页仍消费同一行数据",
+    ("Features/Panel/Inspector/JSONInspectorView.swift", "rows"):
+        "JSONTableView.body调用；同一JSONDocument与列键直接返回已构造行，文档或列键变化时重建，缓存不发布界面状态",
+    ("Features/Panel/Inspector/JSONInspectorView.swift", "discardRows"):
+        "JSONInspectorView切离表格模式调用；释放缓存行、文档引用和列键，不触发表格或其他视图更新",
+    ("Features/Archive/UI/ArchiveTextPreview.swift", "loadCode"):
+        "ArchiveCodePreviewBody.task调用；在后台按当前代码草稿生成原语法着色与行号排版，草稿变化时丢弃旧结果并复用原PreviewTextViewRepresentable",
+    ("Features/Capture/Pin/PinWindow.swift", "flattened"):
+        "flattenedImage及copyClicked共用；以图像和旋转翻转快照生成最终像素图，复制路径可在后台执行，不读取窗口状态",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "copyToPasteboard"):
+        "钉图复制以预编码PNG调用；在主线程清板、写入PNG和NSImage并发送原教程事件，其他截图调用由单参数入口沿用原有编码流程",
+    ("Features/Capture/History/CaptureHistoryView.swift", "loadThumbnail"):
+        "CaptureHistoryThumbnail.task调用；后台ImageIO读取并生成最长边240像素图像，任务完成且未取消时在原单元格状态中显示，缺图沿占位图呈现",
+    ("Features/Capture/Pin/PinWindow.swift", "flattened"):
+        "flattenedImage和复制任务共用；只读传入图像与旋转翻转快照，生成最终像素图，复制任务可在后台执行",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "copyToPasteboard"):
+        "单参数入口先编码原图再复用剪贴板写入；预编码重载使用调用方PNG，两个入口都保留NSImage representation、失败提示和教程通知",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "loadThumbnail"):
+        "CaptureSectionView最近截图单元格task调用；先读取共享NSCache，未命中时后台ImageIO生成最长边限制缩略图，在主Actor创建NSImage并写入现有有界缓存",
+    ("Features/Toolbox/Tools/MediaTools.swift", "compress"):
+        "BuiltinTools注册的async执行闭包调用；由ToolRegistry.run与ToolDescriptor.execute沿非MainActor async链执行，压缩流程无需再移出主线程",
+    ("Features/Panel/Inspector/JSONInspectorView.swift", "makeRowValues"):
+        "2026-11-17：JSONTableView.body每轮调用一次；只消费传入行与列完成原搜索多列筛选和排序；行数页数及500行分页共用此结果",
+    ("Features/Panel/Inspector/JSONInspectorView.swift", "header"):
+        "2026-11-17：JSONTableView.body把本轮列与未筛选行传入表头；排序与筛选仍写同一JSONTableState；弹层沿参数取得选项而不重建整表",
+    ("Features/Island/IslandController.swift", "hitTest"):
+        "菜单栏搜索短条的图标和文字共用入口点击区域，事件交回同一控制器迁移原工作台",
+    ("Features/Island/IslandController.swift", "accessibilityPerformPress"):
+        "菜单栏轻量入口通过辅助功能按下动作调用同一activate回调",
+    ("Features/Island/IslandWidgetGrid.swift", "adjustSize"):
+        "编辑态方向键和辅助功能共用尺寸调整；候选来自实际可见画布，正常态不挂载此入口",
+    ("Features/Monitor/Views/MonitorCharts.swift", "makeNSView"):
+        "共用趋势图创建原生输入视图，图形仍由原Canvas绘制",
+    ("Features/Monitor/Views/MonitorCharts.swift", "updateNSView"):
+        "更新趋势图输入回调，不重新创建原生输入视图",
+    ("Features/Monitor/Views/MonitorCharts.swift", "viewDidMoveToWindow"):
+        "趋势图输入视图挂载后启用窗口鼠标移动事件",
+    ("Features/Monitor/Views/MonitorCharts.swift", "updateTrackingAreas"):
+        "按当前可见区域更新图表悬停跟踪区域",
+    ("Features/Monitor/Views/MonitorCharts.swift", "mouseEntered"):
+        "进入趋势图时沿同一鼠标移动入口定位读数",
+    ("Features/Monitor/Views/MonitorCharts.swift", "mouseMoved"):
+        "把图表内横坐标交给现有采样读数定位回调",
+    ("Features/Monitor/Views/MonitorCharts.swift", "mouseExited"):
+        "离开趋势图时发送退出事件，清除临时读数",
+    ("Features/Monitor/Views/MonitorCharts.swift", "mouseDown"):
+        "记录趋势图按下起点并取得键盘焦点，区分后续点击和拖动",
+    ("Features/Monitor/Views/MonitorCharts.swift", "mouseDragged"):
+        "位移达到3pt后发送图表拖动定位，保留原固定读数交互",
+    ("Features/Monitor/Views/MonitorCharts.swift", "mouseUp"):
+        "图表释放时按实际拖动状态发送结束或点击定位事件",
+    ("Features/Monitor/Views/MonitorCharts.swift", "becomeFirstResponder"):
+        "趋势图取得键盘焦点时更新可见焦点状态",
+    ("Features/Monitor/Views/MonitorCharts.swift", "resignFirstResponder"):
+        "趋势图失去键盘焦点时清除焦点状态",
+    ("Features/Monitor/Views/MonitorCharts.swift", "keyDown"):
+        "趋势图左右键逐点定位，回车切换固定，其他键沿用系统处理",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "setPowerMetric"):
+        "同一功耗草稿按固定指标顺序更新整机CPU和GPU选择；首次调整保留旧三模块的有效形态，预览与保存共用正式配置读取",
+    ("Features/Island/IslandController.swift", "bindRecordScroll"):
+        "记录列表原生滚动窗绑定后恢复实际偏移；滚动通知只保存控制器值，不发布整页或另建滚动服务",
+    ("Features/Island/IslandController.swift", "releaseRecordScroll"):
+        "切页、收回结束和窗口停止时移除记录滚动通知，保留偏移供同一列表返回恢复",
+    ("Features/Island/IslandContent.swift", "viewDidMoveToWindow"):
+        "记录首行挂载时取得现有外层NSScrollView并交给控制器恢复位置，所有行仍复用原拖出视图",
+    ("Features/Island/IslandContent.swift", "sampleDetail"):
+        "刘海设置预览将固定样本交给正式正文组件，固定会话保留调参滚动；图片和多路径文件不读取真实文件",
+    ("Features/Island/IslandContent.swift", "movePreviewDate"):
+        "模拟日历的日期与月份导航只更新控制器选中日期，复用同一五档布局且不调用 EventKit",
+    ("Features/Island/IslandContent.swift", "copySelectedDate"):
+        "日历各尺寸共用所选日期复制；模拟只反馈，正式经 ClipboardManager 写入并反馈实际结果",
+    ("Features/Island/IslandContent.swift", "calendarLayout"):
+        "正式和模拟日历共用五档内容布局及全页月历，数据和操作闭包分别从缓存服务与固定样本注入",
+    ("Features/Island/IslandContent.swift", "monthGrid"):
+        "月历全页与2×2卡片共用42格与周标题，周末、跨月和选中态按实际日期及周起始日显示",
+    ("Features/Island/IslandContent.swift", "eventRows"):
+        "日程摘要、纵向事件和完整详情共用时间标题排版，区分空日程、授权提示与真实缓存事件",
+    ("Features/Island/IslandContent.swift", "monthTitle"):
+        "日历完整页与月历卡片共用中文年月标题，沿用 Foundation 日期格式样式",
+    ("Features/Island/IslandContent.swift", "monthDay"):
+        "日历紧凑、摘要及横向卡片共用中文月日文本，不改变所选日期",
+    ("Features/Island/IslandContent.swift", "weekdayTitle"):
+        "日历卡片按所选日期显示中文实际星期，和周末判定使用同一日期",
+    ("Features/Island/IslandContent.swift", "fullDate"):
+        "日历纵向卡片、月历底栏和全页共用完整中文日期标签",
+    ("Features/Island/IslandContent.swift", "eventTime"):
+        "日历横向带与事件行共用全天或开始时刻标签，保留正式事件字段",
+    ("Features/Island/IslandContent.swift", "selectDate"):
+        "正式日历选中跨月时读取月缓存，同月只从已加载42格选取事件，避免逐日重复查询",
+    ("Features/Island/IslandContent.swift", "moveDate"):
+        "正式日历前后日期与月份导航更新同一选中日期并沿用原事件缓存",
+    ("Features/Island/IslandController.swift", "setComponentPageCount"):
+        "画布排列完成后同步唯一首页组件页数，尺寸或显隐调整时将当前页保持在已有页内",
+    ("Features/Island/IslandController.swift", "goBack"):
+        "刘海详情返回原四入口，组件页与各页选择保留在同一控制器",
+    ("Features/Island/IslandController.swift", "resumeAfterOutside"):
+        "外部文件选择结束或取消后复用正式打开方法，恢复原页和已保存的工具输入",
+    ("Features/Island/IslandController.swift", "updateNotchMetrics"):
+        "读取当前屏幕两侧辅助区域与安全高度作为硬件刘海尺寸；无刘海屏幕使用紧凑顶部入口",
+    ("Features/Island/IslandFeatureContent.swift", "submit"):
+        "AI设置预览发送固定场景消息与反馈，不初始化真实会话服务或请求网络",
+    ("Features/Island/IslandSettings.swift", "requestedSize"):
+        "读取用户原五档尺寸，画布临时适配不覆盖原选择；默认仅监测与近期内容占两列",
+    ("Features/Island/IslandSurface.swift", "updateVisibility"):
+        "收起态媒体使用独立消费者复用系统播放器，展开或移除时释放读取任务，模拟不采集",
+    ("Features/Island/IslandToolboxContent.swift", "shortcut"):
+        "首页五档快捷目录只选择正式已启用工具并打开同一详情，小卡片保留主要入口",
+    ("Features/Island/IslandWidgetGrid.swift", "frame"):
+        "按共享画布单格及间隙计算异构卡片实际位置尺寸，排列、辉光和拖动落点使用同一几何",
+    ("Features/Island/IslandController.swift", "beginLayoutEditing"):
+        "以当前配置建立布局草稿并进入首页编辑，保持刘海展开；已保存配置在编辑过程中保持原样",
+    ("Features/Island/IslandController.swift", "updateLayout"):
+        "接收有效网格位置或尺寸变化，仅更新当前布局草稿，不调用持久化或启动业务模块",
+    ("Features/Island/IslandController.swift", "finishLayoutEditing"):
+        "从当前配置合并四项布局字段；保存失败保留草稿和原因，成功后通知设置预览并退出编辑",
+    ("Features/Island/IslandController.swift", "cancelLayoutEditing"):
+        "丢弃布局草稿、恢复正式配置展示，并结束编辑交互；收起窗口沿用此入口",
+    ("Features/Island/IslandController.swift", "setWidgetVisible"):
+        "通过现有 hiddenWidgets 在编辑草稿中移出或重新加入组件，不删除功能入口",
+    ("Features/Island/IslandWidgetGrid.swift", "layout"):
+        "先保留活动组件的候选位置，其他组件保留不冲突的旧位置；冲突项寻找就近空格并沿用分页",
+    ("Features/Island/IslandWidgetGrid.swift", "fits"):
+        "只接受画布内且未被占用的组件格子，避免拖动和缩放后组件相互覆盖",
+    ("Features/Island/IslandWidgetGrid.swift", "rebuild"):
+        "配置变化时缓存排列并收集实际受影响组件；连续指针位移由当前卡片的局部状态承担",
+    ("Features/Island/IslandWidgetGrid.swift", "begin"):
+        "记录手势前配置及所有可见位置，提供无效落点恢复依据，不写入正式配置",
+    ("Features/Island/IslandWidgetGrid.swift", "change"):
+        "将拖动位置映射到合法格子，连续缩放跨占用格即让位；候选位置、尺寸或占用变化才重新排列",
+    ("Features/Island/IslandWidgetGrid.swift", "end"):
+        "有效释放保存草稿内的坐标与视觉顺序，无效释放恢复手势前配置；编辑保持到完成或取消",
+    ("Features/Island/IslandWidgetGrid.swift", "body"):
+        "网格只在编辑态展示把手和移除入口并停用内部业务命中；子卡片局部状态驱动连续拖动和真实尺寸，其他卡片在有效排列变化时让位；正常态复用四页共享流光绘制",
+    ("Features/Island/IslandWidgetGrid.swift", "distance"):
+        "以行列归一化距离选择现有五档尺寸，并留 0.12 距离差避免边界附近反复切换",
+    ("Features/Island/IslandWidgetGrid.swift", "settle"):
+        "释放后接续当前卡片的实际位置与宽高，以 0.24 秒可中断弹性过渡吸附；减少动态效果下直接落定",
+    ("Features/Island/IslandContent.swift", "hitTest"):
+        "布局编辑时原生文件拖出视图退出命中，组件手势接管；普通使用继续原生文件拖出",
+    ("Features/Island/IslandContent.swift", "cancelSelection"):
+        "进入布局编辑取消原生记录行的延迟选择和待出现的悬停详情，保留真实剪贴板和文件",
+    ("Features/Island/IslandGlow.swift", "reduce"):
+        "合并当前刘海页面卡片与按钮的边界锚点，单个 Canvas 消费几何；滚动范围附带裁切锚点",
+    ("Features/Island/IslandGlow.swift", "body"):
+        "卡片修饰器只登记边界；场景修饰器给四页提供同一开关与指针，并只让绘制层订阅鼠标位置",
+    ("Features/Island/IslandGlow.swift", "islandGlowScene"):
+        "刘海外壳挂载唯一流光场景，覆盖总览、记录、监测、全部功能及其详情；收起或关闭流光时停止位置更新",
+    ("Features/Island/IslandGlow.swift", "islandGlowClip"):
+        "滚动容器把可见边界附在内部目标锚点上，流光按交集裁切，隐藏记录不在标题和页脚上绘制",
+    ("Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift", "hasPreview"):
+        "刘海控制器收起时按来源窗口关闭共用预览，指针进入该预览时保留展开；只读取现有窗口与会话状态",
+    ("Features/Island/IslandContent.swift", "updateTrackingAreas"):
+        "记录行原生拖出视图沿可见范围接收悬停进入离开事件，重建跟踪区域时先移除旧区域",
+    ("Features/Island/IslandContent.swift", "mouseEntered"):
+        "展开中的刘海记录行把正式剪贴板条目及来源窗口坐标交给共用 rowHover，不读取正文或创建第二套预览",
+    ("Features/Island/IslandContent.swift", "mouseExited"):
+        "记录行离开时由共用 rowHover 取消待呈现任务并安排关闭，沿用主面板悬停时序",
+    ("Features/Island/IslandContent.swift", "showPreview"):
+        "刘海记录单击、回车与空格用同一个 present 入口，行边界经所属窗口换算为屏幕坐标；双击仍走原复制方法",
     ("Features/Monitor/Views/MonitorDetailView.swift", "powerGrid"):
         "功耗页六项芯片读数按两列或三列排布，ViewThatFits 随窗口宽度选择；共享 powerMetric，不重采样",
     ("Features/Monitor/Views/MonitorDetailView.swift", "powerMetric"):
@@ -124,8 +342,8 @@ EVIDENCE = {
         "编辑保存：回写 content/text_path/字行数/占用，title 同步为 content.firstLineBrief",
     ("Features/Clipboard/Store/ClipboardRepository.swift", "updateAliasTitle"):
         "重命名：写 alias_title；空串按清除处理（写 NULL）",
-    ("Features/Clipboard/Store/ClipboardRepository.swift", "updateFields"):
-        "工具回流与 OCR 回填：rich_text_path/image_path/thumbnail_path/storage_bytes/is_note 各自按需单条 UPDATE",
+    ("Features/Clipboard/Store/ClipboardRepository.swift", "updateNote"):
+        "2026-11-17：Manager笔记切换唯一调用；仅绑定is_note及dedupeKey更新；四个附件通用更新参数无调用已删除",
     ("Features/Clipboard/Store/ClipboardRepository.swift", "delete"):
         "删条目：事务删行+标签，再回收 image/thumbnail/text/richText 四个落盘文件与 OCR 缓存",
     ("Features/Clipboard/Store/ClipboardRepository.swift", "rowsOlderThan"):
@@ -395,7 +613,7 @@ EVIDENCE.update({
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "openFullDiskAccessSettings"):
         "跳系统设置「完全磁盘访问权限」页，引导补全 TCC 保护目录",
     ("Features/Toolbox/Search/FileNameIndex.swift", "init"):
-        "单例私有 init（零常驻：App 启动、面板打开都不会走到这里）",
+        "shared私有构造，搜索面板state订阅及计算属性会取得单例，初始化本身不扫描目录",
     ("Features/Toolbox/Search/FileNameIndex.swift", "preloadIfCached"):
         "面板出现时只 mmap 已有缓存，没有就保持「未建立」——不在这里触发建索引",
     ("Features/Toolbox/Search/FileNameIndex.swift", "rebuild"):
@@ -403,13 +621,13 @@ EVIDENCE.update({
     ("Features/Toolbox/Search/FileNameIndex.swift", "ensureReady"):
         "有缓存就 mmap，没有才后台建；只在用户真的搜文件时调用（零常驻）",
     ("Features/Toolbox/Search/FileNameIndex.swift", "loadFromDisk"):
-        "校验 magic/版本/长度后 mmap 整个池；锁内替换指针，避免搜索读到已释放的页",
+        "读取24字节头并确认magic及正count/length，未读版本字段；锁内替换mmap和长度，磁盘时间直接发布ready，池偏移使用headerSize常量",
     ("Features/Toolbox/Search/FileNameIndex.swift", "unmap"):
         "重建前释放旧映射（同时把 poolLength 归零，搜索会立刻返回空）",
     ("Features/Toolbox/Search/FileNameIndex.swift", "build"):
-        "后台遍历盲区根 → 扁平字节池 → 写盘 → 立刻 mmap 回来；每 2 万条回主线程报进度",
+        "后台用预留24字节头的Data池扫描并原子写盘，删除整池out与Data转换副本；900MiB路径上限及每20000项发布保持，计时从扫描开始，主线程再映射",
     ("Features/Toolbox/Search/FileNameIndex.swift", "walk"):
-        "POSIX readdir 递归；目录留给下一层写（避免同一条写两遍），文件直接入池",
+        "POSIX递归用同一inout Data追加UTF8及NUL，目录留到递归层写；排除路径静态初始化一次，原长度与池上限保持",
     ("Features/Toolbox/Search/FileNameIndex.swift", "roots"):
         "只取 Spotlight 不覆盖的：~ 下点开头目录、~/Library、/Applications、/opt、/usr/local",
     ("Features/Toolbox/Search/FileNameIndex.swift", "search"):
@@ -434,22 +652,28 @@ EVIDENCE.update({
         "文件搜索统一展开 ~/ 并标准化绝对路径，去除目录末尾 /；首页复用同一入口识别本机路径，避免自动网页抓取",
 })
 
-# ── v265：在线手册动图的加载与播放（上次提交漏补的证据）────────────────────
-# 37 段 GIF 不入 App 包（DMG 会从 43 MB 涨到 81 MB），改成按需下载 + 落盘缓存；
-# SwiftUI Image 只画首帧，必须落 NSImageView 才会动。
+# ── 使用手册：文章分类与预设演示 ───────────────────────────────
 EVIDENCE.update({
-    ("Features/Manual/ManualView.swift", "cachedFile"):
-        "v265 把 gifs/xxx.gif 映射到 ~/Library/Caches/Kitnest/manual-gifs/xxx.gif；load/fetch 共用同一路径，下载落盘与下次读缓存必须一致",
-    ("Features/Manual/ManualView.swift", "fetch"):
-        "v265 从官网 remoteBase 拉单段 GIF，仅 HTTP 200 且能解码成 NSImage 才原子落盘并入内存缓存，回调回主线程；失败返回 nil，由视图给出在线手册入口",
-    ("Features/Manual/ManualView.swift", "makeNSView"):
-        "v265 SwiftUI Image(nsImage:) 只画 GIF 首帧，改用 NSImageView 并开 animates=true 才能真正播放动图；缩放用 scaleProportionallyUpOrDown",
-    ("Features/Manual/ManualView.swift", "updateNSView"):
-        "v265 复用视图时按对象身份比对换图，重设 image 与 animates，避免翻章后停在上一章的静帧",
-    ("Features/Manual/ManualView.swift", "sizeThatFits"):
-        "v265 NSViewRepresentable 无固有尺寸，按图片宽高比回报（上限 520pt），否则会撑满正文区把 4:3 录屏拉成竖条并裁掉右侧",
-    ("Features/Manual/ManualView.swift", "start"):
-        "v265 onAppear 触发三级取图（内存→随包→磁盘缓存），都没有才联网补；失败计数置位后显示在线手册按钮，不伪装成有内容",
+    ("Features/Onboarding/WelcomeView.swift", "step"):
+        "欢迎页quickStart调用三次，按序号、标题与说明绘制30秒上手卡片；不读取权限或启动所列功能",
+    ("Features/Manual/ManualView.swift", "sidebar"):
+        "2026-11-19：body只计算一次搜索命中与可见分类，并传给侧栏；分类展开、文章选择和快速入门沿用原绑定",
+    ("Features/Manual/ManualView.swift", "detail"):
+        "2026-11-19：body传入本轮无结果状态；有序操作步骤原位展示ManualDemoView，正文和可点击步骤只保留一份，选文时滚回顶部",
+    ("Features/Capture/OCR/ScreenshotOCRWindow.swift", "setSourceImage"):
+        "2026-11-19：show复用结果窗且截图变化时调用，更新现有SourceNSScrollView的原图，使左侧图片与重新识别输入一致",
+    ("Features/Manual/ManualView.swift", "categorySymbol"):
+        "2026-11-20：功能分类首页为八类文章选用对应SF Symbol；点击分类进入现有功能卡列表，不启动正式功能",
+    ("Features/Manual/ManualView.swift", "categoryDescription"):
+        "2026-11-20：分类首页用普通用户词语说明每类用途，配合真实文章数量显示，不把内部接口放入手册",
+    ("Features/Manual/ManualDemoView.swift", "advance"):
+        "2026-11-20：播放、阶段与逐步点击共用指定步骤索引，文章frame驱动示例画面，0.25秒过渡遵循减少动态效果",
+    ("Features/Manual/ManualDemoView.swift", "preset"):
+        "2026-11-20：用途、操作、结果跳转使用同一播放状态；手动选择立即停止每2.4秒切换的自动演示",
+    ("Features/Manual/ManualDocument.swift", "parse"):
+        "2026-11-20：逐篇解析标题、分类、图标、scene与每步frame JSON；解码错误交给load显示，应用网页共用86篇383帧来源",
+    ("Features/Manual/ManualDocument.swift", "displayCategory"):
+        "把文章文件编号映射成用户分类；截图与录屏归在同一类，导航不显示文件序号",
 })
 
 # ── v266：截图默认窗口自动识别 + 同一次截图里可直接拖拽拉自定义框 ──────────
@@ -479,7 +703,13 @@ EVIDENCE.update({
     ("Features/Settings/Shell/SettingsSidebarView.swift", "init"):
         "将旧深链/搜索的 0…4 下标映射回 CaptureSettingsBlock，维持现有入口定位",
     ("Features/Settings/Shell/SettingsSidebarView.swift", "groupHeader"):
-        "渲染一级目录并把点击映射到该组首个二级页",
+        "渲染一级目录；点击只展开/收起，展开时顺带展开当前页所在小节（没有则第一节），避免只看到小节名",
+    ("Features/Settings/Shell/SettingsSidebarView.swift", "sectionHeader"):
+        "渲染二级小节标题（缩进22、11.5pt）并切换展开；拆过小节的目录下页面行缩进38，形成三级层次",
+    ("Features/Settings/Shell/SettingsNavigation.swift", "section"):
+        "按页面反查所属二级小节；小节 ID 以一级目录名为前缀，跨目录唯一",
+    ("Features/Settings/Shell/SettingsWindowController.swift", "expandAncestors"):
+        "把选中页的一级目录与二级小节一起放进展开集合，深链/搜索落地时直接看到页面行",
     ("Features/Settings/Shell/SettingsSidebarView.swift", "footerChip"):
         "渲染设置侧栏底部的数据、关于、手册入口并更新当前二级页",
 })
@@ -493,11 +723,13 @@ EVIDENCE.update({
     ("Features/Monitor/Storage/StorageVoronoi.swift", "sampledPoints"):
         "按指定间距采样正式曲线路径，为异形布局与液态轮廓提供静态点集，悬停时复用缓存",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "navigate"):
-        "进入目录或点击面包屑时记录实际访问路径，并删除游标之后的旧前进记录",
+        "实际进入新分支时以目录路径前缀生成逐层历史，点击祖先只移动深度游标并保留已知前进目标",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "header"):
         "按窗口宽度将统计说明放在弧线外的左上区域，保留右上方扫描、记录与设置操作",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "leftPane"):
-        "在连续弧线外展示全部真实清理记录，顶部保留选择与清理操作，列表独立滚动填满左侧区域",
+        "正文画布内独立滚动全部真实清理记录，行宽使用同一局部异形轮廓，选择与清理操作由candidateControls承载",
+    ("Features/Monitor/Storage/StorageManagerWindow.swift", "candidateControls"):
+        "复用真实候选数量、全选、已选字节、Agent提示词及废纸篓入口，与右侧目录操作区按实际控件高度决定正文上界",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "candidateWidth"):
         "从同一存储图轮廓求记录所在高度的可用宽度，使行内容跟随弧线缩窄而不被曲边截断",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "navigateHistory"):
@@ -505,7 +737,7 @@ EVIDENCE.update({
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "makeNSView"):
         "创建只负责图形区域双指导航的 AppKit 视图，将方向传回现有根视图",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "updateNSView"):
-        "同步 SwiftUI 最新导航回调到现有手势视图，不重建事件监听器",
+        "同步目录模式启用态与最新导航回调到同一手势视图，不重建事件监听器",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "init"):
         "手势视图初始化保存导航回调；窗口控制器与 coder 初始化沿用现有原生窗口约定",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "hitTest"):
@@ -513,7 +745,7 @@ EVIDENCE.update({
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "viewDidMoveToWindow"):
         "视图进入窗口后挂载滚动事件监听，离开原窗口时移除旧监听",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "installSwipeMonitor"):
-        "只在异形图区域累计真实触控板横向滚动，42pt 后按实际手指方向执行一次左退右进",
+        "以真实触控板手势起点锁定异形图区域，累计整次横纵位移；42pt后执行一次左退右进，结束取消及惯性不导航，左侧清单不截取",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "deinit"):
         "图形手势视图销毁时移除 AppKit 本地事件监听，释放该区域的滚动处理",
     ("Core/UI/LiquidGlass.swift", "setContent"):
@@ -633,7 +865,9 @@ EVIDENCE.update({
     ("Features/Monitor/Storage/StorageTreemap.swift", "func"):
         "PolygonAnimatableVector 的 + / - 实现 VectorArithmetic，逐顶点合成与相减动画向量",
     ("Features/Monitor/Storage/StorageTreemap.swift", "path"):
-        "StorageManagerRootView.rightPane 以 StorageMapShape 裁剪整栏，左缘曲线从左下连续接到上缘内收点",
+        "StorageMapShape 画液面外轮廓（v274：顶边抬到按钮下方，左上近垂直下落到搜索卡左侧再扫向左边缘）；StorageTileShape 用 top 裁掉搜索条上方的浅色光条，深色图块仍从搜索条下方开始",
+    ("Features/Monitor/Storage/StorageManagerWindow.swift", "rightPane"):
+        "v274：由 contentTop 把液面外轮廓抬到按钮下方、深色图块仍从搜索条下方开始；rightPane 承载 StorageTreemap 的下钻/返回/选中回调与详情浮层，尺寸取自 StorageBodyLayout.mapSize",
     ("Features/Monitor/Storage/StorageTreemap.swift", "liquidPoints"):
         "tileView 将 hoverPoint 周边的高斯压力施加到 Voronoi 顶点，减少动态效果时返回原多边形",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "makeNSView"):
@@ -696,7 +930,7 @@ EVIDENCE.update({
     ("Core/Runtime/Personalization.swift", "applyDraft"):
         "模块保存传入明确的DraftField列表，在isLoading期间只复制该模块字段，随后flushPersist(keys:)只写这些偏好并发外观变化通知，避免覆盖其他页已保存值",
     ("Core/Runtime/Personalization.swift", "copyValues"):
-        "makeDraft共用完整外观复制入口，同步强调色、字号、密度、圆角、动画、悬停预览、材质、徽章、缩略图、通知、分隔线、Midnight、背景和玻璃参数共20项",
+        "makeDraft共用完整外观复制入口，同步强调色、字号、密度、圆角、动画、悬停预览、材质、徽章、缩略图、通知、分隔线、Midnight、背景和玻璃参数共20项；设置页刷新草稿时也用它原地覆盖，保持实例身份",
     ("Core/UI/AppearanceTheme.swift", "baseBackground"):
         "AppearanceThemeModifier 与 Theme.windowSurface(for:midnight:) 调用：将指定 Personalization.midnightHueShift 传给 h，生成 Midnight 窗口基色；静态属性继续传 shared",
     ("Core/UI/AppearanceTheme.swift", "cardBackground"):
@@ -1027,15 +1261,15 @@ EVIDENCE.update({
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "refreshUnownedValues"):
         "页面重新出现时调用 reloadSavedValues(preservingOwned:true)，读取其他页面已保存值，同时保留当前模块尚未保存的字段",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "reloadSavedValues"):
-        "从 shared 复制最新外观，preservingOwned=true 时再覆回当前模块 DraftField；仅刷新非本模块的面板、动作条、主题与悬浮窗设置",
+        "从 shared 复制最新外观，preservingOwned=true 时再覆回当前模块 DraftField；写入用 copyValues 原地覆盖，不换 personalization 实例，避免控件抓住旧对象后点击无效",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "restoreDefaults"):
         "只把该 scope 的 DraftField 改为 makeDefaultDraft 值；面板恢复400pt及默认页序，悬浮窗恢复网格/中档/0.52分隔，动作条恢复pillBar，通用主题恢复system",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "reduce"):
-        "保存外观预览与settingsPreviewViewport相交的可见值；消费方离屏恢复revealed，开合任务标识不含isVisible，滚动重新进入不会触发重播",
+        "保存外观预览与settingsPreviewViewport相交的可见值；消费方离屏把revealed与revealScale一起复位，开合任务只认openReplay，滚出视口不会留下半缩放状态",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "image"):
         "AppearancePreviewWallpaper 按当前桌面壁纸 URL 缓存图像，经 ImageIO 生成最大1024像素缩略图，供背景预览使用，不重复解码相同 URL",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "press"):
-        "原生红黄绿按钮仅调用场景onPress触发重播；通用预览在viewport内按minWidth居中，超宽横向滚动，无整块宽度或toolbarStyle隐式动画；openReplay=0初始静止，手动重播或开合设置变化触发播放",
+        "原生红黄绿按钮仅调用场景onPress触发重播；通用预览在viewport内按minWidth居中，超宽横向滚动；进页面与切换开合档位时先把面板按到0.90+透明，落地80ms后按当前档位时长easeOut展开，与WindowReveal一致，不随减弱动态效果降级",
     ("Features/Settings/Panes/PersonalizationSettingsPane.swift", "makeCoordinator"):
         "为 PreviewWindowChrome 创建保存 onPress 的协调器，三颗原生窗口按钮共用其 press 回调",
     ("Features/Settings/Panes/SearchSettingsPane.swift", "init"):
@@ -1171,7 +1405,7 @@ EVIDENCE.update({
     ("Features/TransferDock/Cast/CastView.swift", "appTile"):
         "设备应用磁贴显示名称及可用图标，点击通过 openApp；固定应用无 iconPath，不触发真实设备启动",
     ("Features/TransferDock/Cast/CastView.swift", "openApp"):
-        "固定预览仅显示已选示例应用名称；正式记录CastAppUsage并调用ADBExtrasEngine.startAppWindow打开对应手机应用窗口",
+        "2026-11-20：固定预览仅显示示例选择；正式调用后台startAppWindow，主线程回调成功才记录CastAppUsage，失败不增加使用次数",
     ("Features/TransferDock/Cast/CastView.swift", "serviceRow"):
         "MCP/WebDAV服务行共用图标、地址、复制及启停控件；预览复制只反馈，真实复制地址并由调用方启停服务",
     ("Features/TransferDock/Cast/CastView.swift", "disclosureRow"):
@@ -1301,7 +1535,7 @@ EVIDENCE.update({
     ("Features/TransferDock/Transfer/LocalTransferStore.swift", "add"):
         "暂存队列逐项对原始URL调用startAccessingSecurityScopedResource，defer仅在scoped成功时调用stop，使授权覆盖该项文件IO；标准化路径后交stage并统计尺寸，主线程仅发布成功项、持久化及通知，回调实际成功数量并保留失败原因",
     ("Features/TransferDock/Transfer/LocalTransferStore.swift", "startRetentionCleanup"):
-        "启动及本地设置保存后替换已有retentionTimer；保留期0不设计时，正数时每3600秒调用pruneExpired并立即清理一次，计时加入主runloop common模式",
+        "启动、保留期变化或导入相应配置后替换已有retentionTimer；保留期0不设计时，正数时每3600秒调用pruneExpired并立即清理一次，计时加入主runloop common模式",
     ("Features/TransferDock/Transfer/LocalTransferStore.swift", "pruneExpired"):
         "按已保存retentionDays和最近addedAt计算天数×86400秒截止点，过期条目交统一remove并传递实际移除结果；0表示不清理并回调.none",
     ("Features/TransferDock/Transfer/LocalTransferStore.swift", "remove"):
@@ -1320,6 +1554,19 @@ EVIDENCE.update({
         "设置预览仅显示复制文件演示反馈；正式用stagedSelection取得实际文件URL并调用ClipboardManager.copyFiles，失败显示原因，成功状态保留1.2秒",
     ("Features/TransferDock/UI/TransferDockView.swift", "selectLocal"):
         "使用鼠标按下时记录的selectionModifiers，避免SwiftUI点击回调延后到按键释放后丢失组合选择；单击选择当前id，Command切换单项；Shift按selectionAnchorID与当前项在displayedLocalItems形成连续范围，Command+Shift合并范围，保持锚点供后续多选；页面离开即移除本地事件监听",
+    ("Features/TransferDock/Transfer/FileHoverPreview.swift", "readText"):
+        "文件与剪贴板共用的正文读取：mappedIfSafe读取完整文件，依次解码UTF-8和Latin-1，无法解码抛出fileReadInapplicableStringEncoding，不再截前8KB",
+    ("Features/TransferDock/Transfer/FileHoverPreview.swift", "itemID"):
+        "按URL.path构造file-preview:前缀内存条目id，供任意文件呈现、取消悬停关闭及主动隐藏确认当前项",
+    ("Features/TransferDock/Transfer/FileHoverPreview.swift", "scheduleShow"):
+        "取消共用协调器的悬停关闭任务并替换showWork，按同一hoverPreviewOpenDelay延时调用showNow，传屏幕锚点和弱引用sourceWindow",
+    ("Features/TransferDock/Transfer/FileHoverPreview.swift", "showNow"):
+        "取消待显示任务、记录currentURL，再交MainPanelPreviewPopoverCoordinator.presentFile；不再创建独立文件预览Panel或保存另一套尺寸",
+    ("Features/TransferDock/Transfer/FileHoverPreview.swift", "scheduleHide"):
+        "取消待显示任务，仅按currentURL对应itemID安排共享协调器关闭，不会把别的当前预览项关闭",
+    ("Features/TransferDock/Transfer/FileHoverPreview.swift", "hide"):
+        "取消待显示任务；仅当前共享协调器activeItemID仍为本文件时执行programmatic关闭，最后清除currentURL",
+    # Lite：文件悬停预览从 TransferDock 迁到剪贴板共享模块，证据随路径搬迁
     ("Features/Clipboard/UI/FileHoverPreview.swift", "readText"):
         "文件与剪贴板共用的正文读取：mappedIfSafe读取完整文件，依次解码UTF-8和Latin-1，无法解码抛出fileReadInapplicableStringEncoding，不再截前8KB",
     ("Features/Clipboard/UI/FileHoverPreview.swift", "itemID"):
@@ -1330,8 +1577,6 @@ EVIDENCE.update({
         "取消待显示任务、记录currentURL，再交MainPanelPreviewPopoverCoordinator.presentFile；不再创建独立文件预览Panel或保存另一套尺寸",
     ("Features/Clipboard/UI/FileHoverPreview.swift", "scheduleHide"):
         "取消待显示任务，仅按currentURL对应itemID安排共享协调器关闭，不会把别的当前预览项关闭",
-    ("Features/Clipboard/UI/FileHoverPreview.swift", "hide"):
-        "取消待显示任务；仅当前共享协调器activeItemID仍为本文件时执行programmatic关闭，最后清除currentURL",
     ("Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift", "presentFile"):
         "把任意磁盘URL构造成只在内存存在的ClipboardItem(type:file)，使用file-preview路径id和文件名；显式屏幕锚点或鼠标位置交present，不写剪贴板历史",
     ("Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift", "present"):
@@ -1359,7 +1604,7 @@ EVIDENCE.update({
     ("Features/Clipboard/UI/ClipboardPreviewWindow.swift", "closeAnimated"):
         "收回使用Personalization.openAnimation时长×0.7及减少动态口径；完成回调只在isClosing且model.sessionID仍为本次关闭会话时关窗，换项复用不被旧回调关掉",
     ("Features/Panel/Preview/PreviewPopoverContentModel.swift", "init"):
-        "内容模型保留source、entry、sessionID及displayPath，按真实文件元数据识别目录，目录不读取正文或图片；单文件按支持类型加载完整文本或图片，kindOverride避免重复读取；MarkdownScrollState初始化保存滚动偏移、锚点和块矩形",
+        "内容模型保留source、entry、sessionID及displayPath，仅文件条目拆路径并识别目录；单文件按支持类型加载完整文本或图片，kindOverride避免重复读取；MarkdownScrollState仅保存实际使用的scrollOffset",
     ("Features/Panel/Preview/PreviewPopoverContentView.swift", "fileContent"):
         "文件夹与归档共用FileContainerPreview；完整文本按Markdown、JSON、代码或纯文本复用正式组件，读取失败显示原因，图片共用长图滚动，其余文档交独立DocumentInlinePreview",
     ("Features/Panel/Preview/PreviewPopoverContentView.swift", "decode"):
@@ -1441,6 +1686,622 @@ EVIDENCE.update({
 })
 
 
+# 2026-11-15：补历史缺条；截图说明复用 1Capture-B-C-落地对照-2026-11-08.md，并按现有实现写明消费点。
+EVIDENCE.update({
+    ("Features/Capture/Annotation/AnnotationEditorWindow.swift", "textLines"):
+        "仅文本马赛克落笔时调用；首次用MosaicTextOnly识别图像文本行，同次编辑复用textLineCache",
+    ("Features/Capture/Annotation/AnnotationEditorWindow.swift", "selectShape"):
+        "形状落笔及选择操作更新selectedShapeID，通知工具条同步选中属性并请求画布重绘",
+    ("Features/Capture/Annotation/AnnotationEditorWindow.swift", "applyShapeStyleToSelection"):
+        "形状样式浮层调用，交mutateSelectedShape修改当前选中标注的shapeStyle并记录撤销",
+    ("Features/Capture/Annotation/AnnotationEditorWindow.swift", "applyShapeSizeToSelection"):
+        "形状线宽控件调用，交mutateSelectedShape修改当前选中标注的lineWidth",
+    ("Features/Capture/Annotation/AnnotationEditorWindow.swift", "mutateSelectedShape"):
+        "按selectedShapeID定位标注，属性实际改变才记录不可合并的modify撤销项并通知工具条",
+    ("Features/Capture/Annotation/MosaicTextOnly.swift", "textLineRects"):
+        "AnnotationCanvasView.textLines调用Vision准确识别，把左下归一化文本框转为左上图像像素框；识别失败记录原因并返回空列表",
+    ("Features/Capture/Annotation/MosaicTextOnly.swift", "stroke"):
+        "仅文本马赛克按笔刷半径扩大文本行矩形，判断笔触点及相邻点中点是否命中，决定生成哪些行遮盖",
+    ("Features/Capture/Curtain/CurtainRevealController.swift", "init"):
+        "控制器单例订阅图帘偏好和屏幕布局通知，启动时sync热区；RevealStripPanel按传入5pt框创建透明不激活状态栏级浮窗，只接进入事件不取键盘焦点",
+    ("Features/Capture/Curtain/CurtainRevealController.swift", "sync"):
+        "CaptureModule启动及偏好、屏幕通知共用；图帘总开关与悬停开关同时开启才安装热区",
+    ("Features/Capture/Curtain/CurtainRevealController.swift", "install"):
+        "相同屏幕几何复用已有热区，否则先拆旧窗，再为每个visibleFrame菜单栏下沿创建5pt透明条并接pointerEntered",
+    ("Features/Capture/Curtain/CurtainRevealController.swift", "uninstall"):
+        "关闭悬停功能时拆除热区、停止轮询并清空安装状态和屏幕签名",
+    ("Features/Capture/Curtain/CurtainRevealController.swift", "teardownWindows"):
+        "install重建与uninstall共用，将所有热区窗口orderOut后清空持有数组",
+    ("Features/Capture/Curtain/CurtainRevealController.swift", "pointerEntered"):
+        "热区onEnter清除收起期限，调用正式ImageCurtainController.show并启动离开轮询",
+    ("Features/Capture/Curtain/CurtainRevealController.swift", "startPolling"):
+        "只保留一个Task，每200ms调用tick判断热区与图帘之间的指针转移",
+    ("Features/Capture/Curtain/CurtainRevealController.swift", "stopPolling"):
+        "卸载或图帘已隐藏时取消Task，清空任务与收起期限",
+    ("Features/Capture/Curtain/CurtainRevealController.swift", "tick"):
+        "指针在热区扩展2pt或图帘扩展4pt内清除期限；离开800ms才hide，图帘已隐藏则停止轮询",
+    ("Features/Capture/Curtain/CurtainRevealController.swift", "preferencesChanged"):
+        "curtainPreferencesChanged选择器交sync更新热区安装状态",
+    ("Features/Capture/Curtain/CurtainRevealController.swift", "screensChanged"):
+        "屏幕参数通知选择器交sync按新屏幕几何重建热区",
+    ("Features/Capture/Curtain/CurtainRevealController.swift", "updateTrackingAreas"):
+        "RevealStripView布局更新先移除旧跟踪区，再沿可见边界接收始终活动的进入事件",
+    ("Features/Capture/Curtain/CurtainRevealController.swift", "mouseEntered"):
+        "RevealStripView把系统进入事件转给安装时接入的onEnter，不自行管理图帘内容",
+    ("Features/Capture/Curtain/CurtainRevealController.swift", "hitTest"):
+        "RevealStripView仅在自身bounds内返回自己，供透明5pt热区接收事件",
+    ("Features/Capture/Pin/PinWindow.swift", "repinLast"):
+        "AppBootstrap重新钉住快捷键复用lastImage及正式show；没有上一张图时返回false供上层提示",
+    ("Features/Capture/Screenshot/CaptureAspectRatio.swift", "init"):
+        "预置与用户比例共用模型构造，保存id、名称和builtin，宽高整数各至少1",
+    ("Features/Capture/Screenshot/CaptureAspectRatio.swift", "parse"):
+        "比例输入把中英文冒号、x、乘号、星号和斜杠统一为冒号，两个正整数经gcd约为最简宽高",
+    ("Features/Capture/Screenshot/CaptureAspectRatio.swift", "gcd"):
+        "parse用欧几里得余数循环约简输入比例，返回至少1的公因数",
+    ("Features/Capture/Screenshot/CaptureAspectRatio.swift", "add"):
+        "新增比例约简正整数宽高，已有相同比例直接复用，否则追加自定义项并save",
+    ("Features/Capture/Screenshot/CaptureAspectRatio.swift", "remove"):
+        "只移除customItems中的指定id；删除当前选中比例时清空selectedID恢复自由框选",
+    ("Features/Capture/Screenshot/CaptureAspectRatio.swift", "save"):
+        "add/remove将自定义比例数组编码为JSON Data存入capture.aspectRatios，预置表独立保留",
+    ("Features/Capture/Screenshot/CaptureAspectRatio.swift", "greatestCommonDivisor"):
+        "CaptureRatioStore.add用余数循环取得公因数，约简后比较与保存宽高",
+    ("Features/Capture/Screenshot/CaptureAspectRatio.swift", "constrain"):
+        "ScreenshotOverlay锁比例拖框以起点为锚，保持拖拽象限并按ratio推算另一边，超屏幕边界时等比缩小",
+    ("Features/Capture/Screenshot/CaptureAspectRatio.swift", "square"):
+        "ScreenshotOverlay自由框选按住Shift时，以较大的横纵距离构造保留象限的正方形终点",
+    ("Features/Capture/Screenshot/CaptureExtraSettings.swift", "init"):
+        "ExtraSettingRow保存标题与ViewBuilder内容，截图扩展设置共用92pt标签及7pt纵向间距",
+    ("Features/Capture/Screenshot/CaptureFileName.swift", "make"):
+        "ScreenshotManager正式落盘文件名入口，展开模板并sanitize，空名用时间戳且只补一次.png",
+    ("Features/Capture/Screenshot/CaptureFileName.swift", "preview"):
+        "截图设置以2560×1664和固定日期展示模板效果，consumeSequence=false不消耗当日序号",
+    ("Features/Capture/Screenshot/CaptureFileName.swift", "expand"):
+        "make/preview共用日期、尺寸、模式、应用名替换，seq和random由replacePattern处理；预览序号固定1并用确定数字串",
+    ("Features/Capture/Screenshot/CaptureFileName.swift", "replacePattern"):
+        "expand扫描不含右括号的seq/random前缀，解析可选数字参数并交transform；不完整参数保留原文继续扫描",
+    ("Features/Capture/Screenshot/CaptureFileName.swift", "nextSequence"):
+        "正式命名遇到seq时按yyyyMMdd读取当日计数，跨日从0起递增并写回日期及计数键",
+    ("Features/Capture/Screenshot/CaptureFileName.swift", "sanitize"):
+        "make/preview共用文件名字符替换，去首尾空白和前导点，长度截到180字符",
+    ("Features/Capture/Screenshot/CaptureOCRNotify.swift", "show"):
+        "CaptureOCRNotify入口交OCRNotePanel单例；面板把已复制文本压为单行，在屏幕顶部居中复用320×54窗，160ms淡入并按偏好延时收起",
+    ("Features/Capture/Screenshot/CaptureOCRNotify.swift", "init"):
+        "OCRNotePanel创建不激活且忽略鼠标的透明窗，装识别图标、单行文本及已复制标签",
+    ("Features/Capture/Screenshot/CaptureOCRNotify.swift", "fadeOut"):
+        "静默OCR提示期限到后220ms淡出，完成时orderOut并恢复alpha供下一条提示复用",
+    ("Features/Capture/Workflow/CaptureWorkflow.swift", "init"):
+        "WorkflowStep保存kind及两个参数；CaptureWorkflow保存名称、启用态和步骤，默认禁用；Runner私有构造供shared执行截图回调",
+    ("Features/Capture/Workflow/CaptureWorkflow.swift", "load"):
+        "设置页和截图回调从workflows/workflows.json解码数组，无可读配置时返回禁用的保存/识别/复制示例",
+    ("Features/Capture/Workflow/CaptureWorkflow.swift", "save"):
+        "设置persist将步骤数组原子写入workflows/workflows.json并设0600，含Token，保存失败记日志",
+    ("Features/Capture/Workflow/CaptureWorkflow.swift", "imageCaptured"):
+        "AppBootstrap截图落盘回调筛出启用且非空的工作流，已有执行时记录跳过，否则在既有串行队列逐个run",
+    ("Features/Capture/Workflow/CaptureWorkflow.swift", "run"):
+        "建立文件、名称、OCR文字和上传URL上下文，按步骤顺序perform，每步错误记录后继续后续步骤",
+    ("Features/Capture/Workflow/CaptureWorkflow.swift", "perform"):
+        "按步骤分派保存、复制PNG、OCR、钉图、上传及GitHub/Linear Issue；OCR和上传结果写入上下文供后续模板使用",
+    ("Features/Capture/Workflow/CaptureWorkflow.swift", "recognizeText"):
+        "OCR步骤调用正式OCRService.fast，后台信号量等待最多20秒，返回识别文本或传出实际错误",
+    ("Features/Capture/Workflow/CaptureWorkflow.swift", "upload"):
+        "上传步骤构造指定文件字段的PNG multipart请求，HTTP成功后取顶层url或data内url，缺字段抛出原因",
+    ("Features/Capture/Workflow/CaptureWorkflow.swift", "createGitHubIssue"):
+        "GitHub步骤按配置owner/repo及Bearer Token提交模板标题正文到issues端点，非2xx抛状态及响应前200字符",
+    ("Features/Capture/Workflow/CaptureWorkflow.swift", "createLinearIssue"):
+        "2026-11-21：Linear步骤提交issueCreate；HTTP、JSON和GraphQL错误交回run，只有data.issueCreate.success为true才继续后续步骤，否则沿原失败弹窗和单步重试处理",
+    ("Features/Capture/Workflow/CaptureWorkflow.swift", "template"):
+        "两个Issue步骤共用name/text/url/date替换，上传URL为空显示未上传，日期按本地yyyy-MM-dd HH:mm:ss格式",
+    ("Features/Capture/Workflow/CaptureWorkflow.swift", "synchronousRequest"):
+        "上传与Issue步骤在后台队列用URLSession等待响应，30秒超时、网络错误和无响应均传给步骤日志",
+    ("Features/Capture/Workflow/WorkflowSettingsPane.swift", "workflowBlock"):
+        "设置页每条工作流显示启用和名称，按数组顺序列步骤，新增或删除立即persist",
+    ("Features/Capture/Workflow/WorkflowSettingsPane.swift", "stepRow"):
+        "步骤行按kind.fieldTitles显示最多两个参数框，绑定a/b；减号删除对应步骤并persist",
+    ("Features/Capture/Workflow/WorkflowSettingsPane.swift", "icon"):
+        "stepRow将七种正式步骤映射为各自SF Symbol图标",
+    ("Features/Capture/Workflow/WorkflowSettingsPane.swift", "defaultArgument"):
+        "添加保存步骤时预填RecordingOptions.saveDirectory.path，其余步骤参数为空供用户填写",
+    ("Features/Capture/Workflow/WorkflowSettingsPane.swift", "binding"):
+        "启用和名称控件按索引及可写KeyPath读写CaptureWorkflow，每次修改persist",
+    ("Features/Capture/Workflow/WorkflowSettingsPane.swift", "stepBinding"):
+        "参数框按工作流、步骤索引及KeyPath读写WorkflowStep，每次修改persist",
+    ("Features/Capture/Workflow/WorkflowSettingsPane.swift", "persist"):
+        "设置新增、删除及字段绑定共用WorkflowStore.save保存当前workflows",
+})
+
+EVIDENCE.update({
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "loadMoreIfNeeded"):
+        "悬浮列表尾项onAppear调用，非设置预览且未加载、尚未达分类总数时将loadedLimit加120并fetch",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "cancel"):
+        "备份sheet取消或离开时锁内标记cancelled，已finish则不改结果；已有归档taskID交ArchiveTaskQueue取消",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "install"):
+        "export/prepareRestore登记异步归档taskID，登记前已取消的操作立即取消该任务",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "checkCancellation"):
+        "备份准备、读取、分析及恢复循环锁内读取cancelled，取消时抛已取消，沿原完成回调返回",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "finish"):
+        "导出发布、读取完成和恢复事务提交前锁内确认未取消并标记finished，后续cancel不改最终结果",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "init"):
+        "prepareRestore成功构造RestoreSession持有解密目录、已读Manifest和分析摘要，供用户选择后restore",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "cleanup"):
+        "RestoreSession被取消、完成或释放时在utility队列移除本次解密目录，复用removeTemporaryDirectory",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "deinit"):
+        "RestoreSession释放时调用cleanup回收其临时明文目录",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "summary"):
+        "prepareRestore把分析中的新增、重复、冲突原因和失效外部文件路径与条目/笔记/附件数量展示给sheet",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "export"):
+        "ClipboardManager串行队列读快照与私有附件，以密码及加密文件名创建7z；新包先复制到目标旁临时文件再发布，清理明文并在主线程返回结果",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "prepareRestore"):
+        "Manager读取入口确认7z签名，用归档任务列举并解密，验证Manifest和附件后与本机快照分析；只返回RestoreSession摘要，此阶段不写本机资料",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "restore"):
+        "sheet确认后在Manager串行队列按replace及useBackupConflicts调用apply，成功清理解密目录；错误交主线程完成回调",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "prepare"):
+        "export在数据库事务内读条目、标签和关联快照，复制四类私有附件及已有OCR并记字节数，最后原子写manifest.json",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "readSnapshot"):
+        "导出和恢复分析共用正式ClipboardRepository列及makeItem，从SQLite读条目、标签和现存关联，再挂tagIDs构造version=1的Manifest",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "validateEntries"):
+        "解压前要求唯一且加密的manifest.json与受支持attachments目录，拒绝链接、重名及未加密附件，附件相对路径交validatePath",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "readManifest"):
+        "解密后和apply前读取version=1清单，核对条目/标签id及关联、必要与声明附件、实际普通文件及字节长度，异常抛具体资料路径",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "analyze"):
+        "按dedupeKey比本机与备份的笔记、标题、标签名、正文、附件字节及OCR，计新增/重复/冲突；文件型正文路径不存在则列失效引用",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "apply"):
+        "恢复时锁住数据库重新读取与分析，按合并/替换及冲突选择导入条目、标签和重映射私有附件；事务失败还原已移动附件，提交后仅回收不再引用附件并报告数量与失败路径",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "attachmentPaths"):
+        "prepare/readManifest/apply共用image、thumbnail、text、richText四个非空相对路径，OCR按dedupeKey单独加入",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "fullText"):
+        "analyze失效文件引用与apply文件分类优先读取备份textPath的UTF-8完整正文，无长文本附件才用item.content",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "validatePath"):
+        "备份附件只接受images/thumbnails/texts/rich_texts/ocr下一层非空文件名，拒绝点路径、反斜杠及控制字符，限制真实导入路径",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "attachmentURL"):
+        "私有附件读写共用validatePath，从解析过链接的root逐层确认普通目录及文件；mustExist=false仅允许尚未创建的路径段",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "byteCount"):
+        "prepare记附件大小、readManifest比长度及apply计回收字节，共用FileManager.size读取",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "counts"):
+        "导出结果和读取摘要共用Manifest条目总数、isNote数量及附件数量文案",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "temporaryDirectory"):
+        "export/prepareRestore在系统临时目录创建带UUID的本次备份目录并设0700，承载待加密或解密内容",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "cleanupFailure"):
+        "2026-11-20：导出、读取和恢复失败出口复用明文目录清理，将原错误及清理失败的具体路径合并返回；恢复附件回滚失败时保留原附件目录",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "removeTemporaryDirectory"):
+        "备份导出、取消、会话释放及恢复清理共用指定URL移除；失败写日志并返回含路径的明文清理原因",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "archiveFailure"):
+        "7zz失败沿ArchivePasswords.looksLikePasswordError识别密码错误并保留原因，其余返回服务消息或7zz操作失败",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "deliver"):
+        "备份后台成功与失败统一DispatchQueue.main.async交给sheet完成回调",
+    ("Features/Clipboard/Store/ClipboardFileStorages.swift", "invalidateIndex"):
+        "恢复备份成功后锁内将OCR内存索引设nil，下次正式检索重新读取恢复后的OCR文件",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "clearCurrentPasteboard"):
+        "主面板和悬浮剪贴板菜单只清系统pasteboard，同步changeCount并清自写标记，提示已清空；历史数据库保留",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "clearUnsavedHistory"):
+        "设置清历史先统计全部is_note=0和已存数量，确认后串行逐条调用正式repository.delete回收私有附件，通知预览移除并刷新，失败条目逐项报告",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "exportBackup"):
+        "备份sheet导出入口把目标URL、密码、完成回调及Manager既有串行队列传给ClipboardBackup.export",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "prepareBackupRestore"):
+        "备份sheet读取入口把文件、密码和Manager串行队列交ClipboardBackup.prepareRestore，返回可取消Operation",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "restoreBackup"):
+        "确认恢复交ClipboardBackup.restore；成功才失效OCR索引、刷新标签、关闭共享预览、发选择变化并重载正式列表",
+    ("Features/Clipboard/Store/ClipboardRepository.swift", "unsavedHistory"):
+        "用户确认清理后读取未标记已存且未收藏的全部条目，逐条回收附件并保留失败文案需要的标题",
+    ("Features/Clipboard/Store/ClipboardRepository.swift", "unsavedCount"):
+        "清理历史确认框仅需条数，使用SQLite COUNT统计未标记已存且未收藏的条目，匹配确认后的删除范围",
+    ("Features/Clipboard/Store/ClipboardRepository.swift", "savedCount"):
+        "clearUnsavedHistory确认文案用SELECT COUNT(*) WHERE is_note=1 OR is_favorite=1说明保留的已存或收藏项目数",
+    ("Features/Clipboard/UI/ClipboardSettingsPane.swift", "execute"):
+        "备份sheet按钮先置busy并清错误，按已有RestoreSession、导入或导出分派Manager正式入口；读取成功展示摘要并清密码",
+    ("Features/Clipboard/UI/ClipboardSettingsPane.swift", "finish"):
+        "导出/恢复完成复位busy及operation，成功清会话临时目录和密码、Toast后关闭sheet，失败显示localizedDescription",
+})
+
+EVIDENCE.update({
+    ("Features/Island/IslandContent.swift", "body"):
+        "IslandRecordFocusAppearance仅关闭macOS14及以上记录列表的系统焦点装饰，保留focusable、方向键和复制命令；macOS13沿用原生行focusRingType.none",
+    ("Features/Island/IslandContent.swift", "updateMonitoring"):
+        "页面、展开及首页监测组件可见性变化时交MonitorSampler.setIslandActive，设置预览不启动真实采样",
+    ("Features/Island/IslandContent.swift", "pageContent"):
+        "IslandRootView按唯一controller.page分派正式内容；中转页在近期记录与utilitiesOnly传输内容间切换",
+    ("Features/Island/IslandContent.swift", "widgetContent"):
+        "首页异构格按组件种类及尺寸装现有监测、近期记录、媒体、音量、日历和功能入口，预览用既有样例",
+    ("Features/Island/IslandContent.swift", "widget"):
+        "首页共用组件标题、颜色与glassCard外壳，标题切对应page；仅剪贴板格接收URL拖入",
+    ("Features/Island/IslandContent.swift", "compactRecord"):
+        "首页近期项显示单行及选中标记，原生IslandFileDragSource接单击预览、双击复制与文件拖出，延迟首页单击换页",
+    ("Features/Island/IslandContent.swift", "receiveFiles"):
+        "组件与记录页拖入仅收fileURL，真实文件交LocalTransferStore.add；开始/结束交互保留刘海，完成反馈并重载，预览仅反馈数量",
+    ("Features/Island/IslandContent.swift", "select"):
+        "设置selectedRecord与列表焦点，可切剪贴板页；显式预览且非设置预览时按来源panel交共用present",
+    ("Features/Island/IslandContent.swift", "moveSelection"):
+        "列表方向键及原生行onMove把选中索引夹在记录范围，调用select并scrollTo居中定位",
+    ("Features/Island/IslandContent.swift", "copySelectedRecord"):
+        "列表复制命令和原生行Cmd+C只按selectedRecord找到一行，交统一copy",
+    ("Features/Island/IslandContent.swift", "draggingChanged"):
+        "原生文件拖出回调更新recordDragging，拖出结束再reloadRecords，拖动中保留当前行视图",
+    ("Features/Island/IslandContent.swift", "reloadRecords"):
+        "展开、页面、剪贴板及中转通知只递增recordsRevision，触发现有.task(id:)的独立近期查询",
+    ("Features/Island/IslandContent.swift", "loadRecords"):
+        "后台独立fetch剪贴板并合并中转项，原路径和暂存路径别名去重，文件按路径拆行、按最新日期排序；取消或拖出中不发布，预览仅用样例，主列表筛选分页保留",
+    ("Features/Island/IslandContent.swift", "fileIcon"):
+        "loadRecords按真实目录及共用图片、归档、文档、影音、文本类型表选行图标",
+    ("Features/Island/IslandContent.swift", "copy"):
+        "Root的Task把结果写feedback；IslandRecentRow图片交copy、单文件交copyFiles，文本后台fullText并传出读取错误，富文本带原RTF交正式copy，预览仅反馈",
+    ("Features/Island/IslandContent.swift", "makeNSView"):
+        "IslandFileDragSource创建原生IslandFileDragView覆盖行内容，统一接记录点击、键盘和文件拖出",
+    ("Features/Island/IslandContent.swift", "updateNSView"):
+        "SwiftUI行更新把URL、controller、选择/复制/双击/移动回调、延迟选择及previewItem同步给同一原生视图",
+    ("Features/Island/IslandContent.swift", "mouseDown"):
+        "记录按下取消上次待选择工作，记录窗口起点并使原生行成为firstResponder，松手再区分点击与拖出",
+    ("Features/Island/IslandContent.swift", "keyDown"):
+        "原生行Cmd+C调用onCopy、上下键调用onMove、回车/空格showPreview并select，其余交AppKit",
+    ("Features/Island/IslandContent.swift", "mouseDragged"):
+        "文件移动至少3pt后逐项确认可读，使用NSURL pasteboardWriter及32pt文件图标发起copy拖出会话，开始时标记交互",
+    ("Features/Island/IslandContent.swift", "mouseUp"):
+        "非拖出双击调用onDoubleClick；首页单击等系统双击间隔再showPreview/select，其余立即预览选择，最后清起点",
+    ("Features/Island/IslandContent.swift", "viewWillMove"):
+        "原生行离开窗口时取消延迟选择工作，避免已卸载首页行再触发换页",
+    ("Features/Island/IslandContent.swift", "draggingSession"):
+        "NSDraggingSource操作掩码仅copy；结束重载清拖动与起点，endInteraction并回调onDraggingChanged(false)，反馈完成或取消",
+    ("Features/Island/IslandContent.swift", "previewEvent"):
+        "设置日历样例按钮只切controller.completedEvents中的示例索引，演示完成勾选，不写EventKit",
+    ("Features/Island/IslandContent.swift", "eventRow"):
+        "正式日历eventList复用标题和全天/开始时间排版，完整页可多行，组件格限单行",
+    ("Features/Island/IslandContent.swift", "moveMonth"):
+        "完整日历左右按钮以Calendar加减月份更新selectedDate后reload",
+    ("Features/Island/IslandContent.swift", "reload"):
+        "出现、每周首日、授权态及EventKit变更通知共用；完整页读monthDays后reloadEvents，组件只读事件",
+    ("Features/Island/IslandContent.swift", "reloadEvents"):
+        "完整月历优先复用选中CalendarDay.events，组件或未找到日期时按当天起止向CalendarService.events查询",
+    ("Features/Island/IslandController.swift", "init"):
+        "保存传入或.load的唯一配置和previewOnly；设置预览给180×28pt示例刘海，正式几何由position读屏幕",
+    ("Features/Island/IslandController.swift", "surfaceAnimation"):
+        "Surface及设置预览共用几何时序，减少动态用120ms easeOut，否则展开280ms/收起240ms无回弹spring",
+    ("Features/Island/IslandController.swift", "apply"):
+        "设置保存与组件排序共用，正式实例persist失败返回原因，成功替换配置并按enabled启停；预览只更新内存",
+    ("Features/Island/IslandController.swift", "move"):
+        "首页拖放或前后移动从widgetOrder移除来源并插到目标前，apply成功后通知layoutDidChange同步设置草稿",
+    ("Features/Island/IslandController.swift", "beginInteraction"):
+        "文件拖入拖出、格拖放及媒体滑杆操作置interacting，取消待收回工作",
+    ("Features/Island/IslandController.swift", "endInteraction"):
+        "交互结束重新读取指针，仍在外且非显式展开时按配置collapseDelay安排收回",
+    ("Features/Island/IslandController.swift", "turnPage"):
+        "底部翻页、Option方向键和横向滚动按IslandPage.tabs循环切换唯一page",
+    ("Features/Island/IslandController.swift", "changeTrack"):
+        "演示tracks按步长循环更新track并把seek归零；当前源码未找到调用，正式媒体send走NowPlayingController",
+    ("Features/Island/IslandController.swift", "refreshClipboard"):
+        "expand前独立取最近一条正文前24字符压平为摘要；预览取IslandSample标题",
+    ("Features/Island/IslandController.swift", "copyLatest"):
+        "收起态剪贴板快捷操作独立fetch最近一项交ClipboardManager.copy(autoPaste:false)，空列表给反馈，预览不写系统剪贴板",
+    ("Features/Island/IslandController.swift", "copyDate"):
+        "收起态日历快捷操作把当天ISO年月日交copyText并反馈，预览只改feedback",
+    ("Features/Island/IslandController.swift", "activatePeek"):
+        "收起态图标按peeksQuickActions执行复制或展开指定页，关闭快捷操作时统一打开peek.page",
+    ("Features/Island/IslandController.swift", "surfaceDidChange"):
+        "材质更新回传动画中实际size/radius，重算命中轮廓；到收起目标才卸内容、缩panel、归还焦点及执行afterCollapse，真实刘海无图标时隐藏外壳",
+    ("Features/Island/IslandController.swift", "performOutside"):
+        "截图、工具文件面板和正式外窗入口在展开时保存afterCollapse并收回，几何完成后执行；预览仅反馈",
+    ("Features/Island/IslandController.swift", "start"):
+        "App启动和apply启用时仅正式且enabled实例show，不启动设置预览窗口",
+    ("Features/Island/IslandController.swift", "open"):
+        "菜单栏、深链和键盘入口，禁用时打开刘海设置，否则show并expand(takeFocus:true)",
+    ("Features/Island/IslandController.swift", "show"):
+        "首次创建唯一透明非激活IslandPanel、事件监听和屏幕通知，装IslandRootView；后续复用窗口定位，空图标的真实刘海收起态不留可见外壳",
+    ("Features/Island/IslandController.swift", "position"):
+        "优先摄像头屏幕两侧auxiliaryTop区域求真实刘海中心宽高，无刘海用180×28入口；动画舞台不提前缩小，到收起态才按像素对齐缩到入口尺寸",
+    ("Features/Island/IslandController.swift", "expand"):
+        "取消待收回，首次展开前保存AppBootstrap划词结果、刷新摘要并挂内容；正式舞台扩大后显示，takeFocus请求键盘焦点",
+    ("Features/Island/IslandController.swift", "collapse"):
+        "收回先关闭来源panel的共用预览并取消悬停任务，清显式展开及采样、归还firstResponder，动画末由surfaceDidChange卸载内容",
+    ("Features/Island/IslandController.swift", "stop"):
+        "apply禁用时collapse并隐藏panel，移除本实例事件和屏幕通知后释放唯一窗口",
+    ("Features/Island/IslandController.swift", "installMonitors"):
+        "首次show挂全局/本地指针及按下事件，外部点击收回；窗内水平滚动累计超过36pt切页，交互结束统一endInteraction",
+    ("Features/Island/IslandController.swift", "updatePointer"):
+        "按实际可见动画轮廓判断鼠标并设置ignoresMouseEvents；摄像头区域悬停按配置延时展开，进入共享预览仍算在内，非显式且非交互离开才延时收回",
+    ("Features/Island/IslandController.swift", "performKeyEquivalent"):
+        "IslandPanel接Esc收回、Cmd+O展开、Option左右翻页及Cmd数字选所有页面并展开，其余交AppKit",
+    ("Features/Island/IslandFeatureContent.swift", "compact"):
+        "首页格尺寸决定录屏紧凑组件、截图/OCR正式CaptureModule按钮或详情页入口，较大格显示功能摘要",
+    ("Features/Island/IslandFeatureContent.swift", "start"):
+        "下载页按钮及回车先识别网盘分享交CloudLinkActions.resolve，否则完整http/https URL交现有直接下载器，预览只反馈",
+    ("Features/Island/IslandFeatureContent.swift", "chooseImage"):
+        "OCR页图片入口收回后用NSOpenPanel选图，后台读取Data交现有manager.recognize(inline:true)，失败给路径读取原因，结束重开刘海",
+    ("Features/Island/IslandFeatureContent.swift", "choose"):
+        "归档页收回后选择文件，创建模式可多选目录并交ArchiveCreateWindowController，打开模式交ArchiveBrowserWindowController，取消重新open",
+    ("Features/Island/IslandMediaContent.swift", "cover"):
+        "媒体大小形态共用播放器真实artwork，没有封面显示音乐图标；按side裁连续圆角并注明封面来源状态",
+    ("Features/Island/IslandMediaContent.swift", "metadata"):
+        "媒体完整页与格共用标题、歌手、专辑和播放器来源，full控制字号及折行，小格省歌手",
+    ("Features/Island/IslandMediaContent.swift", "transport"):
+        "完整/紧凑播放器共用上一首5、下一首4及playButton，send闭包由正式或设置预览宿主提供",
+    ("Features/Island/IslandMediaContent.swift", "playButton"):
+        "媒体不同尺寸共用命令2切播放，图标及无障碍标签跟snapshot.isPlaying变化",
+    ("Features/Island/IslandMediaContent.swift", "progress"):
+        "仅有正duration及position时提供Slider，拖动用scrub并beginInteraction，松手seek后endInteraction；未知时长完整页显示服务状态",
+    ("Features/Island/IslandMediaContent.swift", "time"):
+        "progress和方形媒体格将非负秒格式为分:秒，达到一小时使用时:分:秒",
+    ("Features/Island/IslandMonitorChart.swift", "values"):
+        "图表及指标卡共用正式sampler.history，CPU/GPU百分比、内存GiB、下载KB/s、功耗W与电池百分比；无当前读数返回空，预览取既有固定曲线",
+    ("Features/Island/IslandMonitorChart.swift", "upperBound"):
+        "CPU/GPU/电池上界100，内存取真实总GiB，下载及功耗取窗口最大值×1.15且至少1，预览用metric上界",
+    ("Features/Island/IslandMonitorChart.swift", "positionLabel"):
+        "图表头将最后点标当前，预览标相对秒、正式标前N个采样，并按pinned追加固定态",
+    ("Features/Island/IslandMonitorChart.swift", "xPosition"):
+        "图表游标按索引映射0…1横坐标，单个电池点置最右端",
+    ("Features/Island/IslandMonitorChart.swift", "index"):
+        "悬停与拖动把横向位置按图宽四舍五入为采样索引并夹入现有values范围",
+    ("Features/Island/IslandMonitorChart.swift", "plot"):
+        "按style复用MonitorAreaSparkline/MonitorSparkline或实际采样柱，compact控制线宽和间距，柱选中态提高透明度",
+    ("Features/Island/IslandMonitorChart.swift", "statistic"):
+        "趋势页平均、峰值、当前共用标签和等宽数值排版，数值由同一范围的正式values生成",
+    ("Features/Island/IslandSettings.swift", "size"):
+        "组件排列和设置Picker共用配置尺寸，未配置监测/剪贴板默认wide、其余small；单行和不足列数时适配到可放尺寸",
+    ("Features/Island/IslandSettings.swift", "color"):
+        "widget与metric两个重载分别读取配置十六进制颜色，没有有效颜色用各自枚举色，正式与设置预览共用",
+    ("Features/Island/IslandSettings.swift", "load"):
+        "正式controller和设置草稿解码island.configuration，新组件补到已有widgetOrder尾部，失败日志后使用默认配置",
+    ("Features/Island/IslandSettings.swift", "persist"):
+        "正式IslandController.apply把当前Codable配置编码存入唯一island.configuration键，编码错误传回设置保存",
+    ("Features/Island/IslandSettings.swift", "format"):
+        "图表、指标卡和统计共用单位格式，百分比/KB/s取0小数，GiB/W取1小数并带unit",
+    ("Features/Island/IslandSettings.swift", "islandMove"):
+        "设置顺序按钮、键盘和指标拖放从既有数组移除item后插到目标索引，不创建第二份排序状态",
+    ("Features/Island/IslandSurface.swift", "body"):
+        "IslandMorph以同一size/progress补间驱动圆角、材质遮罩、内容透明度和命中；IslandGlow按共享鼠标位置只在卡片内绘制径向背景及边框亮光",
+    ("Features/Island/IslandSurface.swift", "path"):
+        "IslandOutline在连续圆角矩形顶端补矩形，使可见上沿贴顶，材质mask与controller命中轮廓共用",
+    ("Features/Island/IslandSurface.swift", "makeNSView"):
+        "IslandMaterial用当前solid创建唯一原生材质视图，不在每帧重建玻璃",
+    ("Features/Island/IslandSurface.swift", "updateNSView"):
+        "动画几何更新仅在radius变化时请求layout，并把当前size/radius回报controller.surfaceDidChange",
+    ("Features/Island/IslandSurface.swift", "init"):
+        "IslandMaterialView创建固定darkAqua、followsWindowFocus=false的正式LiquidGlass并加轮廓mask；coder初始化明确不可用",
+    ("Features/Island/IslandSurface.swift", "layout"):
+        "仅bounds或radius变化时更新玻璃frame和mask，关闭CALayer隐式动画，上角移出屏幕保持顶边贴合及底部曲率",
+    ("Features/Island/IslandSurface.swift", "makeBody"):
+        "IslandButtonStyle把label、按压态、help及提示对齐交IslandButtonBody，所有刘海按钮复用悬停与焦点绘制",
+    ("Features/Island/IslandSurface.swift", "button"):
+        "收起态按peekOrder与可见集合生成图标，点击交activatePeek，配置决定是否带72pt数值或38pt纯图标，功耗订阅正式采样",
+    ("Features/Island/IslandSurface.swift", "value"):
+        "收起态标签返回复制、播放/暂停和当天日期，功耗读已有sample.powerWatts，设置预览显示8.6W",
+    ("Features/Island/IslandSurface.swift", "islandGlow"):
+        "WidgetGrid给每个卡片传共享pointer、局部frame、半径和enabled，修饰器只交IslandGlow绘制层消费位置",
+    ("Features/Island/IslandToolboxContent.swift", "init"):
+        "Root传唯一controller、预览标志和selectedTool绑定，保留onFileDialog回调让系统文件面板期间不卸输入页",
+    ("Features/Island/IslandToolboxContent.swift", "directory"):
+        "全部功能目录按query匹配页面标题及已启用工具名称/关键字/描述，category筛工具；回车选首项、按钮更新page或selectedTool",
+    ("Features/Island/IslandToolboxContent.swift", "previewContent"):
+        "设置预览复用IslandSample文本及工具默认选项，仅切结果区域和复制/保存反馈，不创建ToolRunnerView或ToolOutput",
+    ("Features/Island/IslandWidgetGrid.swift", "move"):
+        "组件把手点击、菜单及方向键按现有widgetOrder前后索引交controller.move，末端不越界",
+    ("Features/Monitor/Sampling/MonitorSampler.swift", "setIslandActive"):
+        "刘海监测实际可见时设置islandActive并applyPreferences重新安排现有采样，激活立即refresh，状态相同不重复安排",
+    ("Features/Settings/Panes/IslandSettingsPane.swift", "init"):
+        "草稿加载唯一配置并建立previewOnly控制器，预览排序回调只同步widgetSizes/widgetOrder/metricOrder到草稿",
+    ("Features/Settings/Panes/IslandSettingsPane.swift", "save"):
+        "SettingsDraftEditor保存交正式IslandController.apply，失败返回原因，成功才更新saved与脏态通知",
+    ("Features/Settings/Panes/IslandSettingsPane.swift", "discard"):
+        "设置取消把configuration恢复saved，didSet同步内存预览",
+    ("Features/Settings/Panes/IslandSettingsPane.swift", "restoreDefaults"):
+        "设置恢复默认只替换草稿为IslandConfiguration，保存按钮才应用正式顶部组件",
+    ("Features/Settings/Panes/IslandSettingsPane.swift", "updatePreview"):
+        "草稿configuration.didSet交previewController.apply，仅更新previewOnly实例内存",
+    ("Features/Settings/Panes/IslandSettingsPane.swift", "setGrid"):
+        "画布列/行Picker更新草稿gridColumns/gridRows，宽高至少新minimumWidth/minimumHeight，didSet自动刷新预览",
+    ("Features/Audio/AudioMixer.swift", "setIslandVisible"):
+        "刘海音量组件按consumer登记可见性，只监听默认输出状态，不启动设置页出声进程采样；最后消费者离开且设置不可见时移除监听",
+    ("Features/Audio/AudioMixer.swift", "addOutputListeners"):
+        "设置页或刘海音量首次可见时监听设备列表、默认输出、实际音量属性与静音，登记成功项供成对移除，失败显示状态码",
+    ("Features/Audio/AudioMixer.swift", "removeOutputListeners"):
+        "最后输出消费者离开时按保存的object/property逐项移除CoreAudio listener，清监听数组及设备id",
+    ("Features/Audio/AudioMixer.swift", "refreshOutputState"):
+        "音量监听及设置/刘海出现共用读取，按设备实际属性更新可读态、音量、静音和设备列表，readingOutput覆盖本次读取",
+    ("Features/Audio/AudioMixer.swift", "volumeProperties"):
+        "音量读写和监听共用设备公开属性，依次选voll或VolumeScalar主音量，没有则读取首选左右声道并保留存在的声道属性",
+    ("Features/Audio/NowPlayingController.swift", "setVisible"):
+        "正式媒体宿主按UUID登记消费者，首次可见立即刷新并每秒更新，最后离开停止timer、osascript及封面任务并清快照",
+    ("Features/Audio/NowPlayingController.swift", "refresh"):
+        "可见媒体timer仅在process为空时request(read)，复用同一系统正在播放读取路径",
+    ("Features/Audio/NowPlayingController.swift", "send"):
+        "媒体上一首/播放暂停/下一首把命令整数转为action交request，再读取系统返回的实际快照",
+    ("Features/Audio/NowPlayingController.swift", "seek"):
+        "媒体进度松手把秒数用MediaRemote命令24及seconds交request",
+    ("Features/Audio/NowPlayingController.swift", "request"):
+        "同一osascript JXA脚本读取或控制MediaRemote，后台收stdout并在主线程仅接纳当前Process结果；解码快照、反馈commandAccepted，曲目或封面变化才loadArtwork",
+    ("Features/Audio/NowPlayingController.swift", "loadArtwork"):
+        "新快照先取消旧封面任务，优先解播放器base64图片，否则读取播放器提供的文件或网络URL；取消后不发布，失败给实际读取原因",
+})
+
+EVIDENCE.update({
+    ("Features/Recording/RecordingCompositor.swift", "cameraRect"):
+        "摄像头合成按视频宽度2%留边，画中画宽占10…35%、高为宽×4/3，按四角返回左上原点像素矩形",
+    ("Features/Recording/RecordingConfig.swift", "init"):
+        "RecordingOptions默认值构造供.current及录制器currentOptions使用，配置集中为单个值类型",
+    ("Features/Recording/RecordingConfig.swift", "current"):
+        "整屏、区域及模块入口读取现有fps/音源/光标/摄像头/键鼠叠加/排除应用偏好，附传入region和displayID组装本次RecordingOptions",
+    ("Features/Recording/RecordingEditorWindow.swift", "init"):
+        "RecordingEditorController私有构造限制为shared，持有唯一录后编辑窗及播放器",
+    ("Features/Recording/RecordingEditorWindow.swift", "open"):
+        "ScreenRecorder.stop成功交实际mp4 URL，复用编辑窗换AVURLAsset/AVPlayer，重置入出点滑杆到全片并显示时长",
+    ("Features/Recording/RecordingEditorWindow.swift", "makeWindow"):
+        "首次open建720×520可缩放原生编辑窗，统一officialChrome，装AVPlayerLayer预览、两条裁剪滑杆和播放/静音/导出/Finder按钮",
+    ("Features/Recording/RecordingEditorWindow.swift", "makeLabel"):
+        "编辑窗入出点与区间提示共用11pt等宽数字NSTextField并按指定坐标放置",
+    ("Features/Recording/RecordingEditorWindow.swift", "makeButton"):
+        "编辑窗播放、导出和Finder按钮共用圆角NSButton，target=self接对应Selector",
+    ("Features/Recording/RecordingEditorWindow.swift", "trimChanged"):
+        "两条滑杆动作使入点不超过出点减0.1秒，更新标签并把播放器seek到入点",
+    ("Features/Recording/RecordingEditorWindow.swift", "updateLabels"):
+        "open及trimChanged把当前两条滑杆值格式为入点/出点一位小数秒，复用现有标签",
+    ("Features/Recording/RecordingEditorWindow.swift", "togglePlay"):
+        "播放按钮按AVPlayer.rate暂停或播放，当前时间在所选区间外时先seek入点；没有另设时间轴",
+    ("Features/Recording/RecordingEditorWindow.swift", "revealInFinder"):
+        "编辑窗Finder按钮按当前AVURLAsset.url定位录制原文件",
+    ("Features/Recording/RecordingEditorWindow.swift", "exportMovie"):
+        "导出按钮读取入出点，用NSSavePanel选择-trimmed.mp4目标，确认后把CMTimeRange及静音勾选传performExport",
+    ("Features/Recording/RecordingEditorWindow.swift", "performExport"):
+        "最高质量AVAssetExportSession导出选中区间到目标旁临时mp4，静音时各音轨音量置0；成功才替换/移动目标并定位Finder，失败显示原因，末尾清临时输出",
+    ("Features/Recording/RecordingHUD.swift", "init"):
+        "HUD控制器与区域选择器都私有构造供shared，分别持有唯一控制条和本次截图覆盖窗数组",
+    ("Features/Recording/RecordingHUD.swift", "show"):
+        "录制开始复用或首次makePanel的控制条orderFrontRegardless，再refresh真实录制状态",
+    ("Features/Recording/RecordingHUD.swift", "hide"):
+        "ScreenRecorder.stop将已持有控制条orderOut，下一次录制继续复用",
+    ("Features/Recording/RecordingHUD.swift", "refresh"):
+        "录制timer及暂停/恢复共用elapsedText，按paused切橙点/播放图标，其余红点/暂停图标，控制条跟鼠标所在屏幕顶部定位",
+    ("Features/Recording/RecordingHUD.swift", "makePanel"):
+        "首次show创建190×40非激活浮窗，sharingType=.none排除自身录屏，装红点、计时、暂停与停止按钮",
+    ("Features/Recording/RecordingHUD.swift", "iconButton"):
+        "HUD暂停及停止共用24pt无边框图标NSButton，接本控制器Selector",
+    ("Features/Recording/RecordingHUD.swift", "togglePause"):
+        "HUD暂停按钮调用正式ScreenRecorder.togglePause后刷新图标和计时态",
+    ("Features/Recording/RecordingHUD.swift", "stopRecording"):
+        "HUD停止按钮在Task中等待正式ScreenRecorder.stop收尾与打开编辑器",
+    ("Features/Recording/RecordingHUD.swift", "pick"):
+        "区域录制取得正式屏幕权限及快照，为各屏复用ScreenshotOverlayWindow，确认局部框转换AppKit全局坐标交finish，取消交nil",
+    ("Features/Recording/RecordingHUD.swift", "finish"):
+        "区域选择完成统一隐藏并释放覆盖窗，只对宽高均大于8pt的框回调一次，取消清completion",
+    ("Features/Recording/RecordingInputMonitor.swift", "init"):
+        "RecordingInputMonitor私有构造供shared，锁内键鼠列表由唯一录制生命周期启停",
+    ("Features/Recording/RecordingInputMonitor.swift", "start"):
+        "ScreenRecorder启用按键/点击叠加时读现有AX授权，开512KiB栈线程runTap并等待50ms返回可用态，失败由录制器列不可用功能",
+    ("Features/Recording/RecordingInputMonitor.swift", "stop"):
+        "录制停止、取消或启动失败时停止tap RunLoop、关闭CFMachPort并清锁内键鼠记录",
+    ("Features/Recording/RecordingInputMonitor.swift", "reset"):
+        "录制开始且输入tap成功时锁内清历史，避免录前按键和点击进入首帧",
+    ("Features/Recording/RecordingInputMonitor.swift", "currentKeys"):
+        "合成视频帧锁内移除超过1.6秒按键后返回快照，供RecordingCompositor.keyOverlay",
+    ("Features/Recording/RecordingInputMonitor.swift", "currentClicks"):
+        "合成视频帧锁内移除超过0.65秒点击后返回快照，供扩散点击环",
+    ("Features/Recording/RecordingInputMonitor.swift", "cursorPoint"):
+        "既有注入探针将NSEvent鼠标左下全局坐标按主屏高度翻为CG左上全局坐标",
+    ("Features/Recording/RecordingInputMonitor.swift", "injectProbeEvents"):
+        "仅FRSET_RECORD_OVERLAY_PROBE既有路径锁内放入Cmd/Shift/K及当前位置左击，供原合成探针显示；正常事件由CGEventTap提供",
+    ("Features/Recording/RecordingInputMonitor.swift", "runTap"):
+        "输入线程创建listenOnly全局keyDown及左右按下tap，回调交handle并原样返回事件，在本线程RunLoop启用采集，创建失败日志并置running=false",
+    ("Features/Recording/RecordingInputMonitor.swift", "handle"):
+        "tap键事件经describe，80ms内相同键去重并保留最近6项；点击保存CG坐标/时刻/左右态，最多12项",
+    ("Features/Recording/RecordingInputMonitor.swift", "describe"):
+        "handle把CGEvent修饰键拼为符号并接specialKey或大写可显示字符，控制字符只保留修饰键",
+    ("Features/Recording/RecordingInputMonitor.swift", "specialKey"):
+        "describe按keycode映射回车、空格、删除、Esc、方向及翻页键为可显示标签",
+    ("Features/Recording/RecordingModule.swift", "start"):
+        "AppModule启动登记priority=45的正式录屏面板区段；已有FRSET_RECORD_PROBE显式环境路径延迟4秒启动并录3秒后停止",
+    ("Features/Recording/ScreenRecorder.swift", "init"):
+        "RecordingPipeline构造保存本次options、视频像素尺寸、区域原点、缩放与输出URL；ScreenRecorder私有构造供shared管理唯一当前会话",
+    ("Features/Recording/ScreenRecorder.swift", "prepareWriter"):
+        "start创建mp4 H.264实时视频轨，按像素量限制码率4…24Mbps，合成适配器用BGRA；选音源时建48kHz双声道128kbps AAC轨，startWriting失败传具体原因",
+    ("Features/Recording/ScreenRecorder.swift", "setPaused"):
+        "ScreenRecorder.pause/resume将paused变更交管线串行queue，视频和所选音频回调据此丢弃暂停帧",
+    ("Features/Recording/ScreenRecorder.swift", "finish"):
+        "stop或取消启动在管线queue停止摄像头/麦克风，标记轨完成并等待AVAssetWriter.finishWriting，成功返回本次URL，失败日志并返回nil",
+    ("Features/Recording/ScreenRecorder.swift", "startCamera"):
+        "本次cameraEnabled时按配置设备或系统默认摄像头建AVCaptureSession.high，BGRA帧交cameraQueue回调，不可用返回false供录制提示",
+    ("Features/Recording/ScreenRecorder.swift", "startMicrophone"):
+        "本次音源microphone才建默认音频AVCaptureSession，delegate在audioQueue供写入AAC轨；启动失败返回false供上层提示",
+    ("Features/Recording/ScreenRecorder.swift", "stopDevices"):
+        "管线finish停止并释放cameraSession与micSession，屏幕流另由ScreenRecorder停止",
+    ("Features/Recording/ScreenRecorder.swift", "stream"):
+        "SCStreamOutput按screen/audio分派handleVideo/handleAudio；SCStreamDelegate错误回调记录中断并交onStopped，由当前管线身份匹配后正式stop",
+    ("Features/Recording/ScreenRecorder.swift", "handleVideo"):
+        "首个有效视频PTS开启writer会话，暂停丢帧；无摄像头/键鼠叠加时直接append原缓冲，否则取像素池、实际输入与摄像头交正式Compositor再按原PTS写盘",
+    ("Features/Recording/ScreenRecorder.swift", "currentCameraBuffer"):
+        "handleVideo合成前cameraLock内读取latestCamera，摄像头delegate用同一锁发布帧",
+    ("Features/Recording/ScreenRecorder.swift", "handleAudio"):
+        "屏幕流音频仅本次system音源且audioInput可写、非暂停时append，不混入麦克风路径",
+    ("Features/Recording/ScreenRecorder.swift", "captureOutput"):
+        "AVCapture视频回调锁内更新latestCamera；麦克风回调仅microphone音源且可写、非暂停时append同一音频轨",
+    ("Features/Recording/ScreenRecorder.swift", "startDisplayRecording"):
+        "主面板、快捷键及toggle入口读取鼠标所在显示器id和.current配置，在Task调用统一start",
+    ("Features/Recording/ScreenRecorder.swift", "startRegionRecording"):
+        "主面板及快捷键复用RecordingRegionPicker，确认实际全局矩形后按当前显示器和偏好调用统一start",
+    ("Features/Recording/ScreenRecorder.swift", "start"):
+        "唯一录制入口取得本次屏幕/所选设备授权并报告不可用叠加，makeStream与prepareWriter后接屏幕及可选系统音轨，启动设备和SCStream成功才置recording、计时并显示HUD；失败收尾当前管线",
+    ("Features/Recording/ScreenRecorder.swift", "pause"):
+        "recording态设置管线paused，累加有效计时并清startedAt，停timer、置paused和刷新HUD",
+    ("Features/Recording/ScreenRecorder.swift", "resume"):
+        "paused态恢复管线写入、startedAt和recording态，重开timer并刷新HUD",
+    ("Features/Recording/ScreenRecorder.swift", "togglePause"):
+        "HUD、面板与刘海暂停入口只按recording/paused选择pause或resume",
+    ("Features/Recording/ScreenRecorder.swift", "stop"):
+        "设置finishing后停止timer/HUD/输入采集；准备中标取消，其余停SCStream并等待管线finish，成功显示实际文件并开编辑器，中断仍保留已写视频及原因",
+    ("Features/Recording/ScreenRecorder.swift", "startTimer"):
+        "start/resume先停旧timer再每200ms发布accumulated加本段时间，刷新同一HUD",
+    ("Features/Recording/ScreenRecorder.swift", "stopTimer"):
+        "暂停、停止及重开计时共用invalidate并清唯一timer",
+    ("Features/Recording/ScreenRecorder.swift", "makeStream"):
+        "从SCShareableContent选目标显示器并排除配置App，将AppKit区域换CG及显示器本地points；按实际缩放、fps、光标、BGRA和可选系统音频建SCStreamConfiguration，返回同一流队列及尺寸原点",
+    ("Features/Recording/ScreenRecorder.swift", "currentDisplayID"):
+        "整屏及区域入口按NSEvent鼠标所在NSScreen用ScreenSnapshot.displayID取得实际显示器id",
+    ("Features/Recording/ScreenRecorder.swift", "uniqueOutputURL"):
+        "start在RecordingOptions.saveDirectory按日期时分秒生成Recording文件名，存在时递增-2、-3后缀，不覆盖录制原片",
+    ("Features/Recording/ScreenRecorder.swift", "toggleRecording"):
+        "设置页、状态栏和快捷键共用入口，当前state.isActive则Task等待stop，否则startDisplayRecording",
+})
+
+EVIDENCE.update({
+    ("App/AppBootstrap.swift", "readSelection"):
+        "命令面板、划词快捷键及刘海展开前读取真实前台AX焦点的SelectedText，拒绝自身前台及密码字段，不取系统剪贴板，返回具体授权或应用选区错误",
+    ("App/AppBootstrap.swift", "runSelectionAction"):
+        "快捷键、命令面板和刘海OCR划词按钮共用已捕获SelectionResult或readSelection；失败Toast，翻译取消旧请求交translateAndIngest，其他动作交正式ToolRunnerWindow自动执行",
+    ("Core/UI/LiquidGlassMaterial.swift", "makeView"):
+        "正式玻璃背景和刘海共用工厂，26+且非纯色、随焦点及系统玻璃开关允许时建NSGlassEffectView，其余建固定inactive的NSVisualEffectView；降低透明度走不透明材质",
+    ("Core/UI/LiquidGlassMaterial.swift", "reapplyStyle"):
+        "LiquidGlassBackground更新共用已建容器重设圆角，真玻璃改tint，毛玻璃按solid与降低透明度更新材质/混合并固定inactive",
+    ("Core/UI/LiquidGlassMaterial.swift", "setCornerRadius"):
+        "工厂、重套样式与刘海layout共用几何更新，真玻璃设cornerRadius，其余CALayer设连续圆角，不重设材质",
+    ("Core/UI/LiquidGlassMaterial.swift", "embed"):
+        "正式材质宿主统一addSubview并用四边约束铺满内容；沿既有崩溃记录不使用NSGlassEffectView.contentView",
+    ("Core/UI/LiquidGlassMaterial.swift", "glassCard"):
+        "正式GlassCard修饰器和刘海格共用传入fill/stroke的连续圆角裁剪、背景及hairline描边，描边不接鼠标事件",
+    ("Core/UI/ThemeTokens.swift", "accent"):
+        "刘海正式与设置预览等明确颜色入口返回传入Color，无指定时用系统accentColor，不读取服务状态",
+    ("Core/UI/ThemeTokens.swift", "cardFillAlpha"):
+        "Support.swift的Theme.cardFill消费卡片亮度，按深浅色计算透明度：深色0.035+0.065×lift、浅色0.55+0.43×lift，正式与设置预览共用数值公式",
+    ("Core/UI/ThemeTokens.swift", "cardStrokeAlpha"):
+        "Support.swift的Theme.cardStroke消费描边强度，深色透明度0.02+0.16×strength、浅色0.02+0.14×strength，供正式卡片与设置预览使用",
+    ("Features/AI/Views/AISummaryView.swift", "init"):
+        "029de12台账已有StateObject构造说明；现有inputText构造创建ViewModel，ToolRunnerWindow传model重载持有同一运行模型，使停止请求作用当前摘要",
+    ("Features/Archive/Core/ArchiveServices.swift", "copyPaths"):
+        "Finder服务从传入pasteboard读真实文件URL，把绝对路径逐行写系统剪贴板并提示数量，无文件或写入失败写服务error并Toast",
+    ("Features/Archive/Core/ArchiveServices.swift", "openInTerminal"):
+        "Finder服务把文件转换父目录、目录保留自身并去重，找到com.apple.Terminal后逐目录用NSWorkspace.open；读取、应用缺失或打开失败各显示具体路径原因",
+    ("Features/Monitor/Storage/DiskIndex.swift", "match"):
+        "summarize按实际目录名与Library层级识别缓存、日志、开发与应用支持类别，/var/log及Xcode.app有明确分类，其他返回nil沿父类别",
+    ("Features/Monitor/Storage/DiskIndex.swift", "summarize"):
+        "扫描及缓存更新递归将目录ownSize、文件size各计一次，遇实际分类目录切类别和归属路径，最终各类别用independentPaths列包含目录",
+    ("Features/Monitor/Storage/DiskIndex.swift", "retainFile"):
+        "扫描目录文件时只保留达到minimumFileBytes的条目，按字节数降序插入，超过childrenPerDirectory移除最小项，完整占用另计",
+    ("Features/Monitor/Storage/DiskIndex.swift", "independentPaths"):
+        "分类汇总及多路径操作将路径集合排序，已有父路径时移除被包含子路径，避免同一目录重复参与操作",
+    ("Features/Monitor/Storage/StorageManagerWindow.swift", "categoryDetail"):
+        "右区系统数据分类详情显示本次扫描根、类别字节、独立目录与coverageHelp，说明折叠及子分类扣除范围，不自动加入清理推荐",
+    ("Features/Monitor/Storage/StorageManagerWindow.swift", "refreshedNavigationNode"):
+        "索引变化刷新访问历史与详情，真实路径取新snapshot节点，disk-files聚合按父ownSize更新，其余聚合递归保留现存孩子并重算大小与折叠数量",
+    ("Features/Monitor/Views/MonitorCard.swift", "init"):
+        "正式指标卡ViewBuilder内容一次构造成持有的Content，body沿原10pt padding及GlassCardBackground材质",
+    ("Features/Panel/Presentation/PanelController.swift", "hide"):
+        "029de12已有onDismiss/toggle/TransientWindowCenter消费说明；当前无参重载交带completion入口，收回保存尺寸并关闭来源预览，Genie正在展开立即反向，其余按hideGeneration只启动一次performHide",
+    ("Features/Settings/Shell/SettingsBlockProbeWindow.swift", "init"):
+        "SettingsBlockProbeWindowController私有构造供shared，现有设置区块深链持有展示窗",
+    ("Features/Settings/Shell/SettingsBlockProbeWindow.swift", "open"):
+        "FrsetNextApp现有区块深链按recording/workflow/capture或个性化scope装正式设置内容，注入SettingsEditingSession，用760×980原生officialChrome窗展示独立区块",
+    ("Features/StatusBar/MenuBarIconStyle.swift", "makeCoordinator"):
+        "菜单栏图标设置预览创建Coordinator保存style/symbol及rotatingView，update只在样式变化重建，拆除时停止旋转",
+    ("Features/StatusBar/StatusBarController.swift", "openIslandAction"):
+        "菜单栏刘海工作台Selector只交唯一IslandController.shared.open，不另建展示窗口",
+    ("Features/Toolbox/Calendar/CalendarService.swift", "calendar"):
+        "monthDays与CalendarSectionView共用Gregorian Calendar，指定zh_CN、用户firstWeekday和当前时区，月历周排列沿同一口径",
+    ("Features/Toolbox/Search/SearchSectionView.swift", "previewAction"):
+        "设置预览的网页/工具/引擎动作仅显示演示反馈，消费clearSearchInputAfterWebAction决定调用clearInput或保留输入",
+    ("Features/Toolbox/Shell/ToolboxSectionView.swift", "outputContent"):
+        "ToolRunnerView正式与刘海紧凑结果共用图片、可选文本及note排版，compact把图片最大高度降到120，文本错误着红且可选择，图片菜单沿copyImage",
+    ("Features/Toolbox/Shell/ToolboxSectionView.swift", "startRun"):
+        "执行按钮、输入提交及去重选项变化共用run；紧凑刘海取消旧runTask并持有新Task，完整页沿原Task执行",
+    ("Features/Toolbox/Tools/ToolRunnerWindow.swift", "stopAIRequest"):
+        "AppBootstrap划词翻译启动前调用当前summaryModel.stop，取消与翻译竞争的已有工具摘要请求",
+    ("Models/Models.swift", "classify"):
+        "ClipboardItem构造、入库、旧资料迁移及备份恢复共用换行文件路径分类，按UTType把PDF/音频/视频位合并到fileCategories",
+})
+
 # ── v263：图帘改名（悬挂架 → 图帘；Shelf* → Curtain*，文件同步改名）──────────
 # 证据本身没变，只是键跟着改名。不迁移的话，100+ 条老函数会被判成「新增」。
 _PATH_ALIASES = {
@@ -1461,6 +2322,172 @@ for (_old_file, _old_name), _ev in list(EVIDENCE.items()):
     if (_new_file, _new_name) != (_old_file, _old_name):
         EVIDENCE.setdefault((_new_file, _new_name), _ev)
 
+
+EVIDENCE.update({
+    ("Features/Monitor/Views/MonitorCharts.swift", "init"): "监测趋势数据从原历史组装带时间、间隔和缺失值的序列；预先计算可见采样与量程，鼠标定位不再转换历史。",
+    ("Features/Monitor/Views/MonitorCharts.swift", "format"): "按模块格式化百分比、系统内存压力等级、速率、摄氏度或瓦数，缺失读数显示破折号。",
+    ("Features/Monitor/Views/MonitorCharts.swift", "drawSeries"): "按真实时间排列各曲线，遇到缺失值或超过采样间隔的空档分段绘制，同一时间共享定位线。",
+    ("Features/Monitor/Views/MonitorCharts.swift", "drawRun"): "绘制连续采样段；内存压力采用等级阶梯，其余曲线的控制点限制在相邻读数之间，避免额外峰谷。",
+    ("Features/Monitor/Views/MonitorCharts.swift", "xPosition"): "将真实采样时间映射到当前时间窗；历史未满时右对齐，不随采样数量拉伸。",
+    ("Features/Monitor/Views/MonitorCharts.swift", "nearest"): "只在已计算的可见采样中查找最接近指针时间的位置，不触发系统读取。",
+    ("Features/Monitor/Views/MonitorCharts.swift", "pin"): "固定完整采样时间和值，并保存到现有模块选择对象；新采样进入不会替换固定对象。",
+    ("Features/Monitor/Views/MonitorCharts.swift", "unpin"): "清除本模块固定与临时查看读数，恢复最新采样。",
+    ("Features/Monitor/Views/MonitorCharts.swift", "restoreSelection"): "按模块与传感器键恢复固定采样；切换数据对象时清除临时悬停位置并更新量程。",
+    ("Features/Monitor/Views/MonitorCharts.swift", "timeText"): "以真实采样时间格式化图表刻度与查看读数时间。",
+    ("Features/Monitor/Views/MonitorDetailView.swift", "moduleButton"): "整行切换统一模块，悬停不切换；分别绘制悬停、选中与键盘焦点，方向键定位相邻模块。",
+    ("Features/Monitor/Views/MonitorDetailView.swift", "currentValue"): "模块列表读取正式当前采样，预览读取固定场景；无 GPU、电池或整机功耗时显示对应状态。",
+})
+
+
+EVIDENCE.update({
+    ("Features/Monitor/Views/MonitorDetailView.swift", "ensureSelection"): "模块显隐改变后在仍可见的模块中保留当前选择；设置侧栏指定的单模块详情不改成另一模块。",
+    ("Features/Monitor/Window/MonitorSettingsPane.swift", "saved"): "读取正式监测总开关、刷新间隔、模块显隐、温度、网络常驻和分流数量，作为设置草稿初值。",
+    ("Features/Monitor/Window/MonitorSettingsPane.swift", "save"): "仅应用本页相对已保存值发生变化的字段；刷新间隔沿用菜单栏同步入口，未改字段保留其他页面的配置。",
+    ("Features/Monitor/Window/MonitorSettingsPane.swift", "discard"): "重新读取已保存监测配置，取消只改变草稿和预览。",
+    ("Features/Monitor/Window/MonitorSettingsPane.swift", "restoreDefaults"): "默认值先进入监测草稿，保存前不影响正式采样与模块显隐。",
+    ("Features/Monitor/Window/MonitorSettingsPane.swift", "applyIntervalToBarWidgets"): "保存刷新间隔时复用各菜单栏模块 updateInterval 写入与重载，不在拖动滑块时写正式配置。",
+})
+
+
+EVIDENCE.update({
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "reviewExport"):
+        "在Manager既有串行队列锁定剪贴板库读取快照，集中列出缺失附件记录；支持取消，结果回主线程供同一备份sheet显示",
+    ("Features/Clipboard/Store/ClipboardBackup.swift", "missingRecords"):
+        "按记录原图、缩略图、长正文及富文本相对路径读取真实存在状态，保留记录去重键、标题和缺失路径，导出清单与附件准备共用",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "reviewBackupExport"):
+        "把备份缺失清单交给既有ClipboardBackup与Manager队列，返回同一取消操作对象，不增加数据库连接或执行链",
+    ("Features/Clipboard/UI/ClipboardSettingsPane.swift", "reviewExport"):
+        "备份sheet打开及导出失败后读取当前缺失清单，更新busy和错误；完整记录按钮按清单显示，缺失记录不从本机删除",
+    ("Features/Monitor/Storage/DiskIndex.swift", "init"):
+        "DiskNode与Snapshot保留成员初始化入口；按实际旧home缓存缺失的isAggregate、schema、分类等字段解码，目录树保留；Accumulator初始化空分类边界小计",
+    ("Features/Monitor/Storage/DiskIndex.swift", "recomputeDataCategories"):
+        "扫描完成、缓存载入及删除重算共用分类汇总；缺失折叠小计或总量不符时清除错误分类并显示具体重新扫描原因",
+    ("Features/Monitor/Storage/DiskIndex.swift", "add"):
+        "把真实直接字节累加到类别和分类边界路径，父目录只贡献未单列文件；零字节无需存储条目",
+    ("Features/Monitor/Storage/DiskIndex.swift", "merge"):
+        "扫描合并子目录累加器，折叠节点合并已有类别与来源字节小计；验证路径总量与类别总量一致，避免把折叠内部全归父类",
+    ("Features/Monitor/Storage/DiskIndex.swift", "categories"):
+        "从类别与边界路径字节生成五类汇总，逐路径按字节排序；复用independentPaths展示来源，保存精确路径字节而非折叠树副本",
+})
+
+
+EVIDENCE.update({
+    ("App/AppBootstrap.swift", "supportsDoubleTap"): "仅既有全局动作显示双按模式，工具组合键不新增双按行为",
+    ("App/AppBootstrap.swift", "defaultShortcutValue"): "从正式默认热键表生成单项默认，未配置按键的功能保留未绑定状态",
+    ("App/AppBootstrap.swift", "shortcutSettingsValue"): "统一读取全局与工具已有绑定，取色归入colorpicker，双按沿用原修饰键存储",
+    ("App/AppBootstrap.swift", "applyShortcuts"): "集中保存时注册实际变动动作，组合键批量替换成功后应用双按；冲突返回功能名称并保留原注册",
+    ("Core/Runtime/Personalization.swift", "reloadFromDefaults"): "配置导入后从已有偏好重载全局外观并通知正式窗口，沿用同一单例",
+    ("Features/AI/Views/AISettingsPane.swift", "save"): "AI服务草稿只提交变动地址模型与凭证，凭证失败返回服务商及原因并保留候选密钥",
+    ("Features/AI/Views/AISettingsPane.swift", "discard"): "取消当前AI服务页时重读保存值并丢弃本页候选密钥，不应用其他页草稿",
+    ("Features/AI/Views/AISettingsPane.swift", "restoreDefaults"): "AI服务默认只更新本页候选配置，不删除已保存凭证或立即请求服务",
+    ("Features/AI/Views/AISettingsPane.swift", "configurationChanged"): "候选服务变化先取消并释放连接任务，再递增代次及清结果，URLSession沿原任务取消链结束",
+    ("Features/AI/Views/AISettingsPane.swift", "deinit"): "设置会话end释放草稿时取消唯一连接任务；测试闭包弱持有草稿，不再把设置模型保留到网络完成",
+    ("Features/Capture/Screenshot/CaptureSettingsPane.swift", "init"): "截图OCR水印三页复用既有截图预览模型，将其变化转发给窗口草稿会话",
+    ("Features/Capture/Screenshot/CaptureSettingsPane.swift", "save"): "按截图OCR或水印所属字段差量提交，固定比例编码及偏好失败保留当前页调整",
+    ("Features/Capture/Screenshot/CaptureSettingsPane.swift", "discard"): "取消当前截图子页重读正式值并清理未添加的比例草稿",
+    ("Features/Capture/Screenshot/CaptureSettingsPane.swift", "restoreDefaults"): "当前截图子页默认仅在独立草稿模型生效，由所属页保存范围控制正式应用",
+    ("Features/Capture/Workflow/WorkflowSettingsPane.swift", "save"): "截图工作流沿用现有文件存储，保存失败返回实际原因且不更新已保存快照",
+    ("Features/Capture/Workflow/WorkflowSettingsPane.swift", "discard"): "取消工作流页重读原工作流文件，不执行截图步骤",
+    ("Features/Capture/Workflow/WorkflowSettingsPane.swift", "restoreDefaults"): "工作流清空只更新草稿，保存后才改变自动执行列表",
+    ("Features/Clipboard/UI/ClipboardSettingsPane.swift", "init"): "历史草稿读取保留期与容量作为保存快照，保留历史清理的正式执行入口",
+    ("Features/Clipboard/UI/ClipboardSettingsPane.swift", "save"): "历史保留期容量与捕获隐私分别只写实际变动值，错误反馈保留对应草稿",
+    ("Features/Clipboard/UI/ClipboardSettingsPane.swift", "discard"): "取消历史或捕获页只重读该页保存值，不清理数据库内容",
+    ("Features/Clipboard/UI/ClipboardSettingsPane.swift", "restoreDefaults"): "历史与捕获默认先进入草稿，不立即清理历史或改变OCR",
+    ("Features/Panel/Presentation/PanelSegments.swift", "migrateLegacyVisibility"): "把旧showSystemStatus与panel.transferDock有效展示状态合并入分段键，移除重复展示键",
+    ("Features/Recording/RecordingSettingsPane.swift", "save"): "录屏页差量保存参数与目录；effects范围只写光标画中画及按键点击表现，失败保留草稿",
+    ("Features/Recording/RecordingSettingsPane.swift", "discard"): "录屏页取消重读正式值，effects取消只还原表现字段并保留音频帧率目录草稿",
+    ("Features/Recording/RecordingSettingsPane.swift", "restoreDefaults"): "录屏默认只进入草稿；effects默认排除帧率音频设备忽略应用及保存目录",
+    ("Features/Recording/RecordingSettingsPane.swift", "isDirty"): "录屏effects范围只比较六项显示字段，其他参数变化不计入全部个性化默认",
+    ("Features/Recording/RecordingSettingsPane.swift", "applyEffects"): "共用录屏显示字段提交，只写相对已保存值变化的光标摄像头位置比例按键和点击开关",
+    ("Features/Recording/RecordingSettingsPane.swift", "copyEffects"): "在同一录屏草稿内复制六项显示字段，避免默认保存或取消覆盖采样和输出参数",
+    ("Features/Recording/RecordingSettingsPane.swift", "refreshCameras"): "仅录屏页出现时枚举已有摄像头供配置选择，不启动录制",
+    ("Features/Settings/Panes/IslandSettingsPane.swift", "isDirty"): "按刘海四页所属字段判断草稿变动，画布页包含未完成的布局编辑",
+    ("Features/Settings/Panes/IslandSettingsPane.swift", "merged"): "刘海四页复用字段集合与字典键差量合并，保留当前正式配置及其他页面草稿",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "owns"): "排列页只编辑排列键，部件页只编辑形态颜色且排除独立刷新间隔",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "refreshUnownedValues"): "返回部件页刷新其他页已保存的排列，不覆盖本页形态颜色草稿",
+    ("Features/Settings/Panes/MonitorWidgetsPane.swift", "selectTarget"): "菜单部件配置深链按正式模块标识定位页内选择，不新增三级目录",
+    ("Features/Settings/Panes/SearchSettingsPane.swift", "isDirty"): "搜索display范围只比较分类显隐与搜索后清空，不把引擎调整纳入全部个性化默认",
+    ("Features/Settings/Panes/StatisticsSettingsPane.swift", "applyImportedPreferences"): "配置导入复用正式消费入口与热键注册，迁移旧显隐键，保留独立部件间隔并返回应用错误",
+    ("Features/Settings/Panes/StatisticsSettingsPane.swift", "isMenuBarConfigurationKey"): "配置导出导入只接受正式排列及部件配置键，排除无关存储内容",
+    ("Features/Settings/Panes/StatisticsSettingsPane.swift", "exportableMenuBarConfiguration"): "导出菜单部件有效配置含各独立间隔与默认值，不含运行采样或预览状态",
+    ("Features/Settings/Shell/SettingsComponents.swift", "makeNSView"): "创建不接收命中的滚动位置附着视图，复用正文已有NSScrollView",
+    ("Features/Settings/Shell/SettingsComponents.swift", "updateNSView"): "更新页面归属并附着已有滚动窗，不新增滚动容器",
+    ("Features/Settings/Shell/SettingsComponents.swift", "dismantleNSView"): "设置正文移除时记住滚动偏移并释放通知",
+    ("Features/Settings/Shell/SettingsComponents.swift", "hitTest"): "滚动记忆视图不接受指针事件，保留真实正文交互",
+    ("Features/Settings/Shell/SettingsComponents.swift", "attach"): "附着正文已有滚动窗并恢复当前二级页偏移，明确控件定位时不抢滚动目标",
+    ("Features/Settings/Shell/SettingsComponents.swift", "remember"): "仅记录正文偏移到设置窗口页状态，不发布每帧草稿变化",
+    ("Features/Settings/Shell/SettingsComponents.swift", "detach"): "切页时记录旧页位置并释放对应通知",
+    ("Features/Settings/Shell/SettingsComponents.swift", "deinit"): "释放滚动记忆通知，避免关闭设置后继续接收滚动",
+    ("Features/Settings/Shell/SettingsPanes.swift", "appearanceSection"): "基础设置页共用正式外观预览与单页保存栏",
+    ("Features/Settings/Shell/SettingsPanes.swift", "aboutContent"): "关于页把更新地址纳入草稿，查看更新等即时动作单独呈现",
+    ("Features/Settings/Shell/SettingsWindowController.swift", "reveal"): "搜索模块链接及深链展开目标一级目录并定位二级页控件，与普通打开折叠行为分离",
+    ("Features/Toolbox/Shortcuts/DoubleTapShortcut.swift", "replaceBindings"): "组合键批量保存成功后替换同一双按中心的绑定和顺序，保留原0.30秒手势",
+    ("Features/Toolbox/Shortcuts/DoubleTapShortcut.swift", "cancelPreparedMonitoring"): "组合键注册失败时移除本次临时双按监听，保留已有有效双按监听",
+    ("Features/Toolbox/Shortcuts/DoubleTapShortcut.swift", "prepareMonitoring"): "复用原flagsChanged监听并返回真实安装结果，失败释放本次已装监听",
+    ("Features/Toolbox/Shortcuts/ShortcutManager.swift", "replaceBindings"): "准备整批新组合键并复用互换旧注册，全部成功后替换；冲突只撤销本批新注册并保留原有效键",
+    ("Features/Toolbox/Shortcuts/ShortcutSettingsPane.swift", "init"): "快捷键草稿读取全局及工具现有有效值，页面展开状态独立于持久绑定",
+    ("Features/Toolbox/Shortcuts/ShortcutSettingsPane.swift", "save"): "唯一快捷键页只提交实际调整的动作，注册失败保留调整和原保存值",
+    ("Features/Toolbox/Shortcuts/ShortcutSettingsPane.swift", "discard"): "取消快捷键页重读原有效绑定，不重新注册",
+    ("Features/Toolbox/Shortcuts/ShortcutSettingsPane.swift", "restoreDefaults"): "全部功能默认只更新快捷键草稿，保存后统一注册",
+    ("Features/Toolbox/Shortcuts/ShortcutSettingsPane.swift", "restoreDefault"): "当前功能默认从正式热键表读取，保持其他行草稿",
+    ("Features/Toolbox/Shortcuts/ShortcutSettingsPane.swift", "clear"): "当前功能设为未绑定只改变草稿，不立即注销热键",
+    ("Features/Toolbox/Shortcuts/ShortcutSettingsPane.swift", "selectTrigger"): "页内切换既有触发方式，未绑定沿用同一清除入口",
+    ("Features/Toolbox/Shortcuts/ShortcutSettingsPane.swift", "record"): "录入组合键只更新指定行候选值，保存前不注册",
+    ("Features/Toolbox/Tools/ToolRegistry.swift", "init"): "既有工具描述支持原生自带界面挂载，音频混音器回到正式工具窗口，不留设置正文",
+    ("Features/Toolbox/Tools/ToolSettingsPane.swift", "init"): "工具集合草稿读取当前启用表，不直接改变运行功能",
+    ("Features/Toolbox/Tools/ToolSettingsPane.swift", "save"): "工具开关与AI动作分别差量保存，提示词编码或偏好失败保留草稿",
+    ("Features/Toolbox/Tools/ToolSettingsPane.swift", "discard"): "工具集合或AI文本页取消只重读所属保存值，不覆盖快捷键",
+    ("Features/Toolbox/Tools/ToolSettingsPane.swift", "restoreDefaults"): "工具集合与AI文本默认先进入所属草稿，模块默认不再重置快捷键",
+    ("Features/Toolbox/Tools/ToolSettingsPane.swift", "shortcutDisplay"): "模块页只读显示有效绑定并跳到唯一快捷键功能行",
+    ("Features/Toolbox/Tools/ToolSettingsPane.swift", "addCustomTool"): "把已填写名称与模板添加到AI文本工具草稿，保存后才进入正式工具存储",
+    ("Features/Toolbox/Tools/ToolSettingsPane.swift", "clearNewTool"): "提示词加入草稿或取消时清空页内输入，不影响正式工具列表",
+})
+
+EVIDENCE.update({
+    ("Core/Haptics/HapticFeedback.swift", "isEnabled"): "统一事件入口按独立场景开关取值，总强度由perform后续处理",
+    ("Core/Haptics/HapticFeedback.swift", "load"): "从haptic.configuration读取独立Codable偏好，设置草稿与真实事件共用",
+    ("Core/Haptics/HapticFeedback.swift", "persist"): "设置保存把强度与禁用事件集合编码到原UserDefaults，不影响刘海配置",
+    ("Core/Haptics/HapticFeedback.swift", "perform"): "所有业务事件唯一触觉入口，读取场景偏好后交给公共系统反馈模式",
+    ("Core/Haptics/HapticFeedback.swift", "preview"): "设置试听和正式事件共用系统调用，关闭不调用，其余每次仅请求一次离散反馈",
+    ("Core/Haptics/TrackpadActuator.swift", "init"): "仅在内建触控板可驱动时打开私有马达并缓存句柄；失败保持 nil，由 emit 回落公开接口",
+    ("Core/Haptics/TrackpadActuator.swift", "deinit"): "进程退出前关闭马达句柄，避免占用触控板设备",
+    ("Core/Haptics/TrackpadActuator.swift", "actuate"): "业务事件与设置试听的唯一敲击点；直连失败时关掉重开再试一次，仍失败交公开接口",
+    ("Core/Haptics/TrackpadActuator.swift", "ensureOpen"): "按需创建并打开马达；睡眠唤醒后句柄失效时由 actuate 关闭重开",
+    ("Core/Haptics/TrackpadActuator.swift", "builtInTrackpadID"): "从 IORegistry 取内建且 ActuationSupported 的触控板 Multitouch ID，避开外接设备",
+    ("Features/Settings/Shell/SettingsComponents.swift", "sizeThatFits"): "预览/控件/分隔三子视图；内容宽≥650 时返回两栏高度（预览350、控件270），不足时返回上下排总高",
+    ("Features/Settings/Shell/SettingsComponents.swift", "placeSubviews"): "两栏把预览贴左、控件贴右、分隔居中；窄窗改上下排，控件限宽320，避免挤出卡片",
+    ("Features/Island/IslandController.swift", "turnComponentPage"): "现有页面草稿将组件页码限制在0至componentPageCount减1；当前尚无调用方",
+    ("Features/Island/IslandController.swift", "selectPage"): "turnPage和goBack复用可见页选择；记忆模式按显示器身份保存实际页面，保存错误交feedback",
+    ("Features/Island/IslandController.swift", "applyOpeningPage"): "现有草稿按固定页或屏幕记忆挑选可见页，并以remember=false交selectPage；当前尚无调用方",
+    ("Features/Island/IslandSettings.swift", "pageTitle"): "现有草稿仅对custom页返回自定义名称，其余返回原页面title；当前尚无调用方",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "toggleFavorite"):
+        "现有草稿新增独立收藏写入：串行队列读取数据库现值取反，成功通知其他窗并更新可见行，保存失败提示；目前尚无界面调用方",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "setNote"):
+        "现有草稿的笔记入口在串行队列写isNote；失败提示，成功通知其他窗并更新可见行，笔记筛选取消后重新读取列表",
+    ("Features/Clipboard/Store/ClipboardRepository.swift", "updateFavorite"):
+        "新增草稿由toggleFavorite调用，按dedupe_key参数绑定写is_favorite，数据库错误记录日志并返回false",
+    ("Features/Island/IslandController.swift", "refreshDisplays"): "显示参数或Space变化时更新目标及入口，只移动已有业务窗口，指定离线沿原选择临时主屏",
+    ("Features/Island/IslandController.swift", "refreshEntries"): "每个启用逻辑显示目标仅持有绘制入口的NSPanel，当前屏沿用原舞台，不创建正文订阅或采样",
+    ("Features/Island/IslandController.swift", "activateDisplay"): "点击屏幕入口明确迁移并保持展开，已有预览时保留其键盘焦点和会话",
+    ("Features/Island/IslandController.swift", "move"): "迁移原面板及原预览窗口，保持hosting view和业务输入，绕开取消布局草稿的collapse",
+    ("Features/Island/IslandController.swift", "entry"): "鼠标事件只在缓存逻辑屏幕入口矩形命中，不在每次移动重新读取UUID或创建视图",
+    ("Features/Island/IslandController.swift", "containsEntry"): "预览点外处理识别刘海入口点击，跨屏迁移时不提前关闭预览",
+    ("Features/Island/IslandController.swift", "init"): "正式单例与原设置预览构造配置和目标缓存；轻量入口view构造点击回调且不支持归档恢复",
+    ("Features/Island/IslandController.swift", "mouseDown"): "轻量入口的本地点击转交唯一controller选择显示目标，不持有业务状态",
+    ("Features/Island/IslandController.swift", "draw"): "其他屏幕仅绘制黑色入口和短标记，不挂载完整SwiftUI正文",
+    ("Features/Island/IslandDisplay.swift", "init"): "由NSScreen读取显示ID并转换系统UUID，镜像屏统一采用源屏的稳定身份和几何",
+    ("Features/Island/IslandDisplay.swift", "sourceID"): "用CGDisplayMirrorsDisplay归一镜像源，独立屏保留自身系统显示ID",
+    ("Features/Island/IslandDisplay.swift", "enabled"): "按自动刘海优先、全部、主屏或指定UUID筛选；指定目标全离线临时主屏而不覆写偏好",
+    ("Features/Island/IslandSettings.swift", "init"): "默认构造保留原全部字段；JSON逐字段decodeIfPresent新增屏幕范围不丢旧主题布局组件",
+    ("Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift", "movePreview"): "刘海跨屏时取消旧悬停关闭计时，移动同一预览窗口并限制在目标逻辑可见区域，保留内容模型",
+    ("Features/Settings/Panes/HapticSettingsPane.swift", "init"): "独立触觉设置草稿读取正式配置为当前值和保存快照，复用原设置编辑会话",
+    ("Features/Settings/Panes/HapticSettingsPane.swift", "save"): "编码成功后更新触觉保存快照，失败返回具体原因并保留草稿",
+    ("Features/Settings/Panes/HapticSettingsPane.swift", "discard"): "取消仅将本页草稿恢复已保存强度和场景开关",
+    ("Features/Settings/Panes/HapticSettingsPane.swift", "restoreDefaults"): "本页恢复默认只更新草稿，经既有保存按钮应用",
+    ("Features/Settings/Panes/HapticSettingsPane.swift", "eventSection"): "按统一事件枚举生成场景名称说明和独立开关，三类场景复用相同行组件",
+    ("Features/TransferDock/Cast/TransferCastEngines.swift", "sharingService"): "既有隔空投送服务的完成回调才反馈成功，真实失败反馈失败，用户取消跳过；不把发起分享当完成",
+    ("Features/TransferDock/Cast/TransferCastEngines.swift", "deviceConnectionChanged"): "无线连接命令与已有设备扫描共用已知连接集合，实际连接或断开才反馈，后续相同扫描不重复",
+})
 
 def main() -> int:
     strict = "--strict" in sys.argv
@@ -1500,16 +2527,14 @@ def main() -> int:
             dropped += len(items)
             print("  -- 源码已无此函数，台账移除:", key[0], key[3])
             continue
-        for slot, (old_line, idx) in enumerate(items):
+        dropped += max(0, len(items) - len(cand))
+        for slot, (old_line, idx) in enumerate(items[:len(cand)]):
             r = dict(led[idx])
             name = r["name"]
             if (r["file"], r["owner"], name) in RENAMES:
                 name = RENAMES[(r["file"], r["owner"], name)]
                 renamed += 1
-            if slot < len(cand):
-                new_line = cand[slot]
-            else:                       # 台账条数多于清单（重载被删）→ 就近
-                new_line = min(cand, key=lambda x: abs(x - old_line))
+            new_line = cand[slot]
             if new_line != old_line:
                 reanchored += 1
             r["name"] = name.replace("ScreenshotShelfController", "ImageCurtainController").replace("Shelf", "Curtain")
@@ -1565,6 +2590,284 @@ def main() -> int:
         print("  （非 --strict 模式：已写占位文案）")
     return 0
 
+
+EVIDENCE.update({
+    ("Features/Toolbox/Search/SearchSectionView.swift", "search"):
+        "读取当前启用工具的译名与说明；斜杠沿SlashCommandCatalog，普通搜索沿FuzzyMatcher；只有本地化字段在主线程取值后交原结果项",
+    ("Features/Toolbox/Search/CommandPalette.swift", "refreshLanguage"):
+        "语言通知到达时用本窗口原选区重建普通及斜杠命令目录，再沿原搜索词refilter；不重建窗口或清输入",
+    ("Features/Onboarding/WelcomeView.swift", "step"):
+        "quickStart构造三张引导卡；仅呈现步骤序号、标题和操作说明，不持有交互状态",
+    ("Features/Manual/ManualView.swift", "quickStartCard"):
+        "分类首页保留原有任务卡；实际教程沿WelcomeWindowController入口打开，完整章节使用原文章ID选择，不复制教程状态",
+})
+
+EVIDENCE.update({
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "store"):
+        "2026-11-19：把窗口与整屏 SCK 异步结果交给有超时的同步入口，锁保护等待与迟到完成间的读写",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "load"):
+        "2026-11-19：与 store 共用同一结果锁，超时后调用方返回 nil，不让 SCK 永久卡住截图流程",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "isUsableImage"):
+        "2026-11-19：过滤小图、比例错屏与透明空帧；源自安装版 00:04:46 原生抓图失败后仍将 848×77 单色裁图复制成功",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "windowImageMatchesFrozen"):
+        "2026-11-19：窗口 SCK 重抓需同时匹配点击点和屏幕九个抽样点，否则保留触发冻结裁片",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "monochromeColor"):
+        "2026-11-19：以整屏抽样识别异常平面帧并和另一通道对照；同色候选仍可保存",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "sameColor"):
+        "2026-11-19：允许 3 级像素量化差，用于比较两个通道中的合法纯色屏幕",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "averageDifference"):
+        "2026-11-19：同尺寸抽样两路同屏像素并略过 Toast 矩形，排除提示卡后平均色差超过 18 才取消保存",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "pixelColor"):
+        "2026-11-19：只抽取点击点颜色，用于窗口 SCK 图与触发时屏幕快照的对应校验",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "captureScreenForScreenshot"):
+        "2026-11-19：同屏原生彩色帧直接冻结；单色或失败才取 SCK 对照，Toast 可见时排除通知区域比较",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "screencaptureDisplayIndex"):
+        "2026-11-19：将 NSScreen 的 CGDirectDisplayID 映射到 screencapture -D 主屏序号，避免抓错屏再套用原坐标",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "captureScreenOnDisplay"):
+        "2026-11-19：按已映射的显示器 -D 序号抓取独立原生帧，后台任务不再捕获 NSScreen 对象",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "sckCaptureWindowSync"):
+        "2026-11-19：窗口 SCK 等待设 4 秒上限，超时回退触发时冻结图而不阻塞交付",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "globalPoint"):
+        "2026-11-19：把覆盖层中的真实点击点转为屏幕全局坐标，窗口候选只和同一画面位置比较",
+    ("Features/Settings/Shell/SettingsWindowController.swift", "windowDidChangeScreen"):
+        "更新设置窗最小尺寸以匹配进入屏幕的可见区域；窗口根视图仍由同一自适应容器布局",
+    ("Features/Manual/ManualView.swift", "quickGuide"):
+        "为剪贴板、截图/OCR、文件中转返回对应快速教程的纯文字概览",
+    ("Features/Onboarding/QuickTutorialController.swift", "init"):
+        "恢复已选教程并监听截图、复制、OCR 与文件发送的真实业务结果以推进任务状态",
+    ("Features/Onboarding/QuickTutorialController.swift", "deinit"):
+        "释放教程进度轮询计时器及通知观察者",
+    ("Features/Onboarding/QuickTutorialController.swift", "status"):
+        "按教程独立读取持久化完成状态",
+    ("Features/Onboarding/QuickTutorialController.swift", "step"):
+        "读取指定教程当前已完成的步骤数",
+    ("Features/Onboarding/QuickTutorialController.swift", "select"):
+        "保存当前教程选择并标记欢迎页已查看",
+    ("Features/Onboarding/QuickTutorialController.swift", "returnToTasks"):
+        "清除当前任务选择并返回欢迎页任务列表，保留每项进度",
+    ("Features/Onboarding/QuickTutorialController.swift", "skip"):
+        "退出当前教程而不标记为完成",
+    ("Features/Onboarding/QuickTutorialController.swift", "resumeClipboardRecording"):
+        "恢复用户暂停的剪贴板记录并刷新教程视图",
+    ("Features/Onboarding/QuickTutorialController.swift", "begin"):
+        "开始或恢复指定教程；完成项重新进入时从首步学习",
+    ("Features/Onboarding/QuickTutorialController.swift", "restart"):
+        "清除该教程完成状态和步骤后重新开始",
+    ("Features/Onboarding/QuickTutorialController.swift", "copyClipboardExample"):
+        "用户点击后才写入示例文本，记录剪贴板变更标记并等待真实历史项",
+    ("Features/Onboarding/QuickTutorialController.swift", "openClipboard"):
+        "示例已进入历史后切到主面板并打开剪贴板操作入口",
+    ("Features/Onboarding/QuickTutorialController.swift", "startScreenshot"):
+        "记录截图前最近路径并调用正式区域截图流程",
+    ("Features/Onboarding/QuickTutorialController.swift", "openTransfer"):
+        "记录初始暂存条目并打开主面板文件中转页",
+    ("Features/Onboarding/QuickTutorialController.swift", "chooseTransferFile"):
+        "由用户通过 NSOpenPanel 选择单个文件后加入本地暂存并记录路径",
+    ("Features/Onboarding/QuickTutorialController.swift", "openResult"):
+        "从剪贴板、截图或文件中转教程跳转到对应真实结果位置",
+    ("Features/Onboarding/QuickTutorialController.swift", "resumeTracking"):
+        "仅存在进行中的教程时启动一次共享进度轮询",
+    ("Features/Onboarding/QuickTutorialController.swift", "refreshProgress"):
+        "根据剪贴板历史、自写标记和新增暂存项推进教程，不播放虚构完成动画",
+    ("Features/Onboarding/QuickTutorialController.swift", "complete"):
+        "保存独立完成状态、最终步骤和实际结果提示",
+    ("Features/Onboarding/QuickTutorialController.swift", "setStep"):
+        "写入指定教程当前步骤并通知观察视图",
+    ("Features/Onboarding/QuickTutorialController.swift", "key"):
+        "生成按教程与字段分隔的偏好键",
+    ("Features/Onboarding/WelcomeView.swift", "tutorialCard"):
+        "绘制单项新手任务入口并根据该项进度提供开始、继续或重学",
+    ("Features/Onboarding/WelcomeView.swift", "taskDescription"):
+        "提供三项真实教程任务的单行操作摘要",
+    ("Features/Onboarding/WelcomeView.swift", "tutorialDetail"):
+        "展示当前任务步骤、实际状态、结果和跳过/稍后继续入口",
+    ("Features/Onboarding/WelcomeView.swift", "tutorialSteps"):
+        "按剪贴板、截图或文件中转分派真实按钮和完成条件",
+    ("Features/Onboarding/WelcomeView.swift", "tutorialStep"):
+        "按业务状态显示教程步骤及完成图标",
+    ("Features/Onboarding/WelcomeView.swift", "shortcutDisplay"):
+        "显示按键管理器当前解析出的用户快捷键",
+    ("Features/Onboarding/WelcomeWindowController.swift", "showTutorial"):
+        "选定新手任务后复用欢迎窗入口",
+    ("Features/StatusBar/StatusBarController.swift", "showTutorialAction"):
+        "菜单栏教程入口先返回欢迎页任务列表，再展示同一欢迎窗",
+    ("Features/TransferDock/UI/TransferDockView.swift", "selectTutorialTransferItem"):
+        "正式文件中转页出现和暂存列表变动时调用；仅文件中转教程选中的目标已经入列时勾选该项并切到发送页",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "applyTagChange"):
+        "正式浮动窗接收标签通知，整体替换时只对可见窗重查；删除当前标签清筛选；按受影响dedupeKey更新行tagIDs，筛选或加载中重查，所选项变化重建预览",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "deinit"):
+        "释放初始化登记的标签变化观察者，回调原本弱持有manager，不在释放时写数据库",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "applyTagChange"):
+        "标签整体替换重查，当前标签被删除时清筛选；其他通知仅更新命中keys的行tagIDs，当前筛选或分页读取中沿原reload刷新",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "toggleSaved"):
+        "行收藏按钮与菜单共用，将请求交updateSavedState的后台队列读取数据库现值后取反，不依赖过期行状态",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "updateSavedState"):
+        "setNote及toggleSaved共用串行仓储写入，失败主线程提示；成功通知其他窗，收藏筛选重查，普通列表直接更新原条目isNote并发布items",
+    ("Features/Clipboard/Store/ClipboardRepository.swift", "init"):
+        "ClipboardQuery显式初始化保存查询条件；filter构造从queryMapping转换类型收藏工具代码及文件分类，剥搜索首尾空白后转交原初始化，供主面板与浮动窗查询",
+    ("Features/Clipboard/Store/TagStore.swift", "rename"):
+        "标签管理保存调用，先剥空白并排除其他同名标签；参数绑定更新名称时间，成功主线程更新标签并按更新时间排序，失败返回false给表单",
+    ("Features/Clipboard/Store/TagStore.swift", "tagIDs"):
+        "主列表与浮动窗接收标签增量通知时按单个dedupeKey持锁读原mapping，没有关联返回空数组，不逐行访问SQLite",
+    ("Features/Clipboard/Store/TagStore.swift", "publishTags"):
+        "创建重命名删除成功后共用，主线程应用传入的标签数组更新并发变化通知；后台调用沿原主队列交付",
+    ("Features/Clipboard/Store/TagStore.swift", "postChange"):
+        "关联分配取消与标签列表变更共用，主线程发送原didChangeNotification及受影响keys信息，不重新加载整张关联表",
+    ("Features/Clipboard/UI/ClipboardSectionView.swift", "init"):
+        "剪贴板列表组件按item或选中标签及管理回调保存输入；新增收藏按钮与标签徽章init仅保存条目，正式按钮交manager翻转收藏，设置预览不执行写入",
+    ("Features/Settings/Shell/SettingsPanes.swift", "saveRename"):
+        "标签管理表单回车与保存按钮调用store.rename，失败提示并保留编辑，成功清editingTagID及名称草稿",
+})
+
+EVIDENCE.update({
+    ("Features/Monitor/Storage/StorageVoronoi.swift", "triangulate"):
+        "将凹形存储图边界耳切为三角片，使加权 Voronoi 裁切覆盖原容器形状",
+    ("Features/Monitor/Storage/StorageVoronoi.swift", "signedArea"):
+        "计算多边形有向面积，为耳切判断顶点顺序",
+    ("Features/Monitor/Storage/StorageVoronoi.swift", "cross"):
+        "计算三点叉积，供耳切凸角与点内判定使用",
+    ("Features/Monitor/Storage/StorageVoronoi.swift", "polygonPath"):
+        "将三角裁切轮廓闭合为 SwiftUI Path，供图块填充与命中区域复用",
+    ("Features/Monitor/Storage/StorageVoronoi.swift", "init"):
+        "将裁切交点量化到百万分之一坐标精度，使相邻三角片的共享边可合并",
+    ("Features/Monitor/Storage/StorageVoronoi.swift", "func"):
+        "按坐标字典序排列 PointKey，统一共享边的端点方向",
+    ("Features/Monitor/Storage/StorageVoronoi.swift", "mergedContours"):
+        "抵消三角片间的内部边并追踪剩余外轮廓，避免图块出现分片接缝",
+    ("Features/Monitor/Storage/StorageVoronoi.swift", "clockwiseTurn"):
+        "在轮廓分叉处按转角选择下一条边，连续追踪凹形边界",
+    ("Features/Monitor/Storage/StorageVoronoi.swift", "area"):
+        "分别汇总三角片面积和单片面积，供权重收敛与质心加权使用",
+    ("Features/Monitor/Storage/StorageVoronoi.swift", "centroid"):
+        "分别计算多片面积加权中心与单个多边形质心，供站点松弛和图块定位使用",
+    ("Features/Monitor/Storage/StorageVoronoi.swift", "sampledContours"):
+        "按间距采样 Path 曲线并保留分离轮廓，供图块边界、标签区域与命中路径生成",
+})
+
+EVIDENCE.update({
+    ("Core/Runtime/AppUpdateChecker.swift", "isValidSHA256"):
+        "自动安装前限定 SHA-256 为64位十六进制文本，供更新清单与实际包摘要比较",
+    ("Features/AI/Translation/TranslationProvider.swift", "isAuthorized"):
+        "按总开关与服务商授权键判断在线翻译许可；Apple 系统翻译始终本机可用",
+    ("Features/AI/Translation/TranslationProvider.swift", "authorize"):
+        "首次调用在线 Provider 时说明发送文字并记录用户对此服务的允许或拒绝",
+    ("Features/AI/Translation/TranslationProvider.swift", "setOnlineAllowed"):
+        "设置在线翻译总许可；关闭时撤销服务商单独许可及此前拒绝记录",
+    ("Features/AI/Translation/TranslationToolSession.swift", "remember"):
+        "记录最近一次成功翻译的实际 Provider，供结果提示显示真实服务",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "takeCaptureSessionCompletion"):
+        "从当前截图会话取出并清空结束回调，交给动作条完成或取消路径单次调用",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "finishCaptureSession"):
+        "截图授权拒绝、取消或无法产出时收束当前会话并调用其可选完成回调",
+    ("Features/Capture/Workflow/CaptureWorkflow.swift", "credentialAccount"):
+        "用工作流与步骤的稳定 UUID 组合 Keychain 账号，区分 GitHub 和 Linear 凭证",
+    ("Features/Capture/Workflow/CaptureWorkflow.swift", "readCredential"):
+        "按服务和账号读取 Keychain 凭证；区分条目不存在与钥匙串读取失败",
+    ("Features/Capture/Workflow/CaptureWorkflow.swift", "writeCredential"):
+        "先更新同账号 Keychain 项，不存在时新增，使 JSON 不必保存服务凭证",
+    ("Features/Capture/Workflow/CaptureWorkflow.swift", "deleteCredential"):
+        "删除已移除步骤对应的 Keychain 项，并允许条目本来不存在",
+    ("Features/Capture/Workflow/CaptureWorkflow.swift", "presentFailure"):
+        "报告工作流失败步骤和原截图路径；重试时从失败步骤继续并沿用上下文",
+    ("Features/Clipboard/Store/FavoritesStore.swift", "init"):
+        "构造共享收藏 store 时读取 resource_favorites；控制器构造时保留唯一窗口实例",
+    ("Features/Clipboard/Store/FavoritesStore.swift", "contains"):
+        "按资源类型和稳定 ID 查询本地发布集合中的收藏状态",
+    ("Features/Clipboard/Store/FavoritesStore.swift", "set"):
+        "幂等写入或删除非剪贴板收藏关联，成功后通知所有界面刷新",
+    ("Features/Clipboard/Store/FavoritesStore.swift", "setClipboard"):
+        "在同一 SQLite 事务中更新剪贴板旧收藏列与全局关联表，保证两处状态一致",
+    ("Features/Clipboard/Store/FavoritesStore.swift", "clipboardRemoved"):
+        "剪贴板记录删除后移除对应内存收藏状态并发布变化",
+    ("Features/Clipboard/Store/FavoritesStore.swift", "publish"):
+        "在主线程更新指定资源收藏键并发送全局收藏变化通知",
+    ("Features/Clipboard/Store/FavoritesStore.swift", "toggle"):
+        "在 SQLite 事务内读取当前收藏值并切换，避免不同入口使用过期视图值",
+    ("Features/Clipboard/Store/FavoritesStore.swift", "removeMissing"):
+        "全局收藏视图发现目标资源已不存在时删除对应收藏引用",
+    ("Features/Clipboard/Store/FavoritesStore.swift", "references"):
+        "按加入时间读取类型、资源 ID 和日期，供全局收藏视图打开或清理条目",
+    ("Features/Clipboard/Store/FavoritesStore.swift", "refresh"):
+        "从 resource_favorites 重载收藏键集合，用于恢复备份后同步可见界面",
+    ("Features/Clipboard/Store/FavoritesStore.swift", "show"):
+        "创建或重新呈现可调整大小的全局收藏窗，并激活应用",
+    ("Features/Clipboard/Store/FavoritesStore.swift", "reload"):
+        "合并剪贴板、暂存文件、工具、命令和网页引用；失效资源移除并提供打开动作",
+    ("Features/FloatingBall/FloatingBallController.swift", "columns"):
+        "按小窗宽度、组件尺寸、启用数量与列数设置计算实际网格列数",
+    ("Features/FloatingBall/FloatingBallController.swift", "pageCapacity"):
+        "扣除小窗头尾控件高度后计算每页可容纳的组件数",
+    ("Features/FloatingBall/FloatingBallController.swift", "pageCount"):
+        "按启用组件数和当前容量计算自然分页数量",
+    ("Features/FloatingBall/FloatingBallController.swift", "init"):
+        "控制器单例持有复用状态；面板采用无边框非激活样式，避免建立第二主面板",
+    ("Features/FloatingBall/FloatingBallController.swift", "start"):
+        "监听入口开关、应用失活和显示器变化，再按当前偏好显示或收起面板",
+    ("Features/FloatingBall/FloatingBallController.swift", "applyEnabledState"):
+        "依据统一入口偏好显示或隐藏悬浮球，并在关闭时释放展开态事件监听",
+    ("Features/FloatingBall/FloatingBallController.swift", "applyConfiguration"):
+        "应用用户尺寸、透明度、组件网格及当前屏幕边缘位置设置",
+    ("Features/FloatingBall/FloatingBallController.swift", "ensurePanel"):
+        "只创建一个复用 NSPanel 和 SwiftUI 内容宿主，供悬浮球与快捷窗切换",
+    ("Features/FloatingBall/FloatingBallController.swift", "show"):
+        "优先恢复上次稳定显示器和相对位置，兼读旧屏幕数字键；不记忆时使用鼠标屏幕",
+    ("Features/FloatingBall/FloatingBallController.swift", "toggleExpanded"):
+        "在紧凑悬浮球与快捷组件网格之间切换",
+    ("Features/FloatingBall/FloatingBallController.swift", "expand"):
+        "保留面板实例，按用户宽高展开并恢复该屏上次页或默认页",
+    ("Features/FloatingBall/FloatingBallController.swift", "positionExpanded"):
+        "按球体贴边方向和中心高度定位快捷窗并约束到可见区域",
+    ("Features/FloatingBall/FloatingBallController.swift", "selectPage"):
+        "将页码限制在当前分页范围，并按设置保存该显示器的当前页",
+    ("Features/FloatingBall/FloatingBallController.swift", "pointerEntered"):
+        "鼠标进入时取消收起，唤回半隐藏球体；按设置延迟0.3秒悬停展开",
+    ("Features/FloatingBall/FloatingBallController.swift", "pointerLeft"):
+        "鼠标离开后延迟0.85秒收起或半隐藏；保持展开和禁用半隐藏设置分别生效",
+    ("Features/FloatingBall/FloatingBallController.swift", "collapse"):
+        "收起快捷组件并按设置贴边半隐藏或完整显示球体",
+    ("Features/FloatingBall/FloatingBallController.swift", "dragChanged"):
+        "保存鼠标与球体的初始偏移，并随鼠标更新球体窗口原点",
+    ("Features/FloatingBall/FloatingBallController.swift", "dragEnded"):
+        "按窗口最大重叠面积选择释放屏幕，左右贴边并在释放事件后恢复点击",
+    ("Features/FloatingBall/FloatingBallController.swift", "parkBall"):
+        "把球体置于当前屏幕最近侧边，按设置露16pt并保存完整停靠位置",
+    ("Features/FloatingBall/FloatingBallController.swift", "installExpandedMonitors"):
+        "快捷窗展开期间同时监听应用内与其他App点击及Esc，保留点击事件传递",
+    ("Features/FloatingBall/FloatingBallController.swift", "removeExpandedMonitors"):
+        "收起或停用快捷窗时移除已安装的点击和按键监听",
+    ("Features/FloatingBall/FloatingBallController.swift", "windowDidResignKey"):
+        "浮动面板失去键窗口状态后收起展开内容",
+    ("Features/FloatingBall/FloatingBallController.swift", "run"):
+        "把组件路由到现有业务窗口或共用内容窗，刘海关闭时仍可用；截图结束恢复球体",
+    ("Features/FloatingBall/FloatingBallController.swift", "openModule"):
+        "复用一个可缩放内容窗承载原业务视图，初始640×520且最小360×280",
+    ("Features/FloatingBall/FloatingBallController.swift", "windowWillClose"):
+        "共用内容窗关闭时移除内容宿主，释放业务视图和媒体消费者",
+    ("Features/FloatingBall/FloatingBallController.swift", "move"):
+        "在同一个悬浮面板上动画调整窗口位置与大小",
+    ("Features/FloatingBall/FloatingBallController.swift", "savePosition"):
+        "使用稳定显示器身份保存相对可见区域的位置，并记录最近使用屏幕",
+    ("Features/FloatingBall/FloatingBallController.swift", "clampToConnectedScreen"):
+        "显示器配置变化时将现存面板约束到当前连接屏幕可见范围",
+    ("Features/FloatingBall/FloatingBallController.swift", "screenAtPointer"):
+        "读取鼠标所在显示器作为新面板的放置屏幕",
+    ("Features/FloatingBall/FloatingBallController.swift", "screenFor"):
+        "选择与窗口重叠面积最大的连接显示器",
+    ("Features/FloatingBall/FloatingBallController.swift", "screenKey"):
+        "复用IslandDisplay的稳定显示器身份作为位置与页面偏好键",
+    ("Features/FloatingBall/FloatingBallController.swift", "legacyScreenKey"):
+        "读取旧NSScreenNumber数字键，以继续使用已有球体位置",
+    ("Features/FloatingBall/FloatingBallController.swift", "clampedOrigin"):
+        "按指定显示器可见区域限制面板原点，避免窗口移出屏幕",
+    ("Features/FloatingBall/FloatingBallController.swift", "clamped"):
+        "读取用户尺寸偏好并限制在设置界面公布的范围内，未设置时使用指定默认值",
+    ("Features/Settings/Panes/FloatingBallSettingsPane.swift", "slider"):
+        "展示球体尺寸、小窗宽高、组件尺寸及透明度，并即时应用",
+    ("Features/Settings/Panes/FloatingBallSettingsPane.swift", "option"):
+        "把位置记忆、逐屏页面记忆、离开保持展开与半隐藏开关写入共用偏好并应用",
+    ("Features/StatusBar/StatusBarController.swift", "openFavoritesAction"):
+        "状态栏全局收藏菜单项打开共享收藏窗口",
+})
 
 if __name__ == "__main__":
     sys.exit(main())

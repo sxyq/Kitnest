@@ -26,9 +26,7 @@ public enum CodeRichCopy {
                                       border: NSColor,
                                       fontSize: CGFloat = 12.5) -> Bool {
         guard attributed.length > 0 else { return false }
-        let firstColor = attributed.length > 0
-            ? (attributed.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor)
-            : nil
+        let firstColor = attributed.attribute(.foregroundColor, at: 0, effectiveRange: nil) as? NSColor
         let html = makeHTML(spansHTML(attributed),
                             background: background,
                             border: border,
@@ -38,11 +36,7 @@ public enum CodeRichCopy {
                             header: nil,
                             fontSize: fontSize,
                             tabWidth: 4)
-        let mutable = NSMutableAttributedString(attributedString: attributed)
-        let full = NSRange(location: 0, length: mutable.length)
-        mutable.addAttribute(.backgroundColor, value: background, range: full)
-        let rtf = mutable.rtf(from: full,
-                              documentAttributes: [.documentType: NSAttributedString.DocumentType.rtf])
+        let rtf = makeRTF(attributed, background: background)
         return write(html: html, rtf: rtf, plain: attributed.string)
     }
 
@@ -72,7 +66,7 @@ public enum CodeRichCopy {
         public let plain: String
     }
 
-    public static func makePayload(_ code: String, options: CodeRenderOptions) -> Payload {
+    public static func makePayload(_ code: String, options: CodeRenderOptions, includeRTF: Bool = true) -> Payload {
         let attributed = CodeHighlighter.exportAttributed(code, options: options)
         let theme = options.theme
         let html = makeHTML(spansHTML(attributed),
@@ -84,7 +78,7 @@ public enum CodeRichCopy {
                             header: "\(CodeLanguageCatalog.displayName(options.language)) · \(CodeHighlighter.statistics(code).lines) 行",
                             fontSize: options.fontSize,
                             tabWidth: options.tabWidth)
-        let rtf = makeRTF(attributed, background: theme.background)
+        let rtf = includeRTF ? makeRTF(attributed, background: theme.background) : nil
         let plain = attributed.string
         return Payload(html: html, rtf: rtf, plain: plain)
     }

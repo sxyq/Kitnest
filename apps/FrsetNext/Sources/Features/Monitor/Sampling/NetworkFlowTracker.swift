@@ -14,9 +14,8 @@ import Foundation
 //
 // 数据来源：
 //   · 分应用：StatsDataProvider.current.procNet（nettop 差分，diskRead=下行 B/s，diskWrite=上行）
-//   · 整机：NetworkPulse 的 1s 脉冲（netDownBps/netUpBps）
-//   两者都只在监测页可见时采样（C 层 nettop 在隐藏时暂停），所以窗口 = "面板可见期间的最近 10 分钟"，
-//   覆盖不足 10 分钟时由 UI 标明"已统计 X 分钟"，不假装是 10 分钟。
+//   · 整机：后台节拍读取 C 引擎的网络速率（netDownBps/netUpBps）
+//   开启常驻统计后不依赖监测页可见性；覆盖不足 10 分钟时由界面显示已统计时长。
 
 public struct NetworkFlowEntry: Identifiable, Sendable {
     public let key: String
@@ -40,8 +39,6 @@ public final class NetworkFlowTracker {
 
     /// 统计窗口：10 分钟
     public static let windowSeconds: TimeInterval = 600
-    /// 分应用采样最小间隔（nettop 5s 一轮，少于 4s 的重复读会重复计费）
-    private static let appMinInterval: TimeInterval = 4.0
     /// 单值上限，防脏数据把窗口撑爆
     private static let maxRate: Double = 10_000_000_000
 
@@ -86,11 +83,15 @@ public final class NetworkFlowTracker {
     /// 后台节拍间隔（nettop 本身就是 5s 一轮，再密只是重复读同一份缓存）
     private static let backgroundInterval: TimeInterval = 5.0
 
-    /// 启动常驻统计（MonitorModule 启动时调用一次；幂等）
-    public func startBackgroundUpdates() {
+    /// 启动及监测偏好变化共用同一个定时器入口。
+    public func applyKeepAlivePreference() {
         dispatchPrecondition(condition: .onQueue(.main))
+        guard MonitorPreferences.isEnabled, MonitorPreferences.networkKeepAlive else {
+            backgroundTimer?.invalidate()
+            backgroundTimer = nil
+            return
+        }
         guard backgroundTimer == nil else { return }
-        guard MonitorPreferences.networkKeepAlive else { return }
         backgroundTick()                       // 立刻采一帧，首开不用等 5s
         let timer = Timer(timeInterval: Self.backgroundInterval, repeats: true) { [weak self] _ in
             self?.backgroundTick()
@@ -100,36 +101,27 @@ public final class NetworkFlowTracker {
         backgroundTimer = timer
     }
 
-    /// 停止常驻统计（监测总开关关闭 / 用户关掉常驻时）
-    public func stopBackgroundUpdates() {
-        backgroundTimer?.invalidate()
-        backgroundTimer = nil
-    }
-
-    /// 常驻开关变化后重新评估（设置页改完立刻生效）
-    public func applyKeepAlivePreference() {
-        if MonitorPreferences.networkKeepAlive && MonitorPreferences.isEnabled {
-            startBackgroundUpdates()
-        } else {
-            stopBackgroundUpdates()
-        }
-    }
-
     private func backgroundTick() {
-        guard MonitorPreferences.isEnabled, MonitorPreferences.networkKeepAlive else { return }
-        // 分应用：C 层 nettop 后台线程的缓存（线程本身由 StatsDataProvider 保活）
-        let items = StatsDataProvider.readProcList(kind: 3, max: 8)
-        if !items.isEmpty { ingestApps(items) }
-        // 整机：C 层 1s 更新的瞬时速率 × 5s 节拍 ≈ 这一段实际收发字节
-        let snapshot = g_snap
-        if snapshot.valid != 0 {
-            ingestNIC(down: snapshot.netDownBps, up: snapshot.netUpBps)
+        MonitorSampler.shared.samplingQueue.async {
+            guard MonitorPreferences.isEnabled, MonitorPreferences.networkKeepAlive else { return }
+            // 与 refresh 在同一采样队列读取 nettop 缓存，定时器只负责派发。
+            let items = StatsDataProvider.readProcList(kind: 3, max: 8)
+            if !items.isEmpty { self.ingestApps(items) }
+            // 整机：C 层 1s 更新的瞬时速率 × 5s 节拍 ≈ 这一段实际收发字节
+            let snapshot = g_snap
+            if snapshot.valid != 0 {
+                self.ingestNIC(down: snapshot.netDownBps, up: snapshot.netUpBps)
+            } else {
+                var network = frset_net_t()
+                frset_net_sample(&network)
+                self.ingestNIC(down: Double(network.down_bps), up: Double(network.up_bps))
+            }
         }
     }
 
     // MARK: 采样入口
 
-    /// 分应用采样（由 StatsDataProvider 每次读取 procNet 时调用，内部按 4s 去重）
+    /// 分应用采样（StatsDataProvider 与后台节拍共用，按时间及总量变化去重）。
     public func ingestApps(_ items: [StatsProcItem], now: Date = Date()) {
         let t = now.timeIntervalSince1970
         lock.lock()
@@ -152,23 +144,24 @@ public final class NetworkFlowTracker {
             // 速率 × 间隔 = 这一档里该 App 实际收发的字节
             let downBytes = downRate * interval
             let upBytes = upRate * interval
-            guard downBytes + upBytes > 0 || apps[item.groupKey] != nil else { continue }
-            var state = apps[item.groupKey] ?? AppState(name: item.name,
-                                                        iconPath: item.iconPath,
-                                                        liveDown: 0, liveUp: 0,
-                                                        samples: [])
-            state.name = item.name
-            if !item.iconPath.isEmpty { state.iconPath = item.iconPath }
-            state.liveDown = downRate
-            state.liveUp = upRate
-            state.samples.append(Sample(at: t, down: downBytes, up: upBytes))
-            apps[item.groupKey] = state
+            let key = item.groupKey
+            guard downBytes + upBytes > 0 || apps[key] != nil else { continue }
+            if apps[key] == nil {
+                apps[key] = AppState(name: item.name, iconPath: item.iconPath,
+                                     liveDown: 0, liveUp: 0, samples: [])
+            }
+            apps[key]?.name = item.name
+            if !item.iconPath.isEmpty { apps[key]?.iconPath = item.iconPath }
+            apps[key]?.liveDown = downRate
+            apps[key]?.liveUp = upRate
+            // 直接追加到字典内的数组，避免每次读取局部 state 后复制整段历史。
+            apps[key]?.samples.append(Sample(at: t, down: downBytes, up: upBytes))
             if apps.count > 200 { trimApps() }
         }
         prune(t)
     }
 
-    /// 整机采样（NetworkPulse 1s 一拍）：用来算「其他 App」= 整机 - 已列出
+    /// 累计整机流量，供「其他 App」计算整机与已列出项目的差值。
     public func ingestNIC(down: Double, up: Double, now: Date = Date()) {
         let t = now.timeIntervalSince1970
         lock.lock()
@@ -256,25 +249,10 @@ public final class NetworkFlowTracker {
         let cutoff = now - Self.windowSeconds
         nicSamples.removeAll { $0.at < cutoff }
         for (key, state) in apps {
-            var trimmed = state.samples
-            if let firstKeep = trimmed.firstIndex(where: { $0.at >= cutoff }) {
-                if firstKeep > 0 { trimmed.removeFirst(firstKeep) }
+            if let firstKeep = state.samples.firstIndex(where: { $0.at >= cutoff }) {
+                if firstKeep > 0 { apps[key]?.samples.removeFirst(firstKeep) }
             } else {
-                trimmed.removeAll()
-            }
-            if trimmed.isEmpty {
-                // 窗口内没有流量了：保留 30s 让「刚刚很活跃」的项不要立刻消失
-                if state.samples.last.map({ now - $0.at > 30 }) ?? true {
-                    apps.removeValue(forKey: key)
-                } else {
-                    var copy = state
-                    copy.samples = trimmed
-                    apps[key] = copy
-                }
-            } else if trimmed.count != state.samples.count {
-                var copy = state
-                copy.samples = trimmed
-                apps[key] = copy
+                apps.removeValue(forKey: key)
             }
         }
     }

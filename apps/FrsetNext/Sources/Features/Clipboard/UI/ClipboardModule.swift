@@ -14,8 +14,6 @@ public enum ClipboardModule: AppModule {
         // 现在唯一入口 = AppBootstrap 默认热键表 + DoubleTapShortcutCenter。
         // ① 启动捕获与双清理调度
         ClipboardManager.shared.start()
-        ClipboardHistoryRetentionPruneScheduler.shared.start()
-        ClipboardStoragePruneScheduler.shared.start()
 
         // ② 恢复浮动窗的上次可见状态
         FloatingClipboardWindowController.shared.restoreVisibilityIfNeeded()
@@ -27,8 +25,7 @@ public enum ClipboardModule: AppModule {
 
         // ④ 设置页签
         SettingsPaneRegistry.register(SettingsPaneDescriptor(
-            id: "clipboard", title: "剪贴板", systemImage: "clipboard",
-            build: { AnyView(ClipboardSettingsPane()) }))
+            id: "clipboard", title: "剪贴板", systemImage: "clipboard"))
 
         ModuleRegistry.register(self)
         Log.info("clipboard", "模块已启动")

@@ -1,6 +1,57 @@
 import AppKit
+import Combine
 import SwiftUI
 import UniformTypeIdentifiers
+
+final class ClipboardHistorySettingsDraft: SettingsEditableDraft {
+    @Published var retentionDays = Double(Preferences.shared.value(Preferences.Keys.clipboardRetentionDays, default: 30))
+    @Published var storageLimitMB = Double(Preferences.shared.value(Preferences.Keys.clipboardStorageLimitMB, default: 2048))
+    private var saved: [Double] = []
+    init() { saved = values }
+    private var values: [Double] { [retentionDays, storageLimitMB] }
+    var isDirty: Bool { values != saved }
+    func save() -> String? {
+        if retentionDays != saved[0] { Preferences.shared.set(Preferences.Keys.clipboardRetentionDays, Int(retentionDays)) }
+        if storageLimitMB != saved[1] { Preferences.shared.set(Preferences.Keys.clipboardStorageLimitMB, Int(storageLimitMB)) }
+        guard UserDefaults.standard.synchronize() else { return "剪贴板历史设置写入磁盘失败，调整已保留" }
+        saved = values
+        objectWillChange.send()
+        return nil
+    }
+    func discard() {
+        retentionDays = Double(Preferences.shared.value(Preferences.Keys.clipboardRetentionDays, default: 30))
+        storageLimitMB = Double(Preferences.shared.value(Preferences.Keys.clipboardStorageLimitMB, default: 2048))
+        saved = values
+    }
+    func restoreDefaults() { retentionDays = 30; storageLimitMB = 2048 }
+}
+
+final class ClipboardCaptureSettingsDraft: SettingsEditableDraft {
+    struct Values: Equatable {
+        var autoPaste = false
+        var ignoredApps: [String] = []
+        var automaticImageOCR = true
+        static var current: Self {
+            Self(autoPaste: Preferences.shared.value(Preferences.Keys.clipboardAutoPaste, default: false),
+                 ignoredApps: Preferences.shared.value(Preferences.Keys.clipboardIgnoredApps, default: []),
+                 automaticImageOCR: Preferences.shared.value("automaticScreenshotOCREnabled", default: true))
+        }
+    }
+    @Published var values = Values.current
+    private var saved = Values.current
+    var isDirty: Bool { values != saved }
+    func save() -> String? {
+        if values.autoPaste != saved.autoPaste { Preferences.shared.set(Preferences.Keys.clipboardAutoPaste, values.autoPaste) }
+        if values.ignoredApps != saved.ignoredApps { Preferences.shared.set(Preferences.Keys.clipboardIgnoredApps, values.ignoredApps) }
+        if values.automaticImageOCR != saved.automaticImageOCR { Preferences.shared.set("automaticScreenshotOCREnabled", values.automaticImageOCR) }
+        guard UserDefaults.standard.synchronize() else { return "剪贴板捕获设置写入磁盘失败，调整已保留" }
+        saved = values
+        objectWillChange.send()
+        return nil
+    }
+    func discard() { values = .current; saved = values }
+    func restoreDefaults() { values = Values() }
+}
 
 // MARK: - 剪贴板设置页（07 号设置模块通过 SettingsPaneRegistry 消费）
 //
@@ -20,18 +71,10 @@ public struct ClipboardSettingsPane: View {
     @Stored private var isManagingTags = false
     /// 标签总管（复用现有 TagStore，不新建计数链路）
     @ObservedObject private var tagStore = TagStore.shared
-    /// 忽略应用（隐私名单）修订号：Preferences 无观察者，用自增驱动重绘
-    @Stored private var ignoredAppsRevision = 0
-
-    @Stored private var retentionDays: Double = Double(Preferences.shared.value(Preferences.Keys.clipboardRetentionDays, default: 30))
-    @Stored private var storageLimitMB: Double = Double(Preferences.shared.value(Preferences.Keys.clipboardStorageLimitMB, default: 2048))
-    @Stored private var autoPaste: Bool = Preferences.shared.value(Preferences.Keys.clipboardAutoPaste, default: false)
     @ObservedObject private var floatingStore = FloatingClipboardWindowController.shared.store
     /// v115：当前占用（进页时取一次；「立即清理」后刷新——此前是 body 裸计算值，
     /// 无状态变化不重渲染，清理后占用显示不变，加重"没生效"错觉）
     @Stored private var usageBytes: Int64 = 0
-    /// 快捷键录入后刷新显示（v263）
-    @Stored private var shortcutRevision = 0
     @Stored private var clearingHistory = false
     @Stored private var backupRequest: ClipboardBackupRequest?
 
@@ -63,9 +106,12 @@ public struct ClipboardSettingsPane: View {
             case .appearance:
                 AppearanceSettingsEditor(scope: .clipboardAppearance) { draft in
                     SettingsGroupBox {
-                        AppearancePreviewBlock(scope: .clipboardList, draft: draft)
-                        SettingsDivider()
-                        PersonalizationSettingsView(part: .clipboardAppearance, draft: draft)
+                        SettingsPreviewColumns {
+                            AppearancePreviewBlock(scope: .clipboardList, draft: draft)
+                        } controls: {
+                            PersonalizationSettingsView(part: .clipboardAppearance,
+                                                        draft: draft, compact: true)
+                        }
                     }
                 }
             }
@@ -80,7 +126,6 @@ public struct ClipboardSettingsPane: View {
         }
         .onAppear {
             if section == .history {
-                tagStore.refresh()
                 usageBytes = ClipboardStorageUsageProvider.shared.totalBytes
             }
         }
@@ -89,23 +134,20 @@ public struct ClipboardSettingsPane: View {
     // MARK: - 历史
 
     private var historySection: some View {
+        SettingsDraftEditor(id: "clipboardHistory", makeDraft: { ClipboardHistorySettingsDraft() }) { draft in
         SettingsSection("历史") {
             SettingsGroupBox {
                 sliderRow("保留天数",
-                          valueText: "\(Int(retentionDays)) 天",
-                          value: $retentionDays,
+                          valueText: "\(Int(draft.retentionDays)) 天",
+                          value: Binding(get: { draft.retentionDays }, set: { draft.retentionDays = $0 }),
                           range: 1...365,
-                          step: 1) {
-                    preferences.set(Preferences.Keys.clipboardRetentionDays, Int(retentionDays))
-                }
+                          step: 1)
                 SettingsDivider()
                 sliderRow("容量上限",
-                          valueText: "\(Int(storageLimitMB)) MB",
-                          value: $storageLimitMB,
+                          valueText: "\(Int(draft.storageLimitMB)) MB",
+                          value: Binding(get: { draft.storageLimitMB }, set: { draft.storageLimitMB = $0 }),
                           range: 256...8192,
-                          step: 256) {
-                    preferences.set(Preferences.Keys.clipboardStorageLimitMB, Int(storageLimitMB))
-                }
+                          step: 256)
                 SettingsDivider()
                 // v115：占用改为状态存储——此前是 body 里的裸计算值，点「立即清理」
                 // 后无状态变化不重渲染，占用显示永远停在进页时刻（加重"没生效"错觉）
@@ -116,8 +158,10 @@ public struct ClipboardSettingsPane: View {
                 }
                 SettingsDivider()
                 SettingsRow(title: "清理历史",
-                            subtitle: "按保留天数与容量上限删除超限条目") {
+                            subtitle: "即时操作，按已保存的保留天数与容量上限删除超限条目") {
                     Button("立即清理") {
+                        let savedDays = preferences.value(Preferences.Keys.clipboardRetentionDays, default: 30)
+                        let savedLimit = preferences.value(Preferences.Keys.clipboardStorageLimitMB, default: 2048)
                         // v115：无论删没删都给反馈——此前删 0 条时零提示，用户误判按钮失效
                         // v210：清理移到后台队列（批量删除 + 目录遍历不占主线程），
                         // 两个调度器结果都回来后再统一提示一次。
@@ -139,7 +183,7 @@ public struct ClipboardSettingsPane: View {
                                 let reclaimed = Self.bytesText(r1.reclaimedBytes + r2.reclaimedBytes)
                                 Toast.show("已清理 \(removed) 条，回收 \(reclaimed)", icon: "trash")
                             } else {
-                                Toast.show("没有超过保留期（\(Int(retentionDays)) 天）或容量上限的条目",
+                                Toast.show("没有超过已保存保留期（\(savedDays) 天）或容量上限（\(savedLimit) MB）的条目",
                                            icon: "checkmark.circle")
                             }
                         }
@@ -147,7 +191,7 @@ public struct ClipboardSettingsPane: View {
                     .controlSize(.small)
                 }
                 SettingsDivider()
-                SettingsRow(title: "清除历史，保留已存项目", subtitle: "删除全部未存历史；保留笔记、标签及原文件。即时操作。") {
+                SettingsRow(title: "清除历史，保留已存项目", subtitle: "保留已存项目、收藏、标签、文件中转及原文件。即时操作。") {
                     Button(clearingHistory ? "正在清理…" : "清除历史…") {
                         clearingHistory = true
                         ClipboardManager.shared.clearUnsavedHistory {
@@ -159,7 +203,7 @@ public struct ClipboardSettingsPane: View {
                     .disabled(clearingHistory)
                 }
                 SettingsDivider()
-                SettingsRow(title: "密码加密备份", subtitle: "备份剪贴板、笔记、标签与完整附件；外部文件仅保存路径。密码不保存。") {
+                SettingsRow(title: "密码加密备份", subtitle: "备份剪贴板记录、剪贴板收藏、标签与完整附件；不含其他模块收藏，外部文件仅保存路径。密码不保存。") {
                     HStack(spacing: 8) {
                         Button("加密备份…") {
                             let panel = NSSavePanel()
@@ -192,11 +236,13 @@ public struct ClipboardSettingsPane: View {
                 }
             }
         }
+        }
     }
 
     // MARK: - 捕获
 
     private var captureSection: some View {
+        SettingsDraftEditor(id: "clipboardCapture", makeDraft: { ClipboardCaptureSettingsDraft() }) { draft in
         SettingsSection("捕获") {
             SettingsGroupBox {
                 Text("捕获为自适应轮询：闲置 1 秒，检测到新内容后 0.5 秒突发（持续 2 秒）。")
@@ -213,22 +259,25 @@ public struct ClipboardSettingsPane: View {
                                 .controlSize(.small)
                                 .buttonStyle(.borderless)
                         }
-                        Toggle("", isOn: $autoPaste)
+                        Toggle("", isOn: Binding(get: { draft.values.autoPaste }, set: { draft.values.autoPaste = $0 }))
                             .labelsHidden()
                             .toggleStyle(.switch)
                             .controlSize(.small)
-                            .onChange(of: autoPaste) { newValue in
-                                preferences.set(Preferences.Keys.clipboardAutoPaste, newValue)
-                            }
                     }
                 }
                 SettingsDivider()
                 // v272：从「常规 → 剪贴板」并回来的隐私名单（原处已删）
                 SettingsRow(title: "忽略应用（隐私名单）",
                             subtitle: "这些应用里复制的内容不会进历史") {
-                    IgnoredAppsEditor(revision: $ignoredAppsRevision)
+                    IgnoredAppsEditor(apps: Binding(get: { draft.values.ignoredApps }, set: { draft.values.ignoredApps = $0 }))
+                }
+                SettingsDivider()
+                SettingsRow(title: "自动图片文字识别", subtitle: "新捕获的图片自动提取文字，保存后生效") {
+                    Toggle("", isOn: Binding(get: { draft.values.automaticImageOCR }, set: { draft.values.automaticImageOCR = $0 }))
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
                 }
             }
+        }
         }
     }
 
@@ -295,48 +344,21 @@ public struct ClipboardSettingsPane: View {
                             .controlSize(.small)
                     }
                     SettingsDivider()
-                    // v200（用户：悬浮剪贴板快捷键要能自行自定义）：
-                    // 硬编码「双击 ⌘」已删。
-                    // v263：用户要求「剪贴板也要能像截图一样单独设置快捷键」——
-                    // 这里直接放录入控件，不用再跳去快捷键页（2× 双击模式仍去那页开关）。
                     SettingsRow(title: "呼出快捷键", subtitle: floatingShortcutSummary) {
-                        if AppBootstrap.doubleTapModifier(for: "floatingClipboard") != nil {
-                            Button("修改") {
-                                ServiceLocator.settings?.open(pane: "shortcuts")
-                            }
-                            .controlSize(.small)
-                        } else {
-                            HStack(spacing: 8) {
-                                ShortcutRecorderButton(
-                                    display: AppBootstrap.shortcutBinding(for: "floatingClipboard").map {
-                                        ShortcutManager.display(keyCode: $0.keyCode, modifiers: $0.modifiers)
-                                    },
-                                    onCapture: { code, modifiers in
-                                        _ = AppBootstrap.setShortcut("floatingClipboard", keyCode: code, modifiers: modifiers)
-                                        shortcutRevision += 1
-                                    },
-                                    onClear: {
-                                        _ = AppBootstrap.setShortcut("floatingClipboard", keyCode: nil)
-                                        shortcutRevision += 1
-                                    })
-                                    .frame(width: 132)
-                                Button("全部…") {
-                                    ServiceLocator.settings?.open(pane: "shortcuts")
-                                }
-                                .controlSize(.small)
-                            }
+                        Button("前往快捷键") {
+                            ServiceLocator.settings?.open(pane: "shortcuts#floatingClipboard")
                         }
+                        .controlSize(.small)
                     }
                     SettingsDivider()
-                    SettingsRow(title: "浮动窗位置", subtitle: "重置为当前屏幕中央") {
+                    SettingsRow(title: "浮动窗位置", subtitle: draft.floatingFrame == nil ? "重置为当前屏幕中央，保存后生效" : "已准备居中位置，保存后生效") {
                         Button("重置位置") {
                             let state = FloatingClipboardPinState.shared
                             guard let visible = NSScreen.main?.visibleFrame else { return }
                             var frame = state.clampedFrame()
                             frame.origin = NSPoint(x: visible.midX - frame.width / 2,
                                                    y: visible.midY - frame.height / 2)
-                            FloatingClipboardWindowController.shared.window?.setFrame(frame, display: true)
-                            state.save(frame: frame)
+                            draft.floatingFrame = frame
                         }
                         .controlSize(.small)
                     }
@@ -352,8 +374,7 @@ public struct ClipboardSettingsPane: View {
                            valueText: String,
                            value: Binding<Double>,
                            range: ClosedRange<Double>,
-                           step: Double,
-                           onCommit: @escaping () -> Void) -> some View {
+                           step: Double) -> some View {
         VStack(spacing: 7) {
             HStack(spacing: 8) {
                 Text(title)
@@ -363,10 +384,7 @@ public struct ClipboardSettingsPane: View {
                     .font(.system(size: 12).monospacedDigit())
                     .foregroundStyle(.secondary)
             }
-            Slider(value: value, in: range, step: step) { _ in
-                // 拖动开始/结束都会回调；写入是幂等的整数键，无需防抖
-                onCommit()
-            }
+            Slider(value: value, in: range, step: step)
             .controlSize(.small)
         }
         .padding(.vertical, 9)
@@ -402,6 +420,7 @@ private struct ClipboardBackupSheet: View {
     @Stored private var operation: ClipboardBackup.Operation?
     @Stored private var replace = false
     @Stored private var useBackupConflicts = false
+    @Stored private var missingRecords: [ClipboardBackup.MissingRecord]?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -418,15 +437,27 @@ private struct ClipboardBackupSheet: View {
                     Text("替换剪贴板资料").tag(true)
                 }.pickerStyle(.segmented)
                 if replace {
-                    Text("替换全部剪贴板历史、笔记和标签，保留 AI 对话及其他模块资料。")
+                    Text("替换全部剪贴板历史、剪贴板收藏和标签；保留文件、工具等其他模块资料。")
                         .font(.system(size: 12)).foregroundStyle(.secondary)
                 } else {
-                    Picker("内容相同但标题、笔记或标签不同", selection: $useBackupConflicts) {
+                    Picker("冲突记录（含本机缺失附件）", selection: $useBackupConflicts) {
                         Text("保留本机").tag(false)
                         Text("使用备份").tag(true)
                     }
                 }
             } else {
+                if let missingRecords, !missingRecords.isEmpty {
+                    Text("\(missingRecords.count) 条记录缺少附件。仅备份完整记录时，这些记录继续保留在本机；加密包包含跳过清单。")
+                        .font(.system(size: 12)).foregroundStyle(.secondary)
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 8) {
+                            ForEach(missingRecords) { record in
+                                Text(record.title + "\n" + record.paths.joined(separator: "\n"))
+                                    .font(.system(size: 12)).textSelection(.enabled)
+                            }
+                        }.frame(maxWidth: .infinity, alignment: .leading)
+                    }.frame(maxHeight: 180)
+                }
                 SecureField("密码", text: $password)
                 if !request.importing { SecureField("再次输入密码", text: $confirmation) }
                 Text(request.importing ? "先解密并展示资料数量，确认后才恢复。" : "7z 同时加密正文、附件和文件名。请自行保管密码。")
@@ -436,17 +467,18 @@ private struct ClipboardBackupSheet: View {
             HStack {
                 if busy { ProgressView().controlSize(.small); Text("正在处理…").foregroundStyle(.secondary) }
                 Spacer()
-                Button("取消") { operation?.cancel(); if !busy { session?.cleanup() }; password = ""; close() }
+                Button("取消") { operation?.cancel(); password = ""; close() }
                     .keyboardShortcut(.cancelAction)
-                Button(session == nil ? (request.importing ? "读取备份" : "加密备份") : "确认恢复") { execute() }
+                Button(session == nil ? (request.importing ? "读取备份" : (missingRecords?.isEmpty == false ? "仅备份完整记录" : "加密备份")) : "确认恢复") { execute() }
                     .buttonStyle(.borderedProminent)
                     .keyboardShortcut(.defaultAction)
-                    .disabled(busy || (session == nil && (password.isEmpty || (!request.importing && password != confirmation))))
+                    .disabled(busy || (!request.importing && missingRecords == nil) || (session == nil && (password.isEmpty || (!request.importing && password != confirmation))))
             }
         }
         .padding(24)
         .frame(width: 430)
         .frsetThemeChrome()
+        .onAppear { if !request.importing { reviewExport() } }
         .onDisappear { operation?.cancel(); if !busy { session?.cleanup() }; password = ""; confirmation = "" }
     }
 
@@ -465,7 +497,19 @@ private struct ClipboardBackupSheet: View {
                 }
             }
         } else {
-            operation = ClipboardManager.shared.exportBackup(to: request.url, password: password, completion: finish)
+            operation = ClipboardManager.shared.exportBackup(to: request.url, password: password, skipping: missingRecords ?? [], completion: finish)
+        }
+    }
+
+    private func reviewExport() {
+        busy = true
+        operation = ClipboardManager.shared.reviewBackupExport { result in
+            busy = false
+            operation = nil
+            switch result {
+            case .success(let records): missingRecords = records
+            case .failure(let error): message = error.localizedDescription
+            }
         }
     }
 
@@ -474,11 +518,14 @@ private struct ClipboardBackupSheet: View {
         operation = nil
         switch result {
         case .success(let text):
-            session?.cleanup()
             password = ""; confirmation = ""
             Toast.show(text, icon: "checkmark.circle")
             close()
-        case .failure(let error): message = error.localizedDescription
+        case .failure(let error):
+            session = nil
+            password = ""; confirmation = ""
+            message = error.localizedDescription
+            if !request.importing { reviewExport() }
         }
     }
 }

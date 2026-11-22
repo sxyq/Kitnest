@@ -8,6 +8,8 @@ import Foundation
 public final class TagStore: ObservableObject {
 
     public static let shared = TagStore()
+    public static let didChangeNotification = Notification.Name("FrsetNext.Clipboard.tagsDidChange")
+    public static let manageRequestedNotification = Notification.Name("FrsetNext.Clipboard.manageTagsRequested")
 
     @Published public private(set) var tags: [Tag] = []
 
@@ -20,7 +22,8 @@ public final class TagStore: ObservableObject {
 
     // MARK: 加载
 
-    public func refresh() {
+    public func refresh(notifying: Bool = false) {
+        db.accessLock.lock(); defer { db.accessLock.unlock() }
         do {
             let rows = try db.query("SELECT id, name, color_hex, created_at, updated_at FROM tags ORDER BY updated_at DESC")
             let loadedTags = rows.map { row -> Tag in
@@ -39,7 +42,12 @@ public final class TagStore: ObservableObject {
             lock.lock()
             self.mapping = loadedMapping
             lock.unlock()
-            DispatchQueue.main.async { self.tags = loadedTags }
+            let publish = { [weak self] in
+                guard let self else { return }
+                self.tags = loadedTags
+                if notifying { self.postChange(["mappingReplaced": true]) }
+            }
+            if Thread.isMainThread { publish() } else { DispatchQueue.main.async(execute: publish) }
         } catch {
             Log.error("clipboard", "标签加载失败: \(error)")
         }
@@ -71,7 +79,7 @@ public final class TagStore: ObservableObject {
             try db.run("INSERT INTO tags(id, name, color_hex, created_at, updated_at) VALUES (?,?,?,?,?)",
                        [.text(tag.id), .text(tag.name), .text(tag.colorHex),
                         .real(now.timeIntervalSince1970), .real(now.timeIntervalSince1970)])
-            refresh()
+            publishTags { $0.append(tag) }
             return tag
         } catch {
             // 重名（NOCASE）→ 返回既有标签
@@ -80,16 +88,56 @@ public final class TagStore: ObservableObject {
         }
     }
 
+    @discardableResult
+    public func rename(id: String, name: String) -> Bool {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty,
+              !tags.contains(where: { $0.id != id && $0.name.caseInsensitiveCompare(trimmed) == .orderedSame }) else {
+            return false
+        }
+        let updatedAt = Date()
+        do {
+            try db.run("UPDATE tags SET name = ?, updated_at = ? WHERE id = ?",
+                       [.text(trimmed), .real(updatedAt.timeIntervalSince1970), .text(id)])
+            publishTags { tags in
+                guard let index = tags.firstIndex(where: { $0.id == id }) else { return }
+                tags[index].name = trimmed
+                tags[index].updatedAt = updatedAt
+                tags.sort { $0.updatedAt > $1.updatedAt }
+            }
+            return true
+        } catch {
+            Log.error("clipboard", "标签重命名失败: \(error)")
+            return false
+        }
+    }
+
 
     public func delete(id: String) {
-        // clipboard_item_tags 外键 ON DELETE CASCADE，关联行自动清理
-        try? db.run("DELETE FROM tags WHERE id = ?", [.text(id)])
-        refresh()
+        do {
+            try db.run("DELETE FROM tags WHERE id = ?", [.text(id)])
+            lock.lock()
+            let affectedKeys = mapping.compactMap { key, values in values.contains(id) ? key : nil }
+            for key in affectedKeys {
+                mapping[key]?.removeAll { $0 == id }
+                if mapping[key]?.isEmpty == true { mapping.removeValue(forKey: key) }
+            }
+            lock.unlock()
+            publishTags(["keys": affectedKeys, "tagID": id, "removed": true]) { tags in
+                tags.removeAll { $0.id == id }
+            }
+        } catch {
+            Log.error("clipboard", "标签删除失败: \(error)")
+        }
     }
 
     // MARK: 分配
 
     public func assign(tagID: String, toDedupeKey key: String) {
+        lock.lock()
+        let alreadyAssigned = (mapping[key] ?? []).contains(tagID)
+        lock.unlock()
+        guard !alreadyAssigned else { return }
         do {
             try db.run("INSERT OR IGNORE INTO clipboard_item_tags(item_dedupe_key, tag_id, created_at) VALUES (?,?,?)",
                        [.text(key), .text(tagID), .real(Date().timeIntervalSince1970)])
@@ -101,6 +149,7 @@ public final class TagStore: ObservableObject {
             if !list.contains(tagID) { list.append(tagID) }
             mapping[key] = list
             lock.unlock()
+            postChange(["keys": [key], "tagID": tagID, "assigned": true])
         } catch {
             // 失败时不做增量（保持 mapping 与库一致），下次 refresh 兜底
             Log.warn("clipboard", "标签分配失败: \(error)")
@@ -108,6 +157,10 @@ public final class TagStore: ObservableObject {
     }
 
     public func unassign(tagID: String, fromDedupeKey key: String) {
+        lock.lock()
+        let isAssigned = (mapping[key] ?? []).contains(tagID)
+        lock.unlock()
+        guard isAssigned else { return }
         do {
             try db.run("DELETE FROM clipboard_item_tags WHERE item_dedupe_key = ? AND tag_id = ?", [.text(key), .text(tagID)])
             // v126（性能审计 F0769）：同 assign，增量摘除代替全表 refresh
@@ -117,9 +170,17 @@ public final class TagStore: ObservableObject {
                 if list.isEmpty { mapping.removeValue(forKey: key) } else { mapping[key] = list }
             }
             lock.unlock()
+            postChange(["keys": [key], "tagID": tagID, "assigned": false])
         } catch {
             Log.warn("clipboard", "标签取消失败: \(error)")
         }
+    }
+
+    /// 成功删除条目后同步移除内存标签关联。
+    func removeMapping(for key: String) {
+        lock.lock()
+        mapping.removeValue(forKey: key)
+        lock.unlock()
     }
 
     /// 菜单勾选用：已分配则取消，否则分配
@@ -129,6 +190,26 @@ public final class TagStore: ObservableObject {
         lock.unlock()
         if already { unassign(tagID: tagID, fromDedupeKey: dedupeKey) }
         else { assign(tagID: tagID, toDedupeKey: dedupeKey) }
+    }
+
+    public func tagIDs(forDedupeKey key: String) -> [String] {
+        lock.lock(); defer { lock.unlock() }
+        return mapping[key] ?? []
+    }
+
+    private func publishTags(_ info: [String: Any] = ["tagsChanged": true],
+                             _ update: @escaping (inout [Tag]) -> Void) {
+        let apply = { [weak self] in
+            guard let self else { return }
+            update(&self.tags)
+            self.postChange(info)
+        }
+        if Thread.isMainThread { apply() } else { DispatchQueue.main.async(execute: apply) }
+    }
+
+    private func postChange(_ userInfo: [String: Any]) {
+        let post = { NotificationCenter.default.post(name: Self.didChangeNotification, object: self, userInfo: userInfo) }
+        if Thread.isMainThread { post() } else { DispatchQueue.main.async(execute: post) }
     }
 
 }

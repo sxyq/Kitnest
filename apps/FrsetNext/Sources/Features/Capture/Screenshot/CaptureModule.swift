@@ -135,8 +135,7 @@ public enum CaptureModule: AppModule {
         SettingsPaneRegistry.register(SettingsPaneDescriptor(
             id: "capture",
             title: "截图",
-            systemImage: "camera",
-            build: { AnyView(CaptureSettingsPane()) }))
+            systemImage: "camera"))
 
         // v264：图帘「悬停顶边唤出」的热区（默认关，开关打开才建窗口）
         Task { @MainActor in

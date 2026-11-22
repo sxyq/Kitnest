@@ -15,8 +15,19 @@ final class ArchiveHoverPreview {
 
     /// 用户要的「悬浮 1 秒」——短于这个值，扫列表时会一直闪窗
     static let delay: TimeInterval = 1.0
-    /// 超过 96MB 的条目不预解：解压成本远大于预览收益
-    static let sizeCap: Int64 = 96 * 1024 * 1024
+    /// v273（ArcZip 1.2.5 settings.browsing.hover.video.limit 对齐）：
+    /// 可预览大小上限改为设置项（10MB…2GB，按解压后大小、含上限）；
+    /// 旧实现硬编码 96MB，默认值取 100MB 保持观感不变。
+    static var sizeCap: Int64 {
+        let stored = UserDefaults.standard.object(forKey: Preferences.Keys.archiveHoverSizeLimitMB) as? Int
+        let mb = max(1, stored ?? 100)
+        return Int64(mb) * 1024 * 1024
+    }
+
+    /// 总开关：默认开启（历史行为），关闭后不预解任何条目。
+    static var isEnabled: Bool {
+        (UserDefaults.standard.object(forKey: Preferences.Keys.archiveHoverEnabled) as? Bool) ?? true
+    }
     private static let cacheLimit = 8
 
     private struct Item {
@@ -26,6 +37,7 @@ final class ArchiveHoverPreview {
     }
 
     private var pending: DispatchWorkItem?
+    private var pendingArchive: URL?
     private var generation = 0
     private var cache: [Item] = []
 
@@ -39,6 +51,7 @@ final class ArchiveHoverPreview {
         // 不能预览的条目仍收起；有效换项在内容就绪前保留同一个窗口。
         FileHoverPreviewController.shared.scheduleHide()
 
+        guard Self.isEnabled else { return }
         guard !entry.isDirectory else { return }
         guard entry.size > 0, entry.size <= Self.sizeCap else { return }
         // 只解「有内容可看」的类型；未知二进制解出来也只有图标，白花一次 7zz
@@ -46,6 +59,7 @@ final class ArchiveHoverPreview {
         MainPanelPreviewPopoverCoordinator.shared.cancelHoverClose()
 
         let key = Self.key(archive: archive, entry: entry)
+        pendingArchive = archive
         let work = DispatchWorkItem { [weak self] in
             guard let self, gen == self.generation else { return }
             // 按住鼠标（拖动 / 多选）时不弹
@@ -58,7 +72,7 @@ final class ArchiveHoverPreview {
                 guard let self else { return }
                 guard gen == self.generation else {
                     // 期间已经换行 / 鼠标离开：这次解出来的直接扔掉
-                    if let tmp { try? FileManager.default.removeItem(at: tmp.deletingLastPathComponent()) }
+                    if let tmp { try? FileManager.default.removeItem(at: ArchiveCore.extractionDirectory(containing: tmp)) }
                     return
                 }
                 guard let tmp else { return }
@@ -75,7 +89,13 @@ final class ArchiveHoverPreview {
         generation += 1
         pending?.cancel()
         pending = nil
+        pendingArchive = nil
         FileHoverPreviewController.shared.scheduleHide()
+    }
+
+    func windowClosed(archive: URL, lastWindow: Bool) {
+        if pendingArchive?.standardizedFileURL == archive.standardizedFileURL { cancel() }
+        if lastWindow { cleanup() }
     }
 
     /// 归档窗关闭：把所有临时解压目录删掉
@@ -88,12 +108,12 @@ final class ArchiveHoverPreview {
     // MARK: 缓存
 
     private static func key(archive: URL, entry: ArchiveEntry) -> String {
-        var stamp = 0
+        var stamp = 0.0
         if let attrs = try? FileManager.default.attributesOfItem(atPath: archive.path),
            let date = attrs[.modificationDate] as? Date {
-            stamp = Int(date.timeIntervalSince1970)
+            stamp = date.timeIntervalSince1970
         }
-        return "\(archive.path)|\(entry.path)|\(entry.size)|\(stamp)"
+        return "\(archive.path)|\(entry.path)|\(entry.size)|\(String(format: "%.6f", stamp))"
     }
 
     private func cached(_ key: String) -> URL? {
@@ -112,12 +132,7 @@ final class ArchiveHoverPreview {
     private func store(key: String, file: URL) {
         // extractEntryToTemp 每次建一个 frset-archive-<UUID> 目录；
         // 文件在包里可能有子目录，删除单位要回到这一层，否则删不干净
-        var unit = file.deletingLastPathComponent()
-        while !unit.lastPathComponent.hasPrefix("frset-archive-") {
-            let parent = unit.deletingLastPathComponent()
-            if parent.path == unit.path { break }
-            unit = parent
-        }
+        let unit = ArchiveCore.extractionDirectory(containing: file)
         cache.append(Item(key: key, file: file, dir: unit))
         if cache.count > Self.cacheLimit {
             let evicted = cache.removeFirst()

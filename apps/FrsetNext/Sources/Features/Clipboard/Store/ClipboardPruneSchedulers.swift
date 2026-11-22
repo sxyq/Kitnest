@@ -64,26 +64,20 @@ public final class ClipboardHistoryRetentionPruneScheduler {
         let cutoff = Date().addingTimeInterval(-Double(days) * 86_400)
         var removed = 0
         var reclaimed: Int64 = 0
-        // v210（修 P1-9 后半）：批数兜底。delete 静默失败（库降级成内存库/句柄失效）时
-        // rowsOlderThan 会一直返回同一批，`while true` 就变成死循环；每轮最多 200 批（4 万条）。
-        var batches = 0
-        while batches < 200 {
-            batches += 1
+        while true {
             let batch = repository.rowsOlderThan(cutoff, limit: 200)
             if batch.isEmpty { break }
+            let before = removed
             for item in batch {
-                reclaimed += Int64(item.storageBytes)
-                repository.delete(dedupeKey: item.dedupeKey)
+                if repository.delete(dedupeKey: item.dedupeKey, onReclaimedBytes: { reclaimed += $0 }) {
+                    removed += 1
+                }
             }
-            removed += batch.count
-            if batch.count < 200 { break }
-        }
-        if batches >= 200 {
-            Log.warn("clipboard", "保留期清理达到单轮上限（\(removed) 条），余量留待下一轮")
+            if batch.count < 200 || removed == before { break }
         }
         if removed > 0 {
             Log.info("clipboard", "保留期清理：删除 \(removed) 条（早于 \(cutoff)）")
-            ClipboardManager.shared.reload()
+            DispatchQueue.main.async { ClipboardManager.shared.reload() }
         }
         return ClipboardPruneResult(removed: removed, reclaimedBytes: reclaimed)
     }
@@ -153,17 +147,17 @@ public final class ClipboardStoragePruneScheduler {
         while usage.exceeds(target) {
             let batch = repository.oldestRows(limit: 200)
             if batch.isEmpty { break }
-            // 先删文件再删行：即便事务失败也不会留下孤儿文件
+            let before = removed
             for item in batch {
-                reclaimed += Int64(item.storageBytes)
-                repository.delete(dedupeKey: item.dedupeKey)
+                if repository.delete(dedupeKey: item.dedupeKey, onReclaimedBytes: { reclaimed += $0 }) {
+                    removed += 1
+                }
             }
-            removed += batch.count
-            if batch.count < 200 { break }
+            if batch.count < 200 || removed == before { break }
         }
         if removed > 0 {
             Log.info("clipboard", "容量清理：删除 \(removed) 条，当前用量 \(usage.totalBytes / 1024 / 1024) MB")
-            ClipboardManager.shared.reload()
+            DispatchQueue.main.async { ClipboardManager.shared.reload() }
         }
         return ClipboardPruneResult(removed: removed, reclaimedBytes: reclaimed)
     }

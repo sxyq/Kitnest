@@ -71,17 +71,23 @@ public struct ToolOption: Identifiable, Hashable, Sendable {
 public struct ToolDescriptor: Identifiable {
     public let identifier: String
     /// 统计归属（写入 tool_invocations.kind 与 daily_stats.tool_count）
-    public let kind: ToolKind
-    public let name: String
+    public var kind: ToolKind { execution!.kind }
+    private let nameKey: String
+    public var name: String { L10n.t(nameKey) }
     public let keyword: String
-    public let toolDescription: String
+    private let descriptionKey: String
+    public var toolDescription: String { L10n.t(descriptionKey) }
     public let systemImage: String
     public let category: ToolCategory
     public let inputKind: ToolInputKind
-    public let placeholder: String
+    private let placeholderKey: String
+    public var placeholder: String { L10n.t(placeholderKey) }
     public let options: [ToolOption]
     /// 执行函数：(输入, 选项) -> 结果
-    public let execute: (String, [String: String]) async -> ToolOutput
+    public var execute: (String, [String: String]) async -> ToolOutput { execution!.run }
+    private let execution: (kind: ToolKind, run: (String, [String: String]) async -> ToolOutput)?
+    /// 自带操作界面的工具直接挂载到现有工具窗。
+    public let build: (() -> AnyView)?
 
     public var id: String { identifier }
 
@@ -96,12 +102,22 @@ public struct ToolDescriptor: Identifiable {
                 placeholder: String = "",
                 options: [ToolOption] = [],
                 execute: @escaping (String, [String: String]) async -> ToolOutput) {
-        self.identifier = identifier; self.kind = kind; self.name = name
+        self.identifier = identifier; self.nameKey = name
         self.keyword = keyword ?? identifier
-        self.toolDescription = toolDescription
+        self.descriptionKey = toolDescription
         self.systemImage = systemImage; self.category = category
-        self.inputKind = inputKind; self.placeholder = placeholder
-        self.options = options; self.execute = execute
+        self.inputKind = inputKind; self.placeholderKey = placeholder
+        self.options = options; self.execution = (kind, execute); self.build = nil
+    }
+
+    public init(identifier: String, name: String, keyword: String? = nil,
+                toolDescription: String = "", systemImage: String, category: ToolCategory,
+                build: @escaping () -> AnyView) {
+        self.identifier = identifier; self.nameKey = name
+        self.keyword = keyword ?? identifier; self.descriptionKey = toolDescription
+        self.systemImage = systemImage; self.category = category
+        self.inputKind = .text; self.placeholderKey = ""; self.options = []
+        self.execution = nil; self.build = build
     }
 
     /// 默认选项值（UI 初始化分段控件用）
@@ -118,12 +134,12 @@ public struct ToolDescriptor: Identifiable {
 
 public enum ToolboxEventBus {
     /// 参数：(结果文本, 工具类型)。由总控在启动时接线到"存为剪贴板条目"。
-    public static var onResultProduced: ((String, ToolKind) -> Bool)?
+    public static var onResultProduced: ((String, ToolKind) async -> Bool)?
 
-    public static func emitResult(_ text: String, kind: ToolKind) -> Bool {
+    public static func emitResult(_ text: String, kind: ToolKind) async -> Bool {
         guard !text.isEmpty else { return false }
         Log.info("Toolbox", "result produced by \(kind.rawValue), \(min(text.count, 32)) chars")
-        return onResultProduced?(text, kind) ?? false
+        return await onResultProduced?(text, kind) ?? false
     }
 }
 

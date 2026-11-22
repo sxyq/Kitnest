@@ -36,6 +36,7 @@ public final class PreviewImageLoader {
 
     public init() {
         cache.countLimit = 32
+        cache.totalCostLimit = 64 * 1024 * 1024
     }
 
     // MARK: 对外加载
@@ -57,7 +58,12 @@ public final class PreviewImageLoader {
             completion(cached)
             return
         }
-        inFlight[key, default: []].append(completion)
+        if inFlight[key] != nil {
+            inFlight[key, default: []].append(completion)
+            lock.unlock()
+            return
+        }
+        inFlight[key] = [completion]
         lock.unlock()
 
         let full = needsFullRebuild
@@ -77,7 +83,10 @@ public final class PreviewImageLoader {
                 guard let self else { return }
                 self.lock.lock()
                 let waiters = self.inFlight.removeValue(forKey: key) ?? []
-                if let image { self.cache.setObject(image, forKey: key) }
+                if let image {
+                    self.cache.setObject(image, forKey: key,
+                                         cost: Int(image.size.width * image.size.height * 4))
+                }
                 self.lock.unlock()
                 waiters.forEach { $0(image) }
             }

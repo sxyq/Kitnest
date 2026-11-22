@@ -14,23 +14,16 @@ struct CaptureBlockPage: View {
     let block: CaptureSettingsBlock
 
     var body: some View {
-        ScrollView(.vertical, showsIndicators: true) {
             VStack(alignment: .leading, spacing: 18) {
                 header
                 content
             }
-            .padding(.horizontal, 34)
-            .padding(.vertical, 18)
             .frame(maxWidth: .infinity, alignment: .leading)
-        }
     }
 
     /// 页头（标题在 SettingsRootView.header，这里只补一句作用域说明 + 发丝分隔）
     private var header: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(block.subtitle)
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
             Rectangle()
                 .fill(Color.primary.opacity(0.07))
                 .frame(height: 0.5)

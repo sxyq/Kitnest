@@ -173,16 +173,7 @@ public struct CaptureSectionView: View {
     }
 
     private func thumbnailView(_ item: CapturedImage) -> some View {
-        Group {
-            if let image = manager.thumbnail(for: item.url, maxSide: 240) {
-                Image(nsImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-            } else {
-                Image(systemName: "photo")
-                    .foregroundStyle(.secondary)
-            }
-        }
+        RecentCaptureThumbnail(url: item.url, manager: manager)
         .frame(height: 68)
         .frame(maxWidth: .infinity)
         .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
@@ -259,5 +250,27 @@ public struct CaptureSectionView: View {
         panel.canChooseDirectories = false
         panel.allowedContentTypes = [UTType.image]
         return panel.runModal() == .OK ? panel.url : nil
+    }
+}
+
+private struct RecentCaptureThumbnail: View {
+    let url: URL
+    let manager: ScreenshotManager
+    @Stored private var image: NSImage?
+
+    var body: some View {
+        Group {
+            if let image = image ?? manager.thumbnail(for: url, maxSide: 240) {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } else {
+                Image(systemName: "photo")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .task(id: url) {
+            image = await manager.loadThumbnail(for: url, maxSide: 240)
+        }
     }
 }

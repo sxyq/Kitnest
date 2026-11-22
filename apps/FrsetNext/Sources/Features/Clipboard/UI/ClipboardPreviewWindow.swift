@@ -99,7 +99,7 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
                 }
                 let font = kind == .code
                     ? NSFont.monospacedSystemFont(ofSize: CGFloat(CodePreviewPreferences.fontSize), weight: .regular)
-                    : NSFont.systemFont(ofSize: 19.5)
+                    : NSFont.systemFont(ofSize: 19.5 * Personalization.shared.clipboardPreviewScale)
                 body = NSAttributedString(string: text, attributes: [.font: font])
             }
             let limit: CGFloat = kind == .code || sidebar > 0 ? 760 : 640
@@ -484,10 +484,16 @@ struct ClipboardPreviewWindowView: View {
     }
 
     private func save() {
-        ClipboardManager.shared.saveContent(dedupeKey: item.dedupeKey, newContent: draft)
-        model = Self.makeModel(item: item, editedText: draft)
-        isEditing = false
-        Toast.show("已保存", icon: "checkmark.circle")
+        let content = draft
+        ClipboardManager.shared.saveContent(dedupeKey: item.dedupeKey, newContent: content) { saved in
+            guard let saved else {
+                Toast.show("保存失败", icon: "exclamationmark.triangle", isWarning: true)
+                return
+            }
+            model = Self.makeModel(item: saved, editedText: content)
+            isEditing = false
+            Toast.show("已保存", icon: "checkmark.circle")
+        }
     }
 
     // MARK: 模型 / 文案
@@ -495,7 +501,8 @@ struct ClipboardPreviewWindowView: View {
     /// editedText == nil → 按条目分类（长文走异步落盘加载）；
     /// 编辑保存后 → 直接按内存里的新文本分类，避免读到旧文件。
     static func makeModel(item: ClipboardItem, editedText: String?) -> PreviewPopoverContentModel {
-        let full = editedText ?? PreviewPopoverDataBridge.shared.fullText(for: item)
+        let full = editedText ?? (item.textPath != nil
+            ? item.content ?? "" : PreviewPopoverDataBridge.shared.fullText(for: item))
         var kind: PreviewPopoverContentModel.Kind?
         if editedText != nil {
             switch item.type {
@@ -509,7 +516,6 @@ struct ClipboardPreviewWindowView: View {
                                           entry: .mainList,
                                           sessionID: UUID(),
                                           inlineText: full,
-                                          showsKeyboardHint: false,
                                           kindOverride: kind)
     }
 

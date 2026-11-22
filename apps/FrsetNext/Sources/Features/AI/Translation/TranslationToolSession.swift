@@ -12,12 +12,14 @@ public enum TranslationToolError: Error, LocalizedError {
     case emptyInput
     case llmUnavailable
     case formatMismatch
+    case onlineTranslationDeclined
 
     public var errorDescription: String? {
         switch self {
         case .emptyInput:     return "没有可翻译的文本。"
         case .llmUnavailable: return "没有可用的翻译引擎，请在「设置 → 搜索与 AI」中配置。"
         case .formatMismatch: return "译文格式不匹配，请重试。"
+        case .onlineTranslationDeclined: return "已拒绝在线翻译。可在设置中选择本机翻译或允许在线服务。"
         }
     }
 }
@@ -36,6 +38,8 @@ public final class TranslationToolSession: TranslationToolRequestExecuting {
 
     /// 候选 Provider（延迟到调用时解析，避免模块启动顺序影响结果）
     private let providersProvider: () -> [TranslationProvider]
+    private let providerLock = NSLock()
+    private var lastProviderName = "无"
 
     public init(providersProvider: @escaping () -> [TranslationProvider] = {
         TranslationProviderRegistry.shared.resolve(preference: AISettings.translationProviderPreference)
@@ -50,8 +54,16 @@ public final class TranslationToolSession: TranslationToolRequestExecuting {
 
     /// 当前实际使用的引擎名（诊断/日志用）
     public var effectiveProviderName: String {
-        let candidates = providersProvider().filter { $0.isAvailable }
-        return candidates.first?.displayName ?? "无"
+        let provider = providersProvider().first {
+            $0.isAvailable && TranslationPrivacyConsent.isAuthorized($0)
+        }
+        if let provider { return provider.displayName }
+        return "在线服务尚未授权"
+    }
+
+    public var lastUsedProviderName: String {
+        providerLock.lock(); defer { providerLock.unlock() }
+        return lastProviderName
     }
 
     // MARK: - 执行
@@ -64,24 +76,47 @@ public final class TranslationToolSession: TranslationToolRequestExecuting {
             return AsyncThrowingStream { $0.finish(throwing: TranslationToolError.emptyInput) }
         }
         let candidates = providersProvider().filter { $0.isAvailable }
-        guard let first = candidates.first else {
+        guard !candidates.isEmpty else {
             return AsyncThrowingStream { $0.finish(throwing: TranslationToolError.llmUnavailable) }
-        }
-        // 支持流式的（大模型）直接流；不支持的拿整段再一次性吐出
-        if let stream = first.stream(trimmed, to: targetLanguage) {
-            return stream
         }
         return AsyncThrowingStream { continuation in
             Task {
-                do {
-                    let result = try await self.attempt { provider in
-                        try await provider.translate(trimmed, to: targetLanguage, mode: .plain)
+                var lastError: Error?
+                var deniedOnline = false
+                for provider in candidates {
+                    if deniedOnline && provider.id != "apple" { continue }
+                    guard await TranslationPrivacyConsent.authorize(provider) else {
+                        deniedOnline = true
+                        continue
                     }
-                    continuation.yield(result)
-                    continuation.finish()
-                } catch {
-                    continuation.finish(throwing: error)
+                    do {
+                        if let stream = provider.stream(trimmed, to: targetLanguage) {
+                            var yieldedOutput = false
+                            do {
+                                for try await part in stream {
+                                    yieldedOutput = true
+                                    continuation.yield(part)
+                                }
+                            } catch {
+                                guard !yieldedOutput else {
+                                    continuation.finish(throwing: error)
+                                    return
+                                }
+                                throw error
+                            }
+                        } else {
+                            continuation.yield(try await provider.translate(trimmed, to: targetLanguage, mode: .plain))
+                        }
+                        self.remember(provider)
+                        continuation.finish()
+                        return
+                    } catch {
+                        lastError = error
+                        Log.debug("AI", "翻译 Provider「\(provider.displayName)」失败，尝试下一个：\(error.localizedDescription)")
+                    }
                 }
+                continuation.finish(throwing: lastError ?? (deniedOnline
+                    ? TranslationToolError.onlineTranslationDeclined : TranslationToolError.llmUnavailable))
             }
         }
     }
@@ -141,15 +176,23 @@ public final class TranslationToolSession: TranslationToolRequestExecuting {
         let candidates = providersProvider().filter { $0.isAvailable }
         guard !candidates.isEmpty else { throw TranslationToolError.llmUnavailable }
         var lastError: Error?
+        var deniedOnline = false
         for provider in candidates {
+            if deniedOnline && provider.id != "apple" { continue }
+            guard await TranslationPrivacyConsent.authorize(provider) else {
+                deniedOnline = true
+                continue
+            }
             do {
-                return try await provider.translateLines(texts, to: targetLanguage)
+                let result = try await provider.translateLines(texts, to: targetLanguage)
+                remember(provider)
+                return result
             } catch {
                 lastError = error
                 Log.warn("AI", "逐块翻译 Provider「\(provider.displayName)」失败：\(error.localizedDescription)")
             }
         }
-        throw lastError ?? TranslationToolError.formatMismatch
+        throw lastError ?? (deniedOnline ? TranslationToolError.onlineTranslationDeclined : TranslationToolError.formatMismatch)
     }
 
     /// 解析 `⟦n⟧ 译文` / `n. 译文` 两种输出
@@ -182,15 +225,27 @@ public final class TranslationToolSession: TranslationToolRequestExecuting {
         let candidates = providersProvider().filter { $0.isAvailable }
         guard !candidates.isEmpty else { throw TranslationToolError.llmUnavailable }
         var lastError: Error?
+        var deniedOnline = false
         for provider in candidates {
+            if deniedOnline && provider.id != "apple" { continue }
+            guard await TranslationPrivacyConsent.authorize(provider) else {
+                deniedOnline = true
+                continue
+            }
             do {
-                return try await body(provider)
+                let result = try await body(provider)
+                remember(provider)
+                return result
             } catch {
                 lastError = error
                 // 「自动」模式下这是预期路径（没配 Key），降到 debug 免得刷警告
                 Log.debug("AI", "翻译 Provider「\(provider.displayName)」失败，尝试下一个：\(error.localizedDescription)")
             }
         }
-        throw lastError ?? TranslationToolError.llmUnavailable
+        throw lastError ?? (deniedOnline ? TranslationToolError.onlineTranslationDeclined : TranslationToolError.llmUnavailable)
+    }
+
+    private func remember(_ provider: TranslationProvider) {
+        providerLock.lock(); lastProviderName = provider.displayName; providerLock.unlock()
     }
 }

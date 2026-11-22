@@ -42,7 +42,6 @@ enum GenieEdge {
 
 /// 网格结果：columns × rows 个顶点，每顶点 4 个 CGFloat（local x, local y, screen x, screen y）
 struct GenieMesh {
-    var columns: Int
     var rows: Int
     var points: [CGFloat]
 
@@ -64,9 +63,10 @@ struct GeniePhases {
     var slideLength: CGFloat // 滑时长 ms
 }
 
-private let genieCapacity = 1200
 private let genieTolerance: CGFloat = 0.6
 private let genieMaxCalls = 64
+// 每次细分写一个三元组；另需首点、颈点与尾点各一个三元组。
+private let genieCapacity = 3 * (genieMaxCalls + 3)
 
 private func genieEase(_ cosine: CGFloat) -> CGFloat { cosine * -0.5 + 0.5 }
 
@@ -267,8 +267,8 @@ private func genieBuild(_ buffer: [CGFloat],
         }
     }
     return vertical
-        ? GenieMesh(columns: 2, rows: count, points: points)
-        : GenieMesh(columns: count, rows: 2, points: points)
+        ? GenieMesh(rows: count, points: points)
+        : GenieMesh(rows: 2, points: points)
 }
 
 /// progress：0 = 完整窗口，1 = 完全收进图标

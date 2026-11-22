@@ -98,10 +98,10 @@ struct MonitorCoreGrid: View {
             .frame(height: 26)
 
             Text("C\(index + 1)")
-                .font(.system(size: 8))
+                .font(.system(size: Theme.TextSize.caption))
                 .foregroundStyle(Theme.tertiaryText)
             Text(String(format: "%.0f%%", ratio * 100))
-                .font(.system(size: 9, weight: .medium).monospacedDigit())
+                .font(.system(size: Theme.TextSize.caption, weight: .medium).monospacedDigit())
                 .foregroundStyle(ratio >= 0.90 ? MonitorColors.system : .secondary)
         }
         .frame(maxWidth: .infinity)

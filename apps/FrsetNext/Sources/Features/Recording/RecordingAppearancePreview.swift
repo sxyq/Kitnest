@@ -3,7 +3,7 @@ import CoreImage
 import SwiftUI
 
 struct RecordingAppearancePreview: View {
-    let values: RecordingAppearanceDraft.Values
+    let values: RecordingSettingsValues
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     private static let context = CIContext(options: [.cacheIntermediates: false])
     @Stored private var cachedFrame: NSImage?
@@ -41,14 +41,12 @@ struct RecordingAppearancePreview: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("效果预览 · 固定示意画面")
-                .font(.system(size: 11)).foregroundStyle(.secondary)
             if let cachedFrame {
                 Image(nsImage: cachedFrame)
                     .resizable().aspectRatio(contentMode: .fit)
                     .frame(maxWidth: 480)
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.control))
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityLabel("录屏预览，使用正式叠加绘制和固定摄像头、按键、点击示意")
             }
             Text("摄像头、按键与点击均为固定示意；这里不启动录制或输入采集。")

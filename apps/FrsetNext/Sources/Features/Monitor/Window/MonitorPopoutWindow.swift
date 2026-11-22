@@ -5,23 +5,13 @@ import SwiftUI
 // MARK: - 性能监测独立窗口（v59 新建，v60 定为唯一性能界面，v63 交互对齐主面板）
 //
 // v71（2026-10-19 用户需求「布局留白 / 框大小可不一致 / 展开动画不流畅」）：
-//   · 布局：内容撑满窗口宽度（fixedWidth=nil，原 292 限宽是 380 窗内两侧大留白的根源），
-//     窗口高度**内容驱动**（GeometryReader 异步测量 → animator 平滑过渡，
-//     各模块内容多少不同 → 窗口高低可不同，顶边贴菜单栏不动）；
+//   · 布局：统一内容撑满窗口，模块导航与底栏保持可见；只滚动当前模块详情，
+//     切模块与采样更新不改变窗口尺寸或重播入场；
 //   · 动画：SwiftUI scaleEffect 换成 **contentView.layer 的 CA 动画**（GPU 合成，
 //     ScrollView 内容不参与逐帧重绘——原实现每帧主线程 layout+合成导致卡顿）。
 //     进出场 = 锚点横向偏移 + scale 0.93→1 + 上移 12 + 淡入，timing 类弹簧；
 //   · 交互不变：点外即消 / 部件锚点展开 / 切模块不挪位置 / 采样门控。
 // 链路：部件点击（带锚点）/ ⌥P / ⌥M → open；再点部件 = 切模块不重定位。
-
-/// 内容高度偏好键（异步测量 → 控制器 resize）
-private struct ContentHeightKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        let next = nextValue()
-        if next > 0 { value = next }
-    }
-}
 
 /// v74：无标题栏玻璃面板（borderless 默认 canBecomeKey=false，需显式放行，
 /// 否则「点外/失焦收起」依赖的 key 状态永远不会发生）
@@ -29,44 +19,11 @@ final class MonitorPopoutPanel: NSPanel {
     override var canBecomeKey: Bool { true }
 }
 
-/// 窗口内容根：detail 自带模块切换条 + 底栏（fixedWidth=nil 撑满）；
-/// 内容高度经偏好异步上报控制器（驱动窗口平滑 resize）
-/// 独立窗滚动复位信号：窗口是长期复用的，SwiftUI ScrollView 会**保留上次滚动位置**。
-/// 用户在温度长列表滚到底再关窗，下次点部件重开时顶部模块切换条会停在视口外，
-/// 看起来就是「面板上面没有切换按钮」——每次 open 递增 token 强制滚回顶部。
-private final class PopoutScrollState: ObservableObject {
-    @Published var resetToken = 0
-}
-
+/// 统一内容自身负责详情滚动；外层再滚动会给 GeometryReader 未限定高度。
 private struct PopoutRootView: View {
-    @ObservedObject var scrollState: PopoutScrollState
-    let onHeightChange: (CGFloat) -> Void
-
     var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 0) {
-                    Color.clear.frame(height: 0).id("top")   // 滚动锚点
-                    // v75：与主面板性能页**共用 MonitorPerformanceContent**（唯一实现）。
-                    // v196（用户「上面有个叉那部分需要删掉，那块区域也需要释放出来」）：
-                    // 独立窗不再挂左上角关闭钮，topInset 22 → 0——模块切换条上移到
-                    // 窗口内边距（10pt）处，原来让位给 ✕ 的那条空白全部还给内容。
-                    MonitorPerformanceContent(topInset: 0)
-                        .background(GeometryReader { geo in
-                            Color.clear.preference(key: ContentHeightKey.self, value: geo.size.height)
-                        })
-                }
-            }
-            .onChange(of: scrollState.resetToken) { _ in
-                proxy.scrollTo("top", anchor: .top)
-            }
-            .onPreferenceChange(ContentHeightKey.self) { height in
-                onHeightChange(height)
-            }
-        }
-        // v203：底衬走统一结构面（通透度底衬 + 磨砂霜感，毛玻璃由窗口提供），
-        // 与主面板/悬浮剪贴板同一配方——「透明度覆盖整个 App」。
-        .background { GlassSurface(includesBlur: false) }
+        MonitorPerformanceContent()
+            .background { GlassSurface(includesBlur: false) }
     }
 }
 
@@ -79,8 +36,6 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
     private var lastAnchor: NSRect?
     /// 本次展开的目标位置（神灯先把窗口停到屏幕外抓快照，抓完移到这里）
     private var appearDestination: NSPoint?
-    /// 滚动复位信号（每次打开回到顶部）
-    private let scrollState = PopoutScrollState()
 
     /// 与主面板性能页**共用**的模块选中态（唯一一套）
     private var sharedSelection: MonitorDetailSelection {
@@ -89,12 +44,10 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
 
     private convenience init() {
         self.init(window: nil)
-        let host = NSHostingView(rootView: PopoutRootView(scrollState: scrollState) { [weak self] height in
-            self?.resize(toContentHeight: height)
-        }
+        let host = NSHostingView(rootView: PopoutRootView()
         // 主题统一入口：监测独立窗的强调色 + Midnight（此前两者都没接）
         .frsetThemeChrome())
-        host.sizingOptions = []          // 内容不反驱窗口大小（高度由控制器按测量值动画过渡）
+        host.sizingOptions = []          // 内容使用窗口的可见高度，不反驱窗口尺寸。
 
         // v74 修正（用户 2026-10-19 再次指出「两套不一样」）：上一版只换了材质，
         // 窗口仍是 .titled（系统标题栏悬浮在 fullSizeContentView 顶部）——
@@ -238,7 +191,6 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         sharedSelection.module = target
         appearToken += 1                       // v71：递增，令在途 dismiss completion 失效
         isDismissing = false                   // 重开：清掉上一次收起的幂等锁
-        scrollState.resetToken += 1            // 回到顶部：顶部模块切换条必须可见
         w.contentView?.layer?.removeAllAnimations()
         w.contentView?.layer?.transform = CATransform3DIdentity   // 兜底复位（白屏态重开）
         w.contentView?.layer?.opacity = 1
@@ -281,38 +233,6 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         lastModule = module
         sharedSelection.module = module
         Log.info("Monitor", "监测独立窗口：切换模块（\(module.displayName)）")
-    }
-
-    // MARK: 布局（v71：内容高度驱动，各模块框大小可不同）
-
-    /// 内容高度变化 → 窗口高度平滑过渡（顶边贴菜单栏不动；clamp 200~屏高-40）。
-    /// animator 帧动画与 layer 入场动画可并存（frame 动画改窗口、transform 改内容层）。
-    ///
-    /// v88（2026-10-20 用户反馈「GPU 页高度很短却留大片空白，应自适应匹配」）：
-    /// 原下限 480 会把内容仅 ~350 的短页撑出底部空白；改为 200 下限，
-    /// 窗口高度=内容高度，短页不再留白。
-    func resize(toContentHeight height: CGFloat) {
-        guard let w = window, height > 1 else { return }
-        let screen = w.screen ?? Self.screen(for: nil)
-        let maxH = min(880, (screen?.visibleFrame.height ?? 900) - 40)
-        let target = max(200, min(maxH, height))
-        guard abs(target - w.frame.height) > 1 else { return }
-        var frame = w.frame
-        if let screen, let destination = appearDestination, frame.minY >= screen.frame.maxY {
-            // 首次测量发生在神灯抓图的屏外停靠期，尺寸变化必须沿用屏内目标顶边。
-            frame.origin = NSPoint(x: destination.x, y: destination.y + frame.height - target)
-            frame.size.height = target
-            appearDestination = frame.origin
-            w.setFrame(frame, display: true)
-            return
-        }
-        frame.origin.y -= (target - frame.height)   // 顶边固定，向下增高
-        frame.size.height = target
-        NSAnimationContext.runAnimationGroup { ctx in
-            ctx.duration = Theme.Motion.dPage
-            ctx.timingFunction = Theme.Motion.caEaseOut
-            w.animator().setFrame(frame, display: true)
-        }
     }
 
     // MARK: 动画（v71：contentView.layer CA 动画，GPU 合成不卡顿）

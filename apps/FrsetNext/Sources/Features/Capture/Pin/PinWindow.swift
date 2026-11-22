@@ -437,6 +437,7 @@ final class PinToolbarView: NSView {
     }
 
     func updateZoom(percent: Int) {
+        guard currentPercent != percent else { return }
         currentPercent = percent
         zoomButton.attributedTitle = Self.zoomTitle(percent)
     }
@@ -1382,6 +1383,11 @@ final class PinnedScreenshotContentView: PinImageView {
 
     /// 带旋转/翻转的成图（复制 / 保存 / 送编辑都用它，不然钉的是转过的、拷出去还是原图）
     func flattenedImage() -> CGImage {
+        Self.flattened(image, rotationQuarter: rotationQuarter, flipH: flipH, flipV: flipV)
+    }
+
+    nonisolated private static func flattened(_ image: CGImage, rotationQuarter: Int,
+                                              flipH: Bool, flipV: Bool) -> CGImage {
         guard rotationQuarter != 0 || flipH || flipV else { return image }
         let swapped = rotationQuarter % 2 == 1
         let w = swapped ? image.height : image.width
@@ -1410,9 +1416,19 @@ final class PinnedScreenshotContentView: PinImageView {
 
     @objc func copyClicked() {
         hideChrome()
-        let flat = flattenedImage()
-        guard ScreenshotManager.shared.copyToPasteboard(flat) else { return }
-        Toast.show("已拷贝钉图", icon: "doc.on.doc.fill")
+        let source = image
+        let rotation = rotationQuarter
+        let flipHorizontal = flipH
+        let flipVertical = flipV
+        Task { @MainActor in
+            let (flat, pngData) = await Task.detached(priority: .userInitiated) {
+                let flat = Self.flattened(source, rotationQuarter: rotation,
+                                          flipH: flipHorizontal, flipV: flipVertical)
+                return (flat, ImageProcessor.pngData(flat))
+            }.value
+            guard ScreenshotManager.shared.copyToPasteboard(flat, encodedPNG: pngData) else { return }
+            Toast.show("已拷贝钉图", icon: "doc.on.doc.fill")
+        }
     }
 
     @objc func closeClicked() {

@@ -100,6 +100,7 @@ struct StatisticsRootView: View {
 
 struct StatisticsChartsView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
     // 原版图：60 列、7 行，格子 8 pt、间隔 3 pt。
     private static let activityColumnCount = 60
     private static let activityRowCount = 7
@@ -248,6 +249,18 @@ struct StatisticsChartsView: View {
     // MARK: 数据装载（Q1/Q2/Q3/Q4/Q5 → 三层版面；条目数读 clipboard.sqlite）
 
     private func loadData() {
+        if isSettingsPreview {
+            todayCountsMap = Dictionary(uniqueKeysWithValues: zip(Self.metricConfigs, [28, 6, 3, 12, 8]).map { ($0.0.eventNames[0], $0.1) })
+            totalInteractions = 438; activeDaysCount = 18; storedItemsCount = 42
+            let counts = [2, 8, 14, 5, 12, 3]
+            last30DayBreakdowns = (0..<30).map { index in
+                (StatisticsManager.dayString(from: Calendar.current.date(byAdding: .day, value: -index, to: .now)!),
+                 AnalyticsEvent.historyCopy.eventName, counts[index % counts.count])
+            }
+            activityTotals = Dictionary(uniqueKeysWithValues: last30DayBreakdowns.map { ($0.day, $0.count) })
+            metricNumbersAnimatedIn = true
+            return
+        }
         let dailyEvents = Self.metricConfigs.flatMap(\.eventNames)
         DispatchQueue.global(qos: .userInitiated).async {
             // v128（流畅度）：后台查询块整体进 autoreleasepool——5 条 SQL 查询会产生大量

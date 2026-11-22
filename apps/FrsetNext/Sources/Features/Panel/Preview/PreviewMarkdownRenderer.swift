@@ -47,7 +47,11 @@ enum PreviewMarkdownRenderer {
     // MARK: 缩放（2026-10-18 用户需求：整体文本部分 = 原来的 1.5 倍）
     //
     // 所有字号 / 行距 / 段距统一乘此系数；调用方无需改任何数值。
-    static var scale: CGFloat = 1.5
+    static var scale: CGFloat {
+        let stored = UserDefaults.standard.double(forKey: Preferences.Keys.uiClipboardPreviewScale)
+        let previewScale = stored > 0 ? CGFloat(stored) : 1.6
+        return 1.5 * previewScale
+    }
 
     /// 字号/间距缩放辅助
     private static func s(_ value: CGFloat) -> CGFloat { value * scale }
@@ -93,6 +97,11 @@ enum PreviewMarkdownRenderer {
             let ns = normalized as NSString
             let lines = normalized.components(separatedBy: "\n")
 
+            if !normalized.contains("```"), looksLikeNakedCode(lines) {
+                return [(.code(lang: detectLanguage(normalized), code: normalized),
+                         NSRange(location: 0, length: ns.length))]
+            }
+
             // 行首 UTF-16 偏移（块源区间换算）
             var lineOffsets: [Int] = []
             var off = 0
@@ -104,12 +113,6 @@ enum PreviewMarkdownRenderer {
                 let s = lineOffsets[max(0, min(startLine, lineOffsets.count - 1))]
                 let e = endLine < lineOffsets.count ? lineOffsets[endLine] : ns.length
                 return NSRange(location: s, length: max(0, e - s))
-            }
-
-            // 裸代码自动识别（v85）：无围栏且整体像代码 → 合成一个代码块
-            if !normalized.contains("```"), looksLikeNakedCode(lines) {
-                return [(.code(lang: guessLanguage(lines), code: normalized),
-                         NSRange(location: 0, length: ns.length))]
             }
 
             var blocks: [(block: MarkdownBlock, source: NSRange)] = []
@@ -255,23 +258,22 @@ enum PreviewMarkdownRenderer {
     }
 
     /// 裸代码语言猜测（只做高亮配色用；猜不到按通用处理）
-    static func guessLanguage(_ lines: [String]) -> String {
-        let joined = lines.joined(separator: "\n")
+    private static func detectLanguage(_ code: String) -> String {
         // 顺序有讲究：先判特征更强的语言，避免被通用关键字抢先
-        if joined.contains("#include") || joined.contains("std::") || joined.contains("using namespace") { return "cpp" }
-        if joined.contains("import SwiftUI") || joined.contains("import Foundation")
-            || joined.contains("@State") || joined.contains("@Published") || joined.contains("@objc") { return "swift" }
-        if joined.contains("func ") && (joined.contains("let ") || joined.contains("var ")
-            || joined.contains("->") || joined.contains("guard ")) { return "swift" }
-        if joined.contains("package ") && joined.contains("func ") { return "go" }
-        if joined.contains("fn ") && (joined.contains("let mut") || joined.contains("impl ")) { return "rust" }
-        if joined.contains("fun ") && (joined.contains("val ") || joined.contains("?: ")) { return "kotlin" }
-        if joined.contains("public class") && joined.contains("System.out") { return "java" }
-        if joined.contains("def ") && joined.contains(":") { return "python" }
-        if joined.contains("import React") || joined.contains("=>") || joined.contains("const ")
-            || joined.contains("console.log") { return "js" }
-        if joined.contains("SELECT ") || joined.contains("select ") { return "sql" }
-        if joined.contains("#!/bin/") || joined.contains("echo ") || joined.contains("sudo ") { return "shell" }
+        if code.contains("#include") || code.contains("std::") || code.contains("using namespace") { return "cpp" }
+        if code.contains("import SwiftUI") || code.contains("import Foundation")
+            || code.contains("@State") || code.contains("@Published") || code.contains("@objc") { return "swift" }
+        if code.contains("func ") && (code.contains("let ") || code.contains("var ")
+            || code.contains("->") || code.contains("guard ")) { return "swift" }
+        if code.contains("package ") && code.contains("func ") { return "go" }
+        if code.contains("fn ") && (code.contains("let mut") || code.contains("impl ")) { return "rust" }
+        if code.contains("fun ") && (code.contains("val ") || code.contains("?: ")) { return "kotlin" }
+        if code.contains("public class") && code.contains("System.out") { return "java" }
+        if code.contains("def ") && code.contains(":") { return "python" }
+        if code.contains("import React") || code.contains("=>") || code.contains("const ")
+            || code.contains("console.log") { return "js" }
+        if code.contains("SELECT ") || code.contains("select ") { return "sql" }
+        if code.contains("#!/bin/") || code.contains("echo ") || code.contains("sudo ") { return "shell" }
         return ""
     }
 
@@ -423,14 +425,9 @@ enum PreviewMarkdownRenderer {
 
     // MARK: 代码块 + 语法高亮
 
-    /// 代码预览用：自动识别语言（无围栏的裸代码也走同一套配色）
-    static func detectLanguage(_ code: String) -> String {
-        guessLanguage(code.components(separatedBy: "\n"))
-    }
-
     /// 代码体（无语言标签）：预览窗口代码态用，保证行号与源码行一一对应
-    static func renderCodeBody(lang: String, code: String) -> NSAttributedString {
-        renderCode(lang: lang, code: code, showLabel: false)
+    static func renderCodeBody(_ code: String) -> NSAttributedString {
+        renderCode(lang: detectLanguage(code), code: code, showLabel: false)
     }
 
     static func renderCode(lang: String, code: String, showLabel: Bool = true) -> NSAttributedString {
@@ -439,7 +436,7 @@ enum PreviewMarkdownRenderer {
 
         // 流程图：真渲染成图片（不是把源码贴出来）
         if isDiagram, let image = MermaidRenderer.shared.image(for: code) {
-            return renderDiagram(image: image, source: code)
+            return renderDiagram(image: image)
         }
 
         let out = NSMutableAttributedString()
@@ -456,19 +453,23 @@ enum PreviewMarkdownRenderer {
         // 长短不一的行就是一条条「被选中」的灰底（用户反馈像坏掉了）。
         // 代码块底色改由容器（PreviewCodeTextView 的 background 参数）整块铺。
         let ps = paragraphStyle(lineSpacing: 1.5, before: 1, after: 5, headIndent: 6)
+        let font = monoFont
+        let base: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.labelColor]
+        let lineBreak = NSAttributedString(string: "\n", attributes: [.font: font])
+        let words = keywords[normalizedLang(lang)] ?? genericKeywords
         let lines = code.components(separatedBy: "\n")
         for (idx, line) in lines.enumerated() {
-            let highlighted = highlight(line: line, lang: lang, font: monoFont)
+            let highlighted = highlight(line: line, base: base, words: words)
             highlighted.addAttribute(.paragraphStyle, value: ps,
                                      range: NSRange(location: 0, length: highlighted.length))
             out.append(highlighted)
-            if idx < lines.count - 1 { out.append(NSAttributedString(string: "\n", attributes: [.font: monoFont])) }
+            if idx < lines.count - 1 { out.append(lineBreak) }
         }
         return out
     }
 
-    /// 把流程图图片作为附件插入富文本；下方附一行可折叠的源码提示（灰色小字）
-    private static func renderDiagram(image: NSImage, source: String) -> NSAttributedString {
+    /// 把流程图图片作为附件插入富文本。
+    private static func renderDiagram(image: NSImage) -> NSAttributedString {
         // 内容宽随 popover（480 - 2×18 边距 ≈ 444）；420 留余量防溢出
         let maxWidth: CGFloat = 420
         let scale = min(1, maxWidth / max(1, image.size.width))
@@ -541,11 +542,11 @@ enum PreviewMarkdownRenderer {
     }
 
     /// 单行语法高亮（VSCode 风格配色；语义色随明暗自适应）
-    static func highlight(line: String, lang: String, font: NSFont) -> NSMutableAttributedString {
+    private static func highlight(line: String, base: [NSAttributedString.Key: Any],
+                                  words: Set<String>) -> NSMutableAttributedString {
         // v128（内存优化）：外层包 autoreleasepool——renderCode 对代码块逐行调用本函数
         // （长代码块上千行），每行都做正则匹配 + 属性字符串构造，临时对象显式 drain
         autoreleasepool {
-            let base: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: NSColor.labelColor]
             let out = NSMutableAttributedString(string: line, attributes: base)
             let ns = line as NSString
             let full = NSRange(location: 0, length: ns.length)
@@ -575,15 +576,12 @@ enum PreviewMarkdownRenderer {
             }
 
             // 注释（行尾）
-            if let range = line.range(of: "//") {
-                let loc = line.distance(from: line.startIndex, to: range.lowerBound)
-                if loc > 0 {
-                    // 不在字符串内才标（粗略：看前面引号数量）
-                    let prefix = String(line.prefix(loc))
-                    let quotes = prefix.filter { $0 == "\"" }.count
-                    if quotes % 2 == 0 {
-                        out.addAttribute(.foregroundColor, value: commentColor, range: NSRange(location: loc, length: ns.length - loc))
-                    }
+            if let range = line.range(of: "//"), range.lowerBound != line.startIndex {
+                // 不在字符串内才标（粗略：看前面引号数量）；富文本用 UTF-16 偏移。
+                let prefix = line[..<range.lowerBound]
+                if prefix.filter({ $0 == "\"" }).count % 2 == 0 {
+                    let loc = prefix.utf16.count
+                    out.addAttribute(.foregroundColor, value: commentColor, range: NSRange(location: loc, length: ns.length - loc))
                 }
             }
 
@@ -599,12 +597,10 @@ enum PreviewMarkdownRenderer {
             // v126（性能审计 F1087）：再进一步——原实现每行 × 每关键字跑一次全行正则匹配
             // （40+ 关键字 × 行数 ≈ 上千次扫描），改为一次标识符扫描 + Set 查表着色。
             // 着色优先级与原实现一致：关键字色先写、类型色后写覆盖（类型 > 关键字）。
-            let langKey = normalizedLang(lang)
-            let kwSet = keywords[langKey] ?? genericKeywords
             if let re = Self.cachedRe(#"[A-Za-z_][A-Za-z0-9_]*"#) {
                 for m in re.matches(in: line, range: full) {
                     let word = ns.substring(with: m.range)
-                    if kwSet.contains(word) {
+                    if words.contains(word) {
                         out.addAttribute(.foregroundColor, value: keywordColor, range: m.range)
                     }
                     // 类型名（大写开头，非全大写常量的词）

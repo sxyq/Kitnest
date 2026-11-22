@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 /// 主面板 SwiftUI 根视图（1:1 复刻原版 Frset 1.3.12 实测版式）：
 ///
 /// ```
-/// ┌ 工具条：[截图][取色][悬浮剪贴板]     (主页│文件中转)     [⚙] ┐ 40pt
+/// ┌ 工具条：[截图][取色][悬浮剪贴板]     (主页│监测)     [⚙] ┐ 40pt
 /// ├ 主页 ────────────────────────────────────────────────┤
 /// │  🔍 搜索或输入 / 使用工具                                │
 /// │  ‹ 2026年10月 ›                              ⌄          │
@@ -23,7 +23,6 @@ import UniformTypeIdentifiers
 /// 大侧边栏改造只作用于**设置窗口**（见 SettingsRootView）。
 /// v60（2026-10-19 用户决策）：「性能监测」页删除——只保留独立窗口一套实现
 /// （MonitorPopoutWindow，⌥P / ⌥M / 状态栏部件点击直达），避免两套实现打架。
-/// 本面板唯一新增：顶部「文件中转」分段受「设置 → 常规 → 功能」开关控制显隐。
 struct PanelRootView: View {
     @Environment(\.isSettingsPreview) private var isSettingsPreview
     @Environment(\.settingsPreviewClipboardItems) private var previewClipboardItems
@@ -50,7 +49,6 @@ struct PanelRootView: View {
     @Stored private var previewSearch = ""
     @Stored private var previewFeedback = ""
     @Stored private var previewPinned = false
-    /// 「文件中转」分段作为放置目标（文件拖到分段上即存本地中转）
     /// 底部搜索框焦点
     @FocusState private var bottomSearchFocused: Bool
     /// 剪贴板列表当前选中项（编辑/上传按钮按选中态启用，2026-10-18）
@@ -62,7 +60,6 @@ struct PanelRootView: View {
     /// 之前 showSystemStatus / showCalendar / panel.transferDock 全仓没有读取方，
     /// 用户勾掉也看不到变化（「这个设置之后无效」）。这里作为分段/卡片显隐的前置条件，
     /// 与「个性化 → 主面板页面」的勾选是 AND 关系：两处都开才出现。
-    @AppStorage("showSystemStatus") private var featureSystemMonitor = true
     @AppStorage("showCalendar") private var featureCalendar = true
     /// 顺序串（CSV）——单独观察它，设置里拖完顺序面板立刻重排
     @AppStorage(PanelSegments.orderKey) private var segmentOrderRaw = ""
@@ -71,8 +68,6 @@ struct PanelRootView: View {
     private var homeClipboardItems: [ClipboardItem] {
         isSettingsPreview ? previewClipboardItems : clipboard.items
     }
-
-    /// v250：拖文件到图标后的转入弹框（挂在面板根上，任意页面都能弹）
 
     private var page: PanelCenterPage { isSettingsPreview ? previewPage : monitorPresenter.activePage }
 
@@ -85,10 +80,7 @@ struct PanelRootView: View {
     private func isSegmentOn(_ page: PanelCenterPage) -> Bool {
         switch page {
         case .home:        return segmentHome
-        case .performance: return segmentMonitor && featureSystemMonitor
-        // v260：关掉「启用文件中转」或「常规 → 功能 → 文件中转」时，
-        // 顶部的中转/投屏按钮一起消失，不再留一个只能显示「已关闭」的空壳按钮。
-        // 「个性化 → 主面板页面」仍决定功能开启后是否显示该分段（两者 AND）。
+        case .performance: return segmentMonitor
         }
     }
 
@@ -146,28 +138,26 @@ struct PanelRootView: View {
             if isSettingsPreview { return }
             selectedClipboardItem = note.object as? ClipboardItem
         }
+        .onReceive(NotificationCenter.default.publisher(for: TagStore.manageRequestedNotification)) { note in
+            if !isSettingsPreview, note.object as? String == "panel" { isShowingTagSheet = true }
+        }
         // v197（用户「从一个点扩散成一个面，从哪来回哪去」）：开合动画整体挪到
         // 窗口内容层（Core/WindowReveal）——只有窗口层的 transform 才能连玻璃一起
         // 从菜单栏图标处展开/收回；SwiftUI 侧不再叠 scale/offset/opacity，
         // 否则窗口层缩放 + 内容再缩放 = 双重动效（历史 v73 的「比例怪」同源）。
 
-        // 切页：关预览——主页 hover 打开的预览不能跟到中转站页
+        // 切页：关预览——主页 hover 打开的预览不能跟到别的页
         // （与 ClipboardTableView 的 tracking 禁用双保险）
         .onChange(of: page) { newPage in
             if isSettingsPreview { return }
             Log.info("Panel", "切页: \(newPage)")
             RenderProbe.snapshotAll(reason: "pageChange")
             MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .programmatic)
-            // 切到中转页**不再**自动起直传服务（2026-10-20 用户需求）：
-            // 服务按需启动——勾选文件后点「扫码直传」才拉起并生成二维码。
         }
-        // v260：中转功能开关关掉时，顶部分段一起隐藏（isSegmentOn 里做了门控），
-        // 并通过下面的 onChange 把当前页收回到可用页，不留空壳按钮。
         // v177：分段开关变化 → 若当前页被关掉，切到第一个还开着的页面
         .onChange(of: segmentHome) { _ in normalizeSegmentSelection() }
         .onChange(of: segmentMonitor) { _ in normalizeSegmentSelection() }
         // v260：功能总开关 / 常规页勾选变化也要立刻收掉当前页，否则停留在已隐藏的分段上
-        .onChange(of: featureSystemMonitor) { _ in normalizeSegmentSelection() }
         // v181：顺序变了 → 当前页还在就保持不动，只是重排（关掉当前页的老逻辑走上面）
         .onChange(of: segmentOrderRaw) { _ in normalizeSegmentSelection() }
         .onExitCommand { onDismiss() }             // Esc 关闭面板
@@ -247,8 +237,6 @@ struct PanelRootView: View {
                     anchorRectInWindow: CGRect(x: 24, y: 250, width: 340, height: 60))
             }
         }
-        // 面板直接以中转页打开时（上次停留页）也不自动起直传服务：
-        // 按需启动，勾选文件后点「扫码直传」才拉起（2026-10-20 用户需求）
         .onAppear {
             if isSettingsPreview { return }
             // v177 排障：记录当前启用了哪些页面（关掉的不创建视图，日志里应看不到它们）
@@ -347,6 +335,7 @@ struct PanelRootView: View {
                     FloatingClipboardWindowController.shared.toggle()
                 }
                 .keyboardShortcut("v", modifiers: [.command, .shift])
+                Button("查看收藏…") { FavoritesWindowController.shared.show() }
                 Divider()
                 // v97（2026-10-21 用户：「点击暂停统计剪贴板无效并且无提示」）：
                 // Menu 内自定义 Binding 的 Toggle 在 macOS 上点击偶发不触发 set
@@ -381,13 +370,7 @@ struct PanelRootView: View {
         .frame(height: 40)
     }
 
-    /// 「主页 | 性能监测 | 文件中转 | 投屏」四段分段（自绘胶囊，对齐原版选中态）
-    /// v41：文件中转由设置开关控制显隐。
-    /// v71：性能监测段恢复（用户需求「顶部加回三页面的切换」）——内容复用
-    /// MonitorDetailView 同一套组件（与独立窗一致，不多一套实现）。
-    /// v114（2026-10-25 用户需求）：投屏从文件中转拆出，新增第四段「投屏」。
-    /// v181：顺序与显隐全部由设置里的「主面板页面」决定（可拖拽排序），
-    /// 这里只按 `enabledPages` 依次画，不再写死四段。
+    /// 顶部分段（自绘胶囊）：主页 / 性能监测；顺序与显隐由设置里的「主面板页面」决定。
     private var pageSegments: some View {
         HStack(spacing: 0) {
             ForEach(enabledPages, id: \.self) { item in
@@ -532,7 +515,7 @@ struct PanelRootView: View {
             }
 
             Menu {
-                ForEach(ClipboardFilterKind.allCases) { kind in
+                ForEach(ClipboardFilterKind.contentCases) { kind in
                     Button {
                         if isSettingsPreview { previewFilter = kind }
                         else { ClipboardManager.shared.filter = kind }
@@ -560,10 +543,25 @@ struct PanelRootView: View {
             .help("分类筛选")
             .accessibilityLabel("分类筛选")
 
-            toolbarIcon("tag", help: "标签") {
+            // v271：收藏按钮并入统一图标组件——悬停高亮 + 弹簧按压与其它按钮一致。
+            ToolbarIconButton(symbol: (isSettingsPreview ? previewFilter : ClipboardManager.shared.filter) == .favorite
+                                ? "star.fill" : "star",
+                              help: "查看收藏", fontScale: personalization.fontScale,
+                              accent: theme.accent,
+                              isActive: (isSettingsPreview ? previewFilter : ClipboardManager.shared.filter) == .favorite) {
+                if isSettingsPreview { previewFilter = previewFilter == .favorite ? .all : .favorite }
+                else { ClipboardManager.shared.filter = ClipboardManager.shared.filter == .favorite ? .all : .favorite }
+            }
+
+            // v271：唯一标签入口。过滤与管理合并进同一个下拉菜单（onManageTags），
+            // 删除并排的第二个 tag 图标——用户分不清两个一样的标签按钮。
+            ClipboardTagFilterMenu(selectedTagID: Binding(
+                get: { isSettingsPreview ? nil : ClipboardManager.shared.tagFilterID },
+                set: { if !isSettingsPreview { ClipboardManager.shared.tagFilterID = $0 } }
+            ), onManageTags: {
                 if isSettingsPreview { previewFeedback = "标签入口演示" }
                 else { isShowingTagSheet = true }
-            }
+            })
             // v102（2026-10-21 用户：「向上箭头功能应该是回到顶部」）：
             // 按钮此前误做成「上传」占位（只弹提示，用户感知为点击无效）。
             // 改为回到顶部：平滑滚回剪贴板列表顶端（FilterBar_ScrollToTop 语义）。
@@ -574,25 +572,19 @@ struct PanelRootView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
-        // v110（三级玻璃 L3 工具条胶囊）：半透明真玻璃——与页面底（更淡）、
-        // 白卡片（实底白玻璃）都不同的第三种质感；亮边 + 浮起投影。
+        // v271：玻璃改用统一配方 GlassSurface（与主面板/悬浮剪贴板同一套：
+        // 通透度底衬 + 磨砂霜感，四个玻璃滑块直接生效）。面板窗口本身已有
+        // 毛玻璃 → includesBlur=false 不叠第二层。旧手写「surface+frost+
+        // 0.55 白渐变描边」是一套自成一体的假玻璃——白边太重，和面板
+        // 其它浮层对不上（用户原话：「玻璃态效果十分的怪」）。
         .background(
-            ZStack {
-                // v207：工具条胶囊不再叠第二层 ultraThinMaterial（面板本身已是统一玻璃），
-                // 只用同一套底衬/霜感，保证四个玻璃滑块对这里同样生效。
-                Capsule(style: .continuous).fill(theme.windowSurface)
-                Capsule(style: .continuous).fill(theme.glassFrost)
-            }
-            .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
+            GlassSurface(cornerRadius: 20, includesBlur: false, appliesWindowShadow: false)
+                .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
         )
         .overlay(
             Capsule(style: .continuous)
-                .strokeBorder(
-                    LinearGradient(
-                        colors: [Color.white.opacity(0.55), Color.white.opacity(0.12),
-                                 Color.primary.opacity(0.10)],
-                        startPoint: .top, endPoint: .bottom),
-                    lineWidth: 0.6)
+                .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
+                .allowsHitTesting(false)
         )
         .fixedSize()
     }
@@ -610,18 +602,46 @@ struct PanelRootView: View {
 
     private func toolbarIcon(_ symbol: String, help: String,
                              action: @escaping () -> Void) -> some View {
+        ToolbarIconButton(symbol: symbol, help: help,
+                          fontScale: personalization.fontScale,
+                          accent: theme.accent, action: action)
+    }
+
+/// v271：底部工具条图标按钮。旧 toolbarIcon 用 .plain 样式，
+/// 悬停无高亮、按下无反馈（用户原话：「没有动效啊！」）。
+/// 现在：悬停圆角底色 + 图标染色，按压走 SpringyIconButtonStyle 弹簧缩放。
+struct ToolbarIconButton: View {
+    let symbol: String
+    let help: String
+    let fontScale: CGFloat
+    let accent: Color
+    /// 激活态（如收藏筛选生效）：图标常驻强调色。
+    var isActive: Bool = false
+    var action: () -> Void
+
+    /// 本工程 @State 宏不可用（SwiftUIMacros 缺失），按项目约定用 @Stored 兼容层。
+    @Stored private var hovering = false
+
+    var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.scaledSystem(size: 14, scale: personalization.fontScale))
+                .font(.scaledSystem(size: 14, scale: fontScale))
                 .frame(width: 26, height: 26)
+                .foregroundStyle(isActive || hovering ? accent : Color.secondary)
+                .background(
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(hovering ? accent.opacity(0.14) : .clear)
+                )
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(SpringyIconButtonStyle())
         .focusable(false)
-        .foregroundStyle(.secondary)
+        .onHover { hovering = $0 }
+        .animation(.easeOut(duration: 0.12), value: hovering)
         .help(help)
         .accessibilityLabel(help)
     }
+}
 
     private func captureButton(_ symbol: String, title: String, mode: CaptureMode) -> some View {
         Button {

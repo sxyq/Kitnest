@@ -84,6 +84,7 @@ public struct LLMCompletionRequest: Sendable {
 // MARK: - 凭证存取
 
 public protocol LLMCredentialStoring: AnyObject {
+    var lastWriteError: String? { get }
     /// 读取某厂商的凭证；未配置返回 nil
     func credential(for provider: LLMProviderKind) -> String?
     /// 写入（传 nil 等价于删除）
@@ -97,6 +98,7 @@ public protocol LLMCredentialStoring: AnyObject {
 }
 
 public extension LLMCredentialStoring {
+    var lastWriteError: String? { nil }
     func hasCredential(for provider: LLMProviderKind) -> Bool {
         guard let v = credential(for: provider) else { return false }
         return !v.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -198,21 +200,21 @@ public extension LLMProviderAdapting {
                     for try await chunk in LLMTransport.streamBytes(request, refineError: parser) {
                         try Task.checkCancellation()
                         for line in buffer.ingest(chunk) {
+                            if let delta = try parseStreamLine(line), !delta.isEmpty {
+                                continuation.yield(delta)
+                            }
                             if isTerminalLine(line) {
                                 continuation.finish()
                                 return
-                            }
-                            if let delta = try parseStreamLine(line), !delta.isEmpty {
-                                continuation.yield(delta)
                             }
                         }
                     }
                     // 收尾：冲刷最后一行（服务端未以换行结束时）
                     for line in buffer.flush() {
-                        if isTerminalLine(line) { break }
                         if let delta = try parseStreamLine(line), !delta.isEmpty {
                             continuation.yield(delta)
                         }
+                        if isTerminalLine(line) { break }
                     }
                     continuation.finish()
                 } catch is CancellationError {

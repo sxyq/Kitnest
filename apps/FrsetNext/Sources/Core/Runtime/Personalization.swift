@@ -105,6 +105,7 @@ public final class Personalization: ObservableObject {
     @Published public var material: PersonalizationMaterial = .solid { didSet { persist() } }
     @Published public var showSourceBadge: Bool = true { didSet { persist() } }
     @Published public var thumbOverride: CGFloat? { didSet { persist() } }    // 44/56/72，nil=随密度
+    @Published public var clipboardPreviewScale: CGFloat = 1.6 { didSet { persist() } } // 1.0/1.25/1.6/2.0
     @Published public var toastDuration: TimeInterval = 3 { didSet { persist() } }   // 2/3/5
     @Published public var toastFollowPanel: Bool = false { didSet { persist() } }    // true=跟随主面板；默认屏幕中线偏下
     @Published public var barDividerColorHex: String = "" { didSet { persist() } }  // 空 = 默认
@@ -173,13 +174,24 @@ public final class Personalization: ObservableObject {
     static func makeDefaultDraft() -> Personalization { Personalization(persistsChanges: false) }
 
     func applyDraft(_ draft: Personalization, fields: [DraftField]) {
+        let changed = fields.filter { !$0.matches(self, draft) }
         isLoading = true
-        for field in fields { field.copy(self, draft) }
+        for field in changed { field.copy(self, draft) }
         isLoading = false
-        flushPersist(keys: Set(fields.map(\.key)))
+        flushPersist(keys: Set(changed.map(\.key)))
     }
 
-    private func copyValues(from source: Personalization) {
+    func reloadFromDefaults() {
+        load()
+        NotificationCenter.default.post(name: Self.didChangeNotification, object: nil)
+    }
+
+    /// 把另一份草稿的全部字段原地覆盖到当前实例。
+    ///
+    /// 设置页的草稿对象**不能换实例**：`PersonalizationSettingsView` 在 init 时就把
+    /// `draft.personalization` 存成 @ObservedObject，换实例后控件仍写旧对象、预览读新对象，
+    /// 表现就是「点字号/强调色没反应」。这里用原地覆盖，实例身份始终不变。
+    func copyValues(from source: Personalization) {
         accentColor = source.accentColor
         fontScale = source.fontScale
         density = source.density
@@ -189,6 +201,7 @@ public final class Personalization: ObservableObject {
         material = source.material
         showSourceBadge = source.showSourceBadge
         thumbOverride = source.thumbOverride
+        clipboardPreviewScale = source.clipboardPreviewScale
         toastDuration = source.toastDuration
         toastFollowPanel = source.toastFollowPanel
         barDividerColorHex = source.barDividerColorHex
@@ -230,10 +243,8 @@ public final class Personalization: ObservableObject {
         flushPersist()
     }
 
-    private func flushPersist(keys: Set<String>? = nil) {
-        Log.info("personalization", "persist: fontScale=\(fontScale) density=\(density.rawValue) corner=\(cornerRadius)")
-        let d = UserDefaults.standard
-        let values: [String: Any?] = [
+    var preferenceValues: [String: Any?] {
+        [
             Preferences.Keys.uiAccentColor: accentColorHex,
             Preferences.Keys.uiFontScale: Double(fontScale),
             Preferences.Keys.uiListDensity: density.rawValue,
@@ -243,6 +254,7 @@ public final class Personalization: ObservableObject {
             Preferences.Keys.uiPanelMaterial: material.rawValue,
             Preferences.Keys.uiSourceBadge: showSourceBadge,
             Preferences.Keys.uiThumbSize: thumbOverride.map(Double.init),
+            Preferences.Keys.uiClipboardPreviewScale: Double(clipboardPreviewScale),
             Preferences.Keys.uiToastDuration: toastDuration,
             Preferences.Keys.uiToastPosition: toastFollowPanel,
             Preferences.Keys.uiBarDividerColor: barDividerColorHex,
@@ -255,7 +267,12 @@ public final class Personalization: ObservableObject {
             Preferences.Keys.uiGlassCardLift: glassCardLift,
             Preferences.Keys.uiGlassStroke: glassStroke,
         ]
-        for (key, value) in values where keys == nil || keys!.contains(key) {
+    }
+
+    private func flushPersist(keys: Set<String>? = nil) {
+        Log.info("personalization", "persist: fontScale=\(fontScale) density=\(density.rawValue) corner=\(cornerRadius)")
+        let d = UserDefaults.standard
+        for (key, value) in preferenceValues where keys == nil || keys!.contains(key) {
             if let value { d.set(value, forKey: key) }
             else { d.removeObject(forKey: key) }
         }
@@ -263,6 +280,31 @@ public final class Personalization: ObservableObject {
             d.set(Self.currentGlassLookVersion, forKey: Self.glassLookVersionKey)
         }
         NotificationCenter.default.post(name: Self.didChangeNotification, object: nil)
+    }
+
+    /// 预览字号迁移（v266 首轮放大，v269 用户再次要求「进一步放大一点」）。
+    ///
+    /// v2：旧 0.9/1.0/1.1/1.25 → 1.0/1.25/1.5/1.5。
+    /// v3：1.5 → 1.6、1.8 → 2.0（新四档 1.0/1.25/1.6/2.0，默认 1.6）。
+    /// 版本号保证每轮只迁移一次——否则用户手动选的档位会在下次启动被再抬。
+    private static func migratedPreviewScale(_ stored: CGFloat?) -> CGFloat {
+        let d = UserDefaults.standard
+        let version = d.integer(forKey: Preferences.Keys.uiClipboardPreviewScaleVersion)
+        guard let stored, stored > 0 else { return 1.6 }
+        var value = stored
+        if version < 2 {
+            switch stored {
+            case ..<0.95: value = 1.0
+            case ..<1.05: value = 1.25
+            default:      value = 1.5
+            }
+        }
+        if version < 3 {
+            if abs(value - 1.5) < 0.01 { value = 1.6 }
+            if abs(value - 1.8) < 0.01 { value = 2.0 }
+            d.set(3, forKey: Preferences.Keys.uiClipboardPreviewScaleVersion)
+        }
+        return min(2.0, max(1.0, value))
     }
 
     private func load() {
@@ -286,6 +328,15 @@ public final class Personalization: ObservableObject {
             ? true : d.bool(forKey: Preferences.Keys.uiSourceBadge)
         thumbOverride = d.object(forKey: Preferences.Keys.uiThumbSize) == nil
             ? nil : CGFloat(d.double(forKey: Preferences.Keys.uiThumbSize))
+        clipboardPreviewScale = Self.migratedPreviewScale(
+            d.object(forKey: Preferences.Keys.uiClipboardPreviewScale).map { _ in
+                CGFloat(d.double(forKey: Preferences.Keys.uiClipboardPreviewScale))
+            })
+        if d.object(forKey: Preferences.Keys.uiClipboardPreviewScale) == nil
+            || abs(d.double(forKey: Preferences.Keys.uiClipboardPreviewScale) - Double(clipboardPreviewScale)) > 0.001 {
+            // 迁移后立刻落盘：否则设置页把「默认值 vs 旧值」当成未保存改动（v266）。
+            d.set(Double(clipboardPreviewScale), forKey: Preferences.Keys.uiClipboardPreviewScale)
+        }
         toastDuration = d.object(forKey: Preferences.Keys.uiToastDuration) == nil
             ? 3 : d.double(forKey: Preferences.Keys.uiToastDuration)
         toastFollowPanel = d.object(forKey: Preferences.Keys.uiToastPosition) == nil
@@ -381,6 +432,7 @@ public final class Personalization: ObservableObject {
         material = .solid
         showSourceBadge = true
         thumbOverride = nil
+        clipboardPreviewScale = 1.6
         toastDuration = 3
         toastFollowPanel = false
         barDividerColorHex = ""

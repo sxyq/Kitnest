@@ -1,37 +1,54 @@
 #!/bin/bash
-# KitnestLite 一键构建：编译全部 Swift 源码 → 打包 .app → ad-hoc 签名
+# KitnestLite 一键构建：编译全部 Swift 源码 → 打包 .app → 固定证书签名
 set -o pipefail
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-SRC="$ROOT/Sources"
+SRC="${FRSETNEXT_SOURCE_ROOT:-$ROOT/Sources}"
 # v31（2026-10-18）：构建产物与部署全程原子化。
-# 病灶：原先「rm -rf build/KitnestLite.app → 原地编译」，且部署用 ditto 覆盖合并——
+# 病灶：原先「rm -rf build/Kitnest.app → 原地编译」，且部署用 ditto 覆盖合并——
 #   构建/复制的几秒窗口期内，Finder 双击拿到的是半成品 bundle，Gatekeeper 直接报
 #   「已损坏，无法打开」（用户实障：连续多次把 app 拖进废纸篓，Trash 里留有
-#    `KitnestLite.app 13-41-17-539.app` 这类 Finder 重命名副本为证）。
-# 方案：编译/签名/校验全在 build/.staging/ 的暂存 bundle 内完成，最后 rename 换位
-#   （同卷 rename 是原子操作）。对外可见的 build/KitnestLite.app 与 /Applications 副本
-#   **任何时刻都是完整、签名有效的可启动包**；构建失败也不影响旧版。
-APP_FINAL="$ROOT/build.noindex/KitnestLite.app"          # 对外可见的构建产物（始终完整可启动）
-APP="$ROOT/build.noindex/.staging/KitnestLite.app"       # 编译暂存（构建期间对外不可见）
+#    `Kitnest.app 13-41-17-539.app` 这类 Finder 重命名副本为证）。
+# 编译、签名在暂存包内完成，再原子部署到 /Applications；退出时删除暂存包。
+APP_NAME="${KITNEST_APP_NAME:-KitnestLite}"
+INFO_PLIST="${KITNEST_INFO_PLIST:-$ROOT/Info.plist}"
+SIGNING_IDENTITY="2EFBEE27CEFEF9F60C03BA222A972127D9286542"
+SIGNING_BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$INFO_PLIST")"
+SIGNING_REQUIREMENT="identifier \"$SIGNING_BUNDLE_ID\" and certificate leaf = H\"2efbee27cefef9f60c03ba222a972127d9286542\""
+if ! security find-identity -v -p codesigning 2>/dev/null | grep -Fq "$SIGNING_IDENTITY"; then
+  echo "✗ 缺少固定 FrsetDev 签名证书；为保留屏幕录制授权，本次不构建临时签名包"
+  exit 1
+fi
+# 外置 exFAT 工作树需把 bundle 留在 APFS，避免 AppleDouble 边车文件破坏签名。
+BUILD_ROOT="${KITNEST_BUILD_ROOT:-$ROOT/build.noindex}"
+# 并行工作台/Lite 构建曾改写共用目标文件；本次暂存与链接输入由同一目录持有。
+mkdir -p "$BUILD_ROOT/.staging"
+STAGE=$(mktemp -d "$BUILD_ROOT/.staging/kitnest.XXXXXX")
+APP="$STAGE/$APP_NAME.app"
+BUILD_LOG="$STAGE/build.log"
+trap 'cp "$BUILD_LOG" /tmp/frsetnext_build.log; rm -rf "$STAGE"' EXIT
+# 同一工作区的并行编辑会使 Swift 读到中途变化的输入；本次编译只读这份暂存输入。
+ditto "$SRC" "$STAGE/Sources"
+SRC="$STAGE/Sources"
 SDK="$(xcrun --show-sdk-path)"
 
-# 优化档位：默认 `-O` + **关闭全模块优化（no-WMO）**。
+# 优化档位：固定 `-O` + **关闭全模块优化（no-WMO）**，编译并发限制为 2。
 # 为什么关 WMO：`-O` 的 whole-module-optimization 会把 120+ 个源文件当成**一个优化单元**，
 # 峰值内存比 typecheck 高一个数量级（实测 26.9MB → 310.6MB，11.5×），在本机
 # （16GB RAM + swap 已近满）必然被系统 SIGKILL（退出码 137）。
 # 关闭 WMO 后 swiftc **逐文件**优化，峰值降到单文件量级；产出的可执行文件功能完全等价，
 # 只损失跨文件的少量内联/去虚化机会（对本 App 无感）。
-# 需要极限优化时可覆盖：FRSETNEXT_OPT="-O" ./build.sh   （前提：内存充足）
-OPT_FLAGS="${FRSETNEXT_OPT:--O -no-whole-module-optimization}"
+OPT_FLAGS="-O -no-whole-module-optimization"
+SWIFT_JOBS=2
+BUILD_NICE=10
 
 echo "== 源码统计 =="
 find "$SRC" -name '*.swift' -not -name '._*' | wc -l | xargs echo "  Swift 文件:"
 find "$SRC" -name '*.swift' -not -name '._*' -exec cat {} + | wc -l | xargs echo "  总行数:"
 
 echo "== 清理 =="
-rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$ROOT/Info.plist" "$APP/Contents/Info.plist"
+cp "$INFO_PLIST" "$APP/Contents/Info.plist"
+/usr/libexec/PlistBuddy -c "Set :CFBundleExecutable $APP_NAME" "$APP/Contents/Info.plist"
 
 FILES=$(find "$SRC" -name '*.swift' -not -name '._*' \
   -not -path "$SRC/MemoryHelper/*" -not -path "$SRC/OCRHelper/*" \
@@ -42,6 +59,7 @@ echo "== 资源 =="
 # 签完再添加文件会导致签名失效（资源被判定为篡改），故拷贝严格排在签名步骤之前（契约 §10.2）。
 if [ -d "$ROOT/Resources" ]; then
   cp -R "$ROOT/Resources/." "$APP/Contents/Resources/"
+  find "$APP/Contents/Resources" -name '._*' -delete
   find "$APP/Contents/Resources" -name 'Localizable.strings' | sort | sed 's/^/  打包: /'
 else
   echo "  （无 Resources/ 目录，跳过本地化资源打包）"
@@ -62,28 +80,29 @@ echo "== 资源预检 =="
 # 这里只做「知情」提示，不做硬拦截——硬拦截会把「内存暂时紧张」误判成「不能构建」。
 echo "  $(sysctl -n vm.swapusage 2>/dev/null)"
 echo "  优化档位: $OPT_FLAGS"
+echo "  编译资源: Swift 并发 $SWIFT_JOBS，nice $BUILD_NICE"
 
 echo "== 编译 =="
 # 产物目录先清空：若 swiftc 被中途杀死（SIGKILL），可能留下上一次构建的半成品可执行文件，
 # 使"产物存在"被误读成"构建成功"。清空后产物在= 本次真编译出了二进制。
-rm -f "$APP/Contents/MacOS/KitnestLite"
+rm -f "$APP/Contents/MacOS/$APP_NAME"
 
 # ---- ObjC/C 部件引擎（FrsetStatsBar）：clang 编译为 .o，供 swiftc 链接 ----
 # 来源：stats-recon/inject/（注入版同款代码，原样移植；注入入口/hook 已由
 # frset_stats_tick.m 替代为普通启停 API）。编译参数与注入版 build-dylib.sh 一致。
 OBJC_DIR="$SRC/FrsetStatsBar"
-OBJ_DIR="/tmp/kitnestlite_objc"
-rm -rf "$OBJ_DIR"; mkdir -p "$OBJ_DIR"
-: > /tmp/kitnestlite_build.log   # 重建日志：clang 段追加写，swiftc 段随后追加
+OBJ_DIR="$STAGE/objc"
+mkdir -p "$OBJ_DIR"
+: > "$BUILD_LOG"   # clang 和 Swift 共用本次日志，结束后写入原日志位置
 OBJ_FILES=""
 if [ -d "$OBJC_DIR" ]; then
   for f in "$OBJC_DIR"/*.c "$OBJC_DIR"/*.m; do
     [ -f "$f" ] || continue
     obj="$OBJ_DIR/$(basename "${f%.*}").o"
-    clang -c "$f" -o "$obj" \
+    nice -n "$BUILD_NICE" clang -c "$f" -o "$obj" \
       -isysroot "$SDK" -target arm64-apple-macosx13.0 \
       -I "$ROOT/Vendor/ocr" \
-      -fobjc-arc -O1 2>&1 | tee -a /tmp/kitnestlite_build.log | tail -5
+      -fobjc-arc -O1 2>&1 | tee -a "$BUILD_LOG" | tail -5
     CLANG_RC=${PIPESTATUS[0]}
     if [ "$CLANG_RC" -ne 0 ] || [ ! -f "$obj" ]; then
       echo "✗ ObjC 编译失败: $f（退出码 $CLANG_RC）"
@@ -100,12 +119,12 @@ BRIDGE="$OBJC_DIR/FrsetStatsBar.h"
 # 终端上只会停在「== 编译 ==」而无任何结论——此时本文件是否残留就成了唯一的判据：
 #   残留 + 无产物 → 死在编译阶段（进程组被杀），不是代码问题，别改代码
 #   已删除+ 无产物 → 编译阶段正常结束却没出产物（真编译失败），去读 build log
-STAMP=/tmp/kitnestlite_build.stamp
+STAMP="$STAGE/build.stamp"
 rm -f "$STAMP"; touch "$STAMP"
 
-swiftc $OPT_FLAGS -j 1 -parse-as-library \
+nice -n "$BUILD_NICE" swiftc $OPT_FLAGS -j "$SWIFT_JOBS" -parse-as-library \
   -sdk "$SDK" -target arm64-apple-macosx13.0 -swift-version 5 \
-  -o "$APP/Contents/MacOS/KitnestLite" $FILES $OBJ_FILES \
+  -o "$APP/Contents/MacOS/$APP_NAME" $FILES $OBJ_FILES \
   -import-objc-header "$BRIDGE" \
   -lsqlite3 \
   -lIOReport \
@@ -113,13 +132,13 @@ swiftc $OPT_FLAGS -j 1 -parse-as-library \
   -framework CoreGraphics -framework CoreImage -framework ImageIO \
   -framework Vision -Xlinker -weak_framework -Xlinker Translation -framework ScreenCaptureKit -framework EventKit \
   -framework ServiceManagement -framework UniformTypeIdentifiers \
-  -framework IOKit -framework SystemConfiguration \
+  -framework IOKit -framework SystemConfiguration -framework Security \
   -framework AVFoundation -framework CoreMedia \
   -framework QuickLookThumbnailing \
-  -framework WebKit 2>&1 | tee -a /tmp/kitnestlite_build.log | tail -40
+  -framework WebKit 2>&1 | tee -a "$BUILD_LOG" | tail -40
 BUILD_RC=${PIPESTATUS[0]}
 rm -f "$STAMP"   # 走到这里说明脚本活着，撤掉标记
-LOG_BYTES=$(wc -c < /tmp/kitnestlite_build.log | tr -d ' ')
+LOG_BYTES=$(wc -c < "$BUILD_LOG" | tr -d ' ')
 
 # 三分法（实测判据，见 docs/l10n-original-reference/MANIFEST.md 同类「无输出≠通过」原则）：
 #   log 0 字节 + 产物空 → 被 SIGKILL（资源竞争域），**不是代码问题**，别去改代码
@@ -132,16 +151,16 @@ LOG_BYTES=$(wc -c < /tmp/kitnestlite_build.log | tr -d ' ')
 # 该情形的判据见上方 $STAMP 标记残留 —— 别把「没输出」读成「不知道发生了什么」。
 if [ "$BUILD_RC" -eq 137 ]; then
   echo "⚠ swiftc 被系统终止（退出码 137 = SIGKILL）：资源竞争，非代码问题"
-  echo "  日志 ${LOG_BYTES} 字节 / 产物$( [ -f "$APP/Contents/MacOS/KitnestLite" ] && echo存在 || echo缺失)"
+  echo "  日志 ${LOG_BYTES} 字节 / 产物$( [ -f "$APP/Contents/MacOS/$APP_NAME" ] && echo存在 || echo缺失)"
   echo "  处置：等空闲后重跑（串行更稳），**不要改代码**"
   exit 137
 elif [ "$BUILD_RC" -ne 0 ]; then
-  echo "✗ 编译失败（退出码 $BUILD_RC，日志 ${LOG_BYTES} 字节），详见 /tmp/kitnestlite_build.log"
+  echo "✗ 编译失败（退出码 $BUILD_RC，日志 ${LOG_BYTES} 字节），详见 /tmp/frsetnext_build.log"
   exit 1
 fi
 
-if [ ! -f "$APP/Contents/MacOS/KitnestLite" ]; then
-  echo "✗ 编译返回 0 但产物缺失，日志 ${LOG_BYTES} 字节，详见 /tmp/kitnestlite_build.log"
+if [ ! -f "$APP/Contents/MacOS/$APP_NAME" ]; then
+  echo "✗ 编译返回 0 但产物缺失，日志 ${LOG_BYTES} 字节，详见 /tmp/frsetnext_build.log"
   exit 1
 fi
 
@@ -160,14 +179,10 @@ HELPER_OUT="$APP/Contents/Library/PrivilegedHelperTools/$HELPER_NAME"
 if [ -f "$HELPER_SRC" ]; then
   echo "== 内存服务 helper =="
   mkdir -p "$(dirname "$HELPER_OUT")"
-  if swiftc -O -sdk "$SDK" -target arm64-apple-macosx13.0 -swift-version 5 \
+  if nice -n "$BUILD_NICE" swiftc -O -j "$SWIFT_JOBS" -sdk "$SDK" -target arm64-apple-macosx13.0 -swift-version 5 \
        -o "$HELPER_OUT" "$HELPER_SRC" 2>&1 | tail -5; then
     if [ -f "$HELPER_OUT" ]; then
-      if security find-identity -v -p codesigning 2>/dev/null | grep -q "FrsetDev"; then
-        codesign --force -s "FrsetDev" -i "com.sxyq.kitnestlite.memoryhelper" "$HELPER_OUT" 2>&1 | tail -2
-      else
-        codesign --force -s - -i "com.sxyq.kitnestlite.memoryhelper" "$HELPER_OUT" 2>&1 | tail -2
-      fi
+      codesign --force -s "$SIGNING_IDENTITY" -i "com.sxyq.kitnestlite.memoryhelper" "$HELPER_OUT" 2>&1 | tail -2
       if codesign -v "$HELPER_OUT" 2>/dev/null; then
         echo "  helper 签名 ✓"
       else
@@ -199,15 +214,15 @@ OCR_H_OUT="$APP/Contents/Helpers/FrsetOCRHelper"
 if [ -f "$OCR_H_DIR/main.swift" ]; then
   echo "== 本地 OCR helper =="
   mkdir -p "$(dirname "$OCR_H_OUT")"
-  OCR_OBJ_DIR="/tmp/kitnestlite_ocr_helper"
-  rm -rf "$OCR_OBJ_DIR"; mkdir -p "$OCR_OBJ_DIR"
+  OCR_OBJ_DIR="$STAGE/ocr"
+  mkdir -p "$OCR_OBJ_DIR"
   if ! clang -c "$OBJC_DIR/frset_ocr_onnx.m" -o "$OCR_OBJ_DIR/frset_ocr_onnx.o" \
        -isysroot "$SDK" -target arm64-apple-macosx13.0 -I "$ROOT/Vendor/ocr" \
        -fobjc-arc -O1 2>&1 | tail -5; then
     echo "  ✗ helper 的 ONNX 封装编译失败"
     exit 1
   fi
-  if swiftc -O -sdk "$SDK" -target arm64-apple-macosx13.0 -swift-version 5 \
+  if nice -n "$BUILD_NICE" swiftc -O -j "$SWIFT_JOBS" -sdk "$SDK" -target arm64-apple-macosx13.0 -swift-version 5 \
        -o "$OCR_H_OUT" \
        "$OCR_H_DIR/main.swift" "$OCR_H_DIR/LogStub.swift" \
        "$SRC/Features/Capture/OCR/PPOCROCR.swift" \
@@ -215,11 +230,7 @@ if [ -f "$OCR_H_DIR/main.swift" ]; then
        -import-objc-header "$OCR_H_DIR/ocr_bridge.h" \
        -framework AppKit -framework CoreGraphics 2>&1 | tail -10; then
     if [ -x "$OCR_H_OUT" ]; then
-      if security find-identity -v -p codesigning 2>/dev/null | grep -q "FrsetDev"; then
-        codesign --force -s "FrsetDev" -i "com.sxyq.kitnestlite.ocrhelper" "$OCR_H_OUT" 2>&1 | tail -2
-      else
-        codesign --force -s - -i "com.sxyq.kitnestlite.ocrhelper" "$OCR_H_OUT" 2>&1 | tail -2
-      fi
+      codesign --force -s "$SIGNING_IDENTITY" -i "com.sxyq.kitnestlite.ocrhelper" "$OCR_H_OUT" 2>&1 | tail -2
       codesign -v "$OCR_H_OUT" 2>/dev/null && echo "  OCR helper 签名 ✓" || { echo "  ⚠ OCR helper 签名失败"; exit 1; }
       # 冒烟：无参数运行应返回用法错误（退出码 2），证明二进制能启动
       "$OCR_H_OUT" >/dev/null 2>&1; rc=$?
@@ -237,37 +248,19 @@ fi
 # 先签 Frameworks 里的动态库，再签 app——codesign 不会自动签嵌套 dylib，
 # 未签名的库在运行时会被系统拒绝加载（本地 OCR 会静默降级回 Vision）。
 if [ -f "$APP/Contents/Frameworks/libonnxruntime.dylib" ]; then
-  if security find-identity -v -p codesigning 2>/dev/null | grep -q "FrsetDev"; then
-    codesign --force -s "FrsetDev" "$APP/Contents/Frameworks/libonnxruntime.dylib" 2>&1 | tail -2
-  else
-    codesign --force -s - "$APP/Contents/Frameworks/libonnxruntime.dylib" 2>&1 | tail -2
-  fi
+  codesign --force -s "$SIGNING_IDENTITY" "$APP/Contents/Frameworks/libonnxruntime.dylib" 2>&1 | tail -2
   codesign -v "$APP/Contents/Frameworks/libonnxruntime.dylib" 2>/dev/null \
     && echo "  ONNX Runtime 签名 ✓" || echo "  ⚠ ONNX Runtime 签名失败"
 fi
 
-# ExFAT 的 AppleDouble 伴随文件会被当作未签名的嵌套程序。
-dot_clean -m "$APP"
 echo "== 签名 =="
-# v30（2026-10-18）：屏幕录制授权失效根因修复——必须用固定证书签，不能用 ad-hoc（-s -）。
-#   ad-hoc 的 designated requirement = cdhash（二进制内容哈希）：每次重新编译内容必变
-#   → TCC 授权记录对不上 → 系统认为未授权 → app 内 CGPreflightScreenCaptureAccess()
-#     返回 false → 弹"需要屏幕录制权限"（用户实障：授权了却又提示没授权）。
-#   自签证书 FrsetDev（钥匙串，2026-10-18 创建）的 requirement =
-#   identifier "com.sxyq.kitnestlite" and certificate leaf=H"2efbee..."——与内容无关，
-#   授权一次后重建保留。证书创建方式见 docs/（openssl + keyUsage=digitalSignature
-#   + EKU=codeSigning + security add-trusted-cert -d）。
-if security find-identity -v -p codesigning 2>/dev/null | grep -q "FrsetDev"; then
-  codesign --force -s "FrsetDev" "$APP" 2>&1 | tail -2
-  if codesign -d --requirements - "$APP" 2>/dev/null | grep -q 'certificate leaf'; then
-    echo "  证书签名 ✓（TCC 授权跨构建保留）"
-  else
-    echo "  ⚠️ 证书签名未生效，requirement 仍为 cdhash——检查 FrsetDev 证书"
-  fi
-else
-  echo "  ⚠️⚠️ 钥匙串无 FrsetDev 证书，回退 ad-hoc 签名——**重新构建后屏幕录制授权将失效**！"
-  echo "  ⚠️ 恢复方法见 docs/（或跑 build.sh 旁的 make-cert 段）"
-  codesign --force -s - "$APP" 2>&1 | tail -2
+# v30/v32（2026-10-18）：主程序始终使用固定 FrsetDev 身份。旧 TCC 记录在身份迁移
+# 后需重新授权一次；之后构建不得改签名身份。
+codesign --force -s "$SIGNING_IDENTITY" "$APP" 2>&1 | tail -2
+ACTUAL_REQUIREMENT="$(codesign -d --requirements - "$APP" 2>&1 | sed -n 's/^designated => //p')"
+if [ "$ACTUAL_REQUIREMENT" != "$SIGNING_REQUIREMENT" ]; then
+  echo "✗ 主程序签名身份与已授权身份不符：$ACTUAL_REQUIREMENT"
+  exit 1
 fi
 
 # 签名有效性必须**显式复核**：codesign 的输出被 tail -2 截断，且「bundle 存在」不等于「已签名」
@@ -279,14 +272,14 @@ else
 fi
 
 echo "== 完成 =="
-ls -la "$APP/Contents/MacOS/KitnestLite"
+ls -la "$APP/Contents/MacOS/$APP_NAME"
 echo "  签名: $SIGN_STATE"
 # 资源落地验证：确认 .lproj 进了 bundle
 if [ -d "$APP/Contents/Resources" ]; then
   echo "  bundle 内 lproj:"; find "$APP/Contents/Resources" -maxdepth 1 -name '*.lproj' | sort | sed 's/^/    /'
 fi
 # 收尾自检：把「存在 ≠ 通过」的判据显式化
-if [ ! -s "$APP/Contents/MacOS/KitnestLite" ]; then
+if [ ! -s "$APP/Contents/MacOS/$APP_NAME" ]; then
   echo "  ⚠ 可执行文件缺失或为空 —— 本次构建未真正产出，**不要**把 build/ 目录存在当作成功"
   exit 1
 fi
@@ -294,30 +287,6 @@ if [ "$SIGN_STATE" != "已签名 ✓" ]; then
   echo "  ⚠ 签名未通过 —— 产物可能无法运行"
   exit 1
 fi
-# ============================================================================
-# 原子换位：暂存 → build/KitnestLite.app（2026-10-18 v31）
-# 同上：rename 同卷原子，任何时刻 build/ 下的 app 都是完整可启动的；
-# 用户在构建期间双击也只会启动**上一个可用版本**，不会看到"已损坏"。
-# ============================================================================
-mkdir -p "$ROOT/build.noindex/.staging"
-rm -rf "$ROOT/build.noindex/.staging/old"
-if [ -d "$APP_FINAL" ]; then
-  mv "$APP_FINAL" "$ROOT/build.noindex/.staging/old" 2>/dev/null || true
-fi
-if mv "$APP" "$APP_FINAL" 2>/dev/null; then
-  rm -rf "$ROOT/build.noindex/.staging/old"
-else
-  echo "  ⚠ 产物换位失败，回滚旧版"
-  [ -d "$ROOT/build.noindex/.staging/old" ] && mv "$ROOT/build.noindex/.staging/old" "$APP_FINAL"
-  exit 1
-fi
-APP="$APP_FINAL"
-if ! codesign -v --deep --strict "$APP" 2>/dev/null; then
-  echo "  ⚠ 换位后签名校验失败：$APP"
-  exit 1
-fi
-echo "应用包: $APP"
-
 # ============================================================================
 # 部署到固定路径 /Applications（2026-10-18 v31：原子部署）
 #
@@ -334,12 +303,12 @@ echo "应用包: $APP"
 # 任一步失败都保留旧版不动，绝不把坏包放到用户双击的路径上。
 # app 正在运行时换位仍可完成（进程持旧 inode），下次启动即新版。
 # ============================================================================
-DEPLOY=/Applications/KitnestLite.app
-DEPLOY_STAGE=/Applications/.KitnestLite.app.staging.$$
-DEPLOY_OLD=/Applications/.KitnestLite.app.old.$$
+DEPLOY="/Applications/$APP_NAME.app"
+DEPLOY_STAGE="/Applications/.$APP_NAME.app.staging.$$"
+DEPLOY_OLD="/Applications/.$APP_NAME.app.old.$$"
 LSREG=/System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister
 
-if [ -d "$DEPLOY" ] && pgrep -f "$DEPLOY/Contents/MacOS/KitnestLite" >/dev/null 2>&1; then
+if [ -d "$DEPLOY" ] && pgrep -f "$DEPLOY/Contents/MacOS/$APP_NAME" >/dev/null 2>&1; then
   echo "  ℹ️ 旧版本正在运行——部署完成后退出并重新打开即新版"
 fi
 
@@ -349,11 +318,7 @@ if ditto "$APP" "$DEPLOY_STAGE" 2>/dev/null; then
   # 的代码身份改成主 app 的 identifier（两个不同可执行文件不应共用身份）。
   # 只有复制导致封印失效时才补签（不带 --deep，helper 保留自身签名）。
   if ! codesign -v --deep --strict "$DEPLOY_STAGE" 2>/dev/null; then
-    if security find-identity -v -p codesigning 2>/dev/null | grep -q "FrsetDev"; then
-      codesign --force -s "FrsetDev" "$DEPLOY_STAGE" >/dev/null 2>&1
-    else
-      codesign --force -s - "$DEPLOY_STAGE" >/dev/null 2>&1
-    fi
+    codesign --force -s "$SIGNING_IDENTITY" "$DEPLOY_STAGE" >/dev/null 2>&1
   fi
   xattr -dr com.apple.quarantine "$DEPLOY_STAGE" 2>/dev/null || true
 
@@ -364,7 +329,7 @@ if ditto "$APP" "$DEPLOY_STAGE" 2>/dev/null; then
       rm -rf "$DEPLOY_OLD"
       [ -x "$LSREG" ] && "$LSREG" -f "$DEPLOY" >/dev/null 2>&1 || true
       if codesign -v --deep --strict "$DEPLOY" 2>/dev/null; then
-        echo "已部署(原子): $DEPLOY（日常从这里打开；build/ 下仅作构建产物）"
+        echo "已部署(原子): ${DEPLOY}（暂存包随构建结束清理）"
       else
         echo "  ⚠ 部署后最终校验失败：$DEPLOY"
       fi

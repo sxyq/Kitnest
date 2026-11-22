@@ -89,42 +89,38 @@ public enum SearchHookRegistry {
 
 public enum ToolboxSearchSource {
     public static func register() {
-        SearchHookRegistry.register { query in
-            // 原版占位符「搜索或输入 / 使用工具」：输入 / 即进入命令模式。
-            // v172：不再只用工具名，统一走 SlashCommandCatalog——
-            // 每行显示 `/token`，并认原版命令名（/apollo、/tinyimg、/time…）。
-            if query.hasPrefix("/") {
-                let token = String(query.dropFirst())
-                let commands = await MainActor.run { SlashCommandCatalog.match(token) }
-                return commands.map { cmd in
-                    SearchResultItem(id: "slash-\(cmd.id)",
-                                     title: cmd.title,
-                                     subtitle: cmd.subtitle,
-                                     icon: cmd.systemImage,
-                                     match: nil,
-                                     action: cmd.run)
+        SearchHookRegistry.register { await search($0) }
+    }
+
+    static func search(_ query: String) async -> [SearchResultItem] {
+        // 工具文字按当前语言读取；搜索源由并发任务组调用，L10n 缓存只在主线程访问。
+        if query.hasPrefix("/") {
+            let token = String(query.dropFirst())
+            return await MainActor.run {
+                SlashCommandCatalog.match(token).map { cmd in
+                    SearchResultItem(id: "slash-\(cmd.id)", title: cmd.title,
+                                     subtitle: cmd.subtitle, icon: cmd.systemImage,
+                                     match: nil, action: cmd.run)
                 }
             }
-            let keyword = query
-            return ToolRegistry.enabledTools.compactMap { tool in
-                // v60 模糊匹配：工具名命中带高亮；名称未命中再看关键字/描述/分类
-                let nameMatch = FuzzyMatcher.match(keyword, in: tool.name)
-                let haystack = [tool.name, tool.identifier, tool.keyword, tool.toolDescription, tool.category.title].joined(separator: " ")
-                guard nameMatch != nil || FuzzyMatcher.isMatch(keyword, in: haystack) else { return nil }
-                return Self.item(for: tool, match: nameMatch)
+        }
+        let tools = await MainActor.run {
+            ToolRegistry.enabledTools.map {
+                ($0.identifier, $0.keyword, $0.name, $0.toolDescription, $0.category.title, $0.systemImage)
+            }
+        }
+        return tools.compactMap { id, keyword, name, description, category, icon in
+            let nameMatch = FuzzyMatcher.match(query, in: name)
+            let haystack = [name, id, keyword, description, category].joined(separator: " ")
+            guard nameMatch != nil || FuzzyMatcher.isMatch(query, in: haystack) else { return nil }
+            return SearchResultItem(id: "tool-\(id)", title: name,
+                                    subtitle: "工具箱 · \(category)", icon: icon,
+                                    match: nameMatch) {
+                ToolboxUIState.shared.open(id)
             }
         }
     }
 
-    private static func item(for tool: ToolDescriptor, match: FuzzyMatch? = nil) -> SearchResultItem {
-        SearchResultItem(id: "tool-\(tool.identifier)",
-                         title: tool.name,
-                         subtitle: "工具箱 · \(tool.category.title)",
-                         icon: tool.systemImage,
-                         match: match) {
-            ToolboxUIState.shared.open(tool.identifier)
-        }
-    }
 }
 
 // MARK: 本地文件检索（v60：FSearch 式模糊引擎）
@@ -519,6 +515,9 @@ public struct SearchSectionView: View {
     @Stored private var fileResults: [FuzzyFileResult] = []
     @Stored private var isSearching = false
     @Stored private var generation = 0
+    @Stored private var toolLanguageGeneration = 0
+    @Stored private var webGeneration = 0
+    @Stored private var feedbackGeneration: Int?
     @Stored private var hasSearched = false
     /// v60 结果列表内容实测高度（PreferenceKey 测量 → 动态展开动画）
     @Stored private var listContentHeight: CGFloat = 0
@@ -549,6 +548,8 @@ public struct SearchSectionView: View {
     @Stored private var fileIndexState: FileNameIndex.State = .absent
     private var fileIndex: FileNameIndex { FileNameIndex.shared }
     @ObservedObject private var service: SearchServiceManager
+    @ObservedObject private var clipboard = ClipboardManager.shared
+    @ObservedObject private var favorites = FavoritesStore.shared
     @Stored private var previewShowWeb = true
     @Stored private var previewShowClipboard = true
     @Stored private var previewShowFiles = true
@@ -557,6 +558,7 @@ public struct SearchSectionView: View {
     private let draftWeb: Binding<Bool>?
     private let draftClipboard: Binding<Bool>?
     private let draftFiles: Binding<Bool>?
+    private let initialCategory: SearchCategory?
 
     // 分类开关（分类头部眼睛按钮与设置页共用同一批键）
     @AppStorage(Preferences.Keys.searchCategoryWeb) private var savedShowWeb = true
@@ -574,6 +576,7 @@ public struct SearchSectionView: View {
         service = .shared
         draftQuery = nil
         draftWeb = nil; draftClipboard = nil; draftFiles = nil
+        initialCategory = nil
     }
 
     init(draft: SearchDisplayDraft, query: Binding<String>) {
@@ -582,12 +585,33 @@ public struct SearchSectionView: View {
         draftWeb = Binding(get: { draft.showWeb }, set: { draft.showWeb = $0 })
         draftClipboard = Binding(get: { draft.showClipboard }, set: { draft.showClipboard = $0 })
         draftFiles = Binding(get: { draft.showFiles }, set: { draft.showFiles = $0 })
+        initialCategory = nil
     }
 
     public var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             searchField
             if isSettingsPreview { previewStatus }
+
+            if initialCategory != nil, trimmedQuery.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Label("搜索整个 Kitnest", systemImage: "magnifyingglass")
+                        .font(.system(size: 12, weight: .medium))
+                    Text("输入关键词搜索已启用的来源；输入 / 浏览可用命令。")
+                        .font(.system(size: 11)).foregroundStyle(.secondary)
+                    Button {
+                        query = "/"
+                        searchFieldFocused = true
+                    } label: {
+                        Label("浏览快捷命令", systemImage: "command")
+                            .font(.system(size: 11, weight: .medium))
+                    }
+                    .buttonStyle(.bordered)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .glassCard(radius: Theme.Radius.control)
+            }
 
             // v60：空查询不再保留 112pt 原版建议位留白（用户反馈留白过多）——
             // 搜索框下直接接日历卡（homePage 已有 12pt 常规间隔）；
@@ -614,6 +638,7 @@ public struct SearchSectionView: View {
         }
         .onChange(of: query) { _ in
             if isSettingsPreview { previewFeedback = nil }
+            toolLanguageGeneration += 1
             scheduleSearch()
         }
         // v50：文件类型筛选变化 → 重跑文件检索（仅关键词非空时）
@@ -636,6 +661,17 @@ public struct SearchSectionView: View {
                 searchFieldFocused = true
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: LanguageManager.languageDidChange)) { _ in
+            guard !isSettingsPreview, !trimmedQuery.isEmpty else { return }
+            toolLanguageGeneration += 1
+            let current = toolLanguageGeneration
+            let text = trimmedQuery
+            Task { @MainActor in
+                let results = await ToolboxSearchSource.search(text)
+                guard toolLanguageGeneration == current else { return }
+                toolResults = results
+            }
+        }
         .onReceive(FileNameIndex.shared.$state) { value in
             if !isSettingsPreview { fileIndexState = value }
         }
@@ -649,6 +685,7 @@ public struct SearchSectionView: View {
             }
         }
         .onAppear {
+            if let initialCategory { selectedCategory = initialCategory }
             if isSettingsPreview {
                 if draftQuery == nil { query = settingsPreviewClipboardQuery }
                 scheduleSearch()
@@ -686,13 +723,9 @@ public struct SearchSectionView: View {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) {
                     query = wq
                     DispatchQueue.main.asyncAfter(deadline: .now() + 5.0) {
-                        let head = webResults.prefix(3).map(\.title).joined(separator: " | ")
-                        Log.info("Toolbox", "探针：网页结果 \(webResults.count) 条，引擎=\(previewEngine?.id ?? "-")，兜底=\(webFallbackName ?? "-")，失败=\(webFetchFailed) → \(head)")
+                        Log.info("Toolbox", "探针：网页结果 \(webResults.count) 条，引擎=\(previewEngine?.id ?? "-")，兜底=\(webFallbackName ?? "-")，失败=\(webFetchFailed)")
                         // v181：主操作改成「点击即开浏览器」后，探针不再自动打开内嵌预览
                         //（否则面板一出现就被预览占满，看不到结果列表本身）。
-                        if let first = webResults.first {
-                            Log.info("Toolbox", "探针：首条结果 \(first.url.absoluteString)（点击应直接用浏览器打开）")
-                        }
                     }
                 }
             }
@@ -1186,6 +1219,7 @@ public struct SearchSectionView: View {
                     .help(isSettingsPreview ? "演示搜索后清空输入开关" : "在默认浏览器打开该搜索结果")
                 }
                 ForEach(webResults.prefix(maxRows)) { result in
+                    HStack(spacing: 4) {
                     Button {
                         if isSettingsPreview {
                             previewSelectedResultID = result.id.uuidString
@@ -1199,7 +1233,7 @@ public struct SearchSectionView: View {
                         if NSEvent.modifierFlags.contains(.option) {
                             previewArticleURL = result.url
                         } else {
-                            Log.info("Search", "openResult url=\(result.url.absoluteString)")
+                            Log.info("Search", "openResult host=\(result.url.host ?? "-")")
                             NSWorkspace.shared.open(result.url)
                             if service.clearSearchInputAfterWebAction { clearInput() }
                         }
@@ -1260,6 +1294,19 @@ public struct SearchSectionView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .help(isSettingsPreview ? "选择固定网页示例" : "点击在默认浏览器打开（⌥ 点击：在此处预览）")
                     .accessibilityLabel(isSettingsPreview ? "选择示例：\(result.title)" : "在默认浏览器打开：\(result.title)")
+                    if !isSettingsPreview {
+                        let url = result.url.absoluteString
+                        Button { favorites.toggle(.searchResult, id: url) } label: {
+                            Image(systemName: favorites.contains(.searchResult, id: url) ? "star.fill" : "star")
+                                .font(.system(size: 11))
+                                .foregroundStyle(favorites.contains(.searchResult, id: url) ? Theme.accent : Color.secondary)
+                                .frame(width: 22, height: 24)
+                        }
+                        .buttonStyle(.plain)
+                        .help(favorites.contains(.searchResult, id: url) ? "取消收藏网页" : "收藏网页")
+                        .accessibilityLabel(favorites.contains(.searchResult, id: url) ? "取消收藏网页" : "收藏网页")
+                    }
+                    }
                 }
             }
             .padding(.top, 2)
@@ -1290,20 +1337,6 @@ public struct SearchSectionView: View {
         }
     }
 
-    /// v60 模糊匹配 + 标题命中区间（match 用于行内高亮；title 未命中但正文命中时 match = nil）
-    // v128（流畅度）：过滤结果记忆化——query 是 @Stored，输入框每敲一键 body 就重算，
-    // 而 filteredClipboardMatches 是全量模糊过滤（每条 joined 三个字段 + FuzzyMatcher），
-    // 且 clipboardCategory 与 nothingFound 在同帧各求值一次 = 每键两遍全量扫描。
-    // 改为按「关键词 + 类型筛选 + 条目签名」缓存：同帧重复求值零开销，剪贴板增删才失效。
-    private struct FilterCache {
-        var keyword = ""
-        var kind = ClipboardFilterKind.all
-        var itemsSignature = 0
-        var result: [(item: ClipboardItem, match: FuzzyMatch?)] = []
-    }
-
-    private static var filterCache = FilterCache()
-
     /// 正文参与匹配的上限（v128：超长条目（整篇文档/日志）每键都要全量 lowercased +
     /// 贪心扫描，是输入卡顿的大头；搜索列表本就只展示标题/副标题，截到前 4096 字符
     /// 对常规条目零差异，超长条目只损失尾部命中）。
@@ -1315,35 +1348,20 @@ public struct SearchSectionView: View {
         if isSettingsPreview {
             return settingsPreviewClipboardItems.compactMap { item in
                 guard clipboardKind.matches(item.type),
-                      FuzzyMatcher.isMatch(keyword, in: [item.title, item.subtitle, item.content].compactMap { $0 }.joined(separator: " ")) else { return nil }
-                return (item, item.title.flatMap { FuzzyMatcher.match(keyword, in: $0) })
+                      FuzzyMatcher.isMatch(keyword, in: [item.displayTitle, item.subtitle, item.content].compactMap { $0 }.joined(separator: " ")) else { return nil }
+                return (item, FuzzyMatcher.match(keyword, in: item.displayTitle))
             }
         }
-        let items = ClipboardManager.shared.items
-        // 轻量失效签名：剪贴板条目只增删不改，count + 首末 id 即可识别变化
-        var sig = Hasher()
-        sig.combine(items.count)
-        sig.combine(items.first?.id)
-        sig.combine(items.last?.id)
-        let signature = sig.finalize()
-        if Self.filterCache.keyword == keyword,
-           Self.filterCache.kind == clipboardKind,
-           Self.filterCache.itemsSignature == signature {
-            return Self.filterCache.result
-        }
         let limit = Self.matchContentLimit
-        let result: [(item: ClipboardItem, match: FuzzyMatch?)] = items.compactMap { item in
+        return clipboard.items.compactMap { item in
             guard clipboardKind.matches(item.type) else { return nil }
             let content = item.content.map { $0.count > limit ? String($0.prefix(limit)) : $0 }
-            let haystack = [item.title, item.subtitle, content]
+            let haystack = [item.displayTitle, item.title, item.subtitle, content]
                 .compactMap { $0 }.joined(separator: " ")
             guard FuzzyMatcher.isMatch(keyword, in: haystack) else { return nil }
-            let titleMatch = item.title.flatMap { FuzzyMatcher.match(keyword, in: $0) }
+            let titleMatch = FuzzyMatcher.match(keyword, in: item.displayTitle)
             return (item, titleMatch)
         }
-        Self.filterCache = FilterCache(keyword: keyword, kind: clipboardKind,
-                                       itemsSignature: signature, result: result)
-        return result
     }
 
     private var clipboardMatches: [(item: ClipboardItem, match: FuzzyMatch?)] { filteredClipboardMatches }
@@ -1411,7 +1429,7 @@ public struct SearchSectionView: View {
                                     .font(.system(size: 11))
                                     .foregroundStyle(Theme.tertiaryText)
                                     .frame(width: 14)
-                                highlighted(item.title ?? item.content ?? "(空)",
+                                highlighted(item.displayTitle,
                                             match: match, size: 12)
                                     .lineLimit(1)
                                     .layoutPriority(1)
@@ -1433,7 +1451,7 @@ public struct SearchSectionView: View {
                                     .foregroundStyle(.secondary)
                                 VStack(alignment: .leading, spacing: 1) {
                                     // 标题命中字符 accent 高亮
-                                    highlighted(item.title ?? item.content ?? "(空)",
+                                    highlighted(item.displayTitle,
                                                 match: match, size: 12)
                                         .lineLimit(1)
                                     if let subtitle = item.subtitle, !subtitle.isEmpty {
@@ -1603,15 +1621,16 @@ public struct SearchSectionView: View {
                 .padding(.bottom, 2)
             } else {
                 ForEach(Array(rows.enumerated()), id: \.element.id) { index, result in
-                    Button {
-                        if isSettingsPreview {
-                            previewSelectedResultID = result.id
-                            previewFeedback = "定位示例：" + result.url.lastPathComponent
-                            return
-                        }
-                        NSWorkspace.shared.activateFileViewerSelecting([result.url])
-                    } label: {
-                        if compact {
+                    HStack(spacing: 4) {
+                        Button {
+                            if isSettingsPreview {
+                                previewSelectedResultID = result.id
+                                previewFeedback = "定位示例：" + result.url.lastPathComponent
+                                return
+                            }
+                            NSWorkspace.shared.activateFileViewerSelecting([result.url])
+                        } label: {
+                            if compact {
                             // 全部视图：单行——文件名（命中高亮）+ 右侧父目录名
                             HStack(spacing: 8) {
                                 resultFileIcon(for: result.url)
@@ -1664,11 +1683,24 @@ public struct SearchSectionView: View {
                             .padding(.vertical, 4)
                             .background(RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous).fill(Color.clear))
                             .contentShape(Rectangle())
+                            }
+                        }
+                        .buttonStyle(.plain)
+                        .background(previewSelectionFill(result.id))
+                        .help(isSettingsPreview ? "选择固定文件示例" : "在 Finder 中显示")
+                        if !isSettingsPreview {
+                            let url = result.url.absoluteString
+                            Button { favorites.toggle(.searchResult, id: url) } label: {
+                                Image(systemName: favorites.contains(.searchResult, id: url) ? "star.fill" : "star")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(favorites.contains(.searchResult, id: url) ? Theme.accent : Color.secondary)
+                                    .frame(width: 22, height: 24)
+                            }
+                            .buttonStyle(.plain)
+                            .help(favorites.contains(.searchResult, id: url) ? "取消收藏文件" : "收藏文件")
+                            .accessibilityLabel(favorites.contains(.searchResult, id: url) ? "取消收藏文件" : "收藏文件")
                         }
                     }
-                    .buttonStyle(.plain)
-                    .background(previewSelectionFill(result.id))
-                    .help(isSettingsPreview ? "选择固定文件示例" : "在 Finder 中显示")
                 }
             }
         }
@@ -1849,7 +1881,7 @@ public struct SearchSectionView: View {
         }
         let text = trimmedQuery
         guard !text.isEmpty, let url = SearchServiceManager.searchURL(for: engine, query: text) else { return }
-        Log.info("Search", "performWebSearch engine=\(engine.name) q='\(text)' url=\(url.absoluteString)")
+        Log.info("Search", "performWebSearch engine=\(engine.name)")
         // v84：搜索结果打开埋点（面板内所有「搜索」动作的统一出口）
         StatisticsManager.shared.record(.searchExecute)
         StatisticsManager.shared.record(.webSearchOpen)
@@ -1881,6 +1913,8 @@ public struct SearchSectionView: View {
         let engineID = engine.id
         let text = previewQuery
         let current = generation
+        webGeneration += 1
+        let webRequest = webGeneration
         Task {
             var results = await WebResultScraper.shared.fetchResults(engine: engine, query: text)
             var fallbackName: String?
@@ -1897,11 +1931,17 @@ public struct SearchSectionView: View {
                 }
             }
 
-            guard current == generation, engineID == previewEngine?.id else { return }
+            guard !Task.isCancelled, current == generation, webRequest == webGeneration,
+                  engineID == previewEngine?.id else { return }
             webResults = results
             webFetchFailed = results.isEmpty
             webFallbackName = fallbackName
             fetchingEngineID = nil
+            if !isSearching, !(isIndexBuilding && (showFiles || selectedCategory == .files)),
+               feedbackGeneration != current {
+                feedbackGeneration = current
+                HapticFeedback.perform(.searchCompleted)
+            }
         }
     }
 
@@ -1923,9 +1963,10 @@ public struct SearchSectionView: View {
             return
         }
         isSearching = true
+        let languageVersion = toolLanguageGeneration
         Task {
             try? await Task.sleep(nanoseconds: 250_000_000)
-            guard current == generation else { return }
+            guard !Task.isCancelled, current == generation else { return }
             let items = await SearchHookRegistry.search(text)
             let kind = fileKind
             let wantsFiles = showFiles || selectedCategory == .files
@@ -1935,19 +1976,23 @@ public struct SearchSectionView: View {
             let files: [FuzzyFileResult] = wantsFiles
                 ? await Task.detached(priority: .utility) { FileSearchSource.search(trimmed, kind: kind) }.value
                 : []
-            guard current == generation else { return }
+            guard !Task.isCancelled, current == generation else { return }
             await MainActor.run {
-                toolResults = items
+                guard !Task.isCancelled, current == generation else { return }
+                if languageVersion == toolLanguageGeneration { toolResults = items }
                 fileResults = files
                 previewQuery = trimmed          // 预览随防抖提交的词更新（不逐键刷网页）
                 hasSearched = true
                 isSearching = false
                 if isLocalPathQuery { webResults = []; fetchingEngineID = nil }
-            }
-            // v50：防抖提交后立即抓取当前引擎的结果列表（仅搜索型引擎）
-            if showsWebResults, let engine = previewEngine, engine.supportsResultList {
-                fetchingEngineID = engine.id
-                fetchWebResults()
+                // 网页启用时等该查询的网页结果收尾，其余查询在全部本地来源汇总后反馈。
+                if showsWebResults, let engine = previewEngine, engine.supportsResultList {
+                    fetchingEngineID = engine.id
+                    fetchWebResults()
+                } else if !(isIndexBuilding && wantsFiles), feedbackGeneration != current {
+                    feedbackGeneration = current
+                    HapticFeedback.perform(.searchCompleted)
+                }
             }
         }
     }
@@ -1960,13 +2005,15 @@ private struct WebPreviewRepresentable: NSViewRepresentable {
 
     final class Coordinator: NSObject, WKNavigationDelegate {
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            Log.info("Search", "内嵌预览加载完成 \(webView.url?.absoluteString ?? "-")")
+            Log.info("Search", "内嵌预览加载完成 host=\(webView.url?.host ?? "-")")
         }
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
-            Log.warn("Search", "内嵌预览加载失败：\(error.localizedDescription)")
+            let failure = error as NSError
+            Log.warn("Search", "内嵌预览加载失败：\(failure.domain) \(failure.code)")
         }
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
-            Log.warn("Search", "内嵌预览无法连接：\(error.localizedDescription)")
+            let failure = error as NSError
+            Log.warn("Search", "内嵌预览无法连接：\(failure.domain) \(failure.code)")
         }
     }
 

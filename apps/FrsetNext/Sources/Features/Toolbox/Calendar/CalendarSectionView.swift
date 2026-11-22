@@ -20,8 +20,14 @@ public struct CalendarSectionView: View {
     private var accent: Color { (previewPersonalization ?? .shared).accentColor ?? .accentColor }
     @ObservedObject private var service = CalendarService.shared
     @AppStorage(Preferences.Keys.calendarFirstWeekday) private var savedFirstWeekday = 1
+    @AppStorage(Preferences.Keys.calendarShowLunar) private var savedShowLunar = true
     private let previewFirstWeekday: Int?
+    private let previewShowLunar: Bool?
+    private let previewDate: Date?
+    private let previewEvents: [CalendarEvent]?
+    private let previewSelectedDate: Date?
     private var firstWeekday: Int { previewFirstWeekday ?? savedFirstWeekday }
+    private var showLunar: Bool { previewShowLunar ?? savedShowLunar }
     private var calendar: Calendar { CalendarService.calendar(firstWeekday: firstWeekday) }
     /// 当前两周期间的锚点（渲染时归一化到所选周起始日）
     @Stored private var anchor: Date = Date()
@@ -40,7 +46,17 @@ public struct CalendarSectionView: View {
 
     private static let weekdayTitles = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"]
 
-    public init(firstWeekday: Int? = nil) { previewFirstWeekday = firstWeekday }
+    public init(firstWeekday: Int? = nil, previewDate: Date? = nil,
+                previewEvents: [CalendarEvent]? = nil, previewSelectedDate: Date? = nil,
+                showLunar: Bool? = nil) {
+        previewFirstWeekday = firstWeekday
+        previewShowLunar = showLunar
+        self.previewDate = previewDate
+        self.previewEvents = previewEvents
+        self.previewSelectedDate = previewSelectedDate
+        _anchor = Stored(wrappedValue: previewDate ?? Date())
+        _selectedDay = Stored(wrappedValue: previewSelectedDate)
+    }
 
     public var body: some View {
         VStack(spacing: 6) {
@@ -49,7 +65,7 @@ public struct CalendarSectionView: View {
                 weekdayHeader
                 weeksGrid
                 // v111：未授权时 surfaced 提示（CalendarService.authorizationHint 此前无 UI 消费）
-                if !service.isAuthorized {
+                if !isSettingsPreview && !service.isAuthorized {
                     calendarPermissionBanner
                 }
             }
@@ -71,6 +87,7 @@ public struct CalendarSectionView: View {
             if !isSettingsPreview { installScrollMonitor() }
         }
         .onChange(of: firstWeekday) { _ in reload() }
+        .onChange(of: showLunar) { _ in cachedDays = []; reload() }
         .onDisappear { removeScrollMonitor() }
     }
 
@@ -112,7 +129,7 @@ public struct CalendarSectionView: View {
             .help("上一周")
 
             Button {
-                anchor = Date()
+                anchor = previewDate ?? Date()
                 reload()
             } label: {
                 Text(monthTitle)
@@ -201,13 +218,16 @@ public struct CalendarSectionView: View {
                 .font(.system(size: 14, weight: isToday ? .semibold : .regular))
                 .foregroundStyle(isToday ? Color.white : Color.primary)
                 .frame(height: 18)
-            Text(day?.lunarDisplay ?? " ")
+            Text(showLunar ? (day?.lunarDisplay ?? " ") : " ")
                 .font(.system(size: 11))
                 .foregroundStyle(isToday ? Color.white.opacity(0.92)
                                          : (isFestival ? Color.orange : Color.secondary))
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
                 .frame(height: 12)
+            Circle()
+                .fill(day?.events.isEmpty == false ? accent : .clear)
+                .frame(width: 3, height: 3)
         }
         .frame(maxWidth: .infinity)
         .frame(height: 34)
@@ -311,9 +331,13 @@ public struct CalendarSectionView: View {
         // 周起始或导航变化仍复用已取的事件；只有显示范围超出缓存才读 EventKit。
         if cachedDays.contains(where: { calendar.isDate($0.date, inSameDayAs: start) }),
            cachedDays.contains(where: { calendar.isDate($0.date, inSameDayAs: end) }) { return }
-        var days = service.monthDays(for: start, firstWeekday: firstWeekday)
+        let sampleEvents = isSettingsPreview ? (previewEvents ?? []) : nil
+        let today = previewDate ?? Date()
+        var days = service.monthDays(for: start, firstWeekday: firstWeekday,
+                                     previewEvents: sampleEvents, showLunar: showLunar, today: today)
         if !days.contains(where: { calendar.isDate($0.date, inSameDayAs: end) }) {
-            days.append(contentsOf: service.monthDays(for: end, firstWeekday: firstWeekday))
+            days.append(contentsOf: service.monthDays(for: end, firstWeekday: firstWeekday,
+                                                       previewEvents: sampleEvents, showLunar: showLunar, today: today))
         }
         cachedDays = days
     }

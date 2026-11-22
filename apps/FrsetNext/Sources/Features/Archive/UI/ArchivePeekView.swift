@@ -35,7 +35,8 @@ struct FileContainerPreview: View {
                 List(selection: Binding(get: { browser.selection }, set: browser.select)) {
                     ForEach(browser.entries) { entry in
                         HStack(spacing: 8) {
-                            Image(nsImage: ArchiveFileIcon.icon(for: entry))
+                            Image(nsImage: ArchiveFileIcon.icon(for: entry.name,
+                                                                isDirectory: entry.isDirectory))
                                 .resizable().scaledToFit().frame(width: 22, height: 22)
                             Text(entry.name).lineLimit(1).truncationMode(.middle)
                             Spacer(minLength: 4)
@@ -375,10 +376,7 @@ private final class FileContainerPreviewBrowser: ObservableObject {
     }
 
     private func removeTemporaryFile(_ file: URL) {
-        var unit = file.deletingLastPathComponent()
-        // ArchiveCore 的解压目录是 temporaryDirectory 的直接子目录，内部同名前缀目录不算。
-        let base = FileManager.default.temporaryDirectory.path
-        while unit.deletingLastPathComponent().path != base { unit.deleteLastPathComponent() }
+        let unit = ArchiveCore.extractionDirectory(containing: file)
         do { try FileManager.default.removeItem(at: unit) }
         catch { errorText = "无法删除临时解压目录 \(unit.path)：\(error.localizedDescription)" }
     }
@@ -420,7 +418,8 @@ struct ArchiveEntryTile: View {
                     )
                     .shadow(color: .black.opacity(0.08), radius: 1, y: 0.5)
             } else {
-                Image(nsImage: ArchiveFileIcon.icon(for: entry))
+                Image(nsImage: ArchiveFileIcon.icon(for: entry.name,
+                                                    isDirectory: entry.isDirectory))
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: size * 0.78, height: size * 0.78)
@@ -482,9 +481,9 @@ enum ArchiveFileIcon {
     private static let genericIcon = NSWorkspace.shared.icon(for: .data)
 
     /// 按扩展名取系统为该类型注册的图标（和 Finder 里一致）
-    static func icon(for entry: ArchiveEntry) -> NSImage {
-        if entry.isDirectory { return folderIcon }
-        let ext = (entry.name as NSString).pathExtension.lowercased()
+    static func icon(for name: String, isDirectory: Bool = false) -> NSImage {
+        if isDirectory { return folderIcon }
+        let ext = (name as NSString).pathExtension.lowercased()
         if ext.isEmpty { return genericIcon }
 
         let key = ext as NSString

@@ -121,7 +121,7 @@ def main() -> int:
     lines_total = 0
     for base, _dirs, names in os.walk(func_table.SRC):
         for name in names:
-            if name.endswith(".swift") and not name.startswith("._"):
+            if not name.startswith("._") and name.endswith(".swift"):
                 with open(os.path.join(base, name), encoding="utf-8", errors="replace") as fh:
                     lines_total += len(fh.read().splitlines())
     if os.path.isfile(SYMBOL_MD):

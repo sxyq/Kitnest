@@ -41,3 +41,4 @@
 2026-10-20 11:28:58,Core/UI/Toast.swift,layoutContent,normal,2026-10-20 修复外圈方形阴影：内容加 24pt 透明边距，窗口按 fittingSize 扩大，阴影不再被边界裁断（四角 alpha 5/4/9/9 → 0）
 2026-10-20 11:28:58,Core/UI/Toast.swift,present,normal,3s 自动隐藏 + 代际防串台；窗口复用，无每次创建开销
 2026-10-20 11:28:58,Core/UI/Toast.swift,ensureWindow,normal,单例窗口按需创建；层级 CGWindowLevelKey14，点击穿透，可跨 Space
+2026-11-21 07:43:11,Core/Runtime/AppUpdateChecker.swift,installUpdate,optimize_done,逐函数复核两个正式入口；SHA256按1 MiB块增量处理并移动URLSession临时ZIP；替换与界面语义不变，内存和耗时未实测

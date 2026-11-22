@@ -101,6 +101,11 @@ public final class SQLiteDatabase {
 
 
     public func query(_ sql: String, _ values: [SQLiteValue] = []) throws -> [[String: SQLiteValue]] {
+        try query(sql, values, transform: { $0 })
+    }
+
+    public func query<Result>(_ sql: String, _ values: [SQLiteValue] = [],
+                              transform: ([String: SQLiteValue]) -> Result) throws -> [Result] {
         accessLock.lock(); defer { accessLock.unlock() }
         guard let h = handle else { throw DatabaseError(message: "db closed") }
         var stmt: OpaquePointer?
@@ -123,8 +128,9 @@ public final class SQLiteDatabase {
                 names.append("c\(i)")
             }
         }
-        var rows: [[String: SQLiteValue]] = []
-        while sqlite3_step(s) == SQLITE_ROW {
+        var rows: [Result] = []
+        var result = sqlite3_step(s)
+        while result == SQLITE_ROW {
             var row: [String: SQLiteValue] = [:]
             row.reserveCapacity(countInt)
             for i in 0..<countInt {
@@ -142,7 +148,11 @@ public final class SQLiteDatabase {
                 default: row[name] = .null
                 }
             }
-            rows.append(row)
+            rows.append(transform(row))
+            result = sqlite3_step(s)
+        }
+        guard result == SQLITE_DONE else {
+            throw DatabaseError(message: "step failed: \(String(cString: sqlite3_errmsg(h)))")
         }
         return rows
     }
@@ -226,6 +236,7 @@ public final class DatabaseManager {
             thumbnail_path TEXT,
             is_generated_by_tool INTEGER DEFAULT 0,
             is_note INTEGER DEFAULT 0,
+            is_favorite INTEGER NOT NULL DEFAULT 0,
             source_tool_analytics_id TEXT,
             source_tool_keyword TEXT,
             text_path TEXT,
@@ -263,6 +274,15 @@ public final class DatabaseManager {
             FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
         );
 
+
+        CREATE TABLE IF NOT EXISTS resource_favorites (
+            resource_type TEXT NOT NULL,
+            resource_id TEXT NOT NULL,
+            added_at REAL NOT NULL,
+            PRIMARY KEY (resource_type, resource_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_resource_favorites_added ON resource_favorites(added_at DESC);
+
         CREATE TABLE IF NOT EXISTS file_type_icons (
             icon_key TEXT PRIMARY KEY,
             handler_bundle_id TEXT,
@@ -296,6 +316,14 @@ public final class DatabaseManager {
         );
         """)
 
+        if !(try clipboard.query("PRAGMA table_info(clipboard_items)")).contains(where: { $0.string("name") == "is_favorite" }) {
+            try clipboard.transaction { db in
+                try db.exec("ALTER TABLE clipboard_items ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+        try clipboard.exec("CREATE INDEX IF NOT EXISTS idx_items_favorite ON clipboard_items(is_favorite, timestamp DESC)")
+        try clipboard.exec("INSERT OR IGNORE INTO resource_favorites(resource_type,resource_id,added_at) SELECT 'clipboard',dedupe_key,timestamp FROM clipboard_items WHERE is_favorite=1")
+
         if !(try clipboard.query("PRAGMA table_info(clipboard_items)")).contains(where: { $0.string("name") == "file_categories" }) {
             try clipboard.transaction { db in
                 try db.exec("ALTER TABLE clipboard_items ADD COLUMN file_categories INTEGER NOT NULL DEFAULT 0")
@@ -323,37 +351,29 @@ public final class DatabaseManager {
         );
         """)
 
-        migrateLegacyDailyStats()
+        try migrateLegacyDailyStats()
     }
 
     /// 旧臆测宽表 daily_stats(day, capture_count, …) → 原作窄表 usage_daily_metrics 的一次性迁移：
     /// ① 列名映射为 spec 17 §4 事件名；② day 由 yyyyMMdd 规范为 yyyy-MM-dd（D7 实证格式）；
     /// ③ 迁移完 DROP 旧表。幂等：daily_stats 不存在时直接返回。
-    private func migrateLegacyDailyStats() {
-        let legacyRows = (try? statistics.query(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='daily_stats'")) ?? []
+    private func migrateLegacyDailyStats() throws {
+        let legacyRows = try statistics.query(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='daily_stats'")
         guard !legacyRows.isEmpty else { return }
-        let legacyMap: [(column: String, event: String)] = [
-            ("capture_count", "clipboard_capture"),
-            ("screenshot_count", "screenshot_capture"),
-            ("ocr_count", "ocr_use"),
-            ("tool_count", "tool_execute_success"),
-            // 原作 59 键中无 AI 请求事件；保留为重建扩展事件名（不影响窄表结构）
-            ("ai_request_count", "ai_request_count"),
-        ]
-        if let rows = try? statistics.query("SELECT * FROM daily_stats") {
-            for r in rows {
+        try statistics.transaction { db in
+            for r in try db.query("SELECT * FROM daily_stats") {
                 guard let rawDay = r.string("day") else { continue }
                 let day = Self.normalizedDay(rawDay)
-                for m in legacyMap where r.int(m.column) > 0 {
-                    try? statistics.run(
+                for (column, event) in Self.legacyColumnEventMap where r.int(column) > 0 {
+                    try db.run(
                         "INSERT INTO usage_daily_metrics(day, event_name, count) VALUES(?,?,?) " +
                         "ON CONFLICT(day, event_name) DO UPDATE SET count = usage_daily_metrics.count + excluded.count",
-                        [.text(day), .text(m.event), .int(r.int(m.column))])
+                        [.text(day), .text(event), .int(r.int(column))])
                 }
             }
+            try db.exec("DROP TABLE daily_stats;")
         }
-        try? statistics.exec("DROP TABLE IF EXISTS daily_stats;")
         Log.info("Database", "migrated legacy daily_stats → usage_daily_metrics")
     }
 
@@ -577,25 +597,7 @@ public final class StatisticsManager {
         }
     }
 
-    /// Q6 单事件总计（metricConfigs 单卡/tooltip）
-    public func total(event: String) -> Int {
-        queue.sync {
-            Int((try? db.scalarInt(
-                "SELECT COALESCE(SUM(CASE WHEN count > 0 THEN count ELSE 0 END), 0) " +
-                "FROM usage_daily_metrics WHERE event_name = ?", [.text(event)])) ?? 0)
-        }
-    }
-
-    /// Q7 评分请求口径：history_copy + screenshot_capture 之和（D8）
-    public func reviewRequestUsage() -> Int {
-        queue.sync {
-            Int((try? db.scalarInt(
-                "SELECT COALESCE(SUM(CASE WHEN count > 0 THEN count ELSE 0 END), 0) " +
-                "FROM usage_daily_metrics WHERE event_name IN ('history_copy','screenshot_capture')")) ?? 0)
-        }
-    }
-
-    /// Q8 导出全量（设置导出携带统计数据）
+    /// Q8 导出全量（诊断导出使用）
     public func exportAll() -> [(String, String, Int)] {
         queue.sync {
             guard let rows = try? db.query(
@@ -603,22 +605,6 @@ public final class StatisticsManager {
             return rows.compactMap { r in
                 guard let d = r.string("day"), let e = r.string("event_name") else { return nil }
                 return (d, e, Int(r.int("count")))
-            }
-        }
-    }
-
-    /// Q8 导入合并：事务内 MAX(旧, 新, 0)，不覆盖削减（S12）
-    public func importMerge(_ rows: [(String, String, Int)]) {
-        queue.async { [weak self] in
-            guard let self = self else { return }
-            _ = try? self.db.transaction { db in
-                for (day, event, count) in rows {
-                    try db.run(
-                        "INSERT INTO usage_daily_metrics(day, event_name, count) VALUES(?,?,?) " +
-                        "ON CONFLICT(day, event_name) DO UPDATE SET " +
-                        "count = MAX(usage_daily_metrics.count, excluded.count, 0)",
-                        [.text(day), .text(event), .int(Int64(max(count, 0)))])
-                }
             }
         }
     }

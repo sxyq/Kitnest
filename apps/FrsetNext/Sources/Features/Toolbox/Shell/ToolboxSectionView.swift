@@ -25,11 +25,13 @@ private struct ToolSheetItem: Identifiable { let id: String }
 
 public struct ToolboxSectionView: View {
     @ObservedObject private var uiState = ToolboxUIState.shared
+    @ObservedObject private var language = LanguageManager.shared
     @Stored private var refreshTick = 0
 
     public init() {}
 
     public var body: some View {
+        let _ = language.overrideDisplayLanguage
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 Theme.sectionHeader("工具")
@@ -100,7 +102,12 @@ public struct ToolRunnerView: View {
     /// 打开即执行（斜杠命令用：/uuid 这种不需要输入的，落地就有结果）
     var autoRun: Bool = false
     private let intent: ToolInvocationIntent
+    private let compact: Bool
+    private let onFileDialog: ((Bool) -> Void)?
+    private let presentFileDialog: ((@escaping () -> Void) -> Void)?
+    private let onInputChange: ((String) -> Void)?
     @ObservedObject private var windowController = ToolRunnerWindowController.shared
+    @ObservedObject private var language = LanguageManager.shared
     @Stored private var input: String = ""
     @Stored private var options: [String: String] = [:]
     @Stored private var output: ToolOutput?
@@ -110,22 +117,38 @@ public struct ToolRunnerView: View {
     @Stored private var outputDraft = ""
     @Stored private var showOriginal = false
     @Stored private var copied = false
+    @Stored private var runTask: Task<Void, Never>? = nil
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
 
     public init(tool: ToolDescriptor, onClose: (() -> Void)? = nil, autoRun: Bool = false,
-                initialInput: String = "", intent: ToolInvocationIntent = .standard) {
+                initialInput: String = "", intent: ToolInvocationIntent = .standard, compact: Bool = false,
+                onFileDialog: ((Bool) -> Void)? = nil,
+                presentFileDialog: ((@escaping () -> Void) -> Void)? = nil,
+                onInputChange: ((String) -> Void)? = nil) {
         self.tool = tool
         self.onClose = onClose
         self.autoRun = autoRun
         self.intent = intent
+        self.compact = compact
+        self.onFileDialog = onFileDialog
+        self.presentFileDialog = presentFileDialog
+        self.onInputChange = onInputChange
         self._input = Stored(wrappedValue: initialInput)
         self._outputDraft = Stored(wrappedValue: initialInput)
         self._showOriginal = Stored(wrappedValue: initialInput.isEmpty)
     }
 
     public var body: some View {
-        runnerContent
+        let _ = language.overrideDisplayLanguage
+        Group {
+            if compact {
+                ScrollView { runnerContent }
+            } else {
+                runnerContent
+            }
+        }
         .onAppear {
             options = tool.defaultOptions()
             if autoRun, !didAutoRun {
@@ -134,20 +157,27 @@ public struct ToolRunnerView: View {
             }
         }
         .onChange(of: windowController.autoRunSequence) { _ in
-            startRun()
+            // 刘海只响应当前页用户操作，不消费独立工具窗的自动执行请求。
+            if !compact { startRun() }
+        }
+        .onChange(of: input) { onInputChange?($0) }
+        .onDisappear {
+            if compact { runTask?.cancel(); runTask = nil; isRunning = false }
         }
     }
 
     private var runnerContent: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: compact ? Theme.Space.md : 10) {
             HStack {
                 Image(systemName: tool.systemImage)
                 Text(tool.name).font(.system(size: 14, weight: .semibold))
                 Spacer()
-                Button("关闭") {
-                    onClose?()
-                    dismiss()
-                }.buttonStyle(.plain).foregroundStyle(.secondary)
+                if !compact {
+                    Button("关闭") {
+                        onClose?()
+                        dismiss()
+                    }.buttonStyle(.plain).foregroundStyle(.secondary)
+                }
             }
 
             // 输入区
@@ -166,7 +196,7 @@ public struct ToolRunnerView: View {
                 TextEditor(text: Binding(get: { showOriginal ? input : outputDraft },
                     set: { if showOriginal { input = $0 } else { outputDraft = $0 } }))
                     .font(.system(size: 13, design: .monospaced))
-                    .frame(minHeight: 180, maxHeight: .infinity)
+                    .frame(minHeight: compact ? 90 : 180, maxHeight: compact ? 90 : .infinity)
                 DisclosureGroup("选项") {
                     Toggle("忽略大小写", isOn: Binding(get: { options["ignoreCase"] == "true" },
                         set: { options["ignoreCase"] = String($0); startRun() }))
@@ -177,7 +207,7 @@ public struct ToolRunnerView: View {
             } else {
                 TextEditor(text: $input)
                     .font(.system(size: 12))
-                    .frame(minHeight: 70, maxHeight: 110)
+                    .frame(minHeight: compact ? 64 : 70, maxHeight: compact ? 80 : 110)
                     .overlay(
                         RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
                             .stroke(Color(NSColor.separatorColor), lineWidth: 1)
@@ -243,12 +273,16 @@ public struct ToolRunnerView: View {
             // 输出区
             if tool.identifier == "deduplicate" {
                 HStack {
-                    Button("取消") { onClose?() }
+                    if !compact { Button("取消") { onClose?() } }
                     Spacer()
                     Button(copied ? "✓ 已复制" : "复制结果") { copyText(outputDraft) }
                         .keyboardShortcut(.return, modifiers: [.command])
                         .disabled(output == nil || output?.isError == true)
                         .frame(minWidth: 100)
+                    if compact {
+                        Button("存为剪贴板条目") { Task { @MainActor in await saveToClipboard(ToolOutput(text: outputDraft)) } }
+                            .disabled(output == nil || output?.isError == true || outputDraft.isEmpty)
+                    }
                 }
             } else if let output, !output.isError {
                 outputArea(output)
@@ -259,17 +293,22 @@ public struct ToolRunnerView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            Spacer(minLength: 0)
+            if !compact { Spacer(minLength: 0) }
         }
-        .padding(14)
+        .padding(compact ? Theme.Space.md : 14)
         // 独立窗口（onClose 非空）里使用统一标题栏净空，不把工具标题压到红绿灯下。
-        .padding(.top, onClose == nil ? 0 : OfficialChrome.titlebarInset)
-        .frame(width: onClose == nil ? 520 : nil, height: onClose == nil ? 520 : nil)
+        .padding(.top, compact || onClose == nil ? 0 : OfficialChrome.titlebarInset)
+        .frame(width: !compact && onClose == nil ? 520 : nil, height: !compact && onClose == nil ? 520 : nil)
+        .frame(maxWidth: compact ? .infinity : nil, alignment: .topLeading)
     }
 
     @ViewBuilder
     private func outputArea(_ output: ToolOutput) -> some View {
-        ScrollView { outputContent(output) }.frame(maxHeight: 220)
+        if compact {
+            outputContent(output)
+        } else {
+            ScrollView { outputContent(output) }.frame(maxHeight: 220)
+        }
 
         HStack(spacing: 10) {
             Button(copied ? "✓ 已复制" : (intent == .preview && tool.identifier == "qrcode" ? "复制二维码" : "复制结果")) {
@@ -282,7 +321,10 @@ public struct ToolRunnerView: View {
             if intent == .preview, tool.identifier == "qrcode" {
                 Button("复制链接") { copyText(input) }
             } else if intent == .standard {
-                Button("存为剪贴板条目") { saveToClipboard(output) }.disabled(output.text.isEmpty)
+                Button("存为剪贴板条目") { Task { @MainActor in await saveToClipboard(output) } }.disabled(output.text.isEmpty)
+            }
+            if compact, let image = output.image {
+                Button("复制图片") { copyImage(image) }
             }
             Spacer()
         }
@@ -294,9 +336,9 @@ public struct ToolRunnerView: View {
                 Image(nsImage: image)
                     .resizable()
                     .scaledToFit()
-                    .frame(maxHeight: 220)
+                    .frame(maxHeight: compact ? 120 : 220)
                     .background(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                        .fill(Color(NSColor.windowBackgroundColor)))
+                        .fill(compact ? Theme.rowHoverFill : Color(NSColor.windowBackgroundColor)))
                     .contextMenu {
                         Button("复制图片") { copyImage(image) }
                     }
@@ -322,36 +364,48 @@ public struct ToolRunnerView: View {
     // MARK: 行为
 
     private func startRun() {
-        Task { @MainActor in await run() }
+        if isSettingsPreview { statusText = "执行预览：保留当前输入，不运行真实工具"; return }
+        if compact {
+            runTask?.cancel()
+            isRunning = false
+            runTask = Task { @MainActor in await run() }
+        } else {
+            Task { @MainActor in await run() }
+        }
     }
 
     @MainActor
     private func run() async {
-        guard !isRunning else { return }
+        guard !isRunning, !compact || !Task.isCancelled else { return }
         isRunning = true
         statusText = ""
         let result = await ToolRegistry.run(tool, input: input, options: options)
-        await MainActor.run {
+        let shouldApplyDefault = await MainActor.run { () -> Bool in
+            // 被切换或关闭的刘海工具不再发布结果、自动复制或保存。
+            guard !compact || !Task.isCancelled else { return false }
             withAnimation(.easeOut(duration: reduceMotion ? 0.08 : 0.12)) { output = result }
             outputDraft = result.text
             if tool.identifier == "deduplicate" { showOriginal = false }
             isRunning = false
-            if intent == .standard, tool.identifier != "deduplicate" { applyDefaultAction(result) }
+            if compact { runTask = nil }
+            return intent == .standard && tool.identifier != "deduplicate"
         }
+        if shouldApplyDefault { await applyDefaultAction(result) }
     }
 
     /// 按设置中的"默认输出行为"自动处理结果
-    private func applyDefaultAction(_ result: ToolOutput) {
+    private func applyDefaultAction(_ result: ToolOutput) async {
         guard !result.text.isEmpty, !result.isError else { return }
         switch BuiltinTools.defaultAction {
         case .copy:
             copyText(result.text)
         case .save:
-            saveToClipboard(result)
+            await saveToClipboard(result)
         }
     }
 
     private func copyText(_ text: String) {
+        if isSettingsPreview { statusText = "复制效果预览，不写入剪贴板"; return }
         guard !text.isEmpty else { return }
         if intent == .standard {
             let pasteboard = NSPasteboard.general
@@ -368,13 +422,14 @@ public struct ToolRunnerView: View {
     }
 
     private func copyImage(_ image: NSImage) {
+        if isSettingsPreview { statusText = "图片复制效果预览，不写入剪贴板"; return }
         guard let tiff = image.tiffRepresentation else {
             statusText = "复制失败：无法生成图片数据"
             return
         }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        if pasteboard.setData(tiff, forType: .tiff) { completed("已复制二维码") }
+        if pasteboard.setData(tiff, forType: .tiff) { completed(compact ? "已复制图片" : "已复制二维码") }
         else { statusText = "复制失败：无法写入剪贴板" }
     }
 
@@ -385,20 +440,28 @@ public struct ToolRunnerView: View {
     }
 
     /// 不直接引用剪贴板模块：通过 ToolboxEventBus 回调交给总控
-    private func saveToClipboard(_ result: ToolOutput) {
-        statusText = ToolboxEventBus.emitResult(result.text, kind: tool.kind)
+    private func saveToClipboard(_ result: ToolOutput) async {
+        if isSettingsPreview { statusText = "保存效果预览，不修改历史"; return }
+        statusText = await ToolboxEventBus.emitResult(result.text, kind: tool.kind)
             ? "已存为剪贴板条目" : "保存失败：无法写入剪贴板历史"
     }
 
     private func chooseFile() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = true
-        panel.canChooseDirectories = false
-        panel.allowsMultipleSelection = false
-        panel.allowedContentTypes = [.image]
-        panel.message = "选择要压缩的图片"
-        if panel.runModal() == .OK, let url = panel.url {
-            input = url.path
+        if isSettingsPreview { statusText = "文件选择效果预览，不操作文件"; return }
+        // 原文件选择链保持不变；嵌入宿主在模态期间保留视图以接收路径。
+        onFileDialog?(true)
+        let present = {
+            let panel = NSOpenPanel()
+            panel.canChooseFiles = true
+            panel.canChooseDirectories = false
+            panel.allowsMultipleSelection = false
+            panel.allowedContentTypes = [.image]
+            panel.message = "选择要压缩的图片"
+            panel.begin { result in
+                if result == .OK, let url = panel.url { input = url.path }
+                onFileDialog?(false)
+            }
         }
+        if let presentFileDialog { presentFileDialog(present) } else { present() }
     }
 }

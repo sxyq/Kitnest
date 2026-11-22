@@ -134,8 +134,7 @@ public enum ClipboardOCRTextStorage {
     }
 
     public static func read(dedupeKey: String) -> String? {
-        let safe = dedupeKey.replacingOccurrences(of: "/", with: "_")
-        return ClipboardTextStorage.read("\(directoryName)/\(safe).txt")
+        ClipboardTextStorage.read(relativePath(dedupeKey: dedupeKey))
     }
 
     public static func remove(dedupeKey: String) {
@@ -213,7 +212,6 @@ public enum ClipboardImageStorage {
         public let imagePath: String?
         public let thumbnailPath: String?
         public let byteCount: Int
-        public let pixelSize: CGSize
     }
 
     /// 原图写盘 + 生成 200px 缩略图
@@ -222,22 +220,17 @@ public enum ClipboardImageStorage {
         let relative = "\(imageDirectoryName)/\(id).\(ext)"
         guard ClipboardFileStore.write(imageData, toRelativePath: relative) else { return nil }
 
-        // v126（性能审计 F0578/F0581）：一次 ImageIO 解析同时产出缩略图与像素尺寸。
-        // 原实现 makeThumbnail 与 pixelSize 各建一次 CGImageSource（同一份大图数据解析两遍），
-        // 截图/图片捕获是热路径，改为共享同一个 source。
         guard let source = CGImageSourceCreateWithData(imageData as CFData, nil) else {
             return StoredImage(imagePath: relative, thumbnailPath: nil,
-                               byteCount: imageData.count, pixelSize: .zero)
+                               byteCount: imageData.count)
         }
         let thumbRelative = "\(thumbnailDirectoryName)/\(id).png"
         let thumbnailPath: String? = makeThumbnail(from: source, toRelativePath: thumbRelative) ? thumbRelative : nil
         return StoredImage(imagePath: relative,
                            thumbnailPath: thumbnailPath,
-                           byteCount: imageData.count,
-                           pixelSize: Self.pixelSize(of: source))
+                           byteCount: imageData.count)
     }
 
-    // v126（性能审计 F0578）：source 重载，供 store() 与像素尺寸读取复用同一次头解析
     @discardableResult
     private static func makeThumbnail(from source: CGImageSource, toRelativePath path: String) -> Bool {
         let options: [CFString: Any] = [
@@ -287,13 +280,6 @@ public enum ClipboardImageStorage {
         return "tiff"
     }
 
-    // v126（性能审计 F0581）：改为从已建 CGImageSource 读尺寸，避免二次解析
-    private static func pixelSize(of source: CGImageSource) -> CGSize {
-        guard let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
-              let w = props[kCGImagePropertyPixelWidth] as? CGFloat,
-              let h = props[kCGImagePropertyPixelHeight] as? CGFloat else { return .zero }
-        return CGSize(width: w, height: h)
-    }
 }
 
 // MARK: - 存储用量统计（05 号规格 1.1：ClipboardStorageUsageProvider）

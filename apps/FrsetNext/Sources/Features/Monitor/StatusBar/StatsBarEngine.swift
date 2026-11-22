@@ -9,7 +9,7 @@ import SwiftUI
 //   2) 点击回调：部件点击 → 打开主面板并直达对应监测页、面板贴在点击的图标位置
 //      （注入版 FSOpenPanelAtModule/FSSettlePanel 同款语义：打开前预排监测态，
 //       首帧即监测页；顶边贴菜单栏下缘，x 对齐点击锚点——仅打开时校）
-//   3) 设置入口：FSBarSettingsOpen()（Stats 风格部件设置窗）
+//   3) 设置入口：openSettings() 打开 App 内现行部件设置页
 //
 // 重建版自带的 monitor.* 双排状态项在引擎启用时不再注册——合并条即其替代
 // （与注入版「原生项隐藏、合并条呈现」的最终观感一致）。
@@ -36,6 +36,22 @@ public enum StatsBarEngine {
     /// 模块重复启动 / 探针重入都不得再建第二个状态项。
     private static var isStarted = false
 
+    // 首次启用时注册。停用部件不影响录屏保存提示。
+    private static let installNotifications: Void = {
+        NotificationCenter.default.addObserver(forName: NSNotification.Name("FrsetStatsBarOpenSettings"),
+            object: nil, queue: .main) { note in
+                ServiceLocator.settings?.open(pane: note.object as? String ?? "menubar.widgets")
+            }
+        NotificationCenter.default.addObserver(
+            forName: NSNotification.Name("FrsetScreenRecDidSave"), object: nil, queue: .main
+        ) { note in
+            let path = (note.userInfo?["path"] as? String) ?? ""
+            let name = (path as NSString).lastPathComponent
+            Toast.show(name.isEmpty ? "录屏已保存" : "录屏已保存：\(name)",
+                       icon: "record.circle.fill")
+        }
+    }()
+
     public static func start() {
         // v203：先挂开关观察者，再判断当前值——原先只在启动时判断一次，
         // 用户在设置里打开「菜单栏性能部件（STATS）」后必须重启 App 才出现，
@@ -51,22 +67,11 @@ public enum StatsBarEngine {
             return
         }
         isStarted = true
-        // v109：录屏保存完成 Toast（引擎广播 FrsetScreenRecDidSave → 与截图同款提示）
-        // v126（性能审计 F0929）：observer 注册移到 isStarted 守卫之后——原先在守卫
-        // 之前注册，重复 start() 会叠加观察者（每次录屏保存弹 N 个 Toast）。
-        NotificationCenter.default.addObserver(
-            forName: NSNotification.Name("FrsetScreenRecDidSave"), object: nil, queue: .main
-        ) { note in
-            let path = (note.userInfo?["path"] as? String) ?? ""
-            let name = (path as NSString).lastPathComponent
-            Toast.show(name.isEmpty ? "录屏已保存" : "录屏已保存：\(name)",
-                       icon: "record.circle.fill")
-        }
+        _ = installNotifications
         // 引擎点击回调必须是无捕获的 C 函数指针——经顶层跳板函数转接
         // （闭包字面量里嵌 async 块会被判为“捕获上下文”，无法形成 C 指针）
         FSStatsSetOpenMonitorHandler(statsBarOpenMonitorTrampoline)
         syncMainItem()
-        startScreenGapProbe()
         FSStatsTickStart()
         Log.info("Monitor", "STATS 部件引擎已启动（合并条 + 设置窗 + Stats 配置互通）")
         // 部件设置全量自测（FRSET_WIDGET_SELFTEST=1）：逐项写读所有配置后原样恢复
@@ -158,8 +163,6 @@ public enum StatsBarEngine {
         FSStatsTickStop()
         // v203：只停 timer 会留下冻结的合并条（显示旧值），必须把状态项一起拆掉
         FSBarTeardown()
-        screenGapTimer?.invalidate()
-        screenGapTimer = nil
         isStarted = false
     }
 
@@ -184,70 +187,7 @@ public enum StatsBarEngine {
         }
     }
 
-    /// v30：屏幕口径空隙下发器（每 0.5s）。
-    /// 主图标 fan 样式的 window.frame 读数持续偏低 ~48pt（2026-10-17 实测），
-    /// 而 convertToScreen 的内容坐标与截图吻合——用真实屏幕空隙驱动引擎保邻。
-    private static var screenGapTimer: Timer?
-
-    // v128（CPU 优化）：空隙探针的静息降频状态。
-    //   gapUnchangedStreak：连续测到同一空隙（容差 0.5pt，含"部件不可见"）的次数
-    //   gapIdleSkip：降频期跳过计数——每第 4 次 tick 才真测一次（等效 2.0s）
-    //   lastGapValue：上次下发的空隙（nan=还没测过）
-    private static var gapUnchangedStreak = 0
-    private static var gapIdleSkip = 0
-    private static var lastGapValue: Double = .nan
-
-    private static func startScreenGapProbe() {
-        screenGapTimer?.invalidate()
-        gapUnchangedStreak = 0
-        gapIdleSkip = 0
-        lastGapValue = .nan
-        let timer = Timer(timeInterval: 0.5, repeats: true) { _ in
-            // v128（CPU 优化）：tick 体包 autoreleasepool——FSBarMergedItem /
-            // StatusBarController / convertToScreen 桥接产生的 autorelease 对象
-            // （NSNumber/NSValue 等）不及时回收是小堆膨胀主嫌之一，池化即刻释放。
-            autoreleasepool {
-                // v128（CPU 优化）：静息降频。空隙读数连续 4 拍（2s）不变且 App
-                // 非活跃（面板/设置都收着）时，只在每第 4 拍做真实测量——等效把
-                // 0.5s 探针降到 2.0s（与 LogArchive 看门狗同频）。读数一旦变化
-                // （>0.5pt）或 App 回到活跃，立即恢复 0.5s 全速。
-                // 降频期间 FSBarKeepAdjacentTick 仍按最后读数保邻（稳态零动作）；
-                // 真发生漂移时最迟 2s 内被下一次测量发现并恢复全速。
-                let appActive = NSApplication.shared.isActive
-                if gapUnchangedStreak >= 4 && !appActive {
-                    gapIdleSkip += 1
-                    if gapIdleSkip % 4 != 0 { return }
-                } else {
-                    gapIdleSkip = 0
-                }
-                guard let merged = FSBarMergedItem(), let main = StatusBarController.shared.mainStatusItem,
-                      let mb = merged.button, let mw = mb.window,
-                      let nb = main.button, let nw = nb.window else {
-                    // 部件不可见（无菜单栏项）：也算"无变化"，让探针一起降频
-                    FSBarSetScreenGap(-1)
-                    if lastGapValue == -1 { gapUnchangedStreak += 1 }
-                    else { gapUnchangedStreak = 0; lastGapValue = -1 }
-                    return
-                }
-                let mScr = mw.convertToScreen(mb.convert(mb.bounds, to: nil))
-                let nScr = nw.convertToScreen(nb.convert(nb.bounds, to: nil))
-                let gap = nScr.minX - mScr.maxX   // >0 = 有空隙
-                FSBarSetScreenGap(gap)
-                if abs(gap - lastGapValue) <= 0.5 {
-                    gapUnchangedStreak += 1
-                } else {
-                    gapUnchangedStreak = 0
-                    lastGapValue = gap
-                }
-            }
-        }
-        RunLoop.main.add(timer, forMode: .common)
-        screenGapTimer = timer
-    }
-
-    /// v30：把重建版主图标项注册给引擎（位置校准/保邻的参照物）。
-    /// 重建版没有注入版的"原生监控项"，主项由状态栏自建——不注册的话引擎
-    /// FSBarMainItem() 永远为 nil，校准与保邻全部静默跳过（漂移没人管）。
+    /// 注册主入口引用，供引擎复用主图标；菜单栏位置由系统管理。
     /// 幂等：主项重建后重复调用即可。
     public static func syncMainItem(attempts: Int = 10) {
         guard let item = StatusBarController.shared.mainStatusItem else {

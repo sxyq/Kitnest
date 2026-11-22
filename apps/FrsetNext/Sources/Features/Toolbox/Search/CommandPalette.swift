@@ -130,6 +130,10 @@ public enum CommandCatalog {
             NSApp.activate(ignoringOtherApps: true)
             ServiceLocator.panel?.show()
         })
+        items.append(CommandItem(id: "favorites.open", title: "查看收藏", subtitle: "全局收藏",
+                                 systemImage: "star", kind: .action) {
+            FavoritesWindowController.shared.show()
+        })
 
         // ③ 开关（Preferences / Manager 状态直读写）
         items.append(CommandItem(id: "toggle.clipboardRecording",
@@ -327,6 +331,7 @@ final class CommandPalettePanel: NSPanel, NSWindowDelegate {
 
     func windowWillClose(_ notification: Notification) {
         onClose?()
+        CommandPaletteController.shared.windowWillClose(notification)
     }
 }
 
@@ -340,9 +345,10 @@ final class CommandPaletteState: ObservableObject {
 
     var onDismiss: (() -> Void)?
 
-    private let all: [CommandItem]
+    private var all: [CommandItem]
     /// 斜杠命令池（v172）
-    private let slashAll: [CommandItem]
+    private var slashAll: [CommandItem]
+    private let selection: AppBootstrap.SelectionResult
 
     /// 命令模式：查询以 `/` 开头
     var isSlashMode: Bool {
@@ -350,6 +356,7 @@ final class CommandPaletteState: ObservableObject {
     }
 
     init(initialQuery: String = "", selection: AppBootstrap.SelectionResult) {
+        self.selection = selection
         all = CommandCatalog.build(selection: selection)
         slashAll = CommandCatalog.buildSlash()
         if !initialQuery.isEmpty { query = initialQuery }
@@ -363,6 +370,12 @@ final class CommandPaletteState: ObservableObject {
         } else {
             query = "/"
         }
+        refilter()
+    }
+
+    func refreshLanguage() {
+        all = CommandCatalog.build(selection: selection)
+        slashAll = CommandCatalog.buildSlash()
         refilter()
     }
 
@@ -405,7 +418,7 @@ final class CommandPaletteState: ObservableObject {
         // 并预留容量——refilter 在每次按键防抖后执行，是本文件真正的热路径。
         // v128（流畅度）：复核无 O(n²)——单趟匹配 O(n) + 排序 O(n log n)，n≈40。
         // 但结果无变化时也会写 @Published 触发整列表重绘（40 行 CommandRowView），
-        // 故比对 id 序列后只在真变化时发布（40 条 String 比对远比 40 行重绘便宜）。
+        // 故比对可见元数据后只在真变化时发布，语言变化也会更新标题与说明。
         var scored: [(item: CommandItem, score: Int)] = []
         scored.reserveCapacity(all.count)
         for item in all {
@@ -417,9 +430,12 @@ final class CommandPaletteState: ObservableObject {
         publish(scored.map { $0.item })
     }
 
-    /// 结果发布（id 序列不变则不触发整列表重绘）
+    /// 结果发布：顺序与显示内容均未变化时复用现有列表。
     private func publish(_ next: [CommandItem]) {
-        if next.map(\.id) != items.map(\.id) {
+        if !next.elementsEqual(items, by: {
+            $0.id == $1.id && $0.title == $1.title && $0.subtitle == $1.subtitle
+                && $0.systemImage == $1.systemImage && $0.kind == $1.kind
+        }) {
             items = next
         }
     }
@@ -441,6 +457,7 @@ final class CommandPaletteState: ObservableObject {
 
 struct CommandPaletteView: View {
     @ObservedObject var state: CommandPaletteState
+    @ObservedObject private var favorites = FavoritesStore.shared
     @FocusState private var focused: Bool
 
     var body: some View {
@@ -502,14 +519,15 @@ struct CommandPaletteView: View {
                 ScrollView {
                     LazyVStack(spacing: 1) {
                         ForEach(Array(state.items.enumerated()), id: \.element.id) { index, item in
-                            CommandRowView(item: item, selected: index == state.selectedIndex)
+                            let favoriteKind: FavoriteResourceKind = item.kind == .tool ? .tool : .command
+                            let favoriteID = item.kind == .tool ? String(item.id.dropFirst("tool.".count)) : item.id
+                            CommandRowView(item: item, selected: index == state.selectedIndex,
+                                           isFavorite: favorites.contains(favoriteKind, id: favoriteID),
+                                           onToggleFavorite: { favorites.toggle(favoriteKind, id: favoriteID) },
+                                           onExecute: { state.selectedIndex = index; state.executeSelected() })
                                 .id(item.id)
                                 .onHover { hovering in
                                     if hovering { state.selectedIndex = index }
-                                }
-                                .onTapGesture {
-                                    state.selectedIndex = index
-                                    state.executeSelected()
                                 }
                         }
                     }
@@ -543,6 +561,9 @@ struct CommandPaletteView: View {
         // 统一走 glassPlate：26+ 真玻璃 / 旧系统毛玻璃 / 纯色偏好退化为不透明底。
         .glassPlate()
         .background(keyHandler)
+        .onReceive(NotificationCenter.default.publisher(for: LanguageManager.languageDidChange)) { _ in
+            state.refreshLanguage()
+        }
         .onAppear {
             state.refilter()
             focused = true
@@ -568,6 +589,9 @@ struct CommandPaletteView: View {
 private struct CommandRowView: View {
     let item: CommandItem
     let selected: Bool
+    let isFavorite: Bool
+    let onToggleFavorite: () -> Void
+    let onExecute: () -> Void
 
     var body: some View {
         HStack(spacing: 10) {
@@ -586,6 +610,8 @@ private struct CommandRowView: View {
                         .lineLimit(1)
                 }
             }
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onExecute)
             Spacer(minLength: 8)
             if item.kind == .toggle, let isOn = item.isOn {
                 Toggle("", isOn: .constant(isOn()))
@@ -593,6 +619,15 @@ private struct CommandRowView: View {
                     .labelsHidden()
                     .controlSize(.mini)
                     .disabled(true)
+            }
+            if item.kind == .tool || item.kind == .command || item.kind == .action {
+                Button(action: onToggleFavorite) {
+                    Image(systemName: isFavorite ? "star.fill" : "star")
+                        .foregroundStyle(isFavorite ? Theme.accent : Color.secondary)
+                }
+                .buttonStyle(.plain)
+                .help(isFavorite ? "取消收藏" : "收藏")
+                .accessibilityLabel(isFavorite ? "取消收藏" : "收藏")
             }
             Text(item.kind.rawValue)
                 .font(.system(size: 11))

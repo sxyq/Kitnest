@@ -2,18 +2,14 @@ import SwiftUI
 
 // MARK: - 主面板页面状态
 //
-// v71（2026-10-19 用户需求）：主面板顶部**恢复三页切换**（主页 │ 性能监测 │ 文件中转）。
-// 性能页内容直接复用 MonitorDetailView（与独立窗同一套面板组件，不多一套实现）；
-// 模块选中态由本 presenter 持有（主面板与独立窗各自独立记忆）。
-//
-// v114（2026-10-25 用户需求）：投屏从「文件中转」拆成独立第四页——
-// 顶部四段：主页 │ 性能监测 │ 文件中转 │ 投屏（左右切换）。
+// 主面板顶部两页切换：主页 │ 性能监测。性能页内容复用 MonitorDetailView
+//（与独立窗同一套组件，不多一套实现）；模块选中态由本 presenter 持有。
 public enum PanelCenterPage: String, CaseIterable {
     case home, performance
 }
 
 public final class MonitorCenterPresenter: ObservableObject {
-    /// 面板当前主页面（四段：主页 / 性能监测 / 文件中转 / 投屏）
+    /// 面板当前主页面（主页 / 性能监测）
     @Published public var page: PanelCenterPage = .home
     /// 性能页当前模块（**主面板与状态栏独立窗共用这一份**；改这里两边同时切换）
     @Published public var monitorSelection = MonitorDetailSelection(.cpu)

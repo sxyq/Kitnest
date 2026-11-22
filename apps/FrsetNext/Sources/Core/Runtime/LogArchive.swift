@@ -52,7 +52,6 @@ public final class LogArchive {
         // 改走 AppDirectories.sub("logs")：正式版仍是 ~/…/FrsetNext/logs（老日志继续可读），
         // DEBUG 则落到 FrsetNext-Dev/logs，两者彻底隔离。
         directory = AppDirectories.sub("logs")
-        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         cleanupOldLogs()
     }
 
@@ -274,7 +273,6 @@ public final class LogArchive {
         // 单文件上限：超限后仅保留非 debug
         let size = (try? fh.seekToEnd()) ?? 0
         if size > UInt64(maxFileSize), level == "DEBUG" { return }
-        _ = try? fh.seekToEnd()
         try? fh.write(contentsOf: Data(line.utf8))
     }
 
@@ -285,8 +283,8 @@ public final class LogArchive {
             at: directory, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
         var removed = 0
         for f in files where f.pathExtension == "log" {
-            let modified = (try? f.resourceValues(forKeys: [.contentModificationDateKey])
-                .contentModificationDate) ?? .distantPast
+            guard let modified = try? f.resourceValues(forKeys: [.contentModificationDateKey])
+                .contentModificationDate else { continue }
             if modified < cutoff {
                 if (try? FileManager.default.removeItem(at: f)) != nil { removed += 1 }
             }

@@ -11,11 +11,13 @@ final class LongScreenshotEditorDocumentView: NSView {
     let image: CGImage
     /// 图片在文档视图内的绘制矩形（水平居中；宽度不足容器时两侧留白）
     private var imageRect: NSRect = .zero
+    /// 当前绘制倍率（1 = 1 图像像素对 1 设备像素；<1 = 缩小显示）
+    private var drawScale: CGFloat = 1
 
     init(image: CGImage) {
         self.image = image
-        // 请求尺寸 = 图像点尺寸（72dpi 基准）
-        super.init(frame: NSRect(origin: .zero, size: NSSize(width: image.width, height: image.height)))
+        let native = Self.nativePointSize(for: image, scale: NSScreen.main?.backingScaleFactor ?? 1)
+        super.init(frame: NSRect(origin: .zero, size: native))
         imageRect = bounds
     }
 
@@ -23,11 +25,29 @@ final class LongScreenshotEditorDocumentView: NSView {
 
     override var isFlipped: Bool { false }
 
+    /// 1 图像像素 = 1 设备像素时的点尺寸。
+    ///
+    /// v269（用户：「没有非常高清的效果，出来的画质非常差」）：
+    /// 旧版直接拿像素数当点数用，在 2x 屏上等于把 1x 长图再放大一倍，
+    /// 预览里所有文字都糊。这里按 backingScaleFactor 折算，保证点对点。
+    private static func nativePointSize(for image: CGImage, scale: CGFloat) -> NSSize {
+        let s = max(1, scale)
+        return NSSize(width: max(1, CGFloat(image.width) / s),
+                      height: max(1, CGFloat(image.height) / s))
+    }
+
+    private var nativePointSize: NSSize {
+        Self.nativePointSize(for: image,
+                             scale: window?.backingScaleFactor
+                                 ?? NSScreen.main?.backingScaleFactor ?? 1)
+    }
+
     override func draw(_ dirtyRect: NSRect) {
         guard let ctx = NSGraphicsContext.current?.cgContext else { return }
         NSColor(white: 0.12, alpha: 1).setFill()
         bounds.fill()
-        ctx.interpolationQuality = .high
+        // 1:1 时不能用插值，否则每个像素都被重采样一次，越看越糊。
+        ctx.interpolationQuality = drawScale < 0.999 ? .high : .none
         ctx.draw(image, in: imageRect)
     }
 
@@ -38,20 +58,28 @@ final class LongScreenshotEditorDocumentView: NSView {
     /// 现在文档宽度至少铺满容器、图片在文档内水平居中，origin 恒为 (0,0)，
     /// 竖向位置完全交给 clipView.scroll(to:)。
     func fitCentered(in containerSize: NSSize) {
-        let iw = CGFloat(image.width), ih = CGFloat(image.height)
-        guard iw > 0, ih > 0, containerSize.width > 0, containerSize.height > 0 else { return }
-        // v181（用户：「预览框看不清」）：原来 scale 上限锁死 1，窄图（1x 截的 480 宽长图）
-        // 在大窗里只占中间一条，两侧全是黑边。现在允许按宽度放大（最多 2 倍，
-        // 再大就糊成马赛克）；Retina 长图仍然是缩小到适合宽度。
-        let fill = containerSize.width / iw
-        let scale = min(max(fill, 0.02), 2.0)
-        let drawW = max(1, (iw * scale).rounded())
-        let drawH = max(1, (ih * scale).rounded())
+        let native = nativePointSize
+        guard native.width > 1, native.height > 1,
+              containerSize.width > 0, containerSize.height > 0 else { return }
+        // v269：只缩小、不放大。v181 为了填满宽度允许放大 2 倍，
+        // 结果 1x 长图在 2x 屏上被插值放大两倍——「画质非常差」的直接原因。
+        // 现在最大就是 1:1 设备像素，需要更大用触控板缩放（allowsMagnification）。
+        let fill = containerSize.width / native.width
+        let scale = min(max(fill, 0.02), 1.0)
+        drawScale = scale
+        let drawW = max(1, (native.width * scale).rounded())
+        let drawH = max(1, (native.height * scale).rounded())
         let docW = max(containerSize.width, drawW)
         setFrameSize(NSSize(width: docW, height: drawH))
         setFrameOrigin(.zero)
         imageRect = NSRect(x: ((docW - drawW) / 2).rounded(), y: 0, width: drawW, height: drawH)
         needsDisplay = true
+    }
+
+    /// 拖到另一块屏（1x ↔ 2x）时重新折算点尺寸，避免固定在旧倍率上。
+    override func viewDidChangeBackingProperties() {
+        super.viewDidChangeBackingProperties()
+        enclosingScrollView?.superview?.needsLayout = true
     }
 }
 
@@ -399,7 +427,8 @@ final class LongScreenshotLivePreviewPanel: NSPanel {
         contentView = card
         installUnifiedGlassBackground(cornerRadius: Theme.Radius.window)
 
-        imageView.imageScaling = .scaleProportionallyUpOrDown
+        // v269：预览卡只缩小不放大——放大 1x 画布只会更糊。
+        imageView.imageScaling = .scaleProportionallyDown
         imageView.wantsLayer = true
         card.addSubview(imageView)
 

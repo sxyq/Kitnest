@@ -316,14 +316,17 @@ public final class ArchiveBrowserModel: ObservableObject {
         // 连同同目录资源一起解到临时目录，交给 WKWebView（CSS/JS/图片/子页面都能生效）。
         if ["html", "htm", "xhtml", "svg"].contains(ext) {
             ArchiveCore.extractWebPreviewToTemp(url: url, entry: entry) { [weak self] fileURL, err in
-                guard let self, self.previewGeneration == generation else { return }
+                guard let self, self.previewGeneration == generation else {
+                    if let fileURL { try? FileManager.default.removeItem(at: ArchiveCore.extractionDirectory(containing: fileURL)) }
+                    return
+                }
                 self.previewLoading = false
                 guard let fileURL else {
                     self.previewKind = .unsupported(err.isEmpty ? "网页解压失败" : err)
                     return
                 }
                 let root = fileURL.deletingLastPathComponent()
-                self.rememberWebPreviewTemp(root)
+                self.rememberPreviewTemp(fileURL)
                 self.previewKind = .html(fileURL, root: root)
             }
             return
@@ -364,12 +367,16 @@ public final class ArchiveBrowserModel: ObservableObject {
         }
         // 其余（PDF / Office / 任意）：解压到临时目录再渲染
         ArchiveCore.extractEntryToTemp(url: url, entry: entry) { [weak self] tempURL, err in
-            guard let self, self.previewGeneration == generation else { return }
+            guard let self, self.previewGeneration == generation else {
+                if let tempURL { try? FileManager.default.removeItem(at: ArchiveCore.extractionDirectory(containing: tempURL)) }
+                return
+            }
             guard let tempURL else {
                 self.previewLoading = false
                 self.previewKind = .unsupported(err)
                 return
             }
+            self.rememberPreviewTemp(tempURL)
             if ext == "pdf", let doc = PDFDocument(url: tempURL) {
                 self.previewLoading = false
                 self.previewKind = .pdf(doc)
@@ -384,33 +391,23 @@ public final class ArchiveBrowserModel: ObservableObject {
         }
     }
 
-    // MARK: 网页预览的临时解压目录（v210）
-    //
-    // 网页预览要把同目录资源一起解出来才能正确渲染；这些目录不主动回收会
-    // 一直堆在 /tmp（与「extractEntryToTemp 临时目录不清理」同类问题）。
-    // 记在模型上，窗口关闭时统一删。
-    private var webPreviewTemps: [URL] = []
+    // 网页、PDF 与 Office 共用窗口持有的临时目录，保留到预览窗口关闭。
+    private var previewTemps: [URL] = []
 
-    private func rememberWebPreviewTemp(_ dir: URL) {
-        var top = dir
-        while !top.lastPathComponent.hasPrefix("frset-webpreview-") {
-            let parent = top.deletingLastPathComponent()
-            if parent.path == top.path { break }
-            top = parent
-        }
-        guard top.lastPathComponent.hasPrefix("frset-webpreview-"),
-              !webPreviewTemps.contains(top) else { return }
-        webPreviewTemps.append(top)
+    private func rememberPreviewTemp(_ dir: URL) {
+        let top = ArchiveCore.extractionDirectory(containing: dir)
+        if !previewTemps.contains(top) { previewTemps.append(top) }
     }
 
-    /// 窗口关闭时调用：删掉本次预览解出来的网页目录
-    public func cleanupWebPreviewTemps() {
+    /// 窗口关闭时释放预览，再删除这次窗口持有的解压目录。
+    public func cleanupPreviewTemps() {
         previewGeneration += 1
-        for dir in webPreviewTemps {
+        previewKind = .none
+        for dir in previewTemps {
             try? FileManager.default.removeItem(at: dir)
-            Log.info("Archive", "清理网页预览临时目录 \(dir.lastPathComponent)")
+            Log.info("Archive", "清理预览临时目录 \(dir.lastPathComponent)")
         }
-        webPreviewTemps.removeAll()
+        previewTemps.removeAll()
     }
 
     // MARK: 编辑 / 回写
@@ -488,7 +485,8 @@ public final class ArchiveBrowserModel: ObservableObject {
         NSApp.activate(ignoringOtherApps: true)
         switch alert.runModal() {
         case .alertFirstButtonReturn:
-            performAddFiles(withSuggestedNames(files))
+            let renamed = withSuggestedNames(files)
+            performAddFiles(renamed.files, temporaryDirectories: renamed.directories)
         case .alertSecondButtonReturn:
             performAddFiles(files)
         default:
@@ -498,7 +496,7 @@ public final class ArchiveBrowserModel: ObservableObject {
 
     /// 用建议名继续：问题文件复制到临时目录换名（原磁盘文件不动）；全量名单去重防撞名
     ///（`a:b` 与 `a?b` 都会变成 `a_b`，撞名加序号——用 arch-engine 的 uniqueWindowsNames）
-    private func withSuggestedNames(_ files: [URL]) -> [URL] {
+    private func withSuggestedNames(_ files: [URL]) -> (files: [URL], directories: [URL]) {
         var suggestions: [String: String] = [:]
         for issue in ArchiveCore.windowsNameIssues(files.map { $0.lastPathComponent }) {
             suggestions[issue.name] = issue.suggested
@@ -506,6 +504,7 @@ public final class ArchiveBrowserModel: ObservableObject {
         let finalNames = ArchiveCore.uniqueWindowsNames(
             files.map { suggestions[$0.lastPathComponent] ?? $0.lastPathComponent })
         var out: [URL] = []
+        var directories: [URL] = []
         for (i, f) in files.enumerated() {
             let newName = finalNames[i]
             guard newName != f.lastPathComponent else {
@@ -520,14 +519,16 @@ public final class ArchiveBrowserModel: ObservableObject {
                                                         withIntermediateDirectories: true)
                 try FileManager.default.copyItem(at: f, to: tmp)
                 out.append(tmp)
+                directories.append(tmp.deletingLastPathComponent())
             } catch {
+                try? FileManager.default.removeItem(at: tmp.deletingLastPathComponent())
                 out.append(f)       // 换名失败 → 保持原名
             }
         }
-        return out
+        return (out, directories)
     }
 
-    private func performAddFiles(_ files: [URL]) {
+    private func performAddFiles(_ files: [URL], temporaryDirectories: [URL] = []) {
         let dir: String
         if let entry = selectedEntries.first, entry.isDirectory {
             dir = entry.path
@@ -535,6 +536,9 @@ public final class ArchiveBrowserModel: ObservableObject {
             dir = currentPath
         }
         ArchiveCore.addFiles(url: url, files: files, intoDirectory: dir) { [weak self] ok, msg in
+            defer {
+                for directory in temporaryDirectories { try? FileManager.default.removeItem(at: directory) }
+            }
             guard let self else { return }
             if ok {
                 // v127（ArcZip P0）：新增内容备份 → 可撤销（undo=removeEntries）
@@ -749,7 +753,10 @@ public final class ArchiveBrowserModel: ObservableObject {
                 Toast.show(err, icon: "exclamationmark.triangle", isWarning: true)
                 return
             }
-            NSWorkspace.shared.open(tempURL)
+            if !NSWorkspace.shared.open(tempURL) {
+                try? FileManager.default.removeItem(at: ArchiveCore.extractionDirectory(containing: tempURL))
+                Toast.show("无法打开 \(entry.name)", icon: "exclamationmark.triangle", isWarning: true)
+            }
         }
     }
 
@@ -825,9 +832,9 @@ public final class ArchiveBrowserModel: ObservableObject {
         var snaps: [ArchiveChange.Snapshot] = []
         for f in files {
             let rel = dir.isEmpty ? f.lastPathComponent : dir + "/" + f.lastPathComponent
-            let tmp = FileManager.default.temporaryDirectory
+            let directory = FileManager.default.temporaryDirectory
                 .appendingPathComponent("frset-addsnap-\(UUID().uuidString)", isDirectory: true)
-                .appendingPathComponent(f.lastPathComponent)
+            let tmp = directory.appendingPathComponent(f.lastPathComponent)
             do {
                 try FileManager.default.createDirectory(at: tmp.deletingLastPathComponent(),
                                                         withIntermediateDirectories: true)
@@ -835,6 +842,7 @@ public final class ArchiveBrowserModel: ObservableObject {
                 snaps.append(.init(path: rel, tempURL: tmp))
             } catch {
                 // 备份失败 → 该项不可撤销，跳过
+                try? FileManager.default.removeItem(at: directory)
             }
         }
         completion(snaps)
@@ -959,8 +967,9 @@ public final class ArchiveBrowserWindowController: NSWindowController, NSWindowD
     }
 
     public func windowWillClose(_ notification: Notification) {
-        model.cleanupWebPreviewTemps()
+        model.cleanupPreviewTemps()
         Self.open.removeValue(forKey: model.url.standardizedFileURL.path)
+        ArchiveHoverPreview.shared.windowClosed(archive: model.url, lastWindow: Self.open.isEmpty)
     }
 
     // v127（ArcZip P0）：菜单路径的 undo:/redo:（Edit 菜单发到本控制器时走撤销栈）
@@ -1440,12 +1449,11 @@ struct ArchiveBrowserView: View {
                 // v181：文本预览与剪贴板预览同口径（Markdown 排版 / JSON 检视器 / 代码行号 / 纯文本）；
                 // 可编辑的归档额外提供「预览 ↔ 编辑」开关，编辑态沿用原来的纯文本编辑器。
                 ArchiveTextPreview(
-                    text: text,
                     entryName: model.previewEntry?.name ?? "",
                     editable: model.editable,
                     draft: $model.draftText,
                     dirty: model.dirty,
-                    restoreKey: model.previewEntry?.path ?? model.url.lastPathComponent,
+                    restoreKey: model.url.standardizedFileURL.absoluteString + "#" + (model.previewEntry?.path ?? ""),
                     onEdit: { new in model.dirty = (new != text) })
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .image(let img):
@@ -1473,7 +1481,9 @@ struct ArchiveBrowserView: View {
                         Text("Office 不做框内编辑（与原版一致）· 可翻页查看全文")
                             .font(.system(size: 11)).foregroundStyle(Theme.tertiaryText)
                         Spacer(minLength: 6)
-                        Button("用默认应用打开") { NSWorkspace.shared.open(tempURL) }
+                        Button("用默认应用打开") {
+                            if let entry = model.previewEntry { model.openExternally(entry) }
+                        }
                             .controlSize(.small)
                     }
                     .padding(.horizontal, 12)

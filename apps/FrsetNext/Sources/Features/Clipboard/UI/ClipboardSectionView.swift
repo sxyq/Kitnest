@@ -19,13 +19,12 @@ public struct ClipboardSectionView: View {
     @ObservedObject private var personalization: Personalization
 
     @ObservedObject private var manager = ClipboardManager.shared
-    @ObservedObject private var tagStore = TagStore.shared
+    @ObservedObject private var tutorial = QuickTutorialController.shared
     /// 面板当前页（主页/性能监测/中转站）——非主页时要禁用列表的 hover 追踪
     /// （2026-10-18 幽灵预览修复：三页 ZStack 常驻，透明主页的 NSTrackingArea
     ///  仍在接收 mouseMoved，会在性能页/中转站页上误弹预览）
     @ObservedObject private var pagePresenter = MonitorCenterPresenter.shared
 
-    @Stored private var summaryState = SummaryState()
     // 注意：裸 swiftc 自检无 SwiftUIMacros 插件，@State 不可用（CONTRACT §7.4）→ 用 @Stored
     @Stored private var scrollProxy = ClipboardTableScrollProxy()
 
@@ -54,6 +53,21 @@ public struct ClipboardSectionView: View {
         // 原版主页的剪贴板**没有**区段标题、搜索框和过滤栏——就是一条条的行；
         // 搜索走面板顶部搜索框（Toolbox 的 SearchSectionView），标签过滤/浮动窗/刷新收进右键菜单与状态栏菜单。
         VStack(spacing: 0) {
+            if !isSettingsPreview, tutorial.selected == .clipboard,
+               tutorial.currentStatus == .inProgress {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "sparkles").foregroundStyle(Theme.accent)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("剪贴板教程 · 第 \(tutorial.displayStep) 步 / 3")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text(tutorial.message).font(.system(size: 10.5)).foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
+                    Button("教程") { WelcomeWindowController.shared.show() }
+                        .font(.system(size: 10.5)).buttonStyle(.plain).foregroundStyle(Theme.accent)
+                }
+                .padding(8).background(Theme.accent.opacity(0.07))
+            }
             if !isSettingsPreview, manager.isRecordingPaused {
                 HStack(spacing: 8) {
                     Image(systemName: "pause.fill")
@@ -73,37 +87,6 @@ public struct ClipboardSectionView: View {
             // 经 ServiceLocator.panelPreview 协议调用，不引用 Panel 具体类型（CONTRACT §1.3）
             ServiceLocator.panelPreview?.prepareForPanelAppear()
             manager.reload(reset: true)
-            tagStore.refresh()
-        }
-        .alert(summaryState.title, isPresented: $summaryState.isPresented) {
-            Button("好") { summaryState.reset() }
-        } message: {
-            Text(summaryState.message)
-        }
-    }
-
-    // MARK: 头部
-
-    private var header: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Theme.sectionHeader("剪贴板")
-            Spacer()
-            ClipboardTagFilterMenu(selectedTagID: Binding(get: { manager.tagFilterID },
-                                                          set: { manager.tagFilterID = $0 }))
-            Button {
-                FloatingClipboardWindowController.shared.toggle()
-            } label: {
-                Image(systemName: "macwindow")
-            }
-            .buttonStyle(.borderless)
-            .help("打开/关闭浮动窗")
-            Button {
-                manager.reload(reset: true)
-            } label: {
-                Image(systemName: "arrow.clockwise")
-            }
-            .buttonStyle(.borderless)
-            .help("刷新")
         }
     }
 
@@ -116,7 +99,7 @@ public struct ClipboardSectionView: View {
                 LazyVStack(spacing: 2) {
                     ForEach(displayedPreviewItems) { item in
                         ClipboardRow(item: item, isHighlighted: item.id == (previewSelection?.wrappedValue ?? previewSelectedID),
-                                     onCopy: { selectPreview(item) }, onEdit: { selectPreview(item) }, onSummarize: { selectPreview(item) },
+                                     onCopy: { selectPreview(item) },
                                      personalization: effectivePersonalization)
                             .frame(height: appearance.statsRowHeight)
                             .contentShape(Rectangle())
@@ -149,14 +132,7 @@ public struct ClipboardSectionView: View {
                                        scrollProxy: scrollProxy,
                                        isActive: isPageActive,
                                        onCopy: { manager.copy($0) },
-                                       onEdit: { ClipboardItemEditWindowRecord.open(for: $0) },
-                                       onSummarize: { item in
-                                           Task { await runSummary(for: item) }
-                                       },
-                                       onDelete: { item in
-                                           ServiceLocator.panelPreview?.notifyItemRemoved(itemID: item.id)
-                                           manager.delete(item)
-                                       }, personalization: effectivePersonalization)
+                                       personalization: effectivePersonalization)
                     // v91（2026-10-20 用户：「日历与剪贴板没有统一宽度」）：
                     // 此前只锁高度，NSScrollView 的固有宽度参与布局 → 表格比
                     // 日历卡（maxWidth: .infinity）窄约 6pt。锁满宽后行卡与日历卡同宽。
@@ -165,31 +141,6 @@ public struct ClipboardSectionView: View {
         }
     }
 
-    // MARK: AI 摘要
-
-    private func runSummary(for item: ClipboardItem) async {
-        do {
-            let summary = try await ClipboardSummaryExecutionCoordinator.shared.summarize(item)
-            summaryState.show(title: "AI 摘要", message: summary)
-        } catch {
-            summaryState.show(title: "摘要失败", message: error.localizedDescription)
-        }
-    }
-}
-
-// MARK: - 摘要提示状态
-
-private struct SummaryState {
-    var isPresented = false
-    var title = ""
-    var message = ""
-
-    mutating func show(title: String, message: String) {
-        self.title = title; self.message = message; self.isPresented = true
-    }
-    mutating func reset() {
-        self.title = ""; self.message = ""; self.isPresented = false
-    }
 }
 
 // MARK: - 过滤栏（05 号规格 1.3 + specs/14 §3.6：九类型项 + 回顶按钮）
@@ -201,8 +152,15 @@ public struct ClipboardTagFilterMenu: View {
 
     @ObservedObject private var tagStore = TagStore.shared
     @Binding public var selectedTagID: String?
+    /// v271：唯一标签入口——过滤与管理合并进同一个下拉菜单。
+    /// 旧版工具条上并排两个几乎一样的 tag 图标（下拉过滤 + 管理按钮），
+    /// 用户分不清（原话：「有两个总标签……只能有一种唯一的一套标签图标」）。
+    public var onManageTags: (() -> Void)? = nil
 
-    public init(selectedTagID: Binding<String?>) { self._selectedTagID = selectedTagID }
+    public init(selectedTagID: Binding<String?>, onManageTags: (() -> Void)? = nil) {
+        self._selectedTagID = selectedTagID
+        self.onManageTags = onManageTags
+    }
 
     public var body: some View {
         Menu {
@@ -216,12 +174,18 @@ public struct ClipboardTagFilterMenu: View {
                 }
             }
             if tagStore.tags.isEmpty { Text("暂无标签") }
+            if let onManageTags {
+                Divider()
+                Button { onManageTags() } label: {
+                    Label("管理标签…", systemImage: "slider.horizontal.3")
+                }
+            }
         } label: {
             Image(systemName: selectedTagID == nil ? "tag" : "tag.fill")
         }
         .menuStyle(.borderlessButton)
         .fixedSize()
-        .help("按标签过滤")
+        .help("标签：按标签过滤 · 管理标签")
     }
 }
 
@@ -242,16 +206,52 @@ public struct ClipboardMenuActionItem: Identifiable {
     }
 }
 
+/// 剪贴板条目 → 可投递文件（v112 空投联动；两个菜单实现共用）
+/// 图片 → 图片文件；文件 → 原文件；文本/富文本/URL → 文本文件。磁盘上不存在则 nil。
+extension ClipboardItem {
+    /// v260（滚动掉帧修复）：**不碰磁盘**的候选路径。
+    ///
+    /// 原来 `airDropFileURL` 每行、每次 body 求值都要 `FileManager.fileExists`
+    /// 打一次磁盘（最多两次 stat）。右键菜单内容是随行 body 一起展开的，
+    /// 滚动时每帧几十行 × 同步 stat —— 这是悬浮剪贴板滚动掉帧的主因。
+    /// 这里只按路径拼 URL（纯字符串），存在性交由点击时再判断。
+    public var airDropFileURLCandidate: URL? {
+        switch type {
+        case .image:
+            if let p = imagePath, !p.isEmpty { return URL(fileURLWithPath: p) }
+            return nil
+        case .file:
+            if let c = content, !c.isEmpty { return URL(fileURLWithPath: c) }
+            return nil
+        case .text, .richtext, .url:
+            if let p = textPath, !p.isEmpty { return URL(fileURLWithPath: p) }
+            return nil
+        }
+    }
+
+    /// 真正投递用：确认文件还在磁盘上（低频路径，允许 stat）
+    public var airDropFileURL: URL? {
+        guard let url = airDropFileURLCandidate else { return nil }
+        return FileManager.default.fileExists(atPath: url.path) ? url : nil
+    }
+}
+
 /// 右键菜单内容（复制/编辑/标签/预览/AI摘要/删除）
 public struct ClipboardRowMenuContent: View {
 
     @ObservedObject private var tagStore = TagStore.shared
     public let item: ClipboardItem
-    @Binding public var newTagName: String
+    private let managementSource: String
+    private let onPreview: (() -> Void)?
+    private let onPaste: (() -> Void)?
+    @Stored private var newTagName = ""
 
-    public init(item: ClipboardItem, newTagName: Binding<String> = .constant("")) {
+    public init(item: ClipboardItem, managementSource: String = "panel",
+                onPreview: (() -> Void)? = nil, onPaste: (() -> Void)? = nil) {
         self.item = item
-        self._newTagName = newTagName
+        self.managementSource = managementSource
+        self.onPreview = onPreview
+        self.onPaste = onPaste
     }
 
     public var body: some View {
@@ -267,6 +267,9 @@ public struct ClipboardRowMenuContent: View {
             }
             if tagStore.tags.isEmpty { Text("暂无标签") }
             Divider()
+            Button("管理标签…") {
+                NotificationCenter.default.post(name: TagStore.manageRequestedNotification, object: managementSource)
+            }
             TextField("新建标签…", text: $newTagName, onCommit: {
                 guard let created = tagStore.create(name: newTagName) else { newTagName = ""; return }
                 tagStore.assign(tagID: created.id, toDedupeKey: item.dedupeKey)
@@ -290,21 +293,79 @@ public struct ClipboardRowMenuContent: View {
         let canSummarize = ClipboardSummaryExecutionCoordinator.shared.isAvailable
         let existing = [
             ClipboardMenuActionItem(id: "copy", title: "复制", systemImage: "doc.on.doc") { manager.copy(item) },
+            ClipboardMenuActionItem(id: "paste", title: "粘贴", systemImage: "return.left") {
+                if let onPaste { onPaste() } else { manager.copy(item, autoPaste: true) }
+            },
+            ClipboardMenuActionItem(id: "preview", title: "预览", systemImage: "eye") {
+                if let onPreview { onPreview() }
+                else {
+                    _ = ServiceLocator.panelPreview?.presentPreview(for: item, anchorRectInWindow: nil,
+                                                                     anchorView: nil, isFloatingSource: false)
+                }
+            },
             ClipboardMenuActionItem(id: "edit", title: "编辑", systemImage: "pencil") {
                 ClipboardItemEditWindowRecord.open(for: item)
             },
             ClipboardMenuActionItem(id: "rename", title: "重命名", systemImage: "character.cursor.ibeam") {
                 ClipboardItemEditWindowRecord.open(for: item)
             },
-            ClipboardMenuActionItem(id: "note", title: item.isNote ? "取消笔记标记" : "标记为笔记",
-                                    systemImage: "note.text") { manager.setNote(item, isNote: !item.isNote) },
+            ClipboardMenuActionItem(id: "favorite", title: item.isFavorite ? "取消收藏" : "收藏",
+                                    systemImage: item.isFavorite ? "star.fill" : "star") {
+                manager.toggleFavorite(item)
+            },
+            ClipboardMenuActionItem(id: "saved", title: item.isNote ? "取消已存" : "标记为已存",
+                                    systemImage: item.isNote ? "bookmark.fill" : "bookmark") {
+                manager.setNote(item, isNote: !item.isNote)
+            },
             ClipboardMenuActionItem(id: "summary", title: "AI 摘要", systemImage: "sparkles",
                                     isEnabled: canSummarize) {
                 Task { _ = try? await ClipboardSummaryExecutionCoordinator.shared.summarizeAndWriteBack(item) }
             },
             ClipboardMenuActionItem(id: "delete", title: "删除", systemImage: "trash") { manager.delete(item) }
         ]
-        return Array(existing.prefix(1)) + ClipboardContentActions.items(for: item) + Array(existing.dropFirst())
+        return Array(existing.prefix(3)) + ClipboardContentActions.items(for: item) + Array(existing.dropFirst(3))
+    }
+}
+
+public struct ClipboardFavoriteButton: View {
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
+    let item: ClipboardItem
+
+    public init(item: ClipboardItem) { self.item = item }
+
+    public var body: some View {
+        Button {
+            if !isSettingsPreview { ClipboardManager.shared.toggleFavorite(item) }
+        } label: {
+            Image(systemName: item.isFavorite ? "star.fill" : "star")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(item.isFavorite ? Theme.accent : Color.secondary)
+                .frame(width: 20, height: 20)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(item.isFavorite ? "取消收藏" : "收藏")
+        .accessibilityLabel(item.isFavorite ? "取消收藏" : "收藏")
+    }
+}
+
+public struct ClipboardTagBadges: View {
+    @ObservedObject private var tagStore = TagStore.shared
+    let item: ClipboardItem
+
+    public init(item: ClipboardItem) { self.item = item }
+
+    public var body: some View {
+        HStack(spacing: 4) {
+            ForEach(tagStore.tags.filter { item.tagIDs.contains($0.id) }.prefix(3)) { tag in
+                HStack(spacing: 3) {
+                    Circle().fill(Color(hex: tag.colorHex) ?? .gray).frame(width: 5, height: 5)
+                    Text(tag.name).lineLimit(1)
+                }
+                .font(.system(size: 9))
+                .foregroundStyle(.secondary)
+            }
+        }
     }
 }
 
@@ -319,26 +380,22 @@ public struct ClipboardRow: View {
     @ObservedObject private var personalization: Personalization
     @ObservedObject private var appearanceState = AppearanceState.shared
     @Environment(\.settingsPreviewIsMidnight) private var previewIsMidnight
+    @Environment(\.isSettingsPreview) private var isSettingsPreview
 
     public let item: ClipboardItem
     /// 是否处于 hover 高亮态（由表格宿主设置）
     public let isHighlighted: Bool
     public let onCopy: () -> Void
-    public let onEdit: () -> Void
-    public let onSummarize: () -> Void
 
     @ObservedObject private var tagStore = TagStore.shared
 
     public init(item: ClipboardItem,
                 isHighlighted: Bool,
                 onCopy: @escaping () -> Void,
-                onEdit: @escaping () -> Void,
-                onSummarize: @escaping () -> Void,
                 personalization: Personalization = .shared) {
         self.item = item
         self.isHighlighted = isHighlighted
-        self.onCopy = onCopy; self.onEdit = onEdit
-        self.onSummarize = onSummarize
+        self.onCopy = onCopy
         self.personalization = personalization
     }
 
@@ -376,21 +433,31 @@ public struct ClipboardRow: View {
                     .foregroundStyle(.primary)
                     .lineLimit(1)
                     .truncationMode(.tail)
-                Text(subline)
-                    .font(.scaledSystem(size: 11, scale: appearance.fontScale))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                HStack(spacing: 6) {
+                    Text(item.isNote ? "已存 · \(subline)" : subline)
+                        .font(.scaledSystem(size: 11, scale: appearance.fontScale))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    ClipboardTagBadges(item: item)
+                }
             }
             Spacer(minLength: 6)
+            if !isSettingsPreview { ClipboardFavoriteButton(item: item) }
             if isHighlighted {
                 HStack(spacing: 10) {
                     let related = ClipboardContentActions.quickActions(for: item)
                     if related.isEmpty {
                         iconButton("arrow.down", help: "复制") { onCopy() }
-                        iconButton("return.left", help: "复制并粘贴") { ClipboardManager.shared.copy(item, autoPaste: true) }
+                        iconButton("return.left", help: "复制并粘贴") {
+                            if isSettingsPreview { onCopy() }
+                            else { ClipboardManager.shared.copy(item, autoPaste: true) }
+                        }
                     } else {
                         ForEach(related) { action in
-                            iconButton(action.systemImage, help: action.title, action: action.action)
+                            iconButton(action.systemImage, help: action.title) {
+                                if isSettingsPreview { onCopy() }
+                                else { action.action() }
+                            }
                         }
                         if related.count == 1 { iconButton("arrow.down", help: "复制") { onCopy() } }
                     }

@@ -100,24 +100,27 @@ enum GenieFrameRenderer {
             guard height > 0.05, abs(y1 - y0) > 0.01 else { continue }
 
             let top = max(0, min(CGFloat(snapshot.height - 1), ly0))
-            let cropRect = CGRect(x: 0,
-                                  y: top,
-                                  width: sourceWidth,
-                                  height: max(1, min(CGFloat(snapshot.height) - top, height)))
-            guard let strip = snapshot.cropping(to: cropRect) else { continue }
+            let sourceRect = CGRect(x: 0,
+                                    y: top,
+                                    width: sourceWidth,
+                                    height: max(1, min(CGFloat(snapshot.height) - top, height)))
+                .integral
+                .intersection(CGRect(x: 0, y: 0, width: sourceWidth, height: CGFloat(snapshot.height)))
+            guard sourceRect.width > 0, sourceRect.height > 0 else { continue }
 
             let a = CGPoint(x: x0a, y: y0)
             let b = CGPoint(x: x0b, y: y0)
             let c = CGPoint(x: x1a, y: y1)
             let d = CGPoint(x: x1b, y: y1)
-            let srcW = CGFloat(strip.width)
-            let srcH = CGFloat(strip.height)
+            let srcW = sourceRect.width
+            let srcTop = sourceRect.minY
+            let srcBottom = sourceRect.maxY
 
-            drawTriangle(cg, strip,
-                         src: (CGPoint(x: 0, y: 0), CGPoint(x: srcW, y: 0), CGPoint(x: 0, y: srcH)),
+            drawTriangle(cg, snapshot, sourceRect: sourceRect,
+                         src: (CGPoint(x: 0, y: srcTop), CGPoint(x: srcW, y: srcTop), CGPoint(x: 0, y: srcBottom)),
                          dst: (a, b, c))
-            drawTriangle(cg, strip,
-                         src: (CGPoint(x: srcW, y: 0), CGPoint(x: srcW, y: srcH), CGPoint(x: 0, y: srcH)),
+            drawTriangle(cg, snapshot, sourceRect: sourceRect,
+                         src: (CGPoint(x: srcW, y: srcTop), CGPoint(x: srcW, y: srcBottom), CGPoint(x: 0, y: srcBottom)),
                          dst: (b, d, c))
         }
 
@@ -128,6 +131,7 @@ enum GenieFrameRenderer {
     /// 四边形是梯形 → 必须拆两个三角形，否则侧边会出现锯齿阶梯。
     private static func drawTriangle(_ cg: CGContext,
                                      _ image: CGImage,
+                                     sourceRect: CGRect,
                                      src: (CGPoint, CGPoint, CGPoint),
                                      dst: (CGPoint, CGPoint, CGPoint)) {
         let (s0, s1, s2) = src
@@ -167,6 +171,7 @@ enum GenieFrameRenderer {
         cg.clip()
 
         cg.concatenate(CGAffineTransform(a: a, b: b, c: c, d: d, tx: tx, ty: ty))
+        cg.clip(to: sourceRect)
         cg.translateBy(x: 0, y: CGFloat(image.height))
         cg.scaleBy(x: 1, y: -1)
         cg.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height))
@@ -362,7 +367,6 @@ final class GenieWarp {
         let pixelScale = Self.pixelScale(bbox: bbox.size, frames: target)
         let t0 = CFAbsoluteTimeGetCurrent()
         var frames: [CGImage] = []
-        frames.reserveCapacity(target)
 
         let hold = Self.heldProgress()
         if let hold {
@@ -597,10 +601,10 @@ final class GenieWarp {
         }
         ctx.interpolationQuality = .none
         ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
-        var seen = Set<UInt32>()
-        for i in stride(from: 0, to: pixels.count, by: 4) {
-            seen.insert(UInt32(pixels[i]) << 16 | UInt32(pixels[i + 1]) << 8 | UInt32(pixels[i + 2]))
-            if seen.count > 1 { return false }
+        let first = UInt32(pixels[0]) << 16 | UInt32(pixels[1]) << 8 | UInt32(pixels[2])
+        for i in stride(from: 4, to: pixels.count, by: 4) {
+            let color = UInt32(pixels[i]) << 16 | UInt32(pixels[i + 1]) << 8 | UInt32(pixels[i + 2])
+            if color != first { return false }
         }
         return true
     }

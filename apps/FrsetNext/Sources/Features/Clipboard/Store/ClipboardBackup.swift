@@ -32,13 +32,13 @@ enum ClipboardBackup {
 
         fileprivate func checkCancellation() throws {
             lock.lock(); defer { lock.unlock() }
-            if cancelled { throw Failure(message: "已取消") }
+            if cancelled || ArchiveTaskQueue.shared.isCancelled(taskID) { throw Failure(message: "已取消") }
         }
 
         /// 进入最终提交后取消不再改写操作结果。
         fileprivate func finish() throws {
             lock.lock(); defer { lock.unlock() }
-            if cancelled { throw Failure(message: "已取消") }
+            if cancelled || ArchiveTaskQueue.shared.isCancelled(taskID) { throw Failure(message: "已取消") }
             finished = true
         }
     }
@@ -54,6 +54,13 @@ enum ClipboardBackup {
         let bytes: Int64
     }
 
+    struct MissingRecord: Codable, Identifiable {
+        let dedupeKey: String
+        let title: String
+        let paths: [String]
+        var id: String { dedupeKey }
+    }
+
     struct Manifest: Codable {
         let version: Int
         let createdAt: Date
@@ -61,16 +68,15 @@ enum ClipboardBackup {
         let tags: [Tag]
         let links: [Link]
         var attachments: [Attachment]
+        var skippedRecords: [MissingRecord]?
     }
 
     final class RestoreSession {
         fileprivate let directory: URL
-        fileprivate let manifest: Manifest
         let summary: String
 
-        fileprivate init(directory: URL, manifest: Manifest, summary: String) {
+        fileprivate init(directory: URL, summary: String) {
             self.directory = directory
-            self.manifest = manifest
             self.summary = summary
         }
 
@@ -94,6 +100,7 @@ enum ClipboardBackup {
                 return "\(item.aliasTitle ?? item.title ?? item.dedupeKey)：\(reasons.joined(separator: "、"))"
             }
             return ClipboardBackup.counts(manifest)
+                + (manifest.skippedRecords.map { "\n此包已备份 \(manifest.items.count) 条，跳过 \($0.count) 条；跳过记录保留在来源设备。" } ?? "")
                 + "\n新增 \(added) · 重复 \(duplicates) · 冲突 \(conflicts.count) · 失效文件引用 \(invalidFileReferences.count)"
                 + (details.isEmpty ? "" : "\n冲突：\n" + details.joined(separator: "\n"))
                 + (invalidFileReferences.isEmpty ? "" : "\n失效引用：\n" + invalidFileReferences.joined(separator: "\n"))
@@ -102,11 +109,26 @@ enum ClipboardBackup {
 
     private static let folders: Set<String> = ["images", "thumbnails", "texts", "rich_texts", "ocr"]
     private static let pathColumns = ["image_path", "thumbnail_path", "text_path", "rich_text_path"]
-    private static var columns: [String] {
+    private static let columns: [String] = {
         ClipboardRepository.columns.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+    }()
+
+    static func reviewExport(queue: DispatchQueue,
+                             completion: @escaping (Result<[MissingRecord], Error>) -> Void) -> Operation {
+        let operation = Operation()
+        queue.async {
+            do {
+                let database = DatabaseManager.shared.clipboard
+                database.accessLock.lock(); defer { database.accessLock.unlock() }
+                let missing = try missingRecords(readSnapshot(database), operation: operation)
+                try operation.finish()
+                deliver(.success(missing), completion)
+            } catch { deliver(.failure(error), completion) }
+        }
+        return operation
     }
 
-    static func export(to url: URL, password: String, queue: DispatchQueue,
+    static func export(to url: URL, password: String, skipping: [MissingRecord], queue: DispatchQueue,
                        completion: @escaping (Result<String, Error>) -> Void) -> Operation {
         let operation = Operation()
         queue.async {
@@ -116,7 +138,8 @@ enum ClipboardBackup {
                 try operation.checkCancellation()
                 let root = try temporaryDirectory()
                 directory = root
-                let manifest = try prepare(in: root, database: DatabaseManager.shared.clipboard, operation: operation)
+                let manifest = try prepare(in: root, database: DatabaseManager.shared.clipboard,
+                                           skipping: Set(skipping.map(\.dedupeKey)), operation: operation)
                 let archive = root.appendingPathComponent("backup.7z")
                 let id = ArchiveCore.create(files: [root.appendingPathComponent("manifest.json"),
                                                    root.appendingPathComponent("attachments")],
@@ -136,19 +159,19 @@ enum ClipboardBackup {
                             } else {
                                 try FileManager.default.moveItem(at: destinationStage, to: url)
                             }
-                            let cleanupFailure = removeTemporaryDirectory(root)
-                            deliver(.success("已加密备份：" + counts(manifest)
-                                             + (cleanupFailure.map { "\n" + $0 } ?? "")), completion)
+                            let cleanupWarning = removeTemporaryDirectory(root)
+                            let result = manifest.skippedRecords.map { "已备份 \(manifest.items.count) 条，跳过 \($0.count) 条；缺失记录保留在本机。" }
+                                ?? ("已加密备份：" + counts(manifest))
+                            deliver(.success(result
+                                             + (cleanupWarning.map { "\n" + $0 } ?? "")), completion)
                         } catch {
-                            removeTemporaryDirectory(root)
-                            deliver(.failure(error), completion)
+                            deliver(.failure(cleanupFailure(error, directory: root)), completion)
                         }
                     }
                 }
                 operation.install(id)
             } catch {
-                if let directory { removeTemporaryDirectory(directory) }
-                deliver(.failure(error), completion)
+                deliver(.failure(cleanupFailure(error, directory: directory)), completion)
             }
         }
         return operation
@@ -173,14 +196,13 @@ enum ClipboardBackup {
                 let id = ArchiveTaskQueue.shared.enqueue(kind: .extract, title: "读取剪贴板备份",
                     onCancel: {
                         queue.async {
-                            removeTemporaryDirectory(root)
-                            deliver(.failure(Failure(message: "已取消")), completion)
+                            deliver(.failure(cleanupFailure(Failure(message: "已取消"), directory: root)), completion)
                         }
                     }) { taskID, done in
                     func fail(_ error: Error) {
-                        removeTemporaryDirectory(root)
-                        done(false, error.localizedDescription)
-                        deliver(.failure(error), completion)
+                        let failure = cleanupFailure(error, directory: root)
+                        done(false, failure.localizedDescription)
+                        deliver(.failure(failure), completion)
                     }
                     ArchiveCore.list(url: url, password: password, includeAuxiliary: true, taskID: taskID) { entries, error in
                         queue.async {
@@ -205,17 +227,14 @@ enum ClipboardBackup {
                                                 database.accessLock.unlock()
                                                 throw error
                                             }
-                                            let session = RestoreSession(directory: root, manifest: manifest,
-                                                                         summary: analysis.summary(manifest))
+                                            let summary = analysis.summary(manifest)
                                             DispatchQueue.main.async {
                                                 do {
                                                     try operation.finish()
                                                     done(true, "备份已读取")
-                                                    completion(.success(session))
+                                                    completion(.success(RestoreSession(directory: root, summary: summary)))
                                                 } catch {
-                                                    session.cleanup()
-                                                    done(false, error.localizedDescription)
-                                                    completion(.failure(error))
+                                                    queue.async { fail(error) }
                                                 }
                                             }
                                         } catch { fail(error) }
@@ -227,8 +246,7 @@ enum ClipboardBackup {
                 }
                 operation.install(id)
             } catch {
-                if let directory { removeTemporaryDirectory(directory) }
-                deliver(.failure(error), completion)
+                deliver(.failure(cleanupFailure(error, directory: directory)), completion)
             }
         }
         return operation
@@ -245,17 +263,38 @@ enum ClipboardBackup {
                 if let failure = removeTemporaryDirectory(session.directory) { message += "\n" + failure }
                 deliver(.success(message), completion)
             } catch {
-                do { try operation.checkCancellation() }
-                catch { removeTemporaryDirectory(session.directory) }
-                deliver(.failure(error), completion)
+                deliver(.failure(cleanupFailure(error, directory: session.directory)), completion)
             }
         }
         return operation
     }
 
-    private static func prepare(in root: URL, database: SQLiteDatabase, operation: Operation) throws -> Manifest {
+    private static func missingRecords(_ manifest: Manifest, operation: Operation) throws -> [MissingRecord] {
+        try manifest.items.compactMap { item in
+            try operation.checkCancellation()
+            let missing = try attachmentPaths(item).filter {
+                let url = try attachmentURL($0, root: ClipboardFileStore.baseURL, mustExist: false)
+                return !FileManager.default.fileExists(atPath: url.path)
+            }
+            return missing.isEmpty ? nil : MissingRecord(dedupeKey: item.dedupeKey,
+                title: item.aliasTitle ?? item.title ?? item.dedupeKey, paths: missing)
+        }
+    }
+
+    private static func prepare(in root: URL, database: SQLiteDatabase, skipping: Set<String>, operation: Operation) throws -> Manifest {
         try database.transaction { database in
             var manifest = try readSnapshot(database)
+            let missing = try missingRecords(manifest, operation: operation)
+            let unreviewed = missing.filter { !skipping.contains($0.dedupeKey) }
+            guard unreviewed.isEmpty else {
+                throw Failure(message: "附件状态已变化，请重新读取缺失清单：\n" + unreviewed.flatMap(\.paths).joined(separator: "\n"))
+            }
+            if !missing.isEmpty {
+                let skipped = Set(missing.map(\.dedupeKey))
+                manifest = Manifest(version: manifest.version, createdAt: manifest.createdAt,
+                    items: manifest.items.filter { !skipped.contains($0.dedupeKey) }, tags: manifest.tags,
+                    links: manifest.links.filter { !skipped.contains($0.itemDedupeKey) }, attachments: [], skippedRecords: missing)
+            }
             try FileManager.default.createDirectory(at: root.appendingPathComponent("attachments"),
                                                     withIntermediateDirectories: true)
             var paths = Set(manifest.items.flatMap(attachmentPaths))
@@ -279,8 +318,8 @@ enum ClipboardBackup {
     }
 
     private static func readSnapshot(_ database: SQLiteDatabase) throws -> Manifest {
-        var items = try database.query("SELECT \(ClipboardRepository.columns) FROM clipboard_items").map(ClipboardRepository.makeItem)
-        let tags = try database.query("SELECT id, name, color_hex, created_at, updated_at FROM tags").map {
+        var items = try database.query("SELECT \(ClipboardRepository.columns) FROM clipboard_items", transform: ClipboardRepository.makeItem)
+        let tags = try database.query("SELECT id, name, color_hex, created_at, updated_at FROM tags") {
             Tag(id: $0.string("id")!, name: $0.string("name")!, colorHex: $0.string("color_hex")!,
                 createdAt: Date(timeIntervalSince1970: $0.real("created_at")),
                 updatedAt: Date(timeIntervalSince1970: $0.real("updated_at")))
@@ -288,7 +327,7 @@ enum ClipboardBackup {
         let links = try database.query("""
             SELECT item_dedupe_key, tag_id, created_at FROM clipboard_item_tags
             WHERE item_dedupe_key IN (SELECT dedupe_key FROM clipboard_items)
-            """).map {
+            """) {
                 Link(itemDedupeKey: $0.string("item_dedupe_key")!, tagID: $0.string("tag_id")!,
                      createdAt: Date(timeIntervalSince1970: $0.real("created_at")))
             }
@@ -357,7 +396,10 @@ enum ClipboardBackup {
             throw Failure(message: "备份含无归属附件：" + declared.subtracting(possible).sorted().joined(separator: "、"))
         }
         for attachment in manifest.attachments {
-            let url = try attachmentURL(attachment.path, root: root.appendingPathComponent("attachments"))
+            let url = try attachmentURL(attachment.path, root: root.appendingPathComponent("attachments"), mustExist: false)
+            guard FileManager.default.fileExists(atPath: url.path) else {
+                throw Failure(message: "备份包缺少附件：\(attachment.path)")
+            }
             guard attachment.bytes >= 0, try byteCount(url) == attachment.bytes else {
                 throw Failure(message: "备份附件长度不符：\(attachment.path)")
             }
@@ -399,7 +441,8 @@ enum ClipboardBackup {
             }
             guard let previous = current[item.dedupeKey] else { added += 1; continue }
             var reasons: [String] = []
-            if item.isNote != previous.isNote { reasons.append("笔记标记不同") }
+            if item.isNote != previous.isNote { reasons.append("已存状态不同") }
+            if item.isFavorite != previous.isFavorite { reasons.append("收藏状态不同") }
             if item.title != previous.title || item.aliasTitle != previous.aliasTitle { reasons.append("标题不同") }
             if Set(item.tagIDs.compactMap { incomingTags[$0] }) != Set(previous.tagIDs.compactMap { localTags[$0] }) {
                 reasons.append("标签不同")
@@ -411,8 +454,12 @@ enum ClipboardBackup {
                 if (incoming == nil) != (existing == nil) { reasons.append("附件不同"); break }
                 if let incoming, let existing {
                     let source = try attachmentURL(incoming, root: root.appendingPathComponent("attachments"))
-                    let existingURL = try attachmentURL(existing, root: ClipboardFileStore.baseURL)
-                    if try Data(contentsOf: source) != Data(contentsOf: existingURL) { reasons.append("附件不同"); break }
+                    let existingURL = try attachmentURL(existing, root: ClipboardFileStore.baseURL, mustExist: false)
+                    if !FileManager.default.fileExists(atPath: existingURL.path) {
+                        reasons.append("本机附件缺失：\(existing)")
+                    } else if try Data(contentsOf: source) != Data(contentsOf: existingURL) {
+                        reasons.append("附件不同")
+                    }
                 }
             }
             let ocr = ClipboardOCRTextStorage.relativePath(dedupeKey: item.dedupeKey)
@@ -442,7 +489,6 @@ enum ClipboardBackup {
         let analysis = try analyze(manifest, in: session.directory, local: local, operation: operation)
         let current = Dictionary(uniqueKeysWithValues: local.items.map { ($0.dedupeKey, $0) })
         var selected: [ClipboardItem] = []
-        var kept: [ClipboardItem] = replace ? [] : local.items
         var replaced = 0, keptConflicts = 0
         for item in manifest.items {
             try operation.checkCancellation()
@@ -452,10 +498,11 @@ enum ClipboardBackup {
                     continue
                 }
                 replaced += 1
-                kept.removeAll { $0.dedupeKey == item.dedupeKey }
             }
             selected.append(item)
         }
+        let restoredKeys = Set(selected.map(\.dedupeKey))
+        let kept = replace ? [] : local.items.filter { !restoredKeys.contains($0.dedupeKey) }
         let fm = FileManager.default
         let base = ClipboardFileStore.baseURL.resolvingSymlinksInPath()
         let stage = base.appendingPathComponent(".kitnest-restore-\(UUID().uuidString)", isDirectory: true)
@@ -477,11 +524,11 @@ enum ClipboardBackup {
             }
         }
         var finalItems: [ClipboardItem] = []
-        var restoredKeys = Set<String>()
         do {
+            let declaredAttachments = Set(manifest.attachments.map(\.path))
             let paths = Set(selected.flatMap(attachmentPaths)).union(selected.compactMap { item -> String? in
                 let path = ClipboardOCRTextStorage.relativePath(dedupeKey: item.dedupeKey)
-                return manifest.attachments.contains(where: { $0.path == path }) ? path : nil
+                return declaredAttachments.contains(path) ? path : nil
             })
             for path in paths.sorted() {
                 try operation.checkCancellation()
@@ -505,11 +552,12 @@ enum ClipboardBackup {
                     row["file_categories"] = .int(Int64(ClipboardFileCategories.classify(try fullText(item, root: session.directory.appendingPathComponent("attachments")))))
                 }
                 var restored = ClipboardRepository.makeItem(row)
+                var seenTags = Set<String>()
                 restored.tagIDs = item.tagIDs.map { importedTagIDs[$0]! }
+                    .filter { seenTags.insert($0).inserted }
                 imported.append(restored)
             }
             finalItems = kept + imported
-            restoredKeys = Set(imported.map(\.dedupeKey))
             try database.transaction { database in
                 for file in staged {
                     try operation.checkCancellation()
@@ -526,6 +574,7 @@ enum ClipboardBackup {
                 if replace {
                     try database.run("DELETE FROM clipboard_item_tags")
                     try database.run("DELETE FROM clipboard_items")
+                    try database.run("DELETE FROM resource_favorites WHERE resource_type='clipboard'")
                     try database.run("DELETE FROM tags")
                 }
                 let existingTags = Set(local.tags.map(\.id))
@@ -541,10 +590,16 @@ enum ClipboardBackup {
                     try operation.checkCancellation()
                     try database.run("INSERT INTO clipboard_items(\(ClipboardRepository.columns)) VALUES(\(placeholders)) ON CONFLICT(dedupe_key) DO UPDATE SET \(updates)",
                                      ClipboardRepository.bindings(item))
+                    if item.isFavorite {
+                        try database.run("INSERT OR IGNORE INTO resource_favorites(resource_type,resource_id,added_at) VALUES('clipboard',?,?)",
+                                         [.text(item.dedupeKey), .real(item.timestamp.timeIntervalSince1970)])
+                    } else {
+                        try database.run("DELETE FROM resource_favorites WHERE resource_type='clipboard' AND resource_id=?",
+                                         [.text(item.dedupeKey)])
+                    }
                     try database.run("DELETE FROM clipboard_item_tags WHERE item_dedupe_key=?", [.text(item.dedupeKey)])
                     for tagID in item.tagIDs {
-                        let time = manifest.links.first { $0.itemDedupeKey == item.dedupeKey && importedTagIDs[$0.tagID] == tagID }?.createdAt
-                            ?? local.links.first { $0.itemDedupeKey == item.dedupeKey && $0.tagID == tagID }?.createdAt ?? Date()
+                        let time = manifest.links.first { $0.itemDedupeKey == item.dedupeKey && importedTagIDs[$0.tagID] == tagID }!.createdAt
                         try database.run("INSERT INTO clipboard_item_tags(item_dedupe_key,tag_id,created_at) VALUES(?,?,?)",
                                          [.text(item.dedupeKey), .text(tagID), .real(time.timeIntervalSince1970)])
                     }
@@ -559,11 +614,10 @@ enum ClipboardBackup {
                     if let previous = file.previous { try fm.moveItem(at: previous, to: file.target) }
                 } catch { rollbackFailures.append("\(file.target.path)：\(error.localizedDescription)") }
             }
-            if rollbackFailures.isEmpty { removeTemporaryDirectory(stage) }
-            else {
+            if !rollbackFailures.isEmpty {
                 throw Failure(message: error.localizedDescription + "\n附件恢复失败：" + rollbackFailures.joined(separator: "\n") + "\n原附件暂存在：\(stage.path)")
             }
-            throw error
+            throw cleanupFailure(error, directory: stage)
         }
         // 数据库已提交；以下失败只能报告，绝不能进入附件回滚。
         var retainedPaths = Set(finalItems.flatMap(attachmentPaths))
@@ -641,7 +695,7 @@ enum ClipboardBackup {
     }
 
     private static func counts(_ manifest: Manifest) -> String {
-        "条目 \(manifest.items.count) · 笔记 \(manifest.items.filter(\.isNote).count) · 附件 \(manifest.attachments.count)"
+        "条目 \(manifest.items.count) · 已存 \(manifest.items.filter(\.isNote).count) · 附件 \(manifest.attachments.count)"
     }
 
     private static func temporaryDirectory() throws -> URL {
@@ -660,6 +714,11 @@ enum ClipboardBackup {
             Log.warn("clipboard", message)
             return message
         }
+    }
+
+    private static func cleanupFailure(_ error: Error, directory: URL?) -> Failure {
+        let cleanup = directory.flatMap(removeTemporaryDirectory)
+        return Failure(message: error.localizedDescription + (cleanup.map { "\n" + $0 } ?? ""))
     }
 
     private static func archiveFailure(_ message: String) -> Failure {

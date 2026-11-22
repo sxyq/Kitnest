@@ -1,4 +1,16 @@
+import AppKit
 import SwiftUI
+
+private struct SettingsPreviewViewportKey: EnvironmentKey {
+    static let defaultValue = CGRect.zero
+}
+
+extension EnvironmentValues {
+    var settingsPreviewViewport: CGRect {
+        get { self[SettingsPreviewViewportKey.self] }
+        set { self[SettingsPreviewViewportKey.self] = newValue }
+    }
+}
 
 // MARK: - 设置窗口根视图（v41：左侧大侧边栏 + 内容区）
 //
@@ -8,18 +20,10 @@ import SwiftUI
 //      （10 个设置页归类成 6 个二级标签），第二项「性能监测」= 模块二级目录；
 //   ③ 配色以性能监测页为准（MonitorColors.user 作选中色 + 玻璃卡片感）。
 //
-// 布局纪律（2026-10-16 实证，勿改）：根视图必须固定 .frame(...)。SwiftUI App
-// lifecycle 下 NSHostingView 会把根视图 fitting size 折成窗口尺寸请求；高度自由的
-// 根视图会令窗口被反复请求撑到内容自然高，触发无限 Update Constraints 循环 →
-// NSGenericException。各页内部滚动由 ScrollView 承担。
+// 窗口容器拥有尺寸；根视图填满宿主并由各页 ScrollView 承担纵向溢出。
 
 struct SettingsRootView: View {
 
-    /// 与 SettingsWindowController 保持一致的窗口高度（默认 620，排障时可拉高）
-    static let probeHeight: CGFloat = {
-        let value: Double = Preferences.shared.value("probe.settingsHeight", default: 720.0)
-        return min(max(CGFloat(value), 720), 1040)
-    }()
     @ObservedObject var state: SettingsUIState
     @ObservedObject private var editingSession: SettingsEditingSession
     @ObservedObject private var appearance = AppearanceState.shared
@@ -27,6 +31,7 @@ struct SettingsRootView: View {
     /// 「无效」的主观感受主要来自设置窗自身无反馈）
     @ObservedObject private var personalization = Personalization.shared
     @Environment(\.colorScheme) private var colorScheme
+    @Stored private var previewViewport = CGRect.zero
 
     init(state: SettingsUIState) {
         self.state = state
@@ -66,18 +71,23 @@ struct SettingsRootView: View {
             .coordinateSpace(name: "settingsPreviewViewport")
             // v260：横向溢出裁在内容区内，不再回压兄弟视图
             .clipped()
+            .background(GeometryReader { proxy in
+                let bounds = proxy.frame(in: .named("settingsPreviewViewport"))
+                let contentViewport = CGRect(x: bounds.minX, y: bounds.minY + 66,
+                                              width: bounds.width, height: max(0, bounds.height - 66))
+                Color.clear
+                    .onAppear { previewViewport = contentViewport }
+                    .onChange(of: proxy.size) { _ in previewViewport = contentViewport }
+            })
             }
         }
-        // 根视图尺寸必须等于窗口 contentRect（940×720）：NSHostingView 的 fitting size
-        // 会被当作窗口内容尺寸请求——设大 32 会让窗口被撑到 684（2026-10-18 实测）。
-        // fullSizeContentView 下 contentView 已含标题栏区域，620 正好铺满。
-        // v263：排障探针 `probe.settingsHeight` 与 SettingsWindowController 用同一个值，
-        // 拉高窗口时根视图同步变高，否则 SwiftUI 的固定 620 会把窗口又拽回去。
-        .frame(width: 940, height: Self.probeHeight)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .foregroundStyle(appearance.isMidnight ? MidnightTheme.textColor : Color.primary)
         // 强调色 + Midnight 统一主题入口（个性化改色即生效）
         .frsetThemeChrome()
         .environmentObject(editingSession)
+        .environment(\.settingsPreviewViewport, previewViewport)
+        .environment(\.settingsTargetField, state.detailPaneID)
         // v84：侧边栏切换面包屑（卡死时日志可见「切到哪一页后卡住」）
         .onChange(of: state.selection) { newValue in
             Log.breadcrumb("Settings", "侧边栏 → \(newValue)")
@@ -90,38 +100,30 @@ struct SettingsRootView: View {
     private var currentTitle: String { state.selection.title }
 
     private var header: some View {
-        // v273：标题下方统一挂一行「打开方式」。用户改完设置却不知道按哪个键把功能
-        // 叫出来，是这次反馈的核心；提示来自 `SettingsPage.openHint`，每个二级页必答，
-        // 所以不会再漏页。没有入口的页（关于 / 使用手册）返回 nil，自动不占位。
-        VStack(alignment: .leading, spacing: 3) {
-            HStack(spacing: 8) {
-                Text(currentTitle)
-                    .font(.system(size: 16, weight: .semibold))
-                if editingSession.isDirty(page: state.selection) {
-                    Text("未保存").font(.system(size: 11)).foregroundStyle(.secondary)
-                }
-            }
-            if let hint = state.selection.openHint {
-                HStack(spacing: 5) {
-                    Image(systemName: "command")
-                        .font(.system(size: 9.5, weight: .semibold))
-                    Text(hint)
-                        .font(.system(size: 11.5))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                }
-                .foregroundStyle(Theme.tertiaryText)
+        // v275（用户：「窗口上面的那个小字全部删掉」）：页头只留当前页标题。
+        // 分组名在侧栏已经高亮，功能说明放界面里就是噪音；未保存状态改用一个小圆点，
+        // 和侧栏保持同一套标记（页脚仍写明保存状态）。
+        HStack(spacing: 7) {
+            Text(currentTitle)
+                .font(.system(size: 16, weight: .semibold))
+            if editingSession.isDirty(page: state.selection) {
+                Circle()
+                    .fill(Color.orange)
+                    .frame(width: 5, height: 5)
+                    .accessibilityLabel("未保存")
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 34)
-        .frame(height: 66)
+        .frame(height: 52)
     }
 
     // MARK: - 内容分发（v272：一个二级页 = 一个 View）
 
     @ViewBuilder private var content: some View {
         switch state.selection {
+        case .haptics:
+            panePage { HapticSettingsPane() }
         // 常规（5 个二级页）
         case .generalStart:
             panePage { GeneralSettingsPane(section: .startup) }
@@ -129,17 +131,27 @@ struct SettingsRootView: View {
             panePage { GeneralSettingsPane(section: .mainPanel) }
         case .generalWindows:
             panePage { GeneralSettingsPane(section: .floating) }
+        case .appearanceText:
+            panePage { GeneralSettingsPane(section: .appearanceText) }
+        case .panelBackground:
+            panePage { GeneralSettingsPane(section: .background) }
+        case .permissions:
+            panePage { GeneralSettingsPane(section: .permissions) }
         case .generalPersonal:
             panePage { GeneralSettingsPane(section: .personalization) }
         case .generalMenuBar:
             panePage { GeneralSettingsPane(section: .menuBar) }
+        case .floatingBall:
+            panePage { FloatingBallSettingsPane() }
+        case .menuBarArrangement:
+            panePage { GeneralSettingsPane(section: .menuBarArrangement) }
         case .generalNotifications:
             panePage { GeneralSettingsPane(section: .notifications) }
         case .captureActions:
             panePage { GeneralSettingsPane(section: .captureToolbar) }
 
         case .audio:
-            AudioMixerPane()
+            panePage { ToolSettingsPane(part: .collection) }
 
         // 剪贴板（3）
         case .clipboardHistory:
@@ -151,15 +163,43 @@ struct SettingsRootView: View {
         case .clipboardAppearance:
             panePage { ClipboardSettingsPane(section: .appearance) }
 
+        // 压缩与 Finder（原来挂在文件与传输下，Lite 版并入工具）
+        case .archive:
+            // v273（ArcZip 1.2.5 设置结构对齐）：打开与解压 / 悬浮预览 / 进度窗口 / 系统关联
+            panePage {
+                VStack(alignment: .leading, spacing: 20) {
+                    SettingsSection("打开与解压") {
+                        SettingsGroupBox { ArchiveOpenBehaviorOptions() }
+                    }
+                    SettingsSection("悬浮预览") {
+                        SettingsGroupBox { ArchiveHoverPreviewOptions() }
+                    }
+                    SettingsSection("进度窗口") {
+                        SettingsGroupBox { ArchiveProgressWindowOptions() }
+                    }
+                    SettingsSection("系统关联与 Finder 服务") {
+                        SettingsGroupBox { ArchiveDefaultApplicationOption() }
+                    }
+                }
+            }
+
         // 截图（5，v271 已拆）
         case .capture(let block):
-            CaptureBlockPage(block: block)
+            panePage { CaptureBlockPage(block: block) }
+        case .ocr:
+            panePage { CaptureSettingsPane(section: .ocr) }
+        case .watermark:
+            panePage { CaptureSettingsPane(section: .watermark) }
 
         // 工具（2）
         case .tools:
-            panePage { ToolSettingsPane() }
+            panePage { ToolSettingsPane(part: .collection) }
+        case .aiText:
+            panePage { ToolSettingsPane(part: .aiText) }
+        case .calendar:
+            panePage { ToolSettingsPane(part: .calendar) }
         case .shortcuts:
-            panePage { ShortcutSettingsPane() }
+            panePage { ShortcutSettingsPane(targetID: state.detailPaneID) }
 
         // 搜索与 AI（2）
         case .search:
@@ -168,15 +208,8 @@ struct SettingsRootView: View {
             panePage { AISettingsPane() }
 
         // 性能监测（9）
-        case .monitorModule(let module):
-            ScrollView(.vertical, showsIndicators: true) {
-                StatsModulePage(module: module)
-                    .padding(.horizontal, 34)
-                    .padding(.vertical, 18)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            }
-            .onAppear { MonitorSampler.shared.setSettingsActive(true) }
-            .onDisappear { MonitorSampler.shared.setSettingsActive(false) }
+        case .monitorModule:
+            panePage { MonitorSettingsPane() }
         case .monitorSettings:
             panePage { MonitorSettingsPane() }
         case .monitorWidgets:
@@ -184,21 +217,52 @@ struct SettingsRootView: View {
 
         // 页脚常驻
         case .statistics:
+            panePage { diagnostics }
+        case .configTransfer:
             panePage { StatisticsSettingsPane() }
+        case .diagnostics:
+            panePage { diagnostics }
         case .about:
-            AboutSettingsPane()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            panePage { AboutSettingsPane() }
         case .manual:
             ManualPaneView()
         }
     }
 
-    private func panePage<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
-        ScrollView(.vertical, showsIndicators: true) {
-            content()
-                .padding(.horizontal, 34)
-                .padding(.vertical, 18)
-                .frame(maxWidth: .infinity, alignment: .leading)
+    private func panePage<Content: View>(@ViewBuilder _ content: @escaping () -> Content) -> some View {
+        ScrollViewReader { proxy in
+            ScrollView(.vertical, showsIndicators: true) {
+                content()
+                    .padding(.horizontal, 34)
+                    .padding(.vertical, 18)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(SettingsScrollPosition(state: state, page: state.selection))
+            }
+            .onAppear {
+                if let field = state.detailPaneID {
+                    DispatchQueue.main.async { proxy.scrollTo(field, anchor: .top) }
+                }
+            }
+            .onChange(of: state.navigationRevision) { _ in
+                if let field = state.detailPaneID {
+                    DispatchQueue.main.async { proxy.scrollTo(field, anchor: .top) }
+                }
+            }
+        }
+    }
+
+    private var diagnostics: some View {
+        SettingsSection("运行诊断") {
+            SettingsGroupBox {
+                SettingsRow(title: "诊断资料", subtitle: "导出运行日志与使用记录；不改变当前设置") {
+                    Button("导出诊断…") { DiagnosticsExporter.export() }
+                }
+                SettingsRow(title: "日志目录") {
+                    Button("在 Finder 中查看") {
+                        NSWorkspace.shared.open(LogArchive.shared.directory)
+                    }
+                }
+            }
         }
     }
 

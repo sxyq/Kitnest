@@ -450,7 +450,14 @@ final class ScreenshotOCRResultWindow: NSWindow {
         if range.length > 0 { return (resultScroll.textView.string as NSString).substring(with: range) }
         return resultScroll.text
     }
+    func setSourceImage(_ image: CGImage) {
+        sourceScroll.setImage(image)
+    }
+
     func setResultText(_ text: String) {
+        translatedScroll.text = ""
+        if tabControl.selectedSegment == 2 { tabControl.selectedSegment = 0 }
+        tabChanged(tabControl)
         originalText = text
         organizedDraft = nil
         versionControl.selectedSegment = 0
@@ -619,25 +626,45 @@ public final class ScreenshotOCRWindowController: NSObject, NSWindowDelegate {
     private var sourceImage: CGImage?
     private var imageData: Data?
     private var isRecognizing = false
+    private var recognitionGeneration = 0
     // v139：翻译状态 + 失焦自动关闭
     private var translated: (source: String, result: String)?
     private var isTranslating = false
+    private var translationTask: Task<Void, Never>?
+    private var translationGeneration = 0
     private var resignObserver: NSObjectProtocol?
 
     private override init() { super.init() }
 
-    /// 展示识别结果窗（v130⑤：text/qrPayloads 为空表示对应页签无内容；已有窗口时只增量更新，
-    /// 不用空文本覆盖已有 OCR 结果）
+    private func invalidateTranslation() {
+        translationTask?.cancel()
+        translationTask = nil
+        translationGeneration += 1
+        isTranslating = false
+        translated = nil
+    }
+
+    private func invalidateRecognition() {
+        recognitionGeneration += 1
+        isRecognizing = false
+    }
+
+    /// 同图只增量更新非空结果；换图时同步原图并清除旧结果。
     public func show(sourceImage: CGImage, imageData: Data, text: String,
                      qrPayloads: [String] = [], selectQR: Bool = false,
                      autoTranslate: Bool = false) {
+        let imageChanged = self.sourceImage !== sourceImage && self.imageData != imageData
         self.sourceImage = sourceImage
         self.imageData = imageData
-        if !text.isEmpty { translated = nil }   // 新文本 → 旧译文作废
+        if imageChanged || !text.isEmpty {
+            invalidateRecognition()
+            invalidateTranslation()
+        }
         if let existing = window {
-            if !text.isEmpty { existing.setResultText(text) }
-            if !qrPayloads.isEmpty { existing.setQRPayloads(qrPayloads) }
-            if selectQR { existing.selectQRTab(true) }
+            if imageChanged { existing.setSourceImage(sourceImage) }
+            if imageChanged || !text.isEmpty { existing.setResultText(text) }
+            if imageChanged || !qrPayloads.isEmpty { existing.setQRPayloads(qrPayloads) }
+            if imageChanged || selectQR { existing.selectQRTab(selectQR) }
             existing.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             if autoTranslate { existing.selectTranslateTab() }
@@ -680,16 +707,28 @@ public final class ScreenshotOCRWindowController: NSObject, NSWindowDelegate {
         }
         isTranslating = true
         win.setTranslatedText(nil)          // 「翻译中…」
-        Task { @MainActor in
-            defer { self.isTranslating = false }
+        let generation = translationGeneration
+        translationTask = Task { @MainActor [weak win] in
+            defer {
+                if self.translationGeneration == generation {
+                    self.isTranslating = false
+                    self.translationTask = nil
+                }
+            }
             do {
                 let result = try await TranslationToolSession.shared.translateDocument(text)
+                guard let win, !Task.isCancelled,
+                      self.translationGeneration == generation,
+                      self.window === win else { return }
                 self.translated = (source: text, result: result)
-                self.window?.setTranslatedText(result)
+                win.setTranslatedText(result)
+                Toast.show("翻译完成 · \(TranslationToolSession.shared.lastUsedProviderName)", icon: "character.book.closed")
                 Log.info("Capture", "截图翻译完成：\(text.count) 字符 → \(result.count) 字符")
             } catch {
+                guard let win, !Task.isCancelled, self.translationGeneration == generation,
+                      self.window === win else { return }
                 let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
-                self.window?.setTranslatedText("翻译失败：\(message)")
+                win.setTranslatedText("翻译失败：\(message)")
                 Toast.show("翻译失败：\(message)", icon: "exclamationmark.triangle", isWarning: true)
                 Log.error("Capture", "截图翻译失败: \(error.localizedDescription)")
             }
@@ -733,22 +772,33 @@ public final class ScreenshotOCRWindowController: NSObject, NSWindowDelegate {
     }
 
     private func reRecognize() {
-        guard !isRecognizing, let data = imageData else { return }
+        guard !isRecognizing, let data = imageData, let win = window else { return }
         isRecognizing = true
-        Task { @MainActor in
-            defer { self.isRecognizing = false }
+        let generation = recognitionGeneration
+        Task { @MainActor [weak win] in
+            defer {
+                if self.recognitionGeneration == generation { self.isRecognizing = false }
+            }
             do {
                 let text = try await OCRService.shared.recognizeText(imageData: data, quality: .thorough)
+                guard let win, !Task.isCancelled, self.recognitionGeneration == generation,
+                      self.window === win else { return }
                 // spec 13 §4：未读取到文字场景（0x10000d45c，重新识别为空）
                 guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                     Toast.show("未读取到文字", icon: "exclamationmark.circle.fill")
+                    HapticFeedback.perform(.operationFailed)
                     return
                 }
-                self.window?.setResultText(text)
-                self.translated = nil
+                win.setResultText(text)
+                self.invalidateTranslation()
                 CaptureEventBus.onTextRecognized?(text)
+                HapticFeedback.perform(.ocr)
             } catch {
+                guard let win, !Task.isCancelled, !error.isLLMCancellation,
+                      self.recognitionGeneration == generation,
+                      self.window === win else { return }
                 Toast.show("文字识别失败", icon: "exclamationmark.circle.fill")   // spec 13 §4：OCR 失败场景
+                HapticFeedback.perform(.operationFailed)
                 Log.error("Capture", "重新识别失败: \(error.localizedDescription)")
             }
         }
@@ -758,7 +808,11 @@ public final class ScreenshotOCRWindowController: NSObject, NSWindowDelegate {
 
     public func windowWillClose(_ notification: Notification) {
         if (notification.object as? ScreenshotOCRResultWindow) === window {
+            invalidateRecognition()
+            invalidateTranslation()
             window = nil
+            sourceImage = nil
+            imageData = nil
             if let resignObserver {
                 NotificationCenter.default.removeObserver(resignObserver)
                 self.resignObserver = nil

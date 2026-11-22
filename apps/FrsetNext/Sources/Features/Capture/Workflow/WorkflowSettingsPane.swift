@@ -7,12 +7,44 @@ import AppKit
 // 不做拖拽排序：步骤顺序就是列表顺序，加/删/改即可——排序需求远小于「先能跑通」。
 
 struct WorkflowSettingsPane: View {
-    @Stored private var workflows: [CaptureWorkflow] = WorkflowStore.load()
+    var body: some View {
+        SettingsDraftEditor(id: "captureWorkflow", makeDraft: { WorkflowSettingsDraft() }) { draft in
+            WorkflowSettingsContent(draft: draft)
+        }
+    }
+}
+
+final class WorkflowSettingsDraft: SettingsEditableDraft {
+    @Published var workflows: [CaptureWorkflow]
+    private var saved: [CaptureWorkflow]
+    init() {
+        let workflows = WorkflowStore.load()
+        self.workflows = workflows
+        self.saved = workflows
+    }
+    var isDirty: Bool { workflows != saved }
+    func save() -> String? {
+        if let reason = WorkflowStore.save(workflows) { return reason }
+        objectWillChange.send()
+        saved = workflows
+        return nil
+    }
+    func discard() { workflows = WorkflowStore.load(); saved = workflows }
+    func restoreDefaults() { workflows = [] }
+}
+
+private struct WorkflowSettingsContent: View {
+    @ObservedObject var draft: WorkflowSettingsDraft
+    @Environment(\.settingsTargetField) private var targetField
+    private var workflows: [CaptureWorkflow] {
+        get { draft.workflows }
+        nonmutating set { draft.workflows = newValue }
+    }
 
     var body: some View {
         SettingsSection("工作流") {
             SettingsGroupBox {
-                Text("截图落盘后自动执行。步骤按顺序跑，后面的步骤能用到前面识别出的文字与上传得到的图片链接；某一步失败只记日志，不影响截图本身。")
+                Text("截图落盘后按顺序执行。失败时会暂停后续步骤，保留截图并允许只重试失败步骤。GitHub 和 Linear 凭证保存在系统钥匙串。")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .padding(.top, 8)
@@ -30,10 +62,9 @@ struct WorkflowSettingsPane: View {
                 HStack(spacing: 8) {
                     Button("新建工作流") {
                         workflows.append(CaptureWorkflow(name: "工作流 \(workflows.count + 1)"))
-                        persist()
                     }
                     .controlSize(.small)
-                    Text("Token 存在 ~/Library/Application Support/Kitnest/workflows/workflows.json（权限 600）")
+                    Text("工作流配置保存在本机；服务凭证使用系统钥匙串。")
                         .font(.system(size: 10.5))
                         .foregroundStyle(.secondary)
                     Spacer(minLength: 0)
@@ -57,7 +88,6 @@ struct WorkflowSettingsPane: View {
                 Spacer(minLength: 8)
                 Button {
                     workflows.remove(at: index)
-                    persist()
                 } label: {
                     Image(systemName: "trash")
                 }
@@ -73,7 +103,6 @@ struct WorkflowSettingsPane: View {
                 ForEach(WorkflowStep.Kind.allCases) { kind in
                     Button(kind.title) {
                         workflows[index].steps.append(WorkflowStep(kind: kind, a: defaultArgument(for: kind)))
-                        persist()
                     }
                 }
             } label: {
@@ -84,6 +113,8 @@ struct WorkflowSettingsPane: View {
             .frame(width: 110)
         }
         .padding(.vertical, 8)
+        .background(targetField == workflows[index].name ? Theme.accent.opacity(0.08) : Color.clear)
+        .id(workflows[index].name)
         .opacity(workflows[index].enabled ? 1 : 0.72)
     }
 
@@ -103,17 +134,22 @@ struct WorkflowSettingsPane: View {
                     .font(.system(size: 11))
                     .frame(maxWidth: 230)
                 if !titles.1.isEmpty {
-                    TextField(titles.1, text: stepBinding(workflow, step, \.b))
-                        .textFieldStyle(.roundedBorder)
-                        .font(.system(size: 11, design: .monospaced))
-                        .frame(maxWidth: 170)
+                    Group {
+                        if stepValue.kind == .github || stepValue.kind == .linear {
+                            SecureField(titles.1, text: stepBinding(workflow, step, \.b))
+                        } else {
+                            TextField(titles.1, text: stepBinding(workflow, step, \.b))
+                        }
+                    }
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 11, design: .monospaced))
+                    .frame(maxWidth: 170)
                 }
             }
 
             Spacer(minLength: 4)
             Button {
                 workflows[workflow].steps.remove(at: step)
-                persist()
             } label: {
                 Image(systemName: "minus.circle")
             }
@@ -145,16 +181,12 @@ struct WorkflowSettingsPane: View {
 
     private func binding<T>(_ index: Int, _ keyPath: WritableKeyPath<CaptureWorkflow, T>) -> Binding<T> {
         Binding(get: { workflows[index][keyPath: keyPath] },
-                set: { workflows[index][keyPath: keyPath] = $0; persist() })
+                set: { workflows[index][keyPath: keyPath] = $0 })
     }
 
     private func stepBinding<T>(_ workflow: Int, _ step: Int,
                                 _ keyPath: WritableKeyPath<WorkflowStep, T>) -> Binding<T> {
         Binding(get: { workflows[workflow].steps[step][keyPath: keyPath] },
-                set: { workflows[workflow].steps[step][keyPath: keyPath] = $0; persist() })
-    }
-
-    private func persist() {
-        WorkflowStore.save(workflows)
+                set: { workflows[workflow].steps[step][keyPath: keyPath] = $0 })
     }
 }

@@ -1,5 +1,4 @@
 import AppKit
-import Combine
 import Foundation
 import SwiftUI
 
@@ -13,7 +12,7 @@ import SwiftUI
 //
 // 三路触发：悬停（开/关 DispatchWorkItem + hover-intent 阈值 + 总开关）、单击、空格键。
 // 关闭仲裁：hoverOut（含鼠标实测位置兜底）/ Esc / 点外 / 滚动出视口 / 条目删除 /
-// 面板收起等待（waitsForPreviewClose）。
+// 面板收起前等待预览关闭。
 
 /// 关闭原因（类型名实证 @0x10096a3f0；case 集⬜，以下为语义推测，禁当实证）
 public enum MainPanelPreviewPopoverCloseReason: String {
@@ -88,8 +87,6 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     public var imagePreviewHeaderFooterHeightForRegularImage: CGFloat = 12
     /// 图片预览纵向内边距（F13；⬜ 原作值未探明）
     public var imagePreviewVerticalPaddingHeight: CGFloat = 8
-    /// JSON 预览字符截断上限（F16 jsonPreviewCharCap；⬜ 原作值未探明）
-    public var jsonPreviewCharCap: Int = 20_000
     /// 内容宽度（v71：统一窗口后保留该参数，宽度估算/目录布局仍引用）
     /// 2026-10-19（用户：文本宽度再扩一点）：480 → 560
     public var popoverWidth: CGFloat = 560
@@ -111,6 +108,7 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     // MARK: 运行状态
 
     private var slot: MainPanelPreviewPopoverSlot?
+    private weak var presentingWindow: NSWindow?
     private var hoverPreviewOpenWorkItem: DispatchWorkItem?
     private var hoverPreviewCloseWorkItem: DispatchWorkItem?
     private var keyboardPreviewPresentationWorkItem: DispatchWorkItem?
@@ -119,24 +117,32 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     private var sessionID = UUID()                        // F9 __previewSessionID
     private var hoverStartedAt: Date?
     private var isPreviewPopoverHovered = false           // F4 __isPreviewPopoverHovered
-    // v126（性能审计 死代码复审）：删除死属性 cancellables（Set<AnyCancellable>，
-    // 全工程无 store(in:) 订阅引用，Combine import 保留供后续订阅使用）
     private var pendingCloseCompletion: (() -> Void)?
     private var escapeMonitor: Any?
 
-    // F7/F8：导航顺序表与滚动跟踪
-    private var previewOrder: [String] = []
-    private var trackedPreviewItemMinYByID: [String: CGFloat] = [:]
-    private var pendingPreviewVisibilityValidationTargetID: String?
     public private(set) var activeItemID: String?
-    private var activeSource: PreviewPopoverContentModel.Source = .mainPreview
-
-    /// 面板收起前是否等待预览关闭（P8 waitsForPreviewClose；PanelController.hide() 依赖）
-    public var waitsForPreviewClose: Bool { true }
+    private var restoreAfterHover: (() -> Bool)?
 
     /// 是否有存活的预览窗
     public var hasActivePreview: Bool {
         slot?.state == .presenting || slot?.state == .presented || slot?.state == .closing
+    }
+
+    public func hasPreview(from window: NSWindow, at point: NSPoint? = nil) -> Bool {
+        guard presentingWindow === window, hasActivePreview else { return false }
+        if let point { return slot?.windowController.window?.frame.contains(point) == true }
+        return true
+    }
+
+    func movePreview(from window: NSWindow, by delta: CGSize, within screen: CGRect) {
+        guard !previewPinned, hasPreview(from: window), let preview = slot?.windowController.window else { return }
+        cancelHoverClose()
+        var frame = preview.frame.offsetBy(dx: delta.width, dy: delta.height)
+        frame.size.width = min(frame.width, screen.width)
+        frame.size.height = min(frame.height, screen.height)
+        frame.origin.x = min(max(frame.minX, screen.minX), screen.maxX - frame.width)
+        frame.origin.y = min(max(frame.minY, screen.minY), screen.maxY - frame.height)
+        preview.setFrame(frame, display: true)
     }
 
     private override init() {
@@ -161,15 +167,17 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
                         showsKeyboardHint: Bool = false,
                         anchorRectInScreen: CGRect? = nil,
                         sourceWindow: NSWindow? = nil) -> Bool {
+        if previewPinned && hasActivePreview { return false }
         cancelHoverWorkItems()
         cancelKeyboardPreview()
-        activeSource = source
+        restoreAfterHover = nil
 
         let panelFrame: CGRect
         let visibleFrame: CGRect
         let anchorInScreen: CGRect
         if let anchorRectInScreen {
             anchorInScreen = anchorRectInScreen
+            presentingWindow = sourceWindow
             panelFrame = sourceWindow?.frame ?? .zero
             visibleFrame = (sourceWindow?.screen
                 ?? NSScreen.screens.first { $0.frame.contains(anchorRectInScreen.origin) }
@@ -180,6 +188,7 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
                 return false
             }
             panelFrame = anchorHostView.window?.frame ?? .zero
+            presentingWindow = anchorHostView.window
             visibleFrame = (anchorHostView.window?.screen ?? NSScreen.main)?.visibleFrame ?? .zero
             anchorInScreen = anchorHostView.window.map {
                 $0.convertToScreen(anchorHostView.convert(anchorRect, to: nil))
@@ -188,14 +197,15 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
 
         sessionID = UUID()
         let requestedSession = sessionID
-        let text = item.type == .file ? item.content ?? "" : PreviewPopoverDataBridge.shared.fullText(for: item)
+        // 落盘长文由内容视图异步读取，出窗时仅携带已存前缀。
+        let text = item.type == .file || item.textPath != nil
+            ? item.content ?? "" : PreviewPopoverDataBridge.shared.fullText(for: item)
         let buildModel: (Bool) -> PreviewPopoverContentModel = { loadFileContents in
             PreviewPopoverContentModel(item: item,
                                        source: source,
                                        entry: entry,
                                        sessionID: requestedSession,
                                        inlineText: text,
-                                       showsKeyboardHint: showsKeyboardHint,
                                        loadFileContents: loadFileContents)
         }
         let display: (PreviewPopoverContentModel) -> Void = { [weak self] model in
@@ -260,9 +270,16 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     /// 关闭预览（可带完成回调；面板收起等待预览先关时由 PanelController 调用，reason = .panelCollapse）
     public func dismiss(reason: MainPanelPreviewPopoverCloseReason = .programmatic,
                         completion: (() -> Void)? = nil) {
+        cancelHoverWorkItems()
+        cancelKeyboardPreview()
+        if previewPinned && (reason == .panelCollapse || reason == .hoverOut
+                             || reason == .scrolledOutOfViewport || reason == .systemInterruption) {
+            completion?()
+            return
+        }
         sessionID = UUID()
         removeOutsideClickMonitor()
-        guard let slot, slot.state != .idle, slot.state != .closing else {
+        guard let slot, slot.state != .idle else {
             completion?()
             return
         }
@@ -270,6 +287,7 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
             let previous = pendingCloseCompletion
             pendingCloseCompletion = { previous?(); completion() }
         }
+        guard slot.state != .closing else { return }
         closeSlot(reason: reason)
     }
 
@@ -283,7 +301,10 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     public func rowHover(_ hovering: Bool,
                          item: ClipboardItem,
                          source: PreviewPopoverContentModel.Source = .mainPreview,
-                         anchorProvider: @escaping () -> CGRect?) {
+                         anchorProvider: @escaping () -> CGRect?,
+                         sourceWindow: NSWindow? = nil,
+                         restoreSelection: (() -> Bool)? = nil) {
+        guard !previewPinned else { return }
         // F2 总开关（默认开启：defaults 实测键无落盘值）
         let key = source == .mainPreview
             ? Preferences.Keys.hoverPreviewInMainWindowEnabled
@@ -297,14 +318,18 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
             hoverPreviewCloseWorkItem = nil
             hoverStartedAt = Date()
             guard hoverPreviewOpenWorkItem == nil else { return }
-            let work = DispatchWorkItem { [weak self] in
+            let work = DispatchWorkItem { [weak self, weak sourceWindow] in
                 guard let self else { return }
                 self.hoverPreviewOpenWorkItem = nil
                 // hover-intent 阈值校验
                 if let start = self.hoverStartedAt,
                    Date().timeIntervalSince(start) < self.activeHoverIntentThreshold { return }
                 guard let rect = anchorProvider() else { return }
-                self.present(for: item, anchorRectInWindow: rect, source: source)
+                if let sourceWindow {
+                    self.present(for: item, source: source,
+                                 anchorRectInScreen: sourceWindow.convertToScreen(rect), sourceWindow: sourceWindow)
+                } else { self.present(for: item, anchorRectInWindow: rect, source: source) }
+                self.restoreAfterHover = restoreSelection
             }
             hoverPreviewOpenWorkItem = work
             DispatchQueue.main.asyncAfter(deadline: .now() + hoverPreviewOpenDelay, execute: work)
@@ -319,6 +344,7 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     public func prepareForPanelAppear() {
         endHoverSuppression()
         cancelHoverWorkItems()
+        cancelKeyboardPreview()
     }
 
     // MARK: 触发路 3：空格键（F6）
@@ -333,12 +359,12 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
         let work = DispatchWorkItem { [weak self] in
             guard let self else { return }
             self.keyboardPreviewPresentationWorkItem = nil
+            guard let rect = anchorProvider(),
+                  self.present(for: item, anchorRectInWindow: rect, source: .mainPreview,
+                               showsKeyboardHint: hintNeeded) else { return }
             if hintNeeded {
                 Preferences.shared.set(Preferences.Keys.clipboardKeyboardPreviewHintConsumed, true)
             }
-            guard let rect = anchorProvider() else { return }
-            self.present(for: item, anchorRectInWindow: rect, source: .mainPreview,
-                         showsKeyboardHint: hintNeeded)
             track("main_panel_preview", "keyboard", nil)
         }
         keyboardPreviewPresentationWorkItem = work
@@ -424,7 +450,8 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
             guard event.keyCode == 53, // Esc
                   let self, let slot = self.slot, slot.state == .presented,
                   !slot.isEditing,
-                  let w = slot.windowController.window, w.isVisible else { return event }
+                  let w = slot.windowController.window, w.isVisible,
+                  !self.previewPinned || event.window === w else { return event }
             self.dismiss(reason: .escape)
             return nil
         }
@@ -433,17 +460,6 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     private func removeEscapeMonitor() {
         if let m = escapeMonitor { NSEvent.removeMonitor(m); escapeMonitor = nil }
     }
-
-    // MARK: 导航（F7）
-
-    /// 提供当前过滤态下的条目顺序表（dev-clipboard 在列表变化时调用）
-    public func setPreviewOrder(_ ids: [String]) {
-        previewOrder = ids
-    }
-
-
-    // MARK: 滚动跟随与校验（F8/P6）
-
 
     // MARK: 条目删除（F10 itemRemoved）
 
@@ -533,7 +549,9 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
                 self.scheduleHoverClose()
                 return
             }
-            self.dismiss(reason: .hoverOut)
+            let restore = self.restoreAfterHover
+            self.restoreAfterHover = nil
+            if restore?() != true { self.dismiss(reason: .hoverOut) }
         }
         hoverPreviewCloseWorkItem = work
         DispatchQueue.main.asyncAfter(deadline: .now() + hoverPreviewCloseDelay, execute: work)
@@ -559,10 +577,10 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
         guard let slot, slot === closingSlot else { return }
         let reason = slot.pendingCloseReason
         self.slot = nil
+        presentingWindow = nil
         activeItemID = nil
+        restoreAfterHover = nil
         isPreviewPopoverHovered = false
-        trackedPreviewItemMinYByID.removeAll()
-        pendingPreviewVisibilityValidationTargetID = nil
         // F3：关闭后抑制悬停复弹，直到鼠标移动
         beginHoverSuppression()
         removeEscapeMonitor()
@@ -593,54 +611,11 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     }
 }
 
-// MARK: - 箭头几何（specs/12 §4.6，PreviewArrowGeometrySupport / PreviewArrowGeometryStore）
-//
-// v71：NSPopover 箭头退役，几何支撑保留给 SwiftUI .popover() 家族调用方使用。
-
-/// 条目屏几何 + 预览窗内容屏框 → arrowEdge（防越屏翻转）
-
-/// 箭头几何缓存（按条目 id 记忆最近计算的边；classname 实证 @0x100acce7c）
-
-// MARK: - SwiftUI 环境键（specs/12 类清单：isPreviewPopoverHovered / onPreviewPopoverHoverChanged）
-
-private struct IsPreviewPopoverHoveredKey: EnvironmentKey {
-    static let defaultValue = false
-}
-
-public extension EnvironmentValues {
-    /// 鼠标是否在预览窗内容内（F4 __isPreviewPopoverHovered；`__` 前缀 = @Environment 包装存储名）
-    var isPreviewPopoverHovered: Bool {
-        get { self[IsPreviewPopoverHoveredKey.self] }
-        set { self[IsPreviewPopoverHoveredKey.self] = newValue }
-    }
-}
+// MARK: - 预览悬停回调
 
 public extension View {
-    /// 预览窗内容根视图挂接：写入环境值并通知协调器做保活/关闭仲裁
+    /// 预览窗内容根视图挂接，通知协调器保留或关闭窗口。
     func onPreviewPopoverHoverChanged(_ action: @escaping (Bool) -> Void) -> some View {
-        modifier(PreviewPopoverHoverChangedModifier(action: action))
-    }
-}
-
-public struct PreviewPopoverHoverChangedModifier: ViewModifier {
-    let action: (Bool) -> Void
-    public init(action: @escaping (Bool) -> Void) { self.action = action }
-    public func body(content: Content) -> some View {
-        PreviewPopoverHoverProbe(content: content, action: action)
-    }
-}
-
-private struct PreviewPopoverHoverProbe<Content: View>: View {
-    let content: Content
-    let action: (Bool) -> Void
-    @Stored private var inside = false
-
-    var body: some View {
-        content
-            .environment(\.isPreviewPopoverHovered, inside)
-            .onHover { hovering in
-                inside = hovering
-                action(hovering)
-            }
+        onHover(perform: action)
     }
 }

@@ -56,18 +56,6 @@ public enum FuzzyMatcher {
             cursor = hit + 1
         }
 
-        // ② 收紧：从最后一个命中点向前逐个「尽量前移」（不得越过前一个点的下界），
-        //    得到整体最靠前、最紧凑的匹配——高亮更准确，评分也更高
-        var upper = lowered.count
-        for j in stride(from: query.count - 1, through: 0, by: -1) {
-            let lowerBound = (j > 0 ? indices[j - 1] + 1 : 0)
-            if lowerBound < upper,
-               let better = lowered[lowerBound..<upper].firstIndex(of: query[j]) {
-                indices[j] = better
-            }
-            upper = indices[j]
-        }
-
         return FuzzyMatch(score: rate(indices: indices, original: Array(target)),
                           indices: indices)
     }
@@ -75,7 +63,7 @@ public enum FuzzyMatcher {
     /// 是否模糊命中（不关心得分与位置）
     ///
     /// v172（性能审阅）：原来直接 `match(...) != nil` —— 为了回答一个是非题，
-    /// 会建 indices 数组、做收紧回溯、再转一次 `Array(target)` 算评分。
+    /// 会建 indices 数组、再转一次 `Array(target)` 算评分。
     /// 搜索面板每敲一个字对 200–800 条各调一次，这些全是白做。
     /// 这里走**纯子序列判定**：单趟扫描，零额外数组分配。
     public static func isMatch(_ pattern: String, in target: String) -> Bool {

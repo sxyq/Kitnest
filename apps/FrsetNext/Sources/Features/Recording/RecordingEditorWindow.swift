@@ -28,11 +28,18 @@ final class RecordingEditorController {
 
     private init() {}
 
-    func open(url: URL) {
+    func open(url: URL) async {
         let asset = AVURLAsset(url: url)
         self.asset = asset
-        duration = max(0.1, asset.duration.seconds)
-        if !duration.isFinite { duration = 0.1 }
+        do {
+            let value = try await asset.load(.duration)
+            guard self.asset === asset else { return }
+            duration = value.seconds.isFinite ? max(0.1, value.seconds) : 0.1
+        } catch {
+            Log.error("Recording", "读取录屏失败：\(error.localizedDescription)")
+            Toast.show("无法打开录屏：\(error.localizedDescription)", icon: "exclamationmark.triangle", isWarning: true)
+            return
+        }
 
         let window = self.window ?? makeWindow()
         self.window = window
@@ -40,7 +47,7 @@ final class RecordingEditorController {
         window.subtitle = String(format: "%.1f 秒", duration)
 
         player?.pause()
-        let player = AVPlayer(url: url)
+        let player = AVPlayer(playerItem: AVPlayerItem(asset: asset))
         self.player = player
         playerLayer?.player = player
 

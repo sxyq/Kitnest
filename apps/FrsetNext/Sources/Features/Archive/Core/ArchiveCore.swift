@@ -49,6 +49,12 @@ public struct ArchiveEntry: Identifiable, Equatable {
 
 public enum ArchiveCore {
 
+    static func extractionDirectory(containing file: URL) -> URL {
+        let temporary = FileManager.default.temporaryDirectory.standardizedFileURL
+        return temporary.appendingPathComponent(file.standardizedFileURL.pathComponents[temporary.pathComponents.count],
+                                                isDirectory: true)
+    }
+
     // MARK: 7zz 定位
 
     /// 随包 7zz（Resources/bin/7zz）→ 工程目录 → PATH
@@ -278,6 +284,7 @@ public enum ArchiveCore {
     public struct ArchivePreset: Identifiable {
         public let title: String
         public let detail: String
+        public let symbol: String
         /// 7zz 的 -t 参数（tar.gz 走两趟：先 tar 再 gzip）
         public let format: String
         /// 0(store) - 9(ultra)
@@ -288,18 +295,23 @@ public enum ArchiveCore {
     public static let presets: [ArchivePreset] = [
         .init(title: "通用分享",
               detail: "ZIP · 均衡，任何系统都能直接打开",
+              symbol: "globe",
               format: "zip", level: 5),
         .init(title: "Mac 之间传递",
               detail: "7z · 保留 macOS 元数据，压缩率更高",
+              symbol: "laptopcomputer",
               format: "7z", level: 5),
         .init(title: "Windows 用户",
               detail: "ZIP · Windows 资源管理器直接解压",
+              symbol: "desktopcomputer",
               format: "zip", level: 5),
         .init(title: "Linux 与服务器",
               detail: "tar.gz · 命令行友好，保留权限与软链",
+              symbol: "terminal",
               format: "tar.gz", level: 5),
         .init(title: "尽可能小",
               detail: "7z · 最高压缩率，体积最小、耗时更长",
+              symbol: "arrow.down.to.line",
               format: "7z", level: 9),
     ]
 
@@ -596,7 +608,7 @@ public enum ArchiveCore {
             let pw = password ?? ArchivePasswords.get(url)
             ArchiveTaskQueue.shared.updateProgress(taskID: taskID, -1, message: "核对路径…")
             // 校验用的 list 要看全量条目（含辅助文件），不放过任何一条路径
-            list(url: url, password: pw, includeAuxiliary: true) { entries, _ in
+            list(url: url, password: pw, includeAuxiliary: true, taskID: taskID) { entries, _ in
                 if ArchiveTaskQueue.shared.isCancelled(taskID) {
                     both(false, "已取消")
                     return
@@ -675,7 +687,7 @@ public enum ArchiveCore {
                 try restrictTo.joined(separator: "\n").appending("\n")
                     .write(to: f, atomically: true, encoding: .utf8)
                 listFile = f
-                args.append("-i@\(f.path)")
+                args += ["-spd", "-i@\(f.path)"]
             } catch {
                 // 清单写不出来就不解压（fail closed）——绝不退回「整包解压」
                 DispatchQueue.main.async {
@@ -748,6 +760,10 @@ public enum ArchiveCore {
             completion(nil, "已拦截不安全路径：\(entry.path)")
             return
         }
+        guard !entry.isLink else {
+            completion(nil, "链接条目不能作为网页预览")
+            return
+        }
         let cap: Int64 = 512 * 1024 * 1024
         let parent = entry.parent
         list(url: url, password: nil, includeAuxiliary: false) { entries, _ in
@@ -759,26 +775,30 @@ public enum ArchiveCore {
                 siblings = entries.filter { $0.path.hasPrefix(prefix) }
             }
             let candidates = siblings.filter {
-                !$0.isDirectory && !isHardUnsafeEntryPath($0.path) && !isAuxiliary($0.path)
+                !$0.isDirectory && !$0.isLink && !isHardUnsafeEntryPath($0.path) && !isAuxiliary($0.path)
             }
             let total = candidates.reduce(Int64(0)) { $0 + max(0, $1.size) }
-            guard !candidates.isEmpty, total <= cap else {
-                // 超限 / 空目录：只解 HTML 本体
-                extractEntryToTemp(url: url, entry: entry, completion: completion)
-                return
-            }
+            let paths = !candidates.isEmpty && total <= cap ? candidates.map(\.path) : [entry.path]
             let dir = FileManager.default.temporaryDirectory
                 .appendingPathComponent("frset-webpreview-\(UUID().uuidString)", isDirectory: true)
             performExtract(url: url, entry: nil, to: dir, password: ArchivePasswords.get(url),
                            includeAuxiliary: false,
-                           restrictTo: candidates.map { $0.path },
+                           restrictTo: paths,
                            taskID: nil) { ok, msg in
-                guard ok else { completion(nil, msg); return }
+                guard ok else {
+                    try? FileManager.default.removeItem(at: dir)
+                    completion(nil, msg)
+                    return
+                }
                 let landed = dir.appendingPathComponent(entry.path)
-                if FileManager.default.fileExists(atPath: landed.path) {
+                let realRoot = dir.resolvingSymlinksInPath().standardizedFileURL
+                let realFile = landed.resolvingSymlinksInPath().standardizedFileURL
+                if realFile.path.hasPrefix(realRoot.path + "/"),
+                   (try? realFile.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true {
                     completion(landed, "")
                 } else {
-                    completion(nil, "解压后未找到网页文件")
+                    try? FileManager.default.removeItem(at: dir)
+                    completion(nil, "解压后未找到可预览的网页文件")
                 }
             }
         }
@@ -819,6 +839,7 @@ public enum ArchiveCore {
                 }
                 try FileManager.default.copyItem(at: localFile, to: dest)
             } catch {
+                try? FileManager.default.removeItem(at: staging)
                 both(false, "准备写入失败：\(error.localizedDescription)")
                 return
             }
@@ -930,6 +951,7 @@ public enum ArchiveCore {
                     both(code == 0, code == 0 ? "已添加 \(files.count) 个文件" : err)
                 }
             } catch {
+                try? FileManager.default.removeItem(at: staging)
                 both(false, "准备添加失败：\(error.localizedDescription)")
             }
         }

@@ -9,6 +9,10 @@ final class ArchiveDefaultApplication: ObservableObject {
     @Published private(set) var enabled = false
     @Published private(set) var changing = false
     @Published private(set) var applicationName = ""
+    /// 文案用：去掉 .app 后缀，读起来像应用名而不是路径
+    var applicationDisplayName: String {
+        applicationName.hasSuffix(".app") ? String(applicationName.dropLast(4)) : applicationName
+    }
     @Published private(set) var errorMessage: String?
 
     func refresh() {
@@ -31,7 +35,7 @@ final class ArchiveDefaultApplication: ObservableObject {
             }
             target = Bundle.main.bundleURL
         } else {
-            // 已手动关联 Kitnest Lite 的用户没有历史记录，关闭时交回系统归档工具。
+            // 已手动关联 Kitnest 的用户没有历史记录，关闭时交回系统归档工具。
             let identifier = defaults.string(forKey: key) ?? "com.apple.archiveutility"
             guard let previous = NSWorkspace.shared.urlForApplication(withBundleIdentifier: identifier) else {
                 errorMessage = "原来的 ZIP 应用已不在这台 Mac 上。请在访达的「显示简介 → 打开方式」中重新选择。"
@@ -58,36 +62,189 @@ final class ArchiveDefaultApplication: ObservableObject {
 }
 
 /// 教程与设置复用同一开关，显示系统关联而非本地布尔值。
-struct ArchiveDefaultApplicationOption: View {
-    @ObservedObject private var association = ArchiveDefaultApplication.shared
+// MARK: - v273（ArcZip 1.2.5 对齐）：打开行为 / 悬浮预览 / 进度窗设置
+
+/// 「打开压缩包」：双击压缩包时直接解压到所在文件夹（ArcZip 1.2.5
+/// `extraction.opening` 同款能力）。DMG/ISO 始终浏览；按住 Shift 临时浏览。
+struct ArchiveOpenBehaviorOptions: View {
+    @AppStorage(Preferences.Keys.archiveOpenDirectExtract) private var directExtract = false
+    @AppStorage(Preferences.Keys.archiveOpenTrashOriginal) private var trashOriginal = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Toggle("用 Kitnest Lite 默认打开 ZIP", isOn: Binding(
-                get: { association.enabled }, set: { association.setEnabled($0) }))
-                .toggleStyle(.switch)
-                .disabled(association.changing)
-            Text("开启后，双击 ZIP 在 Kitnest Lite 中查看并解压；关闭后恢复此前的打开方式。")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Text(association.changing ? "正在更改…" : "当前默认：\(association.applicationName)")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-            Text("压缩：访达选中文件 → 右键 → 服务 → 用 Kitnest Lite 压缩。访达原有的「压缩」保持不变。")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Text("复制路径与终端打开：Finder 选中文件或目录 → 右键 → 服务 →「用 Kitnest Lite 复制路径」或「用 Kitnest Lite 在终端打开」。请在系统设置 → 键盘 → 键盘快捷键 → 服务中分别启用这两项。")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-            Button("打开系统键盘设置") {
-                if !NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.keyboard")!) {
-                    Toast.show("无法打开系统键盘设置，请从系统设置进入键盘 → 键盘快捷键 → 服务", isWarning: true)
+        VStack(alignment: .leading, spacing: 10) {
+            SettingsRow(title: "双击时快速解压",
+                        subtitle: "双击直接解压到当前文件夹，按住 Shift 可浏览。") {
+                Toggle("双击时快速解压", isOn: $directExtract)
+                    .labelsHidden().toggleStyle(.switch)
+            }
+            SettingsRow(title: "原包处理",
+                        subtitle: "解压后原包保留或移入废纸篓。") {
+                Picker("原包处理", selection: $trashOriginal) {
+                    Text("保留原包").tag(false)
+                    Text("移到废纸篓").tag(true)
+                }
+                .labelsHidden().pickerStyle(.segmented).frame(width: 190)
+                .disabled(!directExtract)
+            }
+            Text("DMG、ISO 始终浏览")
+                .font(.system(size: 11)).foregroundStyle(.secondary)
+        }
+    }
+}
+
+/// 「悬浮预览」：列表悬停弹出条目预览的总开关与解压大小上限
+/// （ArcZip 1.2.5 `settings.browsing.hover.video.limit` 同款口径：按解压后大小计算，包含上限）。
+struct ArchiveHoverPreviewOptions: View {
+    @AppStorage(Preferences.Keys.archiveHoverEnabled) private var hoverEnabled = true
+    @AppStorage(Preferences.Keys.archiveHoverSizeLimitMB) private var sizeLimitMB = 100
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SettingsRow(title: "开启悬浮预览",
+                        subtitle: "悬停约 1 秒弹出条目预览。") {
+                Toggle("开启悬浮预览", isOn: $hoverEnabled)
+                    .labelsHidden().toggleStyle(.switch)
+            }
+            SettingsRow(title: "可预览大小上限",
+                        subtitle: "按解压后的大小计算。") {
+                Picker("可预览大小上限", selection: $sizeLimitMB) {
+                    Text("10 MB").tag(10)
+                    Text("50 MB").tag(50)
+                    Text("100 MB").tag(100)
+                    Text("500 MB").tag(500)
+                    Text("1 GB").tag(1000)
+                    Text("2 GB").tag(2000)
+                }
+                .labelsHidden().frame(width: 130)
+                .disabled(!hoverEnabled)
+            }
+        }
+    }
+}
+
+/// 「进度窗口」：任务队列浮窗保持置顶（ArcZip 1.2.5 `settings.progress.keep_on_top`）。
+struct ArchiveProgressWindowOptions: View {
+    @AppStorage(Preferences.Keys.archiveProgressKeepOnTop) private var keepOnTop = false
+
+    var body: some View {
+        SettingsRow(title: "保持置顶",
+                    subtitle: "浮窗始终在最前。") {
+            Toggle("保持置顶", isOn: $keepOnTop)
+                .labelsHidden().toggleStyle(.switch)
+        }
+    }
+}
+
+/// v273：双击直接解压（`archive.open.directExtract`）。
+/// 冲突保护：目标位置已有同名文件时不解压，回退到浏览窗口并提示——
+/// 无确认的覆盖比多开一个窗口更危险。无法列举（加密/损坏）同样回退浏览。
+enum ArchiveQuickExtract {
+
+    /// 镜像格式始终浏览（ArcZip 1.2.5 extraction.opening.browse_formats 同款规则）。
+    static func isDirectEligible(_ url: URL) -> Bool {
+        !["dmg", "iso"].contains(url.pathExtension.lowercased())
+    }
+
+    static func run(url: URL, trashOriginal: Bool) {
+        let dir = url.deletingLastPathComponent()
+        ArchiveCore.list(url: url) { entries, error in
+            if let error {
+                Log.warn("Archive", "快速解压：列举失败（\(error)），回退浏览")
+                ArchiveBrowserWindowController.show(url: url)
+                return
+            }
+            let fm = FileManager.default
+            let conflicts = entries.contains { entry in
+                !entry.isDirectory && fm.fileExists(atPath: dir.appendingPathComponent(entry.path).path)
+            }
+            if conflicts {
+                Toast.show("\(url.lastPathComponent) 中存在同名文件，已改为浏览",
+                           icon: "exclamationmark.triangle", isWarning: true)
+                ArchiveBrowserWindowController.show(url: url)
+                return
+            }
+            Log.info("Archive", "快速解压：\(url.lastPathComponent) → \(dir.path)（原包\(trashOriginal ? "移入废纸篓" : "保留")）")
+            _ = ArchiveCore.extract(url: url, to: dir) { ok, message in
+                if ok {
+                    Toast.show("已解压 \(url.lastPathComponent)", icon: "archivebox")
+                    if trashOriginal { NSWorkspace.shared.recycle([url]) }
+                } else {
+                    Toast.show("解压失败：\(message)", icon: "exclamationmark.triangle", isWarning: true)
                 }
             }
-            .buttonStyle(.link)
+        }
+    }
+}
+
+struct ArchiveDefaultApplicationOption: View {
+    @ObservedObject private var association = ArchiveDefaultApplication.shared
+    @AppStorage(ArchiveCreationPreferences.passwordEnabled) private var passwordEnabled = false
+    @AppStorage(ArchiveCreationPreferences.encryptFileNames) private var encryptFileNames = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 5) {
+                Label("ZIP 关联", systemImage: "archivebox")
+                    .font(.system(size: 12, weight: .medium))
+                Toggle("ZIP 使用 Kitnest Lite 打开", isOn: Binding(
+                    get: { association.enabled }, set: { association.setEnabled($0) }))
+                    .toggleStyle(.switch)
+                    .disabled(association.changing)
+                Text(association.changing ? "正在更改…" : "当前打开方式：\(association.applicationDisplayName)")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                Text("关闭后回到原来的应用。")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack {
+                    Button("定位 ZIP 应用") {
+                        if let application = NSWorkspace.shared.urlForApplication(toOpen: .zip) {
+                            NSWorkspace.shared.activateFileViewerSelecting([application])
+                        }
+                    }
+                    Button("定位归档工具") {
+                        if let application = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.archiveutility") {
+                            NSWorkspace.shared.activateFileViewerSelecting([application])
+                        }
+                    }
+                }
+                .buttonStyle(.link)
+                Text("其他格式：显示简介 → 打开方式 → 全部更改")
+                    .font(.system(size: 11)).foregroundStyle(.secondary)
+            }
+            Divider().opacity(0.6)
+            VStack(alignment: .leading, spacing: 5) {
+                Label("Finder 服务", systemImage: "folder")
+                    .font(.system(size: 12, weight: .medium))
+                Text("压缩：右键 → 服务 → 用 Kitnest Lite 压缩")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("解压：右键 → 服务 → 解压到此处 / 解压到…")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("复制路径、终端打开：右键 → 服务，默认未启用")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Button("打开键盘设置") {
+                    if !NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.keyboard")!) {
+                        Toast.show("无法打开键盘设置", isWarning: true)
+                    }
+                }
+                .buttonStyle(.link)
+            }
+            Divider()
+            Text("新建压缩包默认值").font(.headline)
+            Toggle("默认启用密码保护", isOn: $passwordEnabled)
+                .toggleStyle(.checkbox)
+            Toggle("7z 默认加密文件名", isOn: $encryptFileNames)
+                .toggleStyle(.checkbox)
+            Text("密码每次输入。ZIP 只加密内容，7z 还能隐藏文件名，TAR.GZ 不支持。")
+                .font(.system(size: 11)).foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
             if let error = association.errorMessage {
                 Text(error)
                     .font(.system(size: 11))
@@ -114,7 +271,7 @@ struct ArchiveDefaultApplicationOption: View {
 //   · 压缩（交给既有创建压缩包面板 ArchiveCreateWindowController.show）
 //
 // 挂载点：AppDelegate.applicationDidFinishLaunching 里 `NSApp.servicesProvider = ...`。
-// 三个 selector 名与 Info.plist 的 NSMessage 一一对应：
+// 服务 selector 名与 Info.plist 的 NSMessage 一一对应：
 //   extractHere:userData:error: / extractTo:userData:error: / compress:userData:error:
 
 public final class ArchiveServicesProvider: NSObject {
@@ -173,7 +330,7 @@ public final class ArchiveServicesProvider: NSObject {
         }
     }
 
-    /// 「用 Kitnest Lite 打开」（v167）：右键选中的压缩包 → 直达归档浏览窗
+    /// 「用 Kitnest 打开」（v167）：右键选中的压缩包 → 直达归档浏览窗
     ///
     /// 与「双击压缩包」「拖进面板」走同一个入口 `ArchiveBrowserWindowController.show`，
     /// 不另开一套窗口。多选时逐个打开（同包已开则系统侧前置，由 controller 去重）。

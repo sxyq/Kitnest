@@ -39,9 +39,8 @@ public struct SettingsPaneDescriptor {
     public let id: String
     public let title: String
     public let systemImage: String
-    public let build: () -> AnyView
-    public init(id: String, title: String, systemImage: String, build: @escaping () -> AnyView) {
-        self.id = id; self.title = title; self.systemImage = systemImage; self.build = build
+    public init(id: String, title: String, systemImage: String) {
+        self.id = id; self.title = title; self.systemImage = systemImage
     }
 }
 
@@ -65,9 +64,8 @@ public enum SettingsPaneRegistry {
 // MARK: 状态栏项（v210 已删除）
 //
 // 原 `StatusItemDescriptor` / `StatusItemRegistry` 让各模块注册「动态状态项」，
-// 但唯一注册方（MonitorStatusItems.registerAll）在 v128 就被注释掉：菜单栏监测 UI
-// 只允许 STATS 合并条一套（工程全图 §6 不变量 13）。留着它只会让 StatusBarController
-// 每 5s 扫一个永远为空的数组，故整族删除。需要再加状态项时，先确认是否与 STATS 合并条重复。
+// 唯一注册入口在 v128 停用后，v210 移除了整套注册、文案和空扫描路径；
+// 菜单栏监测只保留 STATS 合并条（工程全图 §6 不变量 13）。
 
 // MARK: 面板 / 设置窗口控制（08、04 通过 ServiceLocator 调用，避免互相 import）
 
@@ -79,12 +77,6 @@ public protocol PanelControlling: AnyObject {
     /// 替代原「屏幕右上右对齐」。anchorRect 为屏幕坐标（NSStatusBarButton.window?.frame）。
     func toggle(atAnchor anchorRect: NSRect?)
     func show(atAnchor anchorRect: NSRect?)
-}
-
-public extension PanelControlling {
-    /// 默认实现：无锚点能力时回落到原行为（协议兼容旧实现）
-    func toggle(atAnchor anchorRect: NSRect?) { toggle() }
-    func show(atAnchor anchorRect: NSRect?) { show() }
 }
 
 public protocol SettingsWindowControlling: AnyObject {
@@ -130,8 +122,6 @@ public protocol PanelPreviewPresenting: AnyObject {
     func cancelKeyboardPreview()
     /// 面板即将出现：清抑制与未决 WorkItem
     func prepareForPanelAppear()
-    /// 刷新预览导航顺序表
-    func setPreviewOrder(_ ids: [String])
     /// 锚条目被删除 → 同步关闭预览
     func notifyItemRemoved(itemID: String)
 }

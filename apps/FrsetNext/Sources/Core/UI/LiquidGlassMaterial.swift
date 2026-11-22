@@ -20,13 +20,13 @@ enum LiquidGlass {
                          cornerRadius: CGFloat,
                          material: NSVisualEffectView.Material = .hudWindow,
                          tint: NSColor? = nil,
-                         solid: Bool, followsWindowFocus: Bool = true) -> NSView {
+                         solid: Bool, followsWindowFocus: Bool = true, systemGlass: Bool? = nil) -> NSView {
         let solid = solid || reduceTransparency
         // v202（用户：「焦点在不在这个 App 里玻璃效果完全两套，需要合并成唯一一种」）：
         // NSGlassEffectView 会随窗口 key/inactive 改变观感，无法固定。
         // 全工程统一改为 NSVisualEffectView + 固定 .inactive 状态——
         // 无论窗口是否 key、App 是否前台，玻璃浓淡完全一致（取用户要的「失焦态」）。
-        if #available(macOS 26.0, *), !solid, followsWindowFocus, prefersSystemGlass {
+        if #available(macOS 26.0, *), !solid, followsWindowFocus, systemGlass ?? prefersSystemGlass {
             let glass = NSGlassEffectView(frame: frame)
             glass.style = .regular
             setCornerRadius(cornerRadius, on: glass)
@@ -119,5 +119,7 @@ public extension View {
                     .strokeBorder(stroke, lineWidth: Theme.Stroke.hairline)
                     .allowsHitTesting(false)
             }
+            .modifier(IslandGlowTarget(radius: radius))
+            .islandGlowClip()
     }
 }

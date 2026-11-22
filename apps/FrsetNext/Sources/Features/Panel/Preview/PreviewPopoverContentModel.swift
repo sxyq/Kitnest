@@ -42,8 +42,8 @@ public struct PreviewPopoverContentModel: Identifiable {
     public let kind: Kind
     /// 已就绪的全文（短文本直接带上；fileBackedText 这里只放内联前缀，全文由视图异步加载）
     public let inlineText: String
-    /// 是否显示键盘预览一次性提示（F6：clipboard_keyboard_preview_hint_consumed 未消费时）
-    public let showsKeyboardHint: Bool
+    /// 本次模型共用的富文本正文，分类、排版与尺寸测量不重复读盘。
+    public let richAttributed: NSAttributedString?
     public let fileText: FilePreviewLoadState
     private let fileTextKind: Kind?
     public let fileImage: NSImage?
@@ -68,22 +68,35 @@ public struct PreviewPopoverContentModel: Identifiable {
                 entry: Entry = .mainList,
                 sessionID: UUID,
                 inlineText: String,
-                showsKeyboardHint: Bool = false,
                 kindOverride: Kind? = nil,
                 displayPath: String? = nil,
-                loadFileContents: Bool = true) {
+                loadFileContents: Bool = true,
+                fullTextLoaded: Bool = false) {
         self.id = item.id
         self.item = item
         self.source = source
         self.entry = entry
         self.sessionID = sessionID
         self.inlineText = inlineText
-        self.showsKeyboardHint = showsKeyboardHint
         self.displayPath = displayPath
         // v53：常驻预览窗编辑保存后，内容已在内存里（可能是刚落盘的新文件），
         // 按条目分类会走 fileBackedText 去读旧路径 → 用 kindOverride 直接指定渲染态。
-        self.kind = kindOverride ?? PreviewPopoverContentModel.classify(item: item, fullText: inlineText)
-        let paths = (item.content ?? "").split(separator: "\n")
+        let rich = item.type == .richtext && kindOverride == nil
+            ? PreviewPopoverDataBridge.shared.richTextAttributed(for: item) : nil
+        self.richAttributed = rich
+        if let kindOverride {
+            self.kind = kindOverride
+        } else {
+            switch item.type {
+            case .image: self.kind = .image
+            case .file: self.kind = .file
+            case .richtext, .text, .url:
+                if rich != nil { self.kind = .richText }
+                else if item.textPath != nil && !fullTextLoaded { self.kind = .fileBackedText }
+                else { self.kind = Self.classifyRawText(inlineText) }
+            }
+        }
+        let paths = item.type == .file ? (item.content ?? "").split(separator: "\n") : []
         var directory: ObjCBool = false
         if item.type == .file, kindOverride == nil, paths.count == 1 {
             FileManager.default.fileExists(atPath: String(paths[0]), isDirectory: &directory)
@@ -155,19 +168,20 @@ public struct PreviewPopoverContentModel: Identifiable {
     /// 代码强度：前 80 行非空行里「像代码」的比例（0…1）与样本行数
     public static func codeStrength(_ text: String) -> (ratio: Double, lines: Int) {
         let sample = text
-            .split(separator: "\n", omittingEmptySubsequences: true)
+            .split(separator: "\n", maxSplits: 80, omittingEmptySubsequences: true)
             .prefix(80)
-            .map { $0.trimmingCharacters(in: .whitespaces) }
         guard !sample.isEmpty else { return (0, 0) }
         var codey = 0
-        for t in sample {
-            // Markdown 结构行不算代码（`# 注释` 除外：`#!` / `#include` 走代码）
+        for line in sample {
+            let t = line.trimmingCharacters(in: .whitespaces)
+            // Markdown 结构行不算代码；脚本首行和编译指令按代码判断。
             if t.hasPrefix("- ") || t.hasPrefix("* ") || t.hasPrefix("+ ")
                 || t.hasPrefix("> ") || t.hasPrefix("|")
-                || (t.hasPrefix("#") && !t.hasPrefix("#!")) {
+                || (t.hasPrefix("#") && !t.hasPrefix("#!")
+                    && !t.hasPrefix("#include") && !t.hasPrefix("#import")) {
                 continue
             }
-            if isCodeLine(t) { codey += 1 }
+            if isCodeLine(t) || line.hasPrefix("    ") || line.hasPrefix("\t") { codey += 1 }
         }
         return (Double(codey) / Double(sample.count), sample.count)
     }
@@ -186,39 +200,8 @@ public struct PreviewPopoverContentModel: Identifiable {
         for p in prefixes where t.hasPrefix(p) { return true }
         if t.hasSuffix(":") || t.hasSuffix("{") || t.hasSuffix("}") || t.hasSuffix(";")
             || t.hasSuffix(",") || t.hasSuffix(")") || t.hasSuffix("*/") { return true }
-        if t.hasPrefix("    ") || t.hasPrefix("\t") { return true }
         if t.contains(" = ") || t.contains("==") || t.contains("->") || t.contains("=>") { return true }
         return false
-    }
-
-    // MARK: 分态判定
-
-    /// 内容分态判定：图片/文件按条目类型；文本类按启发式细分（Markdown/JSON/代码/纯文本）
-    ///
-    /// v87（2026-10-20 用户反馈「预览不统一：有些没用 Markdown 展现、目录不是都有」）：
-    /// 文本类**全部**走同一条启发式链（classifyRawText：JSON → Markdown → 代码 → 纯文本），
-    /// 不再因「富文本无 RTF 数据」等路径短路成纯文本。
-    public static func classify(item: ClipboardItem, fullText: String) -> Kind {
-        switch item.type {
-        case .image:
-            return .image
-        case .file:
-            return .file
-        case .richtext:
-            // v65：有 RTF 数据 → 富文本保真渲染（此前一律降级纯文本，用户反馈渲染错误）；
-            // 无 RTF 数据（历史条目）与纯文本同一条启发式链，避免渲染口径分叉
-            if PreviewPopoverDataBridge.shared.richTextAttributed(for: item) != nil { return .richText }
-            return item.textPath != nil ? .fileBackedText : classifyRawText(fullText)
-        case .text, .url:
-            // 落盘长文本统一进 fileBackedText（加载全文后同样走 classifyRawText 链）
-            if item.textPath != nil { return .fileBackedText }
-            return classifyRawText(fullText)
-        }
-    }
-
-    /// v65 富文本保真渲染数据（RTF → NSAttributedString；经数据桥，App 总控接线）
-    public var richAttributed: NSAttributedString? {
-        PreviewPopoverDataBridge.shared.richTextAttributed(for: item)
     }
 
     /// JSON 预览资格（F16 __isJSONPreviewEligible）：单根 JSON 或 **JSONL**
@@ -266,6 +249,9 @@ public struct PreviewPopoverContentModel: Identifiable {
         "(?m)^\\s*([-*_])(\\s*\\1){2,}\\s*$"   // 分隔线
     ].compactMap { try? NSRegularExpression(pattern: $0) }
 
+    private static let markdownBoldUnderscore = try? NSRegularExpression(
+        pattern: "__[^_\\n]*[ \\t\\u4e00-\\u9fff][^_\\n]*__")
+
     /// Markdown 启发式：标题/围栏/链接/强调/列表 等特征
     ///
     /// 2026-10-18 放宽（用户反馈"有些文本能渲染 Markdown 有些不能"）：
@@ -282,9 +268,8 @@ public struct PreviewPopoverContentModel: Identifiable {
         //    这些模式在普通文本里几乎不会出现，误判成本也只是「排版更好看」，内容不会丢。
         // v126（性能审计 F1094）：原 range(of:options:.regularExpression) 每次调用把 10 个
         // 模式各隐式编译一遍（Swift 不缓存正则），改为静态预编译一次、逐条匹配即用。
-        let strongPatterns = Self.markdownStrongRegexes
-        for re in strongPatterns {
-            let range = NSRange(trimmed.startIndex..., in: trimmed)
+        let range = NSRange(trimmed.startIndex..., in: trimmed)
+        for re in markdownStrongRegexes {
             if re.firstMatch(in: trimmed, options: [], range: range) != nil { return true }
         }
 
@@ -293,10 +278,9 @@ public struct PreviewPopoverContentModel: Identifiable {
         // v182：`__` 只有在**内容含空格/CJK**时才算加粗（`__强调文本__`）。
         // 原来是 `contains("__")` —— Python 的 `__init__` / `__future__` 每行都算一分，
         // 两行就够阈值，于是 .py 文件被判成 Markdown。
-        let boldUnderscore = try? NSRegularExpression(pattern: "__[^_\\n]*[ \\t\\u4e00-\\u9fff][^_\\n]*__")
         for line in trimmed.split(separator: "\n", maxSplits: 60, omittingEmptySubsequences: true).prefix(40) {
             let t = String(line.drop(while: { $0 == " " || $0 == "\t" }))
-            if let re = boldUnderscore {
+            if let re = markdownBoldUnderscore {
                 let r = NSRange(t.startIndex..., in: t)
                 if re.firstMatch(in: t, options: [], range: r) != nil { score += 1 }
             }
@@ -308,7 +292,7 @@ public struct PreviewPopoverContentModel: Identifiable {
 
     /// 代码启发式：多行 + 括号/分号/常见语言关键字/稳定缩进
     public static func looksLikeCode(_ text: String) -> Bool {
-        let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
+        let lines = text.split(separator: "\n", maxSplits: 30, omittingEmptySubsequences: false)
         guard lines.count >= 4 else { return false }
         var hits = 0
         for line in lines.prefix(30) {
@@ -325,30 +309,14 @@ public struct PreviewPopoverContentModel: Identifiable {
     }
 }
 
-// MARK: - 行数估算（面板领地内私有口径，避免依赖 Clipboard 模块扩展）
-
-extension String {
-    var lineCountEstimate: Int {
-        guard !isEmpty else { return 1 }
-        var count = 1
-        for ch in self where ch == "\n" { count += 1 }
-        return count
-    }
-}
-
-// MARK: - Markdown 滚动记忆（specs/12 F15：块帧表 + 偏移 + 恢复）
+// MARK: - Markdown 滚动记忆（specs/12 F15：偏移与恢复）
 
 /// Markdown/长文预览的滚动位置快照；键 = item.dedupeKey，存于协调器。
-/// blockFrames 对应原作 __markdownPreviewBlockFrames（块 id → 视口帧），重建版按"首可见块 + 偏移"近似。
 public struct MarkdownScrollState: Equatable {
     public var scrollOffset: CGFloat
-    public var anchorBlockID: String?
-    public var blockFrames: [String: CGRect]
 
-    public init(scrollOffset: CGFloat = 0, anchorBlockID: String? = nil, blockFrames: [String: CGRect] = [:]) {
+    public init(scrollOffset: CGFloat = 0) {
         self.scrollOffset = scrollOffset
-        self.anchorBlockID = anchorBlockID
-        self.blockFrames = blockFrames
     }
 }
 

@@ -57,11 +57,6 @@ final class PanelPreviewPresenterAdapter: PanelPreviewPresenting {
         coordinator.prepareForPanelAppear()
     }
 
-    /// 刷新预览导航顺序表（透传）
-    func setPreviewOrder(_ ids: [String]) {
-        coordinator.setPreviewOrder(ids)
-    }
-
     /// 锚条目被删除 → 同步关闭预览（透传）
     func notifyItemRemoved(itemID: String) {
         coordinator.notifyItemRemoved(itemID: itemID)

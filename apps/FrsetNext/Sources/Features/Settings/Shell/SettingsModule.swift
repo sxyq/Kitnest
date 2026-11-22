@@ -14,19 +14,15 @@ public enum SettingsModule: AppModule {
     public static func start() {
         // 1) 注册自带的基础页签（其他模块的页签由各自 start() 注册）
         SettingsPaneRegistry.register(SettingsPaneDescriptor(
-            id: "general", title: "通用", systemImage: "gearshape",
-            build: { AnyView(GeneralSettingsPane()) }))
+            id: "general", title: "通用", systemImage: "gearshape"))
         // 搜索页签（specs/18：补齐原作 5 页签缺失项，排序数组已含 "search"）
         SettingsPaneRegistry.register(SettingsPaneDescriptor(
-            id: "search", title: "搜索", systemImage: "magnifyingglass",
-            build: { AnyView(SearchSettingsPane()) }))
+            id: "search", title: "搜索", systemImage: "magnifyingglass"))
         // 数据页签（spec 17 S12：设置导出/导入携带统计数据 + Q6/Q7 统计口径出口）
         SettingsPaneRegistry.register(SettingsPaneDescriptor(
-            id: "statistics", title: "数据", systemImage: "chart.bar.doc.horizontal",
-            build: { AnyView(StatisticsSettingsPane()) }))
+            id: "statistics", title: "数据", systemImage: "chart.bar.doc.horizontal"))
         SettingsPaneRegistry.register(SettingsPaneDescriptor(
-            id: "about", title: "关于", systemImage: "info.circle",
-            build: { AnyView(AboutSettingsPane()) }))
+            id: "about", title: "关于", systemImage: "info.circle"))
 
         // 2) 注入共享能力：其他模块通过 ServiceLocator.settings 唤起设置窗口
         ServiceLocator.settings = SettingsWindowController.shared

@@ -9,7 +9,6 @@
 #include <mach/mach.h>
 #include <sys/sysctl.h>
 #include <sys/mount.h>
-#include <signal.h>          // v84：frset_kill_bundle 的 kill/SIGTERM/SIGKILL
 #include <unistd.h>          // v84：getpid
 #include <pthread.h>         // v86：frset_net_top 后台采样线程
 #include <time.h>            // v86：clock_gettime（nettop 差分）
@@ -255,6 +254,9 @@ void frset_mem_sample(frset_mem_t *out) {
 // ============ 网络 ============
 
 void frset_net_sample(frset_net_t *out) {
+    // 菜单栏与独立常驻统计交接时共用同一份差分计数。
+    static pthread_mutex_t lock = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_lock(&lock);
     memset(out, 0, sizeof(*out));
     static uint64_t prev_in = 0, prev_out = 0;
     static double prev_t = 0;
@@ -288,6 +290,7 @@ void frset_net_sample(frset_net_t *out) {
     }
     out->total_up = o; out->total_down = in;
     prev_in = in; prev_out = o; prev_t = now;
+    pthread_mutex_unlock(&lock);
 }
 
 // ============ 磁盘 ============
@@ -575,15 +578,7 @@ static double frset_nowsec(void) {
     return (double)ts.tv_sec + (double)ts.tv_nsec / 1e9;
 }
 
-/* v128（CPU 优化）：FRSET_PROC_CAP 2048 → 512。
-   · 内存：g_pPrev[4][CAP]（136B/项）1.06MB → 265KB，cur+score 同步缩小（-220KB），
-     合计省约 1MB 静态堆。
-   · 截断语义：frset_proc_top 用 proc_listallpids 枚举 pid（返回 n），扫描循环以
-     ncur < FRSET_PROC_CAP 为界；进程数 > 512 时**只扫描前 512 个 pid**（枚举序、
-     非用量序），Top 表可能漏掉枚举序靠后的进程。Top 表只展示前 N 个
-     （readProcList max=8），macOS 常态进程数 300-700，可接受。
-   · 边界：cur/score/g_pPrev 所有写入都在 `ncur < FRSET_PROC_CAP` 条件内，不会越界；
-     g_pPrevN[k] = ncur（ncur 恒 ≤ CAP）。 */
+/* 只保留枚举顺序中前 512 个有效进程；显示层仍按使用量排序。 */
 #define FRSET_PROC_CAP 512
 
 typedef struct {
@@ -593,10 +588,31 @@ typedef struct {
     char name[64];
 } frset_proc_raw_t;
 
+typedef struct {
+    int pid;
+    uint64_t ut, st, rb, wb;
+} frset_proc_counters_t;
+
+/* 两种差分快照都把 PID 放在首字段，且查找键本身也是 int。 */
+static int frset_compare_pid(const void *a, const void *b) {
+    int left = *(const int *)a, right = *(const int *)b;
+    return (left > right) - (left < right);
+}
+
+static int frset_compare_proc_rank(void *context, const void *a, const void *b) {
+    int kind = *(const int *)context;
+    const frset_proc_raw_t *left = *(const frset_proc_raw_t *const *)a;
+    const frset_proc_raw_t *right = *(const frset_proc_raw_t *const *)b;
+    double l = kind == 0 ? left->cpu : kind == 1 ? left->mem : left->dr + left->dw;
+    double r = kind == 0 ? right->cpu : kind == 1 ? right->mem : right->dr + right->dw;
+    if (l != r) return (l < r) - (l > r);
+    return (left > right) - (left < right); /* 同值保留原枚举顺序。 */
+}
+
 // v86：每个维度（0=CPU 1=内存 2=磁盘 3=网络）各自保留上一轮快照。
 // 原来共用一份：同一 tick 里连续取 CPU/内存/磁盘时，第 2、3 次调用 dt≈0 →
 // havePrev=0 → 磁盘读写速率恒为 0（磁盘页进程表全 0 B/s 的根因）。
-static frset_proc_raw_t g_pPrev[4][FRSET_PROC_CAP];
+static frset_proc_counters_t g_pPrev[4][FRSET_PROC_CAP];
 static int g_pPrevN[4] = {0, 0, 0, 0};
 static double g_pPrevT[4] = {0, 0, 0, 0};
 
@@ -660,45 +676,40 @@ int frset_proc_top(int kind, frset_proc_t *out, int max) {
     int havePrev = (dt > 0.15);
 
     static frset_proc_raw_t cur[FRSET_PROC_CAP];
-    static double score[FRSET_PROC_CAP];
+    static const frset_proc_raw_t *ranked[FRSET_PROC_CAP];
     int ncur = 0;
 
     for (int i = 0; i < nsrc && ncur < FRSET_PROC_CAP; i++) {
         frset_proc_raw_t r = src[i];
-        int pid = r.pid;
         if (havePrev) {
-            for (int j = 0; j < g_pPrevN[k]; j++) {
-                if (g_pPrev[k][j].pid != pid) continue;
-                r.cpu = (((double)(r.ut - g_pPrev[k][j].ut) + (double)(r.st - g_pPrev[k][j].st)) / 1e9 / dt) * 100.0;
-                r.dr = (double)(r.rb - g_pPrev[k][j].rb) / dt;
-                r.dw = (double)(r.wb - g_pPrev[k][j].wb) / dt;
-                break;
+            const frset_proc_counters_t *prev = bsearch(&r.pid, g_pPrev[k], g_pPrevN[k],
+                                                        sizeof(g_pPrev[k][0]), frset_compare_pid);
+            if (prev) {
+                r.cpu = (((double)(r.ut - prev->ut) + (double)(r.st - prev->st)) / 1e9 / dt) * 100.0;
+                r.dr = (double)(r.rb - prev->rb) / dt;
+                r.dw = (double)(r.wb - prev->wb) / dt;
             }
         }
         if (r.cpu < 0) r.cpu = 0;
         if (r.dr < 0) r.dr = 0;
         if (r.dw < 0) r.dw = 0;
-        score[ncur] = (kind == 0) ? r.cpu : ((kind == 1) ? r.mem : (r.dr + r.dw));
         memcpy(&cur[ncur], &r, sizeof(r));
+        ranked[ncur] = &cur[ncur];
         ncur++;
     }
 
-    g_pPrevN[k] = (ncur < FRSET_PROC_CAP) ? ncur : FRSET_PROC_CAP;
+    g_pPrevN[k] = ncur;
     for (int i = 0; i < g_pPrevN[k]; i++) {
-        g_pPrev[k][i].pid = cur[i].pid; g_pPrev[k][i].ut = cur[i].ut; g_pPrev[k][i].st = cur[i].st;
-        g_pPrev[k][i].rb = cur[i].rb; g_pPrev[k][i].wb = cur[i].wb;
+        const frset_proc_raw_t *r = &cur[i];
+        g_pPrev[k][i] = (frset_proc_counters_t){r->pid, r->ut, r->st, r->rb, r->wb};
     }
+    qsort(g_pPrev[k], g_pPrevN[k], sizeof(g_pPrev[k][0]), frset_compare_pid);
     g_pPrevT[k] = t;
 
     int m = (max < ncur) ? max : ncur;
+    qsort_r(ranked, ncur, sizeof(ranked[0]), &kind, frset_compare_proc_rank);
     for (int i = 0; i < m; i++) {
-        int best = -1;
-        for (int j = 0; j < ncur; j++) {
-            if (score[j] < 0) continue;
-            if (best < 0 || score[j] > score[best]) best = j;
-        }
-        if (best < 0) { m = i; break; }
-        frset_proc_raw_t *r = &cur[best];
+        const frset_proc_raw_t *r = ranked[i];
         memset(&out[i], 0, sizeof(out[i]));
         out[i].pid = r->pid;
         strncpy(out[i].name, r->name, sizeof(out[i].name) - 1);
@@ -710,119 +721,10 @@ int frset_proc_top(int kind, frset_proc_t *out, int max) {
         if (proc_pidpath(r->pid, pbuf, sizeof(pbuf)) > 0) {
             strncpy(out[i].path, pbuf, sizeof(out[i].path) - 1);
         }
-        score[best] = -1;
     }
     /* v128：pids 缓冲已在扫描分支内释放（缓存命中时根本没有 pids） */
     return m;
 }
-
-// ============ v84：进程按 App 归类（移植自注入版 v30 / WonderBox 口径） ============
-//   路径 → bundle：找第一个 ".app/" 子串，取到 ".app" 为止（如
-//   /Applications/Google Chrome.app/Contents/Frameworks/.../Helper → "….app"）。
-//   无 .app 的进程（CLI/系统守护进程）以完整可执行路径为键保持独立成行。
-//   归类意义：Chrome 的 N 个渲染进程只占一行、可整组退出；图标取宿主 App。
-
-static int frset_bundle_of(const char *path, char *out, size_t n) {
-    if (!path || !path[0]) return 0;
-    const char *p = strstr(path, ".app/");
-    if (!p) return 0;
-    size_t len = (size_t)(p - path) + 4;   // 含 ".app"
-    if (len == 0 || len >= n) return 0;
-    memcpy(out, path, len);
-    out[len] = 0;
-    return 1;
-}
-
-int frset_proc_grouped(int kind, frset_proc_grp_t *out, int max) {
-    if (!out || max <= 0) return 0;
-    static frset_proc_t tmp[256];
-    int n = frset_proc_top(kind, tmp, 256);
-    if (n <= 0) return 0;
-
-    static frset_proc_grp_t grps[256];
-    static int taken[256];
-    int ng = 0;
-    for (int i = 0; i < n; i++) {
-        char bundle[512] = {0};
-        int hasBundle = frset_bundle_of(tmp[i].path, bundle, sizeof(bundle));
-        const char *key = hasBundle ? bundle : tmp[i].path;
-        if (!key[0]) key = tmp[i].name;
-        // 查已有组
-        int gi = -1;
-        for (int j = 0; j < ng; j++) {
-            if (strcmp(grps[j].bundle, key) == 0) { gi = j; break; }
-        }
-        if (gi < 0) {
-            if (ng >= 256) continue;
-            gi = ng++;
-            memset(&grps[gi], 0, sizeof(grps[gi]));
-            snprintf(grps[gi].bundle, sizeof(grps[gi].bundle), "%s", key);
-            if (hasBundle) {
-                const char *slash = strrchr(key, '/');
-                const char *base = slash ? slash + 1 : key;
-                size_t bl = strlen(base);
-                if (bl > 4 && strcmp(base + bl - 4, ".app") == 0) bl -= 4;
-                if (bl >= sizeof(grps[gi].name)) bl = sizeof(grps[gi].name) - 1;
-                memcpy(grps[gi].name, base, bl);
-                grps[gi].name[bl] = 0;
-                snprintf(grps[gi].icon_path, sizeof(grps[gi].icon_path), "%s", key);
-            } else {
-                snprintf(grps[gi].name, sizeof(grps[gi].name), "%s", tmp[i].name);
-                snprintf(grps[gi].icon_path, sizeof(grps[gi].icon_path), "%s", tmp[i].path);
-            }
-        }
-        grps[gi].cpu += tmp[i].cpu;
-        grps[gi].mem += tmp[i].mem;
-        grps[gi].disk_r += tmp[i].disk_r;
-        grps[gi].disk_w += tmp[i].disk_w;
-        grps[gi].procCount++;
-        if (grps[gi].pidCount < 64) grps[gi].pids[grps[gi].pidCount++] = tmp[i].pid;
-    }
-
-    memset(taken, 0, sizeof(taken));
-    int m = (max < ng) ? max : ng;
-    for (int i = 0; i < m; i++) {
-        int best = -1;
-        for (int j = 0; j < ng; j++) {
-            if (taken[j]) continue;
-            if (best < 0) { best = j; continue; }
-            double sj = (kind == 1) ? grps[j].mem : ((kind == 2) ? (grps[j].disk_r + grps[j].disk_w) : grps[j].cpu);
-            double sb = (kind == 1) ? grps[best].mem : ((kind == 2) ? (grps[best].disk_r + grps[best].disk_w) : grps[best].cpu);
-            if (sj > sb) best = j;
-        }
-        if (best < 0) { m = i; break; }
-        out[i] = grps[best];
-        taken[best] = 1;
-    }
-    return m;
-}
-
-int frset_kill_bundle(const char *bundle, int force) {
-    if (!bundle || !bundle[0]) return 0;
-    int me = getpid();
-    int n = proc_listallpids(NULL, 0);
-    if (n <= 0) return 0;
-    int cap = n + 64;
-    pid_t *pids = malloc(sizeof(pid_t) * (size_t)cap);
-    if (!pids) return 0;
-    n = proc_listallpids(pids, (int)(sizeof(pid_t) * (size_t)cap));
-    if (n <= 0) { free(pids); return 0; }
-    size_t blen = strlen(bundle);
-    int killed = 0;
-    for (int i = 0; i < n; i++) {
-        pid_t pid = pids[i];
-        if (pid <= 0 || pid == me) continue;   // 跳过自身（防「退出 Frset 面板自爆」）
-        char pbuf[4096] = {0};
-        if (proc_pidpath(pid, pbuf, sizeof(pbuf)) <= 0) continue;
-        int match = (strcmp(pbuf, bundle) == 0) ||
-                    (strncmp(pbuf, bundle, blen) == 0 && pbuf[blen] == '/');
-        if (!match) continue;
-        if (kill(pid, force ? SIGKILL : SIGTERM) == 0) killed++;
-    }
-    free(pids);
-    return killed;
-}
-
 
 int frset_gpu_usage(double *device, double *renderer, double *tiler) {
     // 输出先清零：某些芯片/系统版本缺个别键（如 Tiler Utilization %），
@@ -1477,6 +1379,13 @@ static frset_energy_raw_t g_ePrev[FRSET_PROC_CAP];
 static int    g_ePrevN = 0;
 static double g_ePrevT = 0;
 
+static int frset_compare_energy_rank(const void *a, const void *b) {
+    const frset_energy_pid_t *left = *(const frset_energy_pid_t *const *)a;
+    const frset_energy_pid_t *right = *(const frset_energy_pid_t *const *)b;
+    if (left->watts != right->watts) return (left->watts < right->watts) - (left->watts > right->watts);
+    return (left > right) - (left < right);
+}
+
 int frset_proc_energy_pids(frset_energy_pid_t *out, int max, double *elapsedSec) {
     if (elapsedSec) *elapsedSec = 0;
     if (!out || max <= 0) return 0;
@@ -1513,16 +1422,14 @@ int frset_proc_energy_pids(frset_energy_pid_t *out, int max, double *elapsedSec)
 
     if (ready) {
         static frset_energy_pid_t rows[FRSET_PROC_CAP];
-        static double score[FRSET_PROC_CAP];
+        static const frset_energy_pid_t *ranked[FRSET_PROC_CAP];
         int nr = 0;
         for (int i = 0; i < ncur && nr < FRSET_PROC_CAP; i++) {
-            uint64_t prev = 0; int found = 0;
-            for (int j = 0; j < g_ePrevN; j++) {
-                if (g_ePrev[j].pid == cur[i].pid) { prev = g_ePrev[j].nj; found = 1; break; }
-            }
+            const frset_energy_raw_t *prev = bsearch(&cur[i].pid, g_ePrev, g_ePrevN,
+                                                     sizeof(g_ePrev[0]), frset_compare_pid);
             /* 新进程（无基线）或计数回退（pid 复用 / 唤醒后清零）→ 本轮不计 */
-            if (!found || cur[i].nj <= prev) continue;
-            double watts = (double)(cur[i].nj - prev) / 1e9 / dt;
+            if (!prev || cur[i].nj <= prev->nj) continue;
+            double watts = (double)(cur[i].nj - prev->nj) / 1e9 / dt;
             if (watts <= 0.00005) continue;   /* 50 µW 以下视为噪声 */
             memset(&rows[nr], 0, sizeof(rows[nr]));
             rows[nr].pid = cur[i].pid;
@@ -1539,26 +1446,21 @@ int frset_proc_energy_pids(frset_energy_pid_t *out, int max, double *elapsedSec)
                     strncpy(rows[nr].path, fullPath, sizeof(rows[nr].path) - 1);
                 }
             }
-            score[nr] = watts;
+            ranked[nr] = &rows[nr];
             nr++;
         }
         int take = (max < nr) ? max : nr;
+        qsort(ranked, nr, sizeof(ranked[0]), frset_compare_energy_rank);
         for (int i = 0; i < take; i++) {
-            int best = -1;
-            for (int j = 0; j < nr; j++) {
-                if (score[j] < 0) continue;
-                if (best < 0 || score[j] > score[best]) best = j;
-            }
-            if (best < 0) { take = i; break; }
-            out[i] = rows[best];
-            score[best] = -1;
+            out[i] = *ranked[i];
         }
         m = take;
         if (elapsedSec) *elapsedSec = dt;
     }
 
     g_ePrevN = ncur;
-    for (int i = 0; i < ncur; i++) g_ePrev[i] = cur[i];
+    memcpy(g_ePrev, cur, sizeof(cur[0]) * ncur);
+    qsort(g_ePrev, g_ePrevN, sizeof(g_ePrev[0]), frset_compare_pid);
     g_ePrevT = t;
     return m;
 }

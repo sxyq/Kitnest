@@ -65,8 +65,8 @@ final class ArchiveEntryTableHost: NSView {
     let scrollView = NSScrollView()
     let tableView = ArchiveEntryTableView()
     weak var model: ArchiveBrowserModel?
-    /// 上次渲染的条目签名（路径拼接），变化才 reloadData
-    var lastSignature = ""
+    /// 与模型比较完整条目，刷新内容变化并供表格回调复用。
+    private var entries: [ArchiveEntry] = []
     /// 回填选中时置位，避免 selectionDidChange 反写 model 造成循环
     var applyingSelection = false
     /// v258：当前悬停行（-1 = 不在任何行上），用于「悬浮 1 秒预览」
@@ -111,21 +111,15 @@ final class ArchiveEntryTableHost: NSView {
         scrollView.frame = bounds
     }
 
-    /// v258：表格离开窗口（归档窗关闭）→ 清掉悬停预览的临时解压目录
-    override func viewDidMoveToWindow() {
-        super.viewDidMoveToWindow()
-        if window == nil { ArchiveHoverPreview.shared.cleanup() }
-    }
-
     /// 悬停行变化：换行走「先收旧、再等 1 秒」，离开表格直接取消
     func hoverChanged(to row: Int) {
         guard row != hoverRow else { return }
         hoverRow = row
-        guard row >= 0, let model, row < model.visibleEntries.count else {
+        guard row >= 0, let model, row < entries.count else {
             ArchiveHoverPreview.shared.cancel()
             return
         }
-        ArchiveHoverPreview.shared.schedule(archive: model.url, entry: model.visibleEntries[row])
+        ArchiveHoverPreview.shared.schedule(archive: model.url, entry: entries[row])
     }
 
     // MARK: 排障
@@ -154,10 +148,9 @@ final class ArchiveEntryTableHost: NSView {
     @objc private func doubleClicked(_ sender: Any?) {
         let row = tableView.clickedRow
         guard row >= 0, let model else { return }
-        let list = model.visibleEntries
-        guard row < list.count else { return }
+        guard row < entries.count else { return }
         // v127（ArcZip P1）：双击目录进层级；文件仅选中（预览已在右栏）
-        model.activate(list[row])
+        model.activate(entries[row])
     }
 
     /// 模型侧数据/选中变化 → 同步到表
@@ -168,9 +161,8 @@ final class ArchiveEntryTableHost: NSView {
         applyingSelection = true
         defer { applyingSelection = false }
         let list = model.visibleEntries
-        let signature = list.map { $0.path }.joined(separator: "\u{1}")
-        if signature != lastSignature {
-            lastSignature = signature
+        if list != entries {
+            entries = list
             // v258：列表内容换了，旧行的悬停预览已经没有意义
             hoverRow = -1
             ArchiveHoverPreview.shared.cancel()
@@ -190,21 +182,29 @@ final class ArchiveEntryTableHost: NSView {
 extension ArchiveEntryTableHost: NSTableViewDataSource, NSTableViewDelegate {
 
     func numberOfRows(in tableView: NSTableView) -> Int {
-        model?.visibleEntries.count ?? 0
+        entries.count
     }
 
     func tableView(_ tableView: NSTableView, viewFor tableColumn: NSTableColumn?, row: Int) -> NSView? {
-        guard let model, row < model.visibleEntries.count else { return nil }
+        guard row < entries.count else { return nil }
         // v128（内存优化）：包 autoreleasepool——滚动时每行构造行视图 + 取系统图标，
         // 产生 NSImage/NSAttributedString 临时对象，成批渲染时显式 drain
         return autoreleasepool {
-            ArchiveEntryRowView(entry: model.visibleEntries[row])
+            let entry = entries[row]
+            if let view = tableView.makeView(withIdentifier: ArchiveEntryRowView.reuseID,
+                                             owner: self) as? ArchiveEntryRowView {
+                view.update(entry: entry)
+                return view
+            }
+            let view = ArchiveEntryRowView(entry: entry)
+            view.identifier = ArchiveEntryRowView.reuseID
+            return view
         }
     }
 
     func tableViewSelectionDidChange(_ notification: Notification) {
         guard !applyingSelection, let model else { return }
-        let list = model.visibleEntries
+        let list = entries
         let selected = Set(tableView.selectedRowIndexes.compactMap { $0 < list.count ? list[$0].path : nil })
         if selected != model.selection {
             model.selection = selected
@@ -213,15 +213,17 @@ extension ArchiveEntryTableHost: NSTableViewDataSource, NSTableViewDelegate {
 
     // v127（ArcZip P0）：每行一个文件承诺；拖选中行 → 系统自动带上全部选中行 = 多选拖出
     func tableView(_ tableView: NSTableView, pasteboardWriterForRow row: Int) -> NSPasteboardWriting? {
-        guard let model, row < model.visibleEntries.count else { return nil }
+        guard let model, row < entries.count else { return nil }
         return ArchiveFilePromiseDelegate.makeProvider(archiveURL: model.url,
-                                                       entry: model.visibleEntries[row])
+                                                       entry: entries[row])
     }
 }
 
 // MARK: - 行视图（图标 + 加密锁 + 名字 + 辅助标 + 大小 + 压缩率）
 
 final class ArchiveEntryRowView: NSView {
+
+    static let reuseID = NSUserInterfaceItemIdentifier("ArchiveEntryRow")
 
     // v129（内存）：lock/unsafe 两个 SF Symbol 静态缓存——每行 init 都新建
     // NSImage(systemSymbolName:)（滚动/reload 时 N 行 ×2 次符号解码，
@@ -244,32 +246,26 @@ final class ArchiveEntryRowView: NSView {
         super.init(frame: .zero)
 
         iconView.imageScaling = .scaleProportionallyUpOrDown
-        iconView.image = ArchiveFileIcon.icon(for: entry)
+        iconView.image = ArchiveFileIcon.icon(for: entry.name, isDirectory: entry.isDirectory)
 
         lockView.image = Self.lockIcon
         lockView.contentTintColor = .systemOrange
-        lockView.isHidden = !entry.isEncrypted
 
         unsafeView.image = Self.unsafeIcon
         unsafeView.contentTintColor = .systemOrange
-        unsafeView.isHidden = !entry.isUnsafe
         unsafeView.toolTip = "路径不安全（../ 穿越 / 绝对路径 / 设备名）。穿越与绝对路径解压时拦截跳过，设备名仅警告（v127.1）"
 
-        nameLabel.stringValue = entry.path
         nameLabel.font = .systemFont(ofSize: 11)
         nameLabel.lineBreakMode = .byTruncatingMiddle
         nameLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
         auxLabel.font = .systemFont(ofSize: 8)
         auxLabel.textColor = .tertiaryLabelColor
-        auxLabel.isHidden = !ArchiveCore.isAuxiliary(entry.path)
 
-        sizeLabel.stringValue = entry.sizeText
         sizeLabel.font = .monospacedDigitSystemFont(ofSize: 10, weight: .regular)
         sizeLabel.textColor = .secondaryLabelColor
         sizeLabel.alignment = .right
 
-        ratioLabel.stringValue = entry.ratioText
         ratioLabel.font = .monospacedDigitSystemFont(ofSize: 10, weight: .regular)
         ratioLabel.textColor = .tertiaryLabelColor
         ratioLabel.alignment = .right
@@ -295,6 +291,17 @@ final class ArchiveEntryRowView: NSView {
             sizeLabel.widthAnchor.constraint(equalToConstant: 64),
             ratioLabel.widthAnchor.constraint(equalToConstant: 48)
         ])
+        update(entry: entry)
+    }
+
+    func update(entry: ArchiveEntry) {
+        iconView.image = ArchiveFileIcon.icon(for: entry.name, isDirectory: entry.isDirectory)
+        lockView.isHidden = !entry.isEncrypted
+        unsafeView.isHidden = !entry.isUnsafe
+        nameLabel.stringValue = entry.path
+        auxLabel.isHidden = !ArchiveCore.isAuxiliary(entry.path)
+        sizeLabel.stringValue = entry.sizeText
+        ratioLabel.stringValue = entry.ratioText
     }
 
     required init?(coder: NSCoder) {

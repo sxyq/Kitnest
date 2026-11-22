@@ -19,7 +19,12 @@ public extension Preferences.Keys {
 /// 过滤枚举 case 序 = 原作反射串序（0xaed3c0）：all, text, image, link, file, code, color, generated, note。
 /// 与重建差异：删 .richtext（并入 text 检索）；.url 更名 .link；新增 .code / .color / .generated。
 public enum ClipboardFilterKind: String, CaseIterable, Identifiable, Sendable {
-    case all, text, image, link, file, pdf, media, code, color, generated, note
+    case all, text, image, link, file, pdf, media, code, color, generated, note, favorite
+
+    /// 内容分类与收藏分组分开呈现；收藏仍保留为独立查询条件。
+    public static var contentCases: [ClipboardFilterKind] {
+        allCases.filter { $0 != .favorite }
+    }
 
     public var id: String { rawValue }
 
@@ -37,23 +42,8 @@ public enum ClipboardFilterKind: String, CaseIterable, Identifiable, Sendable {
         case .code: return "代码"
         case .color: return "颜色"
         case .generated: return "工具生成"
-        case .note: return "笔记"
-        }
-    }
-
-    public var systemImage: String {
-        switch self {
-        case .all: return "tray.full"
-        case .text: return "doc.plaintext"
-        case .image: return "photo"
-        case .link: return "link"
-        case .file: return "doc"
-        case .pdf: return "doc.richtext"
-        case .media: return "play.rectangle"
-        case .code: return "chevron.left.forwardslash.chevron.right"
-        case .color: return "paintpalette"
-        case .generated: return "wand.and.stars"
-        case .note: return "note.text"
+        case .note: return "已存"
+        case .favorite: return "收藏"
         }
     }
 
@@ -80,6 +70,7 @@ public enum ClipboardFilterKind: String, CaseIterable, Identifiable, Sendable {
         case .color:     return (nil, false, true, "colorpicker", false, 0)
         case .generated: return (nil, false, true, nil, false, 0)
         case .note:      return (nil, true, false, nil, false, 0)
+        case .favorite:  return (nil, false, false, nil, false, 0)
         }
     }
 
@@ -98,6 +89,7 @@ public enum ClipboardFilterKind: String, CaseIterable, Identifiable, Sendable {
         case .color: return item.sourceToolKeyword == "colorpicker"
         case .generated: return item.isGeneratedByTool
         case .note: return item.isNote
+        case .favorite: return item.isFavorite
         }
     }
 }
@@ -114,6 +106,9 @@ public final class ClipboardManager: ObservableObject {
 
     /// 条目变化时广播（浮动窗等非 SwiftUI 消费者使用）
     public static let itemsDidChangeNotification = Notification.Name("FrsetNext.Clipboard.itemsDidChange")
+
+    /// 剪贴板捕获到文件 URL（2026-10-20：文件中转据此自动暂存；AppBootstrap 接线）
+    public static let filesCapturedNotification = Notification.Name("FrsetNext.Clipboard.filesCaptured")
 
     // MARK: 常量
 
@@ -148,15 +143,14 @@ public final class ClipboardManager: ObservableObject {
     /// 主列表是否位于顶部（首条目未滚出；specs/14 Q④ ClipboardListTopScrollTracker 回写）
     @Published public private(set) var isMainListAtTop: Bool = true
 
-    /// 首条目滚出状态变化广播（mainClipboardFirstItemScrolledOutChanged，specs/14 §3.4）
-    public static let mainClipboardFirstItemScrolledOutChanged =
-        Notification.Name("FrsetNext.Clipboard.mainClipboardFirstItemScrolledOutChanged")
-
     private let reader = ClipboardPasteboardReader()
     private let repository = ClipboardRepository.shared
     private let tagStore = TagStore.shared
     private let preferences = Preferences.shared
     private let queue = DispatchQueue(label: "com.frsetnext.clipboard.persist", qos: .utility)
+    private let reloadStateLock = NSLock()
+    private var reloadGeneration = 0
+    private var tagChangeObserver: NSObjectProtocol?
 
     // 捕获管线状态（ivar 面对齐原作 ClipboardManager 81 ivar 中的捕获族，specs/14 §3.1）
     private var pollTimer: Timer?
@@ -169,8 +163,17 @@ public final class ClipboardManager: ObservableObject {
     private var lastSelfWriteExpiresAt: Date = .distantPast
     private var currentPage: Int = 0
     private var isIngesting = false
+    private var isReloadPending = false
 
-    private init() {}
+    private init() {
+        tagChangeObserver = NotificationCenter.default.addObserver(
+            forName: TagStore.didChangeNotification, object: nil, queue: .main
+        ) { [weak self] note in self?.applyTagChange(note) }
+    }
+
+    deinit {
+        if let tagChangeObserver { NotificationCenter.default.removeObserver(tagChangeObserver) }
+    }
 
     // MARK: 启停
 
@@ -264,7 +267,7 @@ public final class ClipboardManager: ObservableObject {
         poll()
     }
 
-    private func poll() {
+    private func poll(forceRead: Bool = false, retryOnReadFailure: Bool = true) {
         // v128（内存优化）：外层包 autoreleasepool，防 0.5s 突发轮询下
         // NSPasteboard 读取产生的 NSString/NSData autorelease 对象堆积
         autoreleasepool {
@@ -275,7 +278,7 @@ public final class ClipboardManager: ObservableObject {
                 scheduleRetry()
                 return
             }
-            guard first != lastChangeCount else { return }
+            guard first != lastChangeCount || forceRead else { return }
             // 暂停记录：只同步 changeCount，不 ingest（恢复后不回补暂停期间内容）
             guard !isRecordingPaused else {
                 lastChangeCount = first
@@ -292,17 +295,22 @@ public final class ClipboardManager: ObservableObject {
                 return
             }
             lastChangeCount = first
-            ingest()
+            readAndIngest(retryOnFailure: retryOnReadFailure)
         }
     }
 
     /// 读取失败重试：一次性 Timer（repeats=false），间隔 ≥0.5s，.common 模式（specs/14 F2 @0x1000ec8b8）
-    private func scheduleRetry() {
-        guard retryTimer == nil else { return }
+    private func scheduleRetry(forceRead: Bool = false) {
+        if retryTimer != nil {
+            guard forceRead else { return }
+            retryTimer?.invalidate()
+            retryTimer = nil
+        }
         let interval = max(Self.retryIntervalFloor, currentPollingInterval)
         let timer = Timer(timeInterval: interval, repeats: false) { [weak self] _ in
             self?.retryTimer = nil
-            self?.poll()
+            if forceRead { self?.poll(forceRead: true, retryOnReadFailure: false) }
+            else { self?.poll() }
         }
         RunLoop.main.add(timer, forMode: .common)
         retryTimer = timer
@@ -311,14 +319,12 @@ public final class ClipboardManager: ObservableObject {
 
     // MARK: 捕获管线
 
-    /// 读取一次粘贴板并入库（含去重）。isIngesting 串行保护避免重入；
-    /// 捕获成功进入 0.5s 突发（持续 2.0s 窗口，specs/14 F1）
-    public func ingest() {
+    private func readAndIngest(retryOnFailure: Bool) {
         guard !isIngesting else { return }
         isIngesting = true
         defer { isIngesting = false }
         guard let result = reader.read() else {
-            scheduleRetry()
+            if retryOnFailure { scheduleRetry(forceRead: true) }
             return
         }
         guard !result.isEmpty else { return }
@@ -330,15 +336,11 @@ public final class ClipboardManager: ObservableObject {
             return
         }
         burstUntil = Date().addingTimeInterval(Self.burstDuration)
-        currentPollingInterval = Self.burstPollingInterval
-        persist(result)
-    }
-
-    private func persist(_ result: ClipboardReadResult) {
-        queue.async { [weak self] in
-            guard let self else { return }
-            self.writeToDatabase(result)
+        if currentPollingInterval != Self.burstPollingInterval {
+            currentPollingInterval = Self.burstPollingInterval
+            schedulePoll(interval: Self.burstPollingInterval)
         }
+        insert(result)
     }
 
     /// 在持久化串行队列上执行：落盘 + 去重判定 + 入库
@@ -355,6 +357,7 @@ public final class ClipboardManager: ObservableObject {
                 repository.touch(dedupeKey: key)
                 Log.debug("clipboard", "去重置顶：\(key.prefix(24))")
                 scheduleReloadCoalesced()
+                if result.type == .file { Self.scheduleAutoStage(result.fileURLs) }
                 return
             }
 
@@ -366,39 +369,24 @@ public final class ClipboardManager: ObservableObject {
             var lineCount: Int?
             var content = result.content
             // storage_bytes 口径：**实际落盘产物 + 数据库内联内容**，与 ClipboardStorageUsageProvider 的磁盘口径一致。
-            // 注意不要用 result.approximateBytes 起步再叠加落盘字节，否则同一份内容会被计两次。
             var fileBytes = 0
 
             switch result.type {
             case .image:
-                if let data = result.imageData, let stored = ClipboardImageStorage.store(imageData: data) {
-                    imagePath = stored.imagePath
-                    thumbnailPath = stored.thumbnailPath
-                    fileBytes += stored.byteCount
-                    fileBytes += ClipboardFileStore.fileSize(stored.thumbnailPath)
-                } else {
-                    fileBytes += result.approximateBytes
-                }
+                guard let data = result.imageData,
+                      let stored = ClipboardImageStorage.store(imageData: data) else { return }
+                imagePath = stored.imagePath
+                thumbnailPath = stored.thumbnailPath
+                fileBytes += stored.byteCount
+                fileBytes += ClipboardFileStore.fileSize(stored.thumbnailPath)
             case .richtext:
                 if let rtf = result.richTextData {
                     richTextPath = ClipboardRichTextStorage.write(rtf)
                     fileBytes += rtf.count
                 }
-                // 富文本正文同样受长文本阈值约束：索引/搜素用 content，全量用 rich_text_path
-                // v126（性能审计 F0605）：utf16 长度外提一次（原分支内 NSString 桥接算两遍）
-                if let text = result.content {
-                    let utf16Len = (text as NSString).length
-                    if utf16Len > Self.inlineTextByteLimit, let stored = ClipboardTextStorage.write(text) {
-                        textPath = stored.path
-                        charCount = utf16Len
-                        lineCount = text.lineCount
-                        fileBytes += stored.bytes
-                        content = String(text.prefix(Self.inlinePreviewLength))
-                    }
-                }
-                fileBytes += (content ?? "").utf8.count
+                fallthrough
             case .file, .text, .url:
-                // v126（性能审计 F0605）：utf16 长度外提一次（同上）
+                // 富文本与其他文本共用正文落盘、预览截取和字节计量。
                 if let text = result.content {
                     let utf16Len = (text as NSString).length
                     if utf16Len > Self.inlineTextByteLimit, let stored = ClipboardTextStorage.write(text) {
@@ -437,8 +425,16 @@ public final class ClipboardManager: ObservableObject {
                 Log.debug("clipboard", "入库 [\(result.type.rawValue)] \(key.prefix(24))")
                 // 图片条目：有 OCR 能力时后台补识别文本（无能力则静默跳过）
                 if result.type == .image, let data = result.imageData { scheduleOCR(dedupeKey: key, imageData: data) }
+                // 文件条目（zip / Word / PPT / Excel 等）：自动暂存进「文件中转」（硬链接，不复制数据）
+                if result.type == .file, !result.fileURLs.isEmpty {
+                    Self.scheduleAutoStage(result.fileURLs)
+                }
             } else {
                 // INSERT 失败且行已存在（并发窗口）→ 退化为置顶
+                ClipboardFileStore.remove(imagePath)
+                ClipboardFileStore.remove(thumbnailPath)
+                ClipboardFileStore.remove(richTextPath)
+                ClipboardTextStorage.remove(textPath)
                 repository.touch(dedupeKey: key)
             }
             scheduleReloadCoalesced()
@@ -464,7 +460,7 @@ public final class ClipboardManager: ObservableObject {
             self.reloadGate.lock()
             self.reloadPending = false
             self.reloadGate.unlock()
-            self.reload(reset: true)
+            self.reload(reset: false)
         }
     }
 
@@ -473,24 +469,12 @@ public final class ClipboardManager: ObservableObject {
         let atTop = !scrolledOut
         guard isMainListAtTop != atTop else { return }
         isMainListAtTop = atTop
-        NotificationCenter.default.post(name: Self.mainClipboardFirstItemScrolledOutChanged, object: nil)
     }
 
     /// 当前过滤态下的标准查询条件
     private func makeQuery(limit: Int) -> ClipboardQuery {
-        let mapping = filter.queryMapping
-        return ClipboardQuery(search: searchText,
-                              type: mapping.type,
-                              noteOnly: mapping.noteOnly,
-                              toolGeneratedOnly: mapping.toolGeneratedOnly,
-                              generatedSourceKeyword: mapping.generatedSourceKeyword,
-                              codeLikeOnly: mapping.codeLikeOnly,
-                              urlLikeOnly: filter == .link,
-                              fileCategoryMask: mapping.fileCategoryMask,
-                              tagID: tagFilterID,
-                              // v128（内存优化）：limit 钳到驻留上限，SQL 层就只出 800 行
-                              limit: min(limit, Self.maxResidentItems),
-                              offset: 0)
+        ClipboardQuery(filter: filter, search: searchText, tagID: tagFilterID,
+                       limit: min(limit, Self.maxResidentItems), offset: 0)
     }
 
     // MARK: 列表供给
@@ -501,6 +485,11 @@ public final class ClipboardManager: ObservableObject {
         let page = reset ? 0 : currentPage
         var target = makeQuery(limit: Self.pageSize * max(1, page + 1))
         target.offset = 0
+        reloadStateLock.lock()
+        reloadGeneration += 1
+        let generation = reloadGeneration
+        reloadStateLock.unlock()
+        isReloadPending = true
 
         queue.async { [weak self] in
             guard let self else { return }
@@ -508,12 +497,39 @@ public final class ClipboardManager: ObservableObject {
             // ClipboardItem（大量 NSString 桥接），无 run loop 边界不自动 drain
             let fetched = autoreleasepool { self.repository.fetch(target) }
             DispatchQueue.main.async {
+                self.reloadStateLock.lock()
+                let isCurrent = generation == self.reloadGeneration
+                self.reloadStateLock.unlock()
+                guard isCurrent else { return }
+                self.isReloadPending = false
                 // v128（内存优化）：硬上限 800 条，防御性截断（超出丢弃最旧 = DESC 尾部）
                 self.items = Array(fetched.prefix(Self.maxResidentItems))
                 self.currentPage = page
+                self.isLoadingMore = false
                 NotificationCenter.default.post(name: Self.itemsDidChangeNotification, object: nil)
             }
         }
+    }
+
+    private func applyTagChange(_ note: Notification) {
+        guard let info = note.userInfo else { return }
+        if info["mappingReplaced"] as? Bool == true {
+            reload(reset: true)
+            return
+        }
+        let tagID = info["tagID"] as? String
+        if info["removed"] as? Bool == true, tagFilterID == tagID {
+            tagFilterID = nil
+            return
+        }
+        let keys = Set(info["keys"] as? [String] ?? [])
+        guard !keys.isEmpty else { return }
+        var updated = items
+        for index in updated.indices where keys.contains(updated[index].dedupeKey) {
+            updated[index].tagIDs = tagStore.tagIDs(forDedupeKey: updated[index].dedupeKey)
+        }
+        if updated != items { items = updated }
+        if tagFilterID == tagID || isReloadPending || isLoadingMore { reload(reset: false) }
     }
 
     public func loadMoreIfNeeded(currentItem: ClipboardItem) {
@@ -526,11 +542,18 @@ public final class ClipboardManager: ObservableObject {
         isLoadingMore = true
         currentPage += 1
         let target = makeQuery(limit: Self.pageSize * (currentPage + 1))
+        reloadStateLock.lock()
+        let generation = reloadGeneration
+        reloadStateLock.unlock()
         queue.async { [weak self] in
             guard let self else { return }
             // v128（内存优化）：同 reload，fetch 体包 autoreleasepool
             let fetched = autoreleasepool { self.repository.fetch(target) }
             DispatchQueue.main.async {
+                self.reloadStateLock.lock()
+                let isCurrent = generation == self.reloadGeneration
+                self.reloadStateLock.unlock()
+                guard isCurrent else { return }
                 // v128（内存优化）：同上，截断到驻留上限
                 self.items = Array(fetched.prefix(Self.maxResidentItems))
                 self.isLoadingMore = false
@@ -585,28 +608,44 @@ public final class ClipboardManager: ObservableObject {
     @discardableResult
     public func copy(_ item: ClipboardItem, autoPaste: Bool? = nil, asPlainText: Bool = false,
                      successMessage: String? = nil) -> String? {
+        var readFailure: String?
+        let text = item.type == .image && !asPlainText ? ""
+            : fullText(for: item) { readFailure = $0 }
+        let imageData = item.type == .image && !asPlainText
+            ? item.imagePath.flatMap { ClipboardFileStore.read($0) } : nil
+        let richData = item.type == .richtext && !asPlainText
+            ? item.richTextPath.flatMap { ClipboardFileStore.read($0) } : nil
+        let urls = item.type == .file && !asPlainText
+            ? text.split(separator: "\n").map { URL(fileURLWithPath: String($0)) } : []
+        if item.type == .image && !asPlainText && imageData == nil {
+            readFailure = "复制失败：图片原文件不可读取或未能写入剪贴板（\(item.imagePath ?? "无原图路径")）"
+        } else if item.type == .file && !asPlainText && urls.isEmpty {
+            readFailure = "复制失败：未能写入剪贴板内容"
+        }
+        if let readFailure {
+            Toast.show(readFailure, icon: "exclamationmark.triangle", isWarning: true)
+            return readFailure
+        }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
         var didWrite = false
 
         if asPlainText {
-            didWrite = pasteboard.setString(fullText(for: item), forType: .string)
+            didWrite = pasteboard.setString(text, forType: .string)
         } else {
         switch item.type {
         case .image:
-            if let path = item.imagePath, let data = ClipboardFileStore.read(path) {
+            if let path = item.imagePath, let data = imageData {
                 let type: NSPasteboard.PasteboardType = path.hasSuffix(".png") ? .png : .tiff
                 didWrite = pasteboard.setData(data, forType: type)
             }
         case .file:
-            let urls = (item.content ?? "").split(separator: "\n").map { URL(fileURLWithPath: String($0)) }
-            if !urls.isEmpty { didWrite = pasteboard.writeObjects(urls as [NSURL]) }
+            didWrite = pasteboard.writeObjects(urls as [NSURL])
         case .richtext:
-            let richData = item.richTextPath.flatMap { ClipboardFileStore.read($0) }
             if let richData { pasteboard.setData(richData, forType: .rtf) }
-            didWrite = pasteboard.setString(fullText(for: item), forType: .string)
+            didWrite = pasteboard.setString(text, forType: .string)
         case .text, .url:
-            didWrite = pasteboard.setString(fullText(for: item), forType: .string)
+            didWrite = pasteboard.setString(text, forType: .string)
         }
         }
 
@@ -679,7 +718,12 @@ public final class ClipboardManager: ObservableObject {
         guard let path = item.imagePath else { return "图片没有持久化原文件" }
         let url = ClipboardFileStore.url(forRelativePath: path)
         guard FileManager.default.isReadableFile(atPath: url.path) else { return "图片原文件不可读取：\(url.lastPathComponent)" }
-        return copyFiles([url], successMessage: "已复制图片文件")
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        guard pasteboard.writeObjects([url as NSURL]) else { return "复制失败：无法写入文件 URL" }
+        Self.scheduleAutoStage([url])
+        finishCopy(message: "已复制图片文件", event: .historyCopy)
+        return nil
     }
 
     private func finishCopy(message: String, event: AnalyticsEvent) {
@@ -695,6 +739,7 @@ public final class ClipboardManager: ObservableObject {
         lastChangeCount = pasteboard.changeCount
         StatisticsManager.shared.record(event)
         Toast.show(message, icon: "checkmark.circle.fill")
+        HapticFeedback.perform(.copy)
     }
 
     // MARK: 暂缓的通知条场景（spec 13 §4，等依赖能力落地后接）
@@ -713,6 +758,13 @@ public final class ClipboardManager: ObservableObject {
 
     /// 删除条目（含文件回收）
     public func delete(_ item: ClipboardItem) {
+        let alert = NSAlert()
+        alert.messageText = "删除这条剪贴板记录？"
+        alert.informativeText = "将删除记录及 Kitnest 保存的附件。"
+        alert.addButton(withTitle: "删除")
+        alert.addButton(withTitle: "取消")
+        alert.alertStyle = .warning
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
         queue.async { [weak self] in
             guard let self else { return }
             var failure = "记录已不存在"
@@ -723,6 +775,7 @@ public final class ClipboardManager: ObservableObject {
                     return
                 }
                 self.items.removeAll { $0.dedupeKey == item.dedupeKey }
+                FavoritesStore.shared.clipboardRemoved(item.dedupeKey)
                 ServiceLocator.panelPreview?.notifyItemRemoved(itemID: item.id)
                 NotificationCenter.default.post(name: ClipboardManager.itemsDidChangeNotification, object: nil)
             }
@@ -733,12 +786,12 @@ public final class ClipboardManager: ObservableObject {
     public func clearUnsavedHistory(completion: @escaping () -> Void) {
         queue.async {
             do {
-                let pending = try self.repository.unsavedHistory().count
+                let pending = try self.repository.unsavedCount()
                 let saved = try self.repository.savedCount()
                 DispatchQueue.main.async {
                     let alert = NSAlert()
                     alert.messageText = "清除历史，保留已存项目"
-                    alert.informativeText = "将删除 \(pending) 条历史，保留 \(saved) 条已存项目及全部标签。仅回收 Kitnest 私有附件，保留外部原文件。"
+                    alert.informativeText = "将删除 \(pending) 条历史，保留 \(saved) 条已存或收藏的项目及全部标签。仅回收 Kitnest 私有附件，保留外部原文件。"
                     alert.addButton(withTitle: "删除历史")
                     alert.addButton(withTitle: "取消")
                     alert.alertStyle = .warning
@@ -758,7 +811,6 @@ public final class ClipboardManager: ObservableObject {
                         } catch { failures.append(error.localizedDescription) }
                         DispatchQueue.main.async {
                             for id in removedIDs { ServiceLocator.panelPreview?.notifyItemRemoved(itemID: id) }
-                            TagStore.shared.refresh()
                             self.reload(reset: true)
                             let reclaimed = ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
                             Toast.show("已删除 \(removedIDs.count) 条，回收 \(reclaimed)", icon: "trash")
@@ -781,9 +833,13 @@ public final class ClipboardManager: ObservableObject {
         }
     }
 
-    func exportBackup(to url: URL, password: String,
+    func reviewBackupExport(completion: @escaping (Result<[ClipboardBackup.MissingRecord], Error>) -> Void) -> ClipboardBackup.Operation {
+        ClipboardBackup.reviewExport(queue: queue, completion: completion)
+    }
+
+    func exportBackup(to url: URL, password: String, skipping: [ClipboardBackup.MissingRecord],
                              completion: @escaping (Result<String, Error>) -> Void) -> ClipboardBackup.Operation {
-        ClipboardBackup.export(to: url, password: password, queue: queue, completion: completion)
+        ClipboardBackup.export(to: url, password: password, skipping: skipping, queue: queue, completion: completion)
     }
 
     func prepareBackupRestore(from url: URL, password: String,
@@ -796,23 +852,15 @@ public final class ClipboardManager: ObservableObject {
         ClipboardBackup.restore(session, replace: replace, useBackupConflicts: useBackupConflicts, queue: queue) { result in
             if case .success = result {
                 ClipboardOCRTextStorage.invalidateIndex()
-                TagStore.shared.refresh()
+                TagStore.shared.refresh(notifying: true)
                 MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .programmatic)
                 NotificationCenter.default.post(name: .clipboardSelectionChanged, object: nil)
-                self.reload(reset: true)
+                DispatchQueue.main.async {
+                    FavoritesStore.shared.refresh()
+                    NotificationCenter.default.post(name: ClipboardManager.itemsDidChangeNotification, object: nil)
+                }
             }
             completion(result)
-        }
-    }
-
-    /// 重命名（写入 alias_title）
-    public func rename(_ item: ClipboardItem, aliasTitle: String?) {
-        queue.async { [weak self] in
-            let saved = self?.repository.updateAliasTitle(dedupeKey: item.dedupeKey, aliasTitle: aliasTitle)
-            DispatchQueue.main.async {
-                self?.reload(reset: false)
-                if saved == false { Toast.show("重命名失败", icon: "exclamationmark.triangle", isWarning: true) }
-            }
         }
     }
 
@@ -822,7 +870,14 @@ public final class ClipboardManager: ObservableObject {
         queue.async { [weak self] in
             guard let self else { return }
             var savedItem: ClipboardItem?
+            var textPath: String?
+            var richTextPath: String?
+            var didSave = false
             defer {
+                if !didSave {
+                    ClipboardTextStorage.remove(textPath)
+                    ClipboardFileStore.remove(richTextPath)
+                }
                 let result = savedItem
                 DispatchQueue.main.async {
                     self.reload(reset: false)
@@ -831,90 +886,136 @@ public final class ClipboardManager: ObservableObject {
             }
             guard let existing = self.repository.item(dedupeKey: dedupeKey) else { return }
             let length = (newContent as NSString).length
-            // 正文改变才更新 RTF；仅重命名时保留原格式。
-            if let richTextPath = existing.richTextPath, newContent != self.fullText(for: existing) {
+            // 正文改变时将新 RTF 写到独立文件；SQL 成功后再移除旧附件。
+            if existing.richTextPath != nil, newContent != self.fullText(for: existing) {
                 let richText = NSAttributedString(string: newContent)
                 guard let data = richText.rtf(from: NSRange(location: 0, length: richText.length),
-                                             documentAttributes: [:]),
-                      ClipboardFileStore.write(data, toRelativePath: richTextPath) else { return }
+                                             documentAttributes: [:]) else { return }
+                guard let stored = ClipboardRichTextStorage.write(data) else { return }
+                richTextPath = stored
             }
-            let auxiliary = self.auxiliaryBytes(item: existing)
+            let currentRichTextPath = richTextPath ?? existing.richTextPath
+            let auxiliary = ClipboardFileStore.fileSize(existing.imagePath)
+                + ClipboardFileStore.fileSize(existing.thumbnailPath)
+                + ClipboardFileStore.fileSize(currentRichTextPath)
+            var content = newContent
+            var charCount: Int?
+            var lineCount: Int?
             if length > Self.inlineTextByteLimit {
                 guard let stored = ClipboardTextStorage.write(newContent) else { return }
-                let previewBytes = String(newContent.prefix(Self.inlinePreviewLength)).utf8.count
-                guard self.repository.updateContent(dedupeKey: dedupeKey,
-                                              content: String(newContent.prefix(Self.inlinePreviewLength)),
-                                              textPath: stored.path,
-                                              charCount: length,
-                                              lineCount: newContent.lineCount,
-                                              storageBytes: stored.bytes + previewBytes + auxiliary) else {
-                    ClipboardTextStorage.remove(stored.path)
-                    return
-                }
-                if let old = existing.textPath, old != stored.path { ClipboardTextStorage.remove(old) }
-            } else {
-                guard self.repository.updateContent(dedupeKey: dedupeKey,
-                                              content: newContent,
-                                              textPath: nil,
-                                              charCount: nil,
-                                              lineCount: nil,
-                                              storageBytes: newContent.utf8.count + auxiliary) else { return }
-                if let old = existing.textPath { ClipboardTextStorage.remove(old) }
+                textPath = stored.path
+                charCount = length
+                lineCount = newContent.lineCount
+                content = String(newContent.prefix(Self.inlinePreviewLength))
             }
-            if let aliasTitle {
-                guard self.repository.updateAliasTitle(dedupeKey: dedupeKey, aliasTitle: aliasTitle) else { return }
+            let storageBytes = (textPath.map { ClipboardFileStore.fileSize($0) } ?? content.utf8.count) + auxiliary
+            guard self.repository.updateContent(dedupeKey: dedupeKey,
+                                                content: content,
+                                                textPath: textPath,
+                                                richTextPath: currentRichTextPath,
+                                                charCount: charCount,
+                                                lineCount: lineCount,
+                                                storageBytes: storageBytes,
+                                                aliasTitle: aliasTitle) else { return }
+            if let old = existing.textPath { ClipboardTextStorage.remove(old) }
+            if let old = existing.richTextPath, old != currentRichTextPath {
+                ClipboardFileStore.remove(old)
             }
+            didSave = true
             savedItem = self.repository.item(dedupeKey: dedupeKey)
         }
     }
 
-    /// 笔记标记（笔记 = 特殊剪贴板条目，走同一张表）
+    public func toggleFavorite(_ item: ClipboardItem) {
+        queue.async { [weak self] in
+            guard let self else { return }
+            let isFavorite = !(self.repository.item(dedupeKey: item.dedupeKey)?.isFavorite ?? item.isFavorite)
+            let saved = self.repository.updateFavorite(dedupeKey: item.dedupeKey, isFavorite: isFavorite)
+            DispatchQueue.main.async {
+                guard saved else {
+                    Toast.show("收藏状态未保存", icon: "exclamationmark.triangle", isWarning: true)
+                    return
+                }
+                NotificationCenter.default.post(name: Self.itemsDidChangeNotification, object: nil)
+                if self.filter == .favorite {
+                    self.reload(reset: false)
+                    return
+                }
+                var updated = self.items
+                if let index = updated.firstIndex(where: { $0.dedupeKey == item.dedupeKey }) {
+                    updated[index].isFavorite = isFavorite
+                    self.items = updated
+                }
+            }
+        }
+    }
+
+    /// 保留笔记/已存的独立清理与备份语义。
     public func setNote(_ item: ClipboardItem, isNote: Bool) {
         queue.async { [weak self] in
-            self?.repository.updateFields(dedupeKey: item.dedupeKey, note: isNote)
-            DispatchQueue.main.async { self?.reload(reset: false) }
+            guard let self else { return }
+            let saved = self.repository.updateNote(dedupeKey: item.dedupeKey, isNote: isNote)
+            DispatchQueue.main.async {
+                guard saved else { Toast.show("已存状态未保存", icon: "exclamationmark.triangle", isWarning: true); return }
+                NotificationCenter.default.post(name: Self.itemsDidChangeNotification, object: nil)
+                if self.filter == .note && !isNote { self.reload(reset: false) }
+                else if let index = self.items.firstIndex(where: { $0.dedupeKey == item.dedupeKey }) {
+                    var updated = self.items
+                    updated[index].isNote = isNote
+                    self.items = updated
+                }
+            }
         }
     }
 
     /// 工具回流：工具箱产物以 is_generated_by_tool=1 进历史（05 号规格 B10），供 10 号模块复用
-    @discardableResult
-    public func ingestToolOutput(text: String, sourceToolKeyword: String, analyticsId: String? = nil) -> ClipboardItem? {
-        let key = "tool:" + text.sha256
-        if repository.exists(dedupeKey: key) {
-            repository.touch(dedupeKey: key)
-        } else {
-            var content = text
-            var textPath: String? = nil
-            var charCount: Int? = nil
-            var lineCount: Int? = nil
-            var bytes = text.utf8.count
-            if (text as NSString).length > Self.inlineTextByteLimit {
-                guard let stored = ClipboardTextStorage.write(text) else { return nil }
-                textPath = stored.path
-                charCount = (text as NSString).length
-                lineCount = text.lineCount
-                content = String(text.prefix(Self.inlinePreviewLength))
-                bytes = stored.bytes + content.utf8.count
-            }
-            let item = ClipboardItem(type: .text,
-                                     content: content,
-                                     title: text.firstLineBrief,
-                                     subtitle: "工具 · \(sourceToolKeyword)",
-                                     isGeneratedByTool: true,
-                                     sourceToolAnalyticsId: analyticsId,
-                                     sourceToolKeyword: sourceToolKeyword,
-                                     textPath: textPath,
-                                     fullTextCharCount: charCount,
-                                     fullTextLineCount: lineCount,
-                                     storageBytes: bytes,
-                                     dedupeKey: key)
-            guard repository.insert(item) else {
-                ClipboardTextStorage.remove(textPath)
-                return nil
+    public func ingestToolOutput(text: String, sourceToolKeyword: String, analyticsId: String? = nil) async -> ClipboardItem? {
+        await withCheckedContinuation { continuation in
+            queue.async { [weak self] in
+                guard let self else { continuation.resume(returning: nil); return }
+                let key = "tool:" + text.sha256
+                if self.repository.exists(dedupeKey: key) {
+                    self.repository.touch(dedupeKey: key)
+                } else {
+                    var content = text
+                    var textPath: String?
+                    var charCount: Int?
+                    var lineCount: Int?
+                    var bytes = text.utf8.count
+                    if (text as NSString).length > Self.inlineTextByteLimit {
+                        guard let stored = ClipboardTextStorage.write(text) else {
+                            continuation.resume(returning: nil)
+                            return
+                        }
+                        textPath = stored.path
+                        charCount = (text as NSString).length
+                        lineCount = text.lineCount
+                        content = String(text.prefix(Self.inlinePreviewLength))
+                        bytes = stored.bytes + content.utf8.count
+                    }
+                    let item = ClipboardItem(type: .text,
+                                             content: content,
+                                             title: text.firstLineBrief,
+                                             subtitle: "工具 · \(sourceToolKeyword)",
+                                             isGeneratedByTool: true,
+                                             sourceToolAnalyticsId: analyticsId,
+                                             sourceToolKeyword: sourceToolKeyword,
+                                             textPath: textPath,
+                                             fullTextCharCount: charCount,
+                                             fullTextLineCount: lineCount,
+                                             storageBytes: bytes,
+                                             dedupeKey: key)
+                    guard self.repository.insert(item) else {
+                        ClipboardTextStorage.remove(textPath)
+                        continuation.resume(returning: nil)
+                        return
+                    }
+                }
+                let item = self.repository.item(dedupeKey: key)
+                DispatchQueue.main.async { self.reload(reset: true) }
+                continuation.resume(returning: item)
             }
         }
-        reload(reset: true)
-        return repository.item(dedupeKey: key)
     }
 
     // MARK: 跨模块写入（App 总控事件接线：截图 / OCR 等外部产出）
@@ -939,11 +1040,15 @@ public final class ClipboardManager: ObservableObject {
 
     // MARK: 辅助
 
-    /// 图片 / 富文本副文件的字节数（编辑正文时 storage_bytes 要保留这部分）
-    private func auxiliaryBytes(item: ClipboardItem) -> Int {
-        ClipboardFileStore.fileSize(item.imagePath)
-            + ClipboardFileStore.fileSize(item.thumbnailPath)
-            + ClipboardFileStore.fileSize(item.richTextPath)
+    /// 剪贴板文件自动暂存：文件与文件夹复制后同步到「文件中转」。
+    /// 模块间不直接引用（契约 §1.3）：这里只发通知，由 AppBootstrap 接到 LocalTransferStore。
+    private static func scheduleAutoStage(_ urls: [URL]) {
+        DispatchQueue.main.async {
+            NotificationCenter.default.post(
+                name: ClipboardManager.filesCapturedNotification,
+                object: nil,
+                userInfo: ["urls": urls])
+        }
     }
 
     /// 图片自动 OCR 静默处理；空结果和失败保留图片，不打断用户操作。

@@ -1,427 +1,131 @@
 #!/usr/bin/env python3
-"""把用户手册 Markdown 生成官网在线版（FRONT/manual/index.html）。
-
-为什么要有这个页面：手册里的演示 GIF 只在文档目录里，装了 DMG 的人看不到，
-没装 App 的人更看不到。在线版是「别人怎么读」的答案——一个链接就能看全 37 章。
-
-用法：
-    python3 tools/make_manual_site.py            # 生成 + 把 gifs 链进 FRONT/manual/gifs
-    python3 tools/make_manual_site.py --no-gifs  # 只生成 html（gifs 已就位时）
-
-设计约束：
-  · 单文件 HTML，不依赖构建工具与 CDN；
-  · 图片走 loading="lazy"，37 段 GIF 合计 38 MB，首屏只加载看得见的那几张；
-  · 侧栏目录 + 滚动高亮 + 正文搜索，键盘 / 手机都能用；
-  · 配色与官网 assets/site.css 同一套变量，视觉不割裂。
-"""
-
+"""应用与网页共用每功能一篇的指南、步骤和预设画面。"""
 from __future__ import annotations
 
-import argparse
 import html
-import os
+import base64
+import json
 import re
-import shutil
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SRC = ROOT / "apps/FrsetNext/Resources/Manual/用户手册.md"
-GIFS = ROOT / "docs/40-审计与核对/性能审计/gifs"
-OUT_DIR = ROOT / "FRONT/manual"
+SOURCE = ROOT / "apps/FrsetNext/Resources/Manual/Guides"
+OUTPUT = ROOT / "FRONT/manual/index.html"
+GROUPS = {"01": "开始使用", "02": "剪贴板", "03": "截图与录屏", "04": "截图与录屏",
+          "05": "电脑状态", "06": "文件与压缩", "07": "搜索与 AI", "08": "工具箱", "09": "日常与设置"}
+ORDER = ["开始使用", "剪贴板", "截图与录屏", "文件与压缩", "搜索与 AI", "工具箱", "电脑状态", "日常与设置"]
 
-
-# ---------------------------------------------------------------- 行内标记
 
 def inline(text: str) -> str:
-    """行内 Markdown → HTML。先转义，再按顺序还原标记。"""
-    s = html.escape(text, quote=False)
-    # 行内代码优先：先摘出来，避免里面的 * _ 被当成强调
-    spans: list[str] = []
-
-    def stash(m: re.Match) -> str:
-        spans.append("<code>" + m.group(1) + "</code>")
-        return f"\x00{len(spans) - 1}\x00"
-
-    s = re.sub(r"`([^`]+)`", stash, s)
-    s = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
-    s = re.sub(r"(?<!\*)\*([^*]+)\*(?!\*)", r"<em>\1</em>", s)
-    s = re.sub(r"\[([^\]]+)\]\(([^)\s]+)\)", r'<a href="\2">\1</a>', s)
-    s = re.sub(r"(?<![\"'>])(https?://[^\s<)]+)", r'<a href="\1">\1</a>', s)
-
-    def pop(m: re.Match) -> str:
-        return spans[int(m.group(1))]
-
-    return re.sub(r"\x00(\d+)\x00", pop, s)
+    """保留正文强调和普通链接。"""
+    text = html.escape(text)
+    text = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", text)
+    text = re.sub(r"`([^`]+)`", r"<code>\1</code>", text)
+    return re.sub(r"\[([^\]]+)\]\((https?://[^)]+)\)", r'<a href="\2">\1</a>', text)
 
 
-# ---------------------------------------------------------------- 块级解析
-
-def slugify(text: str, seen: dict[str, int]) -> str:
-    """中文标题做锚点：保留中文（浏览器能处理），去掉标点与空白。"""
-    s = re.sub(r"[`*_\[\]()（）「」【】]", "", text)
-    s = re.sub(r"[^\w\u4e00-\u9fff-]+", "-", s).strip("-").lower()
-    s = s or "sec"
-    n = seen.get(s, 0)
-    seen[s] = n + 1
-    return s if n == 0 else f"{s}-{n}"
-
-
-def parse(md: str) -> tuple[str, list[dict], list[dict]]:
-    """返回 (文档标题, 章节列表, 正文 HTML 片段列表)。"""
-    lines = md.splitlines()
-    title = "Kitnest 用户手册"
-    chapters: list[dict] = []
-    body: list[str] = []
-    seen: dict[str, int] = {}
-
-    i, n = 0, len(lines)
-    current_chapter: dict | None = None
-
-    while i < n:
-        raw = lines[i]
-        line = raw.rstrip()
-        stripped = line.strip()
-
-        # 代码块
-        if stripped.startswith("```"):
-            i += 1
-            buf = []
-            while i < n and not lines[i].strip().startswith("```"):
-                buf.append(lines[i])
-                i += 1
-            i += 1
-            body.append("<pre><code>" + html.escape("\n".join(buf)) + "</code></pre>")
+def article(path: Path) -> dict:
+    """读取一篇文章和与编号步骤一一对应的演示画面。"""
+    text = path.read_text(encoding="utf-8")
+    title = re.search(r"^# (.+)$", text, re.M).group(1)
+    category = re.search(r"<!-- category: (.*?) -->", text).group(1)
+    scene = re.search(r"<!-- scene: (.*?) -->", text).group(1)
+    frames = [json.loads(frame) for frame in re.findall(r"<!-- frame: (.*?) -->", text)]
+    blocks, steps = [], []
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith(("# ", "<!--")):
             continue
-
-        # 分隔线
-        if re.fullmatch(r"-{3,}|\*{3,}", stripped):
-            body.append("<hr>")
-            i += 1
-            continue
-
-        # 标题
-        m = re.match(r"^(#{1,4})\s+(.*)$", stripped)
-        if m:
-            level, text = len(m.group(1)), m.group(2).strip()
-            if level == 1 and i < 3:
-                title = text
-                i += 1
-                continue
-            sid = slugify(text, seen)
-            if level == 2:
-                current_chapter = {"id": sid, "title": text}
-                chapters.append(current_chapter)
-                body.append(f'<h2 id="{sid}">{inline(text)}</h2>')
-            else:
-                body.append(f'<h{level} id="{sid}">{inline(text)}</h{level}>')
-            i += 1
-            continue
-
-        # 表格：连续以 | 开头的行
-        if stripped.startswith("|") and i + 1 < n and re.match(r"^\|[\s:|-]+\|?$", lines[i + 1].strip()):
-            rows: list[list[str]] = []
-            while i < n and lines[i].strip().startswith("|"):
-                cells = [c.strip() for c in lines[i].strip().strip("|").split("|")]
-                rows.append(cells)
-                i += 1
-            head, *rest = rows
-            rest = [r for r in rest if not re.match(r"^[\s:|-]+$", "".join(r))]
-            out = ['<div class="table-wrap"><table><thead><tr>']
-            out += [f"<th>{inline(c)}</th>" for c in head]
-            out.append("</tr></thead><tbody>")
-            for r in rest:
-                out.append("<tr>" + "".join(f"<td>{inline(c)}</td>" for c in r) + "</tr>")
-            out.append("</tbody></table></div>")
-            body.append("".join(out))
-            continue
-
-        # 引用（连续多行合并）
-        if stripped.startswith(">"):
-            buf = []
-            while i < n and lines[i].strip().startswith(">"):
-                buf.append(lines[i].strip()[1:].strip())
-                i += 1
-            body.append("<blockquote>" + inline(" ".join(buf)) + "</blockquote>")
-            continue
-
-        # 图片单独成行
-        m = re.fullmatch(r"!\[([^\]]*)\]\(([^)]+)\)", stripped)
-        if m:
-            alt, src = m.group(1), m.group(2)
-            body.append(
-                f'<figure><img src="{html.escape(src)}" alt="{html.escape(alt)}" loading="lazy" '
-                f'decoding="async"><figcaption>{inline(alt)}</figcaption></figure>'
-            )
-            i += 1
-            continue
-
-        # 无序列表
-        if re.match(r"^[-*]\s+", stripped):
-            items = []
-            while i < n and re.match(r"^[-*]\s+", lines[i].strip()):
-                items.append(re.sub(r"^[-*]\s+", "", lines[i].strip()))
-                i += 1
-            body.append("<ul>" + "".join(f"<li>{inline(t)}</li>" for t in items) + "</ul>")
-            continue
-
-        # 有序列表
-        if re.match(r"^\d+[.)]\s+", stripped):
-            items = []
-            while i < n and re.match(r"^\d+[.)]\s+", lines[i].strip()):
-                items.append(re.sub(r"^\d+[.)]\s+", "", lines[i].strip()))
-                i += 1
-            body.append("<ol>" + "".join(f"<li>{inline(t)}</li>" for t in items) + "</ol>")
-            continue
-
-        # 空行
-        if not stripped:
-            i += 1
-            continue
-
-        # 段落：连续非空行合并
-        buf = []
-        while i < n:
-            s2 = lines[i].strip()
-            if (not s2 or s2.startswith(("#", ">", "|", "```"))
-                    or re.match(r"^[-*]\s+", s2) or re.match(r"^\d+[.)]\s+", s2)
-                    or re.fullmatch(r"!\[([^\]]*)\]\(([^)]+)\)", s2)):
-                break
-            buf.append(s2)
-            i += 1
-        if buf:
-            body.append("<p>" + inline(" ".join(buf)) + "</p>")
-
-    return title, chapters, body
+        ordered = re.match(r"\d+[.、)]\s+(.+)", line)
+        if ordered:
+            if not steps:
+                blocks.append("__DEMO__")
+            steps.append(ordered.group(1))
+        elif line.startswith("## "):
+            blocks.append(f"<h2>{inline(line[3:])}</h2>")
+        elif line.startswith("- "):
+            blocks.append(f"<p>• {inline(line[2:])}</p>")
+        elif line.startswith("> "):
+            blocks.append(f"<blockquote>{inline(line[2:])}</blockquote>")
+        else:
+            blocks.append(f"<p>{inline(line)}</p>")
+    return dict(id=path.stem, title=title, category=GROUPS[category[:2]], steps=steps, scene=scene,
+                frames=frames, body="\n".join(blocks), text=title + " " + " ".join(blocks) + " ".join(steps))
 
 
-# ---------------------------------------------------------------- 页面模板
-
-PAGE = """<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#ffffff">
-<title>{title} · Kitnest</title>
-<meta name="description" content="Kitnest Lite 用户手册在线版：{nchap} 章，每章一段真机录屏动图。">
-<link rel="icon" type="image/svg+xml" href="../assets/kitnest-mark.svg">
-<style>
-:root {{
-  --bg:#FFFFFF; --bg-soft:#FAFAFB; --bg-mute:#F4F4F6;
-  --ink:#0B0B0D; --ink-2:#4A4A52; --ink-3:#8A8A94;
-  --line:#EAEAEE; --line-strong:#DCDCE2;
-  --accent:#2F6BFF; --accent-deep:#1E52D6; --accent-soft:#EEF3FF;
-  --radius:12px; --radius-sm:8px;
-  --sans:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC","HarmonyOS Sans SC","MiSans","Microsoft YaHei","Segoe UI",system-ui,sans-serif;
-  --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
-}}
-*{{box-sizing:border-box;margin:0;padding:0}}
-html{{scroll-behavior:smooth;-webkit-text-size-adjust:100%;scroll-padding-top:76px}}
-body{{font-family:var(--sans);background:var(--bg);color:var(--ink);line-height:1.75;font-size:15.5px;-webkit-font-smoothing:antialiased}}
-
-.top{{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.86);backdrop-filter:saturate(180%) blur(14px);border-bottom:1px solid var(--line)}}
-.top-in{{max-width:1240px;margin:0 auto;padding:11px 22px;display:flex;align-items:center;gap:14px}}
-.brand{{display:flex;align-items:center;gap:8px;font-weight:640;letter-spacing:-.01em;color:var(--ink);text-decoration:none;font-size:15px}}
-.brand img{{width:20px;height:20px}}
-.brand small{{font-weight:450;color:var(--ink-3);font-size:12px;margin-left:2px}}
-.spacer{{flex:1}}
-.search{{display:flex;align-items:center;gap:7px;background:var(--bg-mute);border:1px solid var(--line);border-radius:9px;padding:6px 11px;min-width:220px}}
-.search input{{border:0;background:transparent;outline:0;font:inherit;font-size:13px;width:100%;color:var(--ink)}}
-.search svg{{flex:none;opacity:.45}}
-.back{{font-size:13px;color:var(--ink-2);text-decoration:none;padding:5px 10px;border-radius:8px}}
-.back:hover{{background:var(--bg-mute);color:var(--ink)}}
-
-.layout{{max-width:1240px;margin:0 auto;padding:0 22px;display:grid;grid-template-columns:250px minmax(0,1fr);gap:40px;align-items:start}}
-aside{{position:sticky;top:69px;max-height:calc(100vh - 90px);overflow:auto;padding:24px 0 60px;font-size:13px;scrollbar-width:thin}}
-aside::-webkit-scrollbar{{width:6px}}
-aside::-webkit-scrollbar-thumb{{background:var(--line-strong);border-radius:3px}}
-.toc-label{{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);padding:0 10px 8px;font-weight:600}}
-aside a{{display:block;padding:5px 10px;border-radius:7px;color:var(--ink-2);text-decoration:none;border-left:2px solid transparent;line-height:1.45}}
-aside a:hover{{background:var(--bg-soft);color:var(--ink)}}
-aside a.on{{background:var(--accent-soft);color:var(--accent-deep);border-left-color:var(--accent);font-weight:550}}
-aside a.hide{{display:none}}
-
-main{{padding:30px 0 120px;max-width:820px}}
-main h1{{font-size:32px;line-height:1.25;letter-spacing:-.02em;margin:8px 0 18px;font-weight:680}}
-main h2{{font-size:23px;line-height:1.3;letter-spacing:-.015em;margin:56px 0 16px;padding-top:14px;border-top:1px solid var(--line);font-weight:660}}
-main h2:first-of-type{{margin-top:24px}}
-main h3{{font-size:17px;margin:30px 0 10px;font-weight:640;letter-spacing:-.01em}}
-main h4{{font-size:14.5px;margin:22px 0 8px;font-weight:640;color:var(--ink-2)}}
-main p{{margin:11px 0;color:var(--ink-2)}}
-main strong{{color:var(--ink);font-weight:620}}
-main ul,main ol{{margin:11px 0 11px 22px;color:var(--ink-2)}}
-main li{{margin:5px 0}}
-main hr{{border:0;border-top:1px solid var(--line);margin:34px 0}}
-main a{{color:var(--accent);text-decoration:none;border-bottom:1px solid rgba(47,107,255,.25)}}
-main a:hover{{border-bottom-color:var(--accent)}}
-code{{font-family:var(--mono);font-size:.88em;background:var(--bg-mute);padding:1.5px 5px;border-radius:5px;color:#2A2A32}}
-pre{{background:var(--bg-soft);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;overflow:auto;margin:14px 0}}
-pre code{{background:transparent;padding:0;font-size:12.5px;line-height:1.6}}
-blockquote{{border-left:2px solid var(--line-strong);padding:2px 0 2px 14px;margin:14px 0;color:var(--ink-2);font-size:14.5px}}
-blockquote code{{font-size:.9em}}
-
-.table-wrap{{overflow-x:auto;margin:16px 0;border:1px solid var(--line);border-radius:var(--radius)}}
-table{{border-collapse:collapse;width:100%;font-size:13.5px;min-width:460px}}
-th,td{{text-align:left;padding:9px 13px;border-bottom:1px solid var(--line);vertical-align:top}}
-th{{background:var(--bg-soft);font-weight:620;color:var(--ink);white-space:nowrap;font-size:12.5px}}
-tr:last-child td{{border-bottom:0}}
-td{{color:var(--ink-2)}}
-
-figure{{margin:18px 0 22px}}
-figure img{{width:100%;max-width:760px;border-radius:var(--radius);border:1px solid var(--line);display:block;cursor:zoom-in;background:var(--bg-mute)}}
-figcaption{{font-size:12.5px;color:var(--ink-3);margin-top:8px;line-height:1.6}}
-
-.empty{{color:var(--ink-3);padding:40px 0}}
-
-.lightbox{{position:fixed;inset:0;background:rgba(11,11,13,.82);display:none;align-items:center;justify-content:center;z-index:80;padding:30px;cursor:zoom-out}}
-.lightbox.on{{display:flex}}
-.lightbox img{{max-width:96vw;max-height:92vh;border-radius:8px;box-shadow:0 30px 80px rgba(0,0,0,.4)}}
-
-@media (max-width:900px){{
-  .layout{{grid-template-columns:1fr;gap:0}}
-  aside{{position:static;max-height:none;border-bottom:1px solid var(--line);padding:14px 0;margin-bottom:8px}}
-  aside .toc-list{{display:flex;flex-wrap:wrap;gap:4px}}
-  aside a{{border-left:0;padding:4px 9px;font-size:12.5px;border:1px solid var(--line)}}
-  aside a.on{{border-color:var(--accent)}}
-  main{{padding-top:18px}}
-  main h1{{font-size:25px}}
-  main h2{{font-size:19px;margin-top:38px}}
-  .search{{min-width:0;flex:1}}
-  .brand small{{display:none}}
-}}
-</style>
-</head>
-<body>
-
-<header class="top">
-  <div class="top-in">
-    <a class="brand" href="../"><img src="../assets/kitnest-mark.svg" alt="">Kitnest Lite<small>用户手册</small></a>
-    <div class="spacer"></div>
-    <label class="search">
-      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-      <input id="q" type="search" placeholder="搜索章节…" autocomplete="off">
-    </label>
-    <a class="back" href="../">返回官网</a>
-  </div>
-</header>
-
-<div class="layout">
-  <aside>
-    <div class="toc-label">{nchap} 章 · 点标题跳转</div>
-    <div class="toc-list" id="toc">
-{toc}
-    </div>
-  </aside>
-  <main id="doc">
-{body}
-  </main>
-</div>
-
-<div class="lightbox" id="lb"><img alt=""></div>
-
-<script>
-(function () {{
-  var links = Array.prototype.slice.call(document.querySelectorAll('#toc a'));
-  var heads = links.map(function (a) {{ return document.getElementById(a.dataset.target); }});
-  var q = document.getElementById('q');
-
-  // 滚动高亮：取最后一个越过阈值线的标题
-  function spy() {{
-    var y = window.scrollY + 110, idx = 0;
-    for (var i = 0; i < heads.length; i++) {{
-      if (heads[i] && heads[i].offsetTop <= y) idx = i;
-    }}
-    links.forEach(function (a, i) {{ a.classList.toggle('on', i === idx); }});
-  }}
-  var tick = false;
-  window.addEventListener('scroll', function () {{
-    if (tick) return;
-    tick = true;
-    requestAnimationFrame(function () {{ spy(); tick = false; }});
-  }}, {{ passive: true }});
-  spy();
-
-  // 搜索：按标题过滤；有命中的章节保留
-  q.addEventListener('input', function () {{
-    var v = q.value.trim().toLowerCase();
-    links.forEach(function (a) {{
-      a.classList.toggle('hide', v && a.textContent.toLowerCase().indexOf(v) < 0);
-    }});
-  }});
-
-  // 图片放大
-  var lb = document.getElementById('lb'), lbImg = lb.querySelector('img');
-  document.querySelectorAll('figure img').forEach(function (img) {{
-    img.addEventListener('click', function () {{
-      lbImg.src = img.src;
-      lb.classList.add('on');
-    }});
-  }});
-  lb.addEventListener('click', function () {{
-    lb.classList.remove('on');
-    lbImg.removeAttribute('src');
-  }});
-  document.addEventListener('keydown', function (e) {{
-    if (e.key === 'Escape') {{ lb.classList.remove('on'); }}
-    if (e.key === '/' && document.activeElement !== q) {{ e.preventDefault(); q.focus(); }}
-  }});
-}})();
-</script>
-</body>
-</html>
-"""
+PAGE = r'''<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kitnest 使用手册</title><style>
+:root{color-scheme:light dark;--bg:light-dark(#fff,#191a1e);--soft:light-dark(#f5f6f8,#24262c);--line:light-dark(#e5e7ec,#393c43);--ink:light-dark(#20232a,#ebedf3);--muted:light-dark(#686e7a,#a8aebb);--accent:light-dark(#315ee8,#89a8ff)}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.75 -apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif}
+header{height:64px;display:flex;align-items:center;gap:20px;padding:0 28px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--bg);z-index:2}header a{color:inherit;text-decoration:none;font-weight:650}header span{color:var(--muted);font-size:13px}header label{margin-left:auto;width:240px}input{font:inherit;color:inherit;border:1px solid var(--line);border-radius:8px;background:var(--soft);padding:7px 10px;min-width:0;width:100%}
+.layout{display:grid;grid-template-columns:250px minmax(0,850px);gap:32px;max-width:1210px;margin:auto;padding:0 22px}aside{position:sticky;top:64px;height:calc(100vh - 64px);overflow:auto;padding:20px 0}summary{cursor:pointer;font-size:13px;font-weight:650;padding:8px 4px}aside a{display:block;font-size:13px;color:var(--muted);text-decoration:none;padding:6px 12px;margin:1px 0;border-radius:7px}aside a:hover,aside a[aria-current]{background:var(--soft);color:var(--accent)}[hidden]{display:none!important}main{padding:32px 0 80px;min-width:0}h1{font-size:29px;margin:4px 0 22px;line-height:1.35}h2{font-size:18px;margin:28px 0 8px}p{margin:8px 0;color:var(--muted)}blockquote{border-left:3px solid var(--accent);margin:18px 0;padding:6px 16px;background:var(--soft)}.crumb{font-size:12px;color:var(--muted)}button{font:inherit;color:inherit;cursor:pointer;border:1px solid var(--line);background:var(--bg);border-radius:7px;padding:5px 12px}button:hover{color:var(--accent);border-color:var(--accent)}button:focus-visible,a:focus-visible,input:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.demo{background:var(--soft);border-radius:14px;padding:16px;margin:20px 0}.bar{display:flex;align-items:center;gap:8px}.bar b{margin-right:auto;font-size:13px}.bar button,.presets button{font-size:12px}.presets{display:flex;gap:6px;margin:12px 0}.presets button{flex:1}.presets button[aria-pressed=true]{color:var(--accent);border-color:var(--accent)}.stage{border-radius:12px;padding:14px;background:var(--bg);margin-bottom:12px}.scene-head{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:12px}.scene{display:grid;gap:9px;animation:arrive .25s ease}.scene b{font-size:14px}.items{display:grid;gap:6px}.item{border-radius:7px;padding:9px 12px;background:var(--soft);font-size:13px;white-space:pre-wrap;overflow-wrap:anywhere;display:flex;align-items:flex-start;gap:8px}.item.chosen{background:color-mix(in srgb,var(--accent) 12%,var(--bg));color:var(--accent)}.dot{flex-shrink:0;width:14px;height:14px;border:1px solid currentColor;border-radius:50%;margin-top:4px}.chosen .dot{background:var(--accent)}.gesture{font-size:12px;color:var(--accent)}.action{justify-self:end;background:var(--accent);color:var(--bg);font-size:12px}.action:hover{color:var(--bg);opacity:.85}.track{height:3px;background:var(--soft);margin-top:14px}.track i{display:block;height:100%;background:var(--accent);transition:width .25s}.steps{display:grid;gap:5px}.steps button{text-align:left;display:flex;gap:10px;border-color:transparent;background:transparent;font-size:13px;padding:7px}.steps button[aria-current]{background:var(--bg);color:var(--accent)}.steps span{flex:none;border-radius:50%;width:22px;height:22px;text-align:center;background:var(--soft)}.note{font-size:12px;margin-top:12px}.foot{display:flex;justify-content:space-between;border-top:1px solid var(--line);padding-top:18px;margin-top:30px;font-size:12px}.foot a{color:var(--accent);text-decoration:none;max-width:45%}.tasks{display:grid;grid-template-columns:1fr 1fr;gap:12px}.tasks a{padding:18px;background:var(--soft);border-radius:12px;text-decoration:none;color:inherit}.tasks b{display:block}.tasks p{font-size:13px}.tasks span{color:var(--accent);font-size:12px}#empty{font-size:13px;padding:12px}@keyframes arrive{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:760px){header{padding:0 14px;gap:12px}header span{display:none}.layout{grid-template-columns:1fr;gap:0;padding:0 16px}header label{width:170px}aside{position:static;height:auto;max-height:260px;border-bottom:1px solid var(--line)}main{padding-top:22px}h1{font-size:25px}.tasks{grid-template-columns:1fr}}
+@media(prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+.illustration{margin:0;position:relative;text-align:center}.illustration img{height:110px;max-width:100%;border-radius:8px}.illustration .crop{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:125px;height:72px;border:2px dashed var(--accent);border-radius:4px;transition:width .25s,height .25s}.illustration .crop.first{width:65px;height:38px}.display-pair{display:flex;gap:18px;justify-content:space-around;color:var(--muted);font-size:12px}.display-pair .chosen{color:var(--accent)}.display-pair span{display:block;border:2px solid currentColor;border-radius:4px;width:90px;height:48px;margin:4px auto}.clipboard-pair{display:grid;grid-template-columns:1fr 2fr;gap:10px;font-size:12px;padding:10px;background:var(--soft);border-radius:7px}.clipboard-pair span{white-space:pre-wrap}.row-cursor{margin-left:auto;color:var(--accent);font-size:16px}
+</style></head><body>
+<header><a href="../">Kitnest</a><span>使用手册</span><label><input id="q" type="search" placeholder="搜索功能或操作" aria-label="搜索使用手册"></label></header>
+<div class="layout"><aside aria-label="功能分类"><a href="#" id="intro">快速入门</a><div id="nav">__NAV__</div><p id="empty" hidden>没有找到相关功能，换个词试试。</p></aside><main id="main"></main></div>
+<script id="guides" type="application/json">__DATA__</script><script>
+const guides=JSON.parse(document.getElementById('guides').textContent),main=document.getElementById('main'),links=[...document.querySelectorAll('#nav a')];
+let timer=null,current=0,active=0;
+const escape=s=>s.replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function stop(){clearInterval(timer);timer=null;const button=document.getElementById('play');if(button)button.textContent='播放'}
+function illustration(g,index){
+ if(g.scene==='photo'||g.scene==='crop')return '<figure class="illustration"><img src="data:image/png;base64,__PHOTO__" alt="与设置页相同的示例图片">'+(g.scene==='crop'?'<span class="crop '+(index===0?'first':'')+'"></span>':'')+'</figure>';
+ if(g.scene==='displays')return '<div class="display-pair">'+['普通外接屏','内置刘海屏'].map((name,i)=>'<div class="'+((index===g.steps.length-1)===(i===0)?'chosen':'')+'"><span></span>'+name+'</div>').join('')+'</div>';
+ if(g.scene==='clipboard')return '<div class="clipboard-pair"><span>周五交付</span><span>'+(index===0?'点选记录查看内容':'周五交付<br>整理图片、文字和交付清单。')+'</span></div>';
+ return '';
+}
+function selectStep(index){
+ active=index;const g=guides[current],f=g.frames[index],host=document.getElementById('scene');
+ host.innerHTML='<div class="scene"><b>'+escape(f.title)+'</b>'+illustration(g,index)+'<div class="items">'+f.items.map((s,i)=>'<div class="item '+(i===f.selected?'chosen':'')+'"><i class="dot" aria-hidden="true"></i><span>'+escape(s)+'</span>'+(i===f.selected?'<span class="row-cursor" aria-hidden="true">↖</span>':'')+'</div>').join('')+'</div><div class="gesture">操作：'+escape(f.action)+'</div><button class="action" id="action">'+(index===g.steps.length-1?'重新演示':'演示：'+escape(f.action))+'</button></div>';
+ document.getElementById('counter').textContent=(index+1)+' / '+g.steps.length;
+ document.querySelector('.track i').style.width=((index+1)/g.steps.length*100)+'%';
+ document.querySelectorAll('[data-preset]').forEach(b=>b.setAttribute('aria-pressed',Number(b.dataset.preset)===index));
+ document.querySelectorAll('[data-step]').forEach((b,i)=>{if(i===index)b.setAttribute('aria-current','step');else b.removeAttribute('aria-current')});
+ document.getElementById('action').onclick=()=>{stop();selectStep(index===g.steps.length-1?0:index+1)};
+}
+function show(){
+ stop();const id=decodeURIComponent(location.hash.slice(1));
+ links.forEach(a=>a.removeAttribute('aria-current'));
+ document.getElementById('intro').toggleAttribute('aria-current',!id);
+ if(!id){
+  const categories=[...new Set(guides.map(g=>g.category))];
+  main.innerHTML='<h1>按功能找说明</h1><p>每项功能都有独立说明和可播放的操作演示。</p><div class="tasks">'+categories.map(c=>'<a href="#category='+encodeURIComponent(c)+'"><b>'+escape(c)+'</b><p>'+guides.filter(g=>g.category===c).length+' 项功能</p><span>浏览这一类 →</span></a>').join('')+'</div>';
+  return;
+ }
+ if(id.startsWith('category=')){
+  const category=decodeURIComponent(id.slice('category='.length)),items=guides.filter(g=>g.category===category);
+  main.innerHTML='<div class="crumb">功能分类</div><h1>'+escape(category)+'</h1><div class="tasks">'+items.map(g=>'<a href="#'+g.id+'"><b>'+escape(g.title)+'</b><p>'+escape(g.steps[0])+'</p><span>阅读完整说明 →</span></a>').join('')+'</div>';
+  return;
+ }
+ current=guides.findIndex(g=>g.id===id);if(current<0){main.innerHTML='<h1>未找到这篇说明</h1><p>请从左侧选择功能。</p>';return}
+ const g=guides[current];links.forEach(a=>{if(a.dataset.id===g.id){a.setAttribute('aria-current','page');a.parentElement.open=true}});
+ const demo='<section class="demo" aria-label="操作演示"><div class="bar"><b>预设操作演示</b><button id="play">播放</button><button id="restart">重来</button></div><div class="presets">'+[['看懂用途',0],['跟着操作',Math.min(1,g.steps.length-1)],['查看结果',g.steps.length-1]].map(([t,i])=>'<button data-preset="'+i+'">'+t+'</button>').join('')+'</div><div class="stage"><div class="scene-head"><span>'+escape(g.title)+'</span><span id="counter"></span></div><div id="scene" aria-live="polite"></div><div class="track"><i></i></div></div><div class="steps">'+g.steps.map((s,i)=>'<button data-step="'+i+'"><span>'+(i+1)+'</span>'+escape(s)+'</button>').join('')+'</div><p class="note">预设演示只展示操作步骤，不会打开或修改你的文件。</p></section>';
+ main.innerHTML='<div class="crumb">'+escape(g.category)+'</div><h1>'+escape(g.title)+'</h1>'+g.body.replace('__DEMO__',demo)+'<nav class="foot">'+(current?'<a href="#'+guides[current-1].id+'">← '+escape(guides[current-1].title)+'</a>':'<span></span>')+(current+1<guides.length?'<a href="#'+guides[current+1].id+'">'+escape(guides[current+1].title)+' →</a>':'')+'</nav>';
+ selectStep(0);document.getElementById('play').onclick=()=>{if(timer){stop();return}if(active===g.steps.length-1)selectStep(0);document.getElementById('play').textContent='暂停';timer=setInterval(()=>{if(active+1<g.steps.length)selectStep(active+1);else stop()},2400)};
+ document.getElementById('restart').onclick=()=>{stop();selectStep(0)};document.querySelectorAll('[data-preset],[data-step]').forEach(b=>b.onclick=()=>{stop();selectStep(Number(b.dataset.preset??b.dataset.step))});window.scrollTo(0,0);
+}
+document.getElementById('q').oninput=function(){const q=this.value.trim().toLocaleLowerCase();let count=0;links.forEach(a=>{const g=guides.find(g=>g.id===a.dataset.id);a.hidden=q&&!g.text.toLocaleLowerCase().includes(q);if(!a.hidden)count++});document.querySelectorAll('#nav details').forEach(group=>{group.hidden=![...group.querySelectorAll('a')].some(a=>!a.hidden);if(q)group.open=true});document.getElementById('empty').hidden=count>0};
+document.addEventListener('visibilitychange',()=>{if(document.hidden)stop()});window.addEventListener('hashchange',show);show();
+</script></body></html>'''
 
 
-def build(no_gifs: bool) -> None:
-    md = SRC.read_text(encoding="utf-8")
-    title, chapters, body = parse(md)
-
-    toc = "\n".join(
-        f'      <a href="#{c["id"]}" data-target="{c["id"]}">{html.escape(c["title"])}</a>'
-        for c in chapters
-    )
-
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    page = PAGE.format(
-        title=html.escape(title),
-        nchap=len(chapters),
-        toc=toc,
-        body="\n".join(body),
-    )
-    out = OUT_DIR / "index.html"
-    out.write_text(page, encoding="utf-8")
-
-    size_kb = out.stat().st_size / 1024
-    print(f"  HTML: {out.relative_to(ROOT)}  {size_kb:.0f} KB  {len(chapters)} 章")
-
-    if not no_gifs:
-        dst = OUT_DIR / "gifs"
-        names = set(re.findall(r"\]\(gifs/([^)\s]+)\)", md))
-        dst.mkdir(parents=True, exist_ok=True)
-        for g in dst.glob("*.gif"):
-            if not g.name.startswith("._") and g.name not in names:
-                g.unlink()
-        n = 0
-        total = 0
-        for name in sorted(names):
-            g = GIFS / name
-            shutil.copy2(g, dst / g.name)
-            n += 1
-            total += g.stat().st_size
-        print(f"  GIF:  {n} 段 → {dst.relative_to(ROOT)}  ({total / 1048576:.1f} MB)")
-
-    # 自检：正文引用的图是否都在
-    refs = re.findall(r'<img src="([^"]+)"', page)
-    missing = [r for r in refs if not (OUT_DIR / r).exists()]
-    print(f"  图片引用 {len(refs)} 处，缺失 {len(missing)} 处" + (f"：{missing[:3]}" if missing else ""))
-
-
-def main() -> None:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--no-gifs", action="store_true", help="不复制 GIF（已就位时用）")
-    a = ap.parse_args()
-    build(a.no_gifs)
+def build() -> None:
+    """生成八类导航和每次只打开一篇的在线手册。"""
+    guides = [article(path) for path in sorted(SOURCE.glob("*.md")) if not path.name.startswith("._")]
+    guides.sort(key=lambda guide: (ORDER.index(guide["category"]), guide["id"]))
+    navigation = []
+    for category in ORDER:
+        links = [f'<a href="#{g["id"]}" data-id="{g["id"]}">{html.escape(g["title"])}</a>' for g in guides if g["category"] == category]
+        navigation.append(f'<details><summary>{category}</summary>{"".join(links)}</details>')
+    data = json.dumps(guides, ensure_ascii=False).replace("<", "\\u003c")
+    photo = base64.b64encode((SOURCE.parent / "preview.png").read_bytes()).decode()
+    OUTPUT.write_text(PAGE.replace("__NAV__", "\n".join(navigation)).replace("__DATA__", data).replace("__PHOTO__", photo), encoding="utf-8")
+    print(f"手册：{len(ORDER)} 类，{len(guides)} 篇；{OUTPUT}")
 
 
 if __name__ == "__main__":
-    main()
+    build()

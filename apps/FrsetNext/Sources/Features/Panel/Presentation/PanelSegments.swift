@@ -2,28 +2,33 @@ import Foundation
 
 // MARK: - 主面板顶部页面开关 + 顺序（v177 / v181）
 //
-// 用户需求：「设置里可以自定义顶部的中转 / 首页 / 监测 / 投屏这些按钮的展现与显示，
-// 并且动态加载；如果全关闭了，就不占内存」；v181 追加「开关与「文件中转」总开关解耦，
-// 并且可以拖拽调整顺序」。
+// 用户需求：「设置里可以自定义顶部按钮的展现与显示，并且动态加载；如果全关闭了，就不占内存」，
+// v181 追加可拖拽调整顺序。Lite 版只有主页与性能监测两段。
 //
 // 这里只负责两件事：
 //   ① 各分段的偏好键（`panel.segment.*`，由 SwiftUI `@AppStorage` 直接绑定）；
 //   ② 它们的左右顺序（`panel.segment.order`，CSV）编解码。
-// 真正的懒加载在 `PanelRootView`：内容用 if/else 分支，未选中的分支不会被创建；
-// 关掉的页面更不会被创建，因此 `TransferDockView` / `CastView` 这类重型视图连 init 都不会跑。
-//
-// 与旧开关 `panel.transferDock` 的关系（v181 拆分）：
-// - 旧开关**不再**决定分段是否出现，它只表示「文件中转这个功能启用与否」；
-// - 分段显隐只由 `panel.segment.*` 决定；
-// - 功能关着但分段开着时，中转页显示一句「已关闭」的说明（不再整页消失），
-//   这样两个开关各自可解释，也不会出现「勾了却不出现」的困惑。
+// 真正的懒加载在 `PanelRootView`：内容用 if/else 分支，未选中的分支不会被创建。
 
 public enum PanelSegments {
 
     public static let homeKey = "panel.segment.home"
     public static let monitorKey = "panel.segment.monitor"
-    /// 顺序：逗号分隔的 `PanelCenterPage.rawValue`，如 "home,performance,transfer,cast"
+    /// 顺序：逗号分隔的 `PanelCenterPage.rawValue`，如 "home,performance"
     public static let orderKey = "panel.segment.order"
+
+    /// 合并已有两个展示开关的有效值；迁移后每个页面只读取自己的显隐键。
+    public static func migrateLegacyVisibility() {
+        let defaults = UserDefaults.standard
+        if let enabled = defaults.object(forKey: "showSystemStatus") as? Bool {
+            defaults.set(enabled && Preferences.shared.value(monitorKey, default: true), forKey: monitorKey)
+            defaults.removeObject(forKey: "showSystemStatus")
+        }
+        // Lite 版没有中转/投屏分段；历史键只做清理，不再迁移出页面。
+        defaults.removeObject(forKey: "panel.transferDock")
+        defaults.removeObject(forKey: "panel.segment.transfer")
+        defaults.removeObject(forKey: "panel.segment.cast")
+    }
 
     /// 出厂顺序（也是「恢复默认」用的顺序）
     public static let defaultOrder: [PanelCenterPage] = [.home, .performance]
@@ -90,10 +95,11 @@ public enum GlobalEntries {
     public static let homeKey = "entry.home"
     public static let monitorPopoutKey = "entry.monitorPopout"
     public static let statsBarKey = "entry.statsBar"
+    public static let floatingBallKey = FloatingBallSettings.enabledKey
 
     /// 出厂默认：三个都开（性能监测是本产品的核心卖点，用户明确要求默认打开）
     public static func isEnabled(_ key: String) -> Bool {
-        Preferences.shared.value(key, default: true)
+        Preferences.shared.value(key, default: key != floatingBallKey)
     }
 
     public static func setEnabled(_ key: String, _ on: Bool) {

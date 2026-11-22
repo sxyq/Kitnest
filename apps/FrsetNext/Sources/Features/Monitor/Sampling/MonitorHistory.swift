@@ -13,22 +13,19 @@ public struct MonitorHistoryBuffer {
     }
 
     public mutating func append(_ value: Double) {
-        storage[writeIndex] = value.isFinite ? value : 0
+        storage[writeIndex] = value
         writeIndex = (writeIndex + 1) % capacity
         filled = min(capacity, filled + 1)
     }
 
-    /// v129（内存）：写入调用方缓冲（容量复用）——values() 每 tick 为 7 个缓冲各建
-    /// 一个新 [Double]（60×8B+头 ≈ 512B × 7/tick），是 32B/48B 小块直方图峰值的
-    /// 稳定churn 源；调用方持双缓冲轮换时，旧快照释放后即回到原地写、零分配。
+    /// 按时间顺序写入调用方的复用缓冲；满环先复制较早的一段，再接较新的一段。
     public func values(into buffer: inout [Double]) {
         buffer.removeAll(keepingCapacity: true)
-        guard filled > 0 else { return }
         buffer.reserveCapacity(filled)
-        for offset in 0..<filled {
-            let index = (writeIndex - filled + offset + capacity * 2) % capacity
-            buffer.append(storage[index])
+        if filled == capacity {
+            buffer.append(contentsOf: storage[writeIndex...])
         }
+        buffer.append(contentsOf: storage[..<writeIndex])
     }
 
     public var count: Int { filled }

@@ -6,10 +6,8 @@ import SwiftUI
 //
 // v210（修工程全图「StatusItemRegistry 空转」）：**删除** Swift 侧动态状态项整套管线。
 //
-// 事实：唯一注册方 `MonitorStatusItems.registerAll()` 早在 v128 就被注释掉——菜单栏监测
-// 只允许 STATS 合并条一套（工程全图 §6 不变量 13）。于是 StatusBarController 里的
-// 「每 5s 扫注册表 → 重建 6 个状态项 + 溢出菜单」成为永远扫空数组的空转代码，
-// 连带 600 行双层视图/位置持久化/溢出菜单全是死路径。
+// 原唯一注册方在 v128 停用后，v210 移除了动态状态项注册、5s 空扫描和关联视图；
+// 菜单栏监测只保留 C 引擎的 STATS 合并条（工程全图 §6 不变量 13）。
 //
 // 现在只保留真正在跑的一件事：
 //   1) 主图标（左键开面板、右键弹菜单、可切换图标样式与固定宽度）。
@@ -21,7 +19,6 @@ public final class StatusBarController: NSObject {
     public static let shared = StatusBarController()
 
     private var mainItem: NSStatusItem?
-    private var currentPopover: NSPopover?
     private var statisticsObservation: NSObjectProtocol?
     private var didInstall = false
     private let pauseBadge = NSImageView()
@@ -99,9 +96,6 @@ public final class StatusBarController: NSObject {
         mainItem?.length = length
     }
 
-    /// 主状态项当前长度（排障用：验证 setMainItemLength 对 variableLength 创建的项是否生效）
-    public var mainItemLength: CGFloat? { mainItem?.length }
-
     // MARK: 位置持久化
 
     /// 状态项在系统位置存储中的唯一名（autosaveName + 位置键共用）。
@@ -133,6 +127,7 @@ public final class StatusBarController: NSObject {
     }
 
     @objc func openSettingsAction(_ sender: Any?) { ServiceLocator.settings?.open(pane: nil) }
+    @objc func openFavoritesAction(_ sender: Any?) { FavoritesWindowController.shared.show() }
 
     private func updatePauseBadge() {
         pauseBadge.isHidden = !ClipboardManager.shared.isRecordingPaused
@@ -145,7 +140,7 @@ public final class StatusBarController: NSObject {
     }
 
     @objc func openMonitorSettingsAction(_ sender: Any?) {
-        ServiceLocator.settings?.open(pane: "monitor")
+        MonitorPopoutWindowController.shared.open()
     }
 
     /// v180：归档任务详情（压缩/解压队列）
@@ -173,6 +168,11 @@ public final class StatusBarController: NSObject {
         WelcomeWindowController.shared.show()
     }
 
+    @objc func showTutorialAction(_ sender: Any?) {
+        QuickTutorialController.shared.returnToTasks()
+        WelcomeWindowController.shared.show()
+    }
+
     /// 检查更新（v112：手动检查，feed 在 设置 → 关于 配置）
     @objc func checkForUpdatesAction(_ sender: Any?) {
         AppUpdateChecker.shared.checkNowManual()
@@ -183,8 +183,7 @@ public final class StatusBarController: NSObject {
     @objc func toggleMonitorModuleAction(_ sender: NSMenuItem) {
         guard let rawValue = sender.representedObject as? String,
               let module = MonitorModuleID(rawValue: rawValue) else { return }
-        MonitorPreferences.setModuleEnabled(module, !MonitorPreferences.isModuleEnabled(module))
-        MonitorSampler.shared.refresh()
+        ServiceLocator.settings?.open(pane: "monitor#\(module.displayName)")
     }
 
     /// 打开统计窗（spec 17 S1/S2：打开即埋点 statistics_open）
@@ -193,14 +192,4 @@ public final class StatusBarController: NSObject {
     }
 
     @objc func quitAction(_ sender: Any?) { NSApp.terminate(nil) }
-}
-
-// MARK: - NSPopoverDelegate
-
-extension StatusBarController: NSPopoverDelegate {
-    public func popoverDidClose(_ notification: Notification) {
-        currentPopover = nil
-        // v74：popover 关闭 → 恢复隐藏态降频（与打开时的提升配对）
-        MonitorSampler.shared.setSettingsActive(false)
-    }
 }

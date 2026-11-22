@@ -65,15 +65,5 @@ public final class FileHoverPreviewController: NSResponder {
         MainPanelPreviewPopoverCoordinator.shared.scheduleHoverClose(itemID: Self.itemID(for: currentURL))
     }
 
-    public func hide() {
-        showWork?.cancel()
-        showWork = nil
-        let coordinator = MainPanelPreviewPopoverCoordinator.shared
-        if let currentURL, coordinator.activeItemID == Self.itemID(for: currentURL) {
-            coordinator.dismiss(reason: .programmatic)
-        }
-        currentURL = nil
-    }
-
     static func itemID(for url: URL) -> String { "file-preview:" + url.path }
 }

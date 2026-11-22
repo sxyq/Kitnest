@@ -139,47 +139,10 @@ public final class FloatingClipboardPanel: NSPanel {
     public override var canBecomeMain: Bool { false }
 }
 
-// MARK: - 浮动窗内容数据源（05 号规格 1.4：FloatingClipboardStore）
-
-/// 浮动窗的独立数据源：只维护"最近 N 条"，并订阅 ClipboardManager 的变更广播
+/// 向设置页发布浮动窗状态。
 public final class FloatingClipboardStore: ObservableObject {
-
-    @Published public private(set) var recentItems: [ClipboardItem] = []
     @Published public var isVisible: Bool = FloatingClipboardPinState.shared.isVisible
     @Published public var isPinned: Bool = FloatingClipboardPinState.shared.isPinned
-    /// 「搜索剪贴板」模式的过滤词（原版 ClipboardFilterBarView 的 FilterBar_Search）
-    @Published public var searchText: String = ""
-
-    /// 过滤后的列表（搜索词为空 = 全部最近条目）
-    public var filteredItems: [ClipboardItem] {
-        let q = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !q.isEmpty else { return recentItems }
-        return recentItems.filter { item in
-            let title = (item.aliasTitle?.isEmpty == false) ? item.aliasTitle! : (item.title ?? item.content ?? "")
-            return title.localizedCaseInsensitiveContains(q)
-                || (item.content?.localizedCaseInsensitiveContains(q) ?? false)
-        }
-    }
-
-    public static let recentLimit = 12
-
-    private var observer: NSObjectProtocol?
-
-    public init() {
-        observer = NotificationCenter.default.addObserver(
-            forName: ClipboardManager.itemsDidChangeNotification,
-            object: nil, queue: .main) { [weak self] _ in self?.refresh() }
-    }
-
-    deinit {
-        if let observer { NotificationCenter.default.removeObserver(observer) }
-    }
-
-    public func refresh() {
-        ClipboardManager.shared.recentItems(limit: Self.recentLimit) { [weak self] items in
-            self?.recentItems = items
-        }
-    }
 
     public func setVisible(_ visible: Bool) {
         isVisible = visible
@@ -197,8 +160,6 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
     public let state = FloatingClipboardPinState.shared
     public let store = FloatingClipboardStore()
     private var didRestoreVisibility = false
-    /// v198：收回动画进行中（重复 hide 不重播）
-    private var isHiding = false
 
     private init() {
         FloatingClipboardPinState.shared.migrateLayoutIfNeeded()
@@ -254,9 +215,8 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
     public func show() {
         Log.info("Clipboard", "悬浮工作台 show（visible -> true）")
         revealGeneration += 1          // 让上一轮收起的 completion/计时器失效
-        isHiding = false
         store.setVisible(true)
-        store.refresh()
+        FloatingClipDeskStore.shared.reload()
         // v201：只在尺寸真的变化时才 setFrame——启动恢复时窗口已按同一 frame 创建，
         // 重复 setFrame 会在首帧 placement 里同步重排 hosting（崩溃诱因）。
         let target = state.clampedFrame()
@@ -270,16 +230,15 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
     public func hide(completion: (() -> Void)? = nil) {
         Log.info("Clipboard", "悬浮工作台 hide")
         store.setVisible(false)
+        FloatingClipDeskStore.shared.suspendPreview()
         guard let w = window, w.isVisible else { return }
         let token = revealGeneration
         WindowReveal.playOutToLastAnchor(on: w) { [weak self, weak w] in
             guard let self, token == self.revealGeneration else { return }
             w?.orderOut(nil)
             if let w { WindowReveal.reset(w) }
-            self.isHiding = false
             completion?()
         }
-        isHiding = true
     }
 
     public func toggle() {
@@ -326,6 +285,7 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
 
     public func windowWillClose(_ notification: Notification) {
         store.setVisible(false)
+        FloatingClipDeskStore.shared.suspendPreview()
     }
 
     // MARK: - 键盘闭环（v191）
@@ -338,9 +298,23 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
     //       ⌘⌫ 删除 · Esc 两级（先清搜索词，再收起）
 
     private var keyMonitor: Any?
+    private var scrollMonitor: Any?
+    private var mouseMonitor: Any?
 
     private func installKeyMonitor() {
         guard keyMonitor == nil else { return }
+        scrollMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
+            guard let self, event.window === self.window else { return event }
+            FloatingClipDeskStore.shared.hoverSuppression.suppressUntilMouseMove()
+            return event
+        }
+        mouseMonitor = NSEvent.addLocalMonitorForEvents(matching: .mouseMoved) { [weak self] event in
+            guard let self, event.window === self.window else { return event }
+            if event.deltaX != 0 || event.deltaY != 0 {
+                FloatingClipDeskStore.shared.hoverSuppression.mouseMoved()
+            }
+            return event
+        }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             guard let self, let panel = self.window, panel.isKeyWindow else { return event }
             // 中文输入法正在组字：一律放行，别把候选词吃成快捷键
@@ -415,15 +389,7 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
 
     deinit {
         if let keyMonitor { NSEvent.removeMonitor(keyMonitor) }
+        if let scrollMonitor { NSEvent.removeMonitor(scrollMonitor) }
+        if let mouseMonitor { NSEvent.removeMonitor(mouseMonitor) }
     }
 }
-
-// MARK: - 浮动窗内容（SwiftUI）
-
-/// 浮动窗内容：最近条目列表 + 底部工具条（对齐原版 ClipboardFilterBarView，2026-10-18 实机核验）。
-/// 原版悬浮窗**没有标题栏**，底部悬浮条从左到右：🔍 搜索剪贴板 / ✏️ 编辑 / 📌 钉住 / ↑ 回到顶部。
-/// 行交互 = 单击预览、双击粘贴（specs/14 F9）
-
-/// 浮动窗行：紧凑单行（缩略图 28pt + 一行摘要）
-/// 行交互（specs/14 F9/C9，whatsNew 实证 `0xb57d56`）：**单击=预览、双击=粘贴**；
-/// 悬停预览走协调器 `.floatingPreview` 源（总开关 hoverPreviewInFloatingClipboardEnabled）。

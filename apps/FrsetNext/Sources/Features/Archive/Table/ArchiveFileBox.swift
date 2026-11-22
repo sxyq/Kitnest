@@ -1,6 +1,5 @@
 import AppKit
 import SwiftUI
-import UniformTypeIdentifiers
 
 // MARK: - 文件盒 / 暂存架（v127（ArcZip P3）：P3-2）
 //
@@ -206,7 +205,7 @@ struct ArchiveFileBoxView: View {
 
     private func row(_ item: ArchiveFileBoxItem) -> some View {
         HStack(spacing: 6) {
-            Image(nsImage: icon(for: item.name))
+            Image(nsImage: ArchiveFileIcon.icon(for: item.name))
                 .resizable()
                 .aspectRatio(contentMode: .fit)
                 .frame(width: 18, height: 18)
@@ -307,11 +306,6 @@ struct ArchiveFileBoxView: View {
         .help(help)
     }
 
-    private func icon(for name: String) -> NSImage {
-        let ext = (name as NSString).pathExtension.lowercased()
-        let ut = ext.isEmpty ? nil : UTType(filenameExtension: ext)
-        return NSWorkspace.shared.icon(for: ut ?? .data)
-    }
 }
 
 // v127（ArcZip P3）：底部「压缩全部…」挂在 ArchiveFileBoxWindow.buildContent 的窗口层，

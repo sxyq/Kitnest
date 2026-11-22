@@ -17,6 +17,7 @@ public struct PreviewPopoverContentView: View {
     /// 「按代码看」：用户手动把 Markdown / JSON / 纯文本强制切到代码视图
     var forceCode: Bool = false
     var usesWindowChrome = true
+    var showsTOC = true
 
     @ViewBuilder
     public var body: some View {
@@ -43,9 +44,9 @@ public struct PreviewPopoverContentView: View {
             case .text:
                 PreviewTextContentView(text: model.inlineText)
             case .fileBackedText:
-                PreviewFileBackedTextView(model: model)
+                PreviewFileBackedTextView(model: model, showsTOC: showsTOC)
             case .markdown:
-                PreviewMarkdownTextView(model: model)
+                PreviewMarkdownTextView(model: model, showsTOC: showsTOC)
             case .json:
                 PreviewJSONTextView(model: model)
             case .code:
@@ -76,7 +77,7 @@ public struct PreviewPopoverContentView: View {
 /// 正文字号在深色系统外观下也不至于隐形（深色下的双向反色留待后续按需增强）。
 private struct PreviewRichTextView: View {
     let model: PreviewPopoverContentModel
-    /// init 时同步加载（RTF 为落盘小文件，几十 KB 级；渲染量高已在高度估算时做过一次）
+    /// 直接复用模型中已解析的正文。
     private let attributed: NSAttributedString
 
     init(model: PreviewPopoverContentModel) {
@@ -192,14 +193,17 @@ struct PreviewTextViewRepresentable: NSViewRepresentable {
         } else {
             scrollView.drawsBackground = false
         }
+        let text = attributedText.string
         if showsLineNumbers {
-            let ruler = PreviewLineNumberRulerView(textView: textView)
+            let ruler = CodeLineNumberRuler(textView: textView)
+            ruler.updateText(text)
             scrollView.verticalRulerView = ruler
             scrollView.hasVerticalRuler = true
             scrollView.rulersVisible = true
         }
 
         textView.textStorage?.setAttributedString(attributedText)
+        context.coordinator.lastText = text
 
         context.coordinator.onScroll = onScrollOffsetChanged
         scrollView.contentView.postsBoundsChangedNotifications = true
@@ -227,8 +231,10 @@ struct PreviewTextViewRepresentable: NSViewRepresentable {
             sourceView.sourceText = sourceText
             sourceView.sourceSegments = sourceSegments
         }
-        if context.coordinator.lastText != attributedText.string {
-            context.coordinator.lastText = attributedText.string
+        let text = attributedText.string
+        if context.coordinator.lastText != text {
+            context.coordinator.lastText = text
+            (scrollView.verticalRulerView as? CodeLineNumberRuler)?.updateText(text)
             textView.textStorage?.setAttributedString(attributedText)
         }
         // 左侧目录点击 → 滚动到对应标题（同一请求只执行一次）
@@ -300,78 +306,18 @@ struct PreviewTextViewRepresentable: NSViewRepresentable {
     }
 }
 
-// MARK: - 行号标尺（代码预览；与 05 号 CodeLineNumberRulerView 职责相邻，本类为面板侧私有实现）
-
-final class PreviewLineNumberRulerView: NSRulerView {
-    private weak var attachedTextView: NSTextView?
-
-    init(textView: NSTextView) {
-        self.attachedTextView = textView
-        super.init(scrollView: textView.enclosingScrollView, orientation: .verticalRuler)
-        clientView = textView
-        ruleThickness = 28
-    }
-
-    @available(*, unavailable)
-    required init(coder: NSCoder) {
-        fatalError("init(coder:) has not been implemented")
-    }
-
-    override var isFlipped: Bool { true }
-
-    override func drawHashMarksAndLabels(in rect: NSRect) {
-        guard let textView = attachedTextView,
-              let layoutManager = textView.layoutManager,
-              let textStorage = textView.textStorage,
-              let container = textView.textContainer else { return }
-
-        let content = textStorage.string as NSString
-        let visible = textView.visibleRect
-        let glyphRange = layoutManager.glyphRange(forBoundingRect: visible, in: container)
-        let charRange = layoutManager.characterRange(forGlyphRange: glyphRange, actualGlyphRange: nil)
-
-        let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedDigitSystemFont(ofSize: 9, weight: .regular),
-            .foregroundColor: NSColor.secondaryLabelColor
-        ]
-        // v126（性能审计 F1106）：起始行号改为数前缀换行符——原实现把可见区前的
-        // 全部文本 substring + components(separatedBy:) 出一个大数组，每次滚动重绘
-        // 都 O(前缀长) 分配；现在只查 "\n" 位置，零大数组分配，结果一致（行号=换行数+1）。
-        var lineNumber = 1
-        var search = NSRange(location: 0, length: charRange.location)
-        while true {
-            let hit = content.range(of: "\n", options: [], range: search)
-            if hit.location == NSNotFound { break }
-            lineNumber += 1
-            search = NSRange(location: NSMaxRange(hit),
-                             length: charRange.location - NSMaxRange(hit))
-        }
-        var charIndex = charRange.location
-
-        while charIndex < NSMaxRange(charRange) {
-            let lineRange = content.lineRange(for: NSRange(location: charIndex, length: 0))
-            let lineGlyph = layoutManager.glyphRange(forCharacterRange: lineRange, actualCharacterRange: nil)
-            let fragment = layoutManager.lineFragmentRect(forGlyphAt: lineGlyph.location, effectiveRange: nil)
-            let y = fragment.minY - visible.minY + textView.textContainerInset.height
-            let label = NSAttributedString(string: "\(lineNumber)", attributes: attributes)
-            label.draw(in: NSRect(x: 2, y: y, width: ruleThickness - 4, height: fragment.height))
-            lineNumber += 1
-            charIndex = NSMaxRange(lineRange)
-        }
-    }
-}
-
 // MARK: - 态 1：短文本
 
 struct PreviewTextContentView: View {
     let text: String
+    @ObservedObject private var personalization = Personalization.shared
 
     var body: some View {
         PreviewTextViewRepresentable(
             attributedText: NSAttributedString(
                 string: text,
                 attributes: [
-                    .font: NSFont.systemFont(ofSize: 19.5),   // 13 × 1.5（整体文本放大，2026-10-18）
+                    .font: NSFont.systemFont(ofSize: 19.5 * personalization.clipboardPreviewScale),
                     .foregroundColor: NSColor.labelColor
                 ]))
     }
@@ -387,7 +333,7 @@ struct MarkdownFilePreviewBody: View {
     let restoreKey: String
     /// v181：窄容器（归档窗口右栏）关掉左侧目录，把宽度让给正文
     var showsTOC: Bool = true
-    @Stored private var rendered: NSAttributedString
+    @Stored private var rendered: NSAttributedString? = nil
     @Stored private var headings: [MarkdownHeading] = []
     @Stored private var sourceSegments: [(rendered: NSRange, source: NSRange)] = []
     @Stored private var scrollRequest: Int? = nil
@@ -397,103 +343,116 @@ struct MarkdownFilePreviewBody: View {
         self.text = text
         self.restoreKey = restoreKey
         self.showsTOC = showsTOC
-        let parsed = PreviewMarkdownRenderer.renderBody(text)
-        self._rendered = Stored(wrappedValue: parsed.body)
-        self._headings = Stored(wrappedValue: parsed.headings)
-        self._sourceSegments = Stored(wrappedValue: parsed.segments)
     }
 
     var body: some View {
-        MarkdownPreviewBody(
-            text: text,
-            scrollRestoreKey: restoreKey,
-            rendered: rendered,
-            headings: headings,
-            sourceSegments: sourceSegments,
-            scrollRequest: $scrollRequest,
-            activeHeading: $activeHeading,
-            showsTOC: showsTOC)
+        Group {
+            if let rendered {
+                MarkdownPreviewBody(
+                    text: text,
+                    scrollRestoreKey: restoreKey,
+                    rendered: rendered,
+                    headings: headings,
+                    sourceSegments: sourceSegments,
+                    scrollRequest: $scrollRequest,
+                    activeHeading: $activeHeading,
+                    showsTOC: showsTOC)
+            } else {
+                PreviewLoadingIndicator(delay: MainPanelPreviewPopoverCoordinator.shared.previewLoadingIndicatorDelay)
+                    .frame(maxWidth: .infinity, minHeight: MainPanelPreviewPopoverCoordinator.shared.textPreviewLoadingMinHeight)
+            }
+        }
+        .task(id: text) {
+            rendered = nil
+            let parsed = await Task.detached(priority: .userInitiated) {
+                PreviewMarkdownRenderer.renderBody(text)
+            }.value
+            guard !Task.isCancelled else { return }
+            rendered = parsed.body
+            headings = parsed.headings
+            sourceSegments = parsed.segments
+        }
     }
 }
 
-// MARK: - 态 2：落盘长文本（F17：LoadTask + LoadGeneration 代际防串）
+// MARK: - 态 2：落盘长文本
 
 struct PreviewFileBackedTextView: View {
+    private enum LoadState {
+        case loading
+        case markdown(PreviewPopoverContentModel)
+        case json(JSONDocument)
+        case code(NSAttributedString)
+        case text(String)
+        case empty
+    }
+
     let model: PreviewPopoverContentModel
-    @Stored private var loadState: FilePreviewLoadState = .idle
-    @Stored private var showIndicator = false
-    @Stored private var loadGeneration = 0
+    var showsTOC = true
+    @Stored private var loadState: LoadState = .loading
 
     var body: some View {
         Group {
             switch loadState {
-            case .idle, .loading:
-                // loading 占位：textPreviewLoadingMinHeight + 指示器延时显示（F13 previewLoadingIndicatorDelay）
-                ZStack {
-                    Color.clear
-                    if showIndicator {
-                        ProgressView().controlSize(.small)
-                    }
-                }
-                .frame(maxWidth: .infinity, minHeight: MainPanelPreviewPopoverCoordinator.shared.textPreviewLoadingMinHeight)
-            case .loaded(let text):
-                // 2026-10-18：长文档（Markdown/TXT 落盘）加载后按内容分态。
-                // v87（2026-10-20 用户反馈「预览不统一」）：与内联条目同一条
-                // classifyRawText 链（JSON → Markdown → 代码 → 纯文本），
-                // 此前只判 Markdown、其余一律纯文本，长 JSON/代码没有结构化预览。
-                switch PreviewPopoverContentModel.classifyRawText(text) {
-                case .markdown:
-                    MarkdownFilePreviewBody(text: text, restoreKey: model.item.dedupeKey)
-                case .json:
-                    JSONInspectorView(text: text, compact: true)
-                case .code:
-                    let lang = PreviewMarkdownRenderer.detectLanguage(text)
-                    PreviewTextViewRepresentable(
-                        attributedText: PreviewMarkdownRenderer.renderCodeBody(lang: lang, code: text),
-                        monospaced: true,
-                        showsLineNumbers: true)
-                default:
-                    PreviewTextViewRepresentable(
-                        attributedText: NSAttributedString(
-                            string: text,
-                            attributes: [.font: NSFont.systemFont(ofSize: 19.5),   // 13 × 1.5（整体文本放大）
-                                         .foregroundColor: NSColor.labelColor]))
-                }
-            case .failed(let message):
-                Text(message)
+            case .loading:
+                PreviewLoadingIndicator(delay: MainPanelPreviewPopoverCoordinator.shared.previewLoadingIndicatorDelay)
+                    .frame(maxWidth: .infinity, minHeight: MainPanelPreviewPopoverCoordinator.shared.textPreviewLoadingMinHeight)
+            case .markdown(let markdown):
+                PreviewMarkdownTextView(model: markdown, showsTOC: showsTOC)
+            case .json(let document):
+                JSONInspectorView(document: document, compact: true)
+            case .code(let attributed):
+                PreviewTextViewRepresentable(attributedText: attributed, monospaced: true, showsLineNumbers: true)
+            case .text(let text):
+                PreviewTextContentView(text: text)
+            case .empty:
+                Text("内容为空")
                     .font(.system(size: 12))
                     .foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .task(id: model.item.dedupeKey) {
+        .task(id: model.sessionID) {
             await loadFullText()
         }
     }
 
     private func loadFullText() async {
-        let generation = loadGeneration + 1
-        loadGeneration = generation
         loadState = .loading
-        showIndicator = false
 
-        // 指示器延时：期间完成则不闪指示器
-        let delay = MainPanelPreviewPopoverCoordinator.shared.previewLoadingIndicatorDelay
-        try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
-        guard loadGeneration == generation, !Task.isCancelled else { return }
-        showIndicator = true
-
-        // 全文 IO 移出主线程（读落盘文件）
-        let item = model.item
-        let text = await Task.detached(priority: .userInitiated) {
-            PreviewPopoverDataBridge.shared.fullText(for: item)
-        }.value
-        guard loadGeneration == generation, !Task.isCancelled else { return }   // 代际防串
-        if text.isEmpty {
-            loadState = .failed("内容为空")
-        } else {
-            loadState = .loaded(text)
+        let work = Task.detached(priority: .userInitiated) { [model] () -> LoadState in
+            let text = PreviewPopoverDataBridge.shared.fullText(for: model.item)
+            guard !Task.isCancelled, !text.isEmpty else { return .empty }
+            switch PreviewPopoverContentModel.classifyRawText(text) {
+            case .markdown:
+                return .markdown(PreviewPopoverContentModel(item: model.item, source: model.source,
+                    entry: model.entry, sessionID: model.sessionID, inlineText: text, kindOverride: .markdown))
+            case .json:
+                if let document = JSONDocument(text: text) { return .json(document) }
+                return .text(text)
+            case .code:
+                return .code(PreviewMarkdownRenderer.renderCodeBody(text))
+            default:
+                return .text(text)
+            }
         }
+        let result = await withTaskCancellationHandler(operation: { await work.value }, onCancel: { work.cancel() })
+        guard !Task.isCancelled else { return }
+        loadState = result
+    }
+}
+
+private struct PreviewLoadingIndicator: View {
+    let delay: TimeInterval
+    @Stored private var isVisible = false
+
+    var body: some View {
+        Color.clear
+            .overlay { if isVisible { ProgressView().controlSize(.small) } }
+            .task {
+                try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                if !Task.isCancelled { isVisible = true }
+            }
     }
 }
 
@@ -501,21 +460,17 @@ struct PreviewFileBackedTextView: View {
 
 struct PreviewMarkdownTextView: View {
     let model: PreviewPopoverContentModel
+    var showsTOC = true
+    @ObservedObject private var personalization = Personalization.shared
     @Stored private var rendered: NSAttributedString?
     @Stored private var headings: [MarkdownHeading] = []
     @Stored private var sourceSegments: [(rendered: NSRange, source: NSRange)] = []
     @Stored private var scrollRequest: Int? = nil
     @Stored private var activeHeading: Int? = nil
 
-    init(model: PreviewPopoverContentModel) {
+    init(model: PreviewPopoverContentModel, showsTOC: Bool = true) {
         self.model = model
-    }
-
-    /// 正文 + 标题锚点 + 渲染↔源映射（目录由左侧栏渲染；⌘C 复制回源用）
-    static func render(_ text: String) -> (body: NSAttributedString,
-                                           headings: [MarkdownHeading],
-                                           segments: [(rendered: NSRange, source: NSRange)]) {
-        PreviewMarkdownRenderer.renderBody(text)
+        self.showsTOC = showsTOC
     }
 
     var body: some View {
@@ -528,14 +483,17 @@ struct PreviewMarkdownTextView: View {
                     headings: headings,
                     sourceSegments: sourceSegments,
                     scrollRequest: $scrollRequest,
-                    activeHeading: $activeHeading)
+                    activeHeading: $activeHeading,
+                    showsTOC: showsTOC)
             } else {
                 ProgressView("正在排版…").controlSize(.small)
             }
         }
-        .task(id: model.sessionID) {
+        .task(id: "\(model.sessionID.uuidString)-\(personalization.clipboardPreviewScale)") {
             let text = model.inlineText
-            let parsed = await Task.detached(priority: .userInitiated) { Self.render(text) }.value
+            let parsed = await Task.detached(priority: .userInitiated) {
+                PreviewMarkdownRenderer.renderBody(text)
+            }.value
             guard !Task.isCancelled else { return }
             rendered = parsed.body
             headings = parsed.headings
@@ -646,32 +604,10 @@ struct PreviewTOCSidebar: View {
     }
 }
 
-// MARK: - 态 4：JSON（F16：资格判定 + jsonPreviewCharCap 截断）
+// MARK: - 态 4：JSON（树形 / 表格）
 
 struct PreviewJSONTextView: View {
     let model: PreviewPopoverContentModel
-    @Stored private var displayText: String
-
-    init(model: PreviewPopoverContentModel) {
-        self.model = model
-        self._displayText = Stored(wrappedValue: Self.prepare(model.inlineText))
-    }
-
-    static func prepare(_ raw: String) -> String {
-        let cap = MainPanelPreviewPopoverCoordinator.shared.jsonPreviewCharCap
-        // 先截断再尝试美化：超长 JSON 美化代价过高，失败则原样截断展示
-        let truncated = raw.count > cap
-            ? String(raw.prefix(cap)) + "\n…（已截断，共 \(raw.count) 字符）"
-            : raw
-        if let data = truncated.data(using: .utf8),
-           let object = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]),
-           let prettyData = try? JSONSerialization.data(withJSONObject: object,
-                                                        options: [.prettyPrinted, .sortedKeys]),
-           let pretty = String(data: prettyData, encoding: .utf8) {
-            return pretty
-        }
-        return truncated
-    }
 
     var body: some View {
         // JSON 不再是「一屏 pretty-print 文本」：树形 / 表格双视图（见 JSONInspectorView）。
@@ -1189,6 +1125,7 @@ private enum PreviewFileThumbCache {
     static let store: NSCache<NSString, NSImage> = {
         let c = NSCache<NSString, NSImage>()
         c.countLimit = 60
+        c.totalCostLimit = 32 * 1024 * 1024
         return c
     }()
 }
@@ -1295,7 +1232,10 @@ private struct PreviewFileThumb: View {
         Task {
             let img = await PreviewFileThumbnailLoader.decode(path: p)
             if let img {
-                PreviewFileThumbCache.store.setObject(img, forKey: p as NSString)
+                let cost = img.representations.reduce(0) {
+                    max($0, $1.pixelsWide * $1.pixelsHigh * 4)
+                }
+                PreviewFileThumbCache.store.setObject(img, forKey: p as NSString, cost: cost)
             }
             await MainActor.run { image = img }
         }

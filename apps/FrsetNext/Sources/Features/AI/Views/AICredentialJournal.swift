@@ -55,43 +55,25 @@ public final class AICredentialJournalStore {
     public func record(action: AICredentialJournalEntry.Action,
                        provider: LLMProviderKind,
                        secret: String? = nil) {
-        record(action: action, providerRaw: provider.rawValue, secret: secret)
-    }
-
-    /// 记录一次全局动作（如清空全部凭证）
-    public func recordGlobal(action: AICredentialJournalEntry.Action) {
-        record(action: action, providerRaw: "*", secret: nil)
-    }
-
-    // MARK: - 私有
-
-    private func record(action: AICredentialJournalEntry.Action,
-                        providerRaw: String,
-                        secret: String?) {
         let fp = secret.flatMap { $0.isEmpty ? nil : Self.fingerprint($0) }
-        let entry = AICredentialJournalEntry(provider: providerRaw, action: action, fingerprint: fp)
+        let entry = AICredentialJournalEntry(provider: provider.rawValue, action: action, fingerprint: fp)
         guard let line = Self.encodeLine(entry) else { return }
         lock.lock()
-        // v126（性能审计 F0102/F0104/F0105）：单行追加代替「全量 decode → 追加 → 全量 re-encode → 整文件重写」。
-        // 原实现每条凭证保存都把整个 jsonl（上限 500 行）解码再重新编码后原子重写，
-        // 一次保存就是 O(n) 次 JSON 编解码 + O(n) 字节落盘。改为直接追加一行（O(1)），
-        // 仅当条数将超上限时才走一次全量裁剪重写（500 次保存里最多 1 次）。
+        // 既有文件每次读取一次；达到500条时解码同一份内容，保留最新记录。
         do {
             if !FileManager.default.fileExists(atPath: fileURL.path) {
                 try (line + "\n").write(to: fileURL, atomically: true, encoding: .utf8)
             } else {
-                // v126：裁剪判据只数行数（不 JSON 解码），常规追加路径整体 O(1) 落盘
-                let raw = (try? String(contentsOf: fileURL, encoding: .utf8)) ?? ""
+                let raw = try String(contentsOf: fileURL, encoding: .utf8)
                 let lineCount = raw.split(separator: "\n", omittingEmptySubsequences: true).count
                 if lineCount >= Self.maxEntries {
                     // 超限：保留最新 maxEntries-1 条 + 新条目（与原 suffix 语义一致）
-                    var lines = Self.loadAll(fileURL: fileURL)
+                    var lines = Self.decodeLines(raw)
                     lines.append(entry)
-                    lines = Array(lines.suffix(Self.maxEntries))
-                    let text = lines.compactMap { Self.encodeLine($0) }.joined(separator: "\n")
+                    let text = lines.suffix(Self.maxEntries).compactMap { Self.encodeLine($0) }.joined(separator: "\n")
                     try (text + "\n").write(to: fileURL, atomically: true, encoding: .utf8)
                 } else {
-                    // 追加单行（整文件重写退化为 O(1) 追加）
+                    // 未满500条只追加本条记录。
                     let handle = try FileHandle(forWritingTo: fileURL)
                     defer { try? handle.close() }
                     _ = try handle.seekToEnd()
@@ -110,8 +92,7 @@ public final class AICredentialJournalStore {
         return String(data: data, encoding: .utf8)
     }
 
-    private static func loadAll(fileURL: URL) -> [AICredentialJournalEntry] {
-        guard let content = try? String(contentsOf: fileURL, encoding: .utf8) else { return [] }
+    private static func decodeLines(_ content: String) -> [AICredentialJournalEntry] {
         let decoder = JSONDecoder()
         return content.split(separator: "\n").compactMap { line in
             guard let data = line.data(using: .utf8) else { return nil }
@@ -142,21 +123,26 @@ public final class AICredentialCommitCoordinator {
         self.journal = journal
     }
 
-    /// 提交凭证：空值等价于删除；成功后记录审计日志
-    public func commit(_ value: String?, for provider: LLMProviderKind) {
+    /// 提交凭证：空值等价于删除；成功后记录日志并清除旧账号模型目录。
+    @discardableResult
+    public func commit(_ value: String?, for provider: LLMProviderKind) -> String? {
         let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if trimmed.isEmpty {
             store.setCredential(nil, for: provider)
+            if let reason = store.lastWriteError { return reason }
             journal.record(action: .remove, provider: provider)
         } else {
             store.setCredential(trimmed, for: provider)
+            if let reason = store.lastWriteError { return reason }
             journal.record(action: .save, provider: provider, secret: trimmed)
         }
+        AIProviderModelDiscoveryCache.shared.invalidate(provider)
+        return nil
     }
 
-    public func remove(for provider: LLMProviderKind) {
-        store.removeCredential(for: provider)
-        journal.record(action: .remove, provider: provider)
+    @discardableResult
+    public func remove(for provider: LLMProviderKind) -> String? {
+        commit(nil, for: provider)
     }
 
 }

@@ -16,17 +16,13 @@ import ScreenCaptureKit
 //   · 合成只画小画布（键帽条 / 点击环），不做全画布绘制——4K 全画布一帧 33MB。
 
 public enum RecordingError: LocalizedError {
-    case permissionDenied
     case noDisplay
     case writerFailed(String)
-    case streamFailed(String)
 
     public var errorDescription: String? {
         switch self {
-        case .permissionDenied: return "没有屏幕录制权限，无法录屏"
         case .noDisplay:        return "找不到可录制的显示器"
         case .writerFailed(let m): return "写入失败：\(m)"
-        case .streamFailed(let m): return "录制中断：\(m)"
         }
     }
 }
@@ -46,7 +42,7 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
     private let pixelScale: CGFloat
 
     private let queue = DispatchQueue(label: "kitnest.recording.pipeline")
-    private let audioQueue = DispatchQueue(label: "kitnest.recording.audio")
+    private let sampleQueue: DispatchQueue
     private let cameraQueue = DispatchQueue(label: "kitnest.recording.camera")
 
     private var writer: AVAssetWriter?
@@ -56,33 +52,30 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
     private var sessionStarted = false
     private var paused = false
 
-    private let ciContext = CIContext(options: [.cacheIntermediates: false])
-    private let colorSpace = CGColorSpace(name: CGColorSpace.sRGB)
+    private lazy var ciContext = CIContext(options: [.cacheIntermediates: false])
+    private lazy var colorSpace = CGColorSpace(name: CGColorSpace.sRGB)
 
     private var cameraSession: AVCaptureSession?
     private var micSession: AVCaptureSession?
     private var latestCamera: CVPixelBuffer?
     private let cameraLock = NSLock()
 
-    private(set) var isRunning = false
     var onStopped: ((Error) -> Void)?
 
     init(options: RecordingOptions, videoSize: CGSize, regionOrigin: CGPoint,
-         pixelScale: CGFloat, outputURL: URL) {
+         pixelScale: CGFloat, outputURL: URL, sampleQueue: DispatchQueue) {
         self.options = options
         self.videoSize = videoSize
         self.regionOrigin = regionOrigin
         self.pixelScale = pixelScale
         self.outputURL = outputURL
+        self.sampleQueue = sampleQueue
         super.init()
     }
 
     // MARK: 写盘
 
     func prepareWriter() throws {
-        try? FileManager.default.createDirectory(at: outputURL.deletingLastPathComponent(),
-                                                 withIntermediateDirectories: true)
-        try? FileManager.default.removeItem(at: outputURL)
         let w = Int(max(2, videoSize.width.rounded()))
         let h = Int(max(2, videoSize.height.rounded()))
         let bitrate = min(24_000_000, max(4_000_000, Int(Double(w * h) * 0.12)))
@@ -97,6 +90,8 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
             ],
         ]
         do {
+            try FileManager.default.createDirectory(at: outputURL.deletingLastPathComponent(),
+                                                    withIntermediateDirectories: true)
             let writer = try AVAssetWriter(outputURL: outputURL, fileType: .mp4)
             let input = AVAssetWriterInput(mediaType: .video, outputSettings: settings)
             input.expectsMediaDataInRealTime = true
@@ -104,14 +99,16 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
                 throw RecordingError.writerFailed("无法添加视频轨")
             }
             writer.add(input)
-            let adaptor = AVAssetWriterInputPixelBufferAdaptor(
-                assetWriterInput: input,
-                sourcePixelBufferAttributes: [
-                    kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
-                    kCVPixelBufferWidthKey as String: w,
-                    kCVPixelBufferHeightKey as String: h,
-                    kCVPixelBufferIOSurfacePropertiesKey as String: [:],
-                ])
+            if options.cameraEnabled || options.showKeys || options.showClicks {
+                adaptor = AVAssetWriterInputPixelBufferAdaptor(
+                    assetWriterInput: input,
+                    sourcePixelBufferAttributes: [
+                        kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
+                        kCVPixelBufferWidthKey as String: w,
+                        kCVPixelBufferHeightKey as String: h,
+                        kCVPixelBufferIOSurfacePropertiesKey as String: [:],
+                    ])
+            }
             if options.audio != .none {
                 let audioSettings: [String: Any] = [
                     AVFormatIDKey: kAudioFormatMPEG4AAC,
@@ -128,7 +125,6 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
             }
             self.writer = writer
             self.videoInput = input
-            self.adaptor = adaptor
             Log.info("Recording", "写入器就绪：\(w)×\(h) @\(options.fps)fps 码率 \(bitrate / 1000)kbps 音频=\(options.audio.rawValue)")
         } catch let error as RecordingError {
             throw error
@@ -138,27 +134,30 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
     }
 
     func setPaused(_ value: Bool) {
-        queue.async { self.paused = value }
+        sampleQueue.async { self.paused = value }
     }
 
     /// 收尾：标记结束 → 等 finishWriting → 返回文件
     func finish() async -> URL? {
         await withCheckedContinuation { continuation in
             queue.async {
-                self.isRunning = false
                 self.stopDevices()
-                guard let writer = self.writer, writer.status == .writing else {
-                    continuation.resume(returning: nil)
-                    return
-                }
-                self.videoInput?.markAsFinished()
-                self.audioInput?.markAsFinished()
-                writer.finishWriting {
-                    let ok = writer.status == .completed
-                    if !ok {
-                        Log.error("Recording", "finishWriting 失败：\(writer.error?.localizedDescription ?? "?")")
+                // 设备已停止，再等同一写盘队列内的在途音视频回调执行完。
+                self.sampleQueue.async {
+                    guard let writer = self.writer, writer.status == .writing else {
+                        continuation.resume(returning: nil)
+                        return
                     }
-                    continuation.resume(returning: ok ? self.outputURL : nil)
+                    self.writer = nil
+                    self.videoInput?.markAsFinished()
+                    self.audioInput?.markAsFinished()
+                    writer.finishWriting {
+                        let ok = writer.status == .completed
+                        if !ok {
+                            Log.error("Recording", "finishWriting 失败：\(writer.error?.localizedDescription ?? "?")")
+                        }
+                        continuation.resume(returning: ok ? self.outputURL : nil)
+                    }
                 }
             }
         }
@@ -204,7 +203,7 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
         }
         session.addInput(input)
         let output = AVCaptureAudioDataOutput()
-        output.setSampleBufferDelegate(self, queue: audioQueue)
+        output.setSampleBufferDelegate(self, queue: sampleQueue)
         guard session.canAddOutput(output) else { return false }
         session.addOutput(output)
         session.commitConfiguration()
@@ -236,7 +235,6 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
 
     func stream(_ stream: SCStream, didStopWithError error: Error) {
         Log.error("Recording", "SCStream 中止：\(error.localizedDescription)")
-        isRunning = false
         onStopped?(error)
     }
 
@@ -291,9 +289,8 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
     // MARK: 音频
 
     private func handleAudio(_ sampleBuffer: CMSampleBuffer) {
-        guard options.audio == .system, let audioInput,
+        guard sessionStarted, !paused, let writer, writer.status == .writing, let audioInput,
               audioInput.isReadyForMoreMediaData else { return }
-        if paused { return }
         audioInput.append(sampleBuffer)
     }
 
@@ -307,10 +304,7 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
             return
         }
         // 麦克风
-        guard options.audio == .microphone, let audioInput,
-              audioInput.isReadyForMoreMediaData else { return }
-        if paused { return }
-        audioInput.append(sampleBuffer)
+        if options.audio == .microphone { handleAudio(sampleBuffer) }
     }
 }
 
@@ -328,7 +322,6 @@ public final class ScreenRecorder: ObservableObject {
 
     @Published public private(set) var state: State = .idle
     @Published public private(set) var elapsed: TimeInterval = 0
-    @Published public private(set) var outputURL: URL?
     @Published public private(set) var errorText: String?
     @Published public private(set) var unavailableFeatures: [String] = []
 
@@ -337,23 +330,27 @@ public final class ScreenRecorder: ObservableObject {
     private var timer: Timer?
     private var startedAt: Date?
     private var accumulated: TimeInterval = 0
-    private var currentOptions = RecordingOptions()
 
     private init() {}
 
     // MARK: 开始
 
     /// 整屏录制（鼠标所在屏幕）
-    public func startDisplayRecording() {
-        Task { await start(options: .current(displayID: currentDisplayID())) }
+    public func startDisplayRecording(displayID: CGDirectDisplayID? = nil) {
+        let target = displayID ?? currentDisplayID()
+        Task { await start(options: .current(displayID: target)) }
     }
 
     /// 区域录制：先框选，再开始
     public func startRegionRecording() {
         RecordingRegionPicker.shared.pick { [weak self] rect in
             guard let self else { return }
+            // 框选结果是 AppKit 全局坐标，与 NSScreen.frame 一致。
+            let center = CGPoint(x: rect.midX, y: rect.midY)
+            let displayID = NSScreen.screens.first { $0.frame.contains(center) }
+                .flatMap { ScreenSnapshot.displayID(of: $0) }
             Task { await self.start(options: .current(region: rect,
-                                                      displayID: self.currentDisplayID())) }
+                                                      displayID: displayID)) }
         }
     }
 
@@ -369,6 +366,7 @@ public final class ScreenRecorder: ObservableObject {
 
         guard await ScreenshotManager.shared.ensureScreenRecordingPermission() else {
             state = .idle
+            HapticFeedback.perform(.operationFailed)
             return
         }
         guard state == .preparing else { state = .idle; return }
@@ -399,8 +397,6 @@ public final class ScreenRecorder: ObservableObject {
                 unavailableFeatures.append("输入监听未授权，本次无按键与点击叠加")
             }
         }
-        currentOptions = options
-
         do {
             let setup = try await makeStream(options: options)
             guard state == .preparing else {
@@ -413,13 +409,14 @@ public final class ScreenRecorder: ObservableObject {
                                              videoSize: setup.videoSize,
                                              regionOrigin: setup.regionOrigin,
                                              pixelScale: setup.pixelScale,
-                                             outputURL: url)
-            try pipeline.prepareWriter()
+                                             outputURL: url,
+                                             sampleQueue: setup.queue)
             let stream = SCStream(filter: setup.filter, configuration: setup.config, delegate: pipeline)
             try stream.addStreamOutput(pipeline, type: .screen, sampleHandlerQueue: setup.queue)
             if options.audio == .system {
                 try stream.addStreamOutput(pipeline, type: .audio, sampleHandlerQueue: setup.queue)
             }
+            try pipeline.prepareWriter()
             self.pipeline = pipeline
             self.stream = stream
             pipeline.onStopped = { [weak self, weak pipeline] error in
@@ -445,12 +442,12 @@ public final class ScreenRecorder: ObservableObject {
                 state = .idle
                 return
             }
-            outputURL = url
 
             startedAt = Date()
             accumulated = 0
             elapsed = 0
             state = .recording
+            HapticFeedback.perform(.recordingStarted)
             startTimer()
             RecordingHUDController.shared.show()
             if !unavailableFeatures.isEmpty {
@@ -476,6 +473,7 @@ public final class ScreenRecorder: ObservableObject {
             errorText = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             Log.error("Recording", "启动失败：\(error.localizedDescription)")
             Toast.show(errorText ?? "录屏启动失败", icon: "exclamationmark.triangle", isWarning: true)
+            HapticFeedback.perform(.operationFailed)
         }
     }
 
@@ -530,17 +528,19 @@ public final class ScreenRecorder: ObservableObject {
         guard let file else {
             errorText = errorText ?? "录制文件写入失败"
             Toast.show(errorText!, icon: "exclamationmark.triangle", isWarning: true)
+            HapticFeedback.perform(.operationFailed)
             return nil
         }
-        outputURL = file
         let seconds = max(1, Int(elapsed.rounded()))
         if let errorText {
             Toast.show("\(errorText)；已保存中断前视频", icon: "exclamationmark.triangle", isWarning: true)
+            HapticFeedback.perform(.operationFailed)
         } else {
+            HapticFeedback.perform(.recordingSaved)
             Toast.show("录制完成 · \(seconds / 60):\(String(format: "%02d", seconds % 60))", icon: "checkmark.circle.fill")
         }
         // 录制完成 → 打开编辑器（用户可直接裁剪 / 导出）
-        RecordingEditorController.shared.open(url: file)
+        await RecordingEditorController.shared.open(url: file)
         return file
     }
 
@@ -575,8 +575,9 @@ public final class ScreenRecorder: ObservableObject {
 
     private func makeStream(options: RecordingOptions) async throws -> StreamSetup {
         let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-        guard let display = content.displays.first(where: { $0.displayID == options.displayID })
-                ?? content.displays.first else {
+        guard let display = content.displays.first(where: {
+            options.displayID == nil || $0.displayID == options.displayID
+        }) else {
             throw RecordingError.noDisplay
         }
         let excluded = content.applications.filter {
@@ -648,7 +649,6 @@ public final class ScreenRecorder: ObservableObject {
 
     private func uniqueOutputURL() -> URL {
         let dir = RecordingOptions.saveDirectory
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let fmt = DateFormatter()
         fmt.locale = Locale(identifier: "en_US_POSIX")
         fmt.dateFormat = "yyyy-MM-dd-HHmmss"

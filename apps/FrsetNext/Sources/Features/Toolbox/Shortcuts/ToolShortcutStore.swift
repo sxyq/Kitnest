@@ -84,15 +84,6 @@ public enum ToolShortcutStore {
         return reason.contains("冲突") ? .conflict(reason) : .systemFailure(reason)
     }
 
-    /// 清除某个工具的绑定
-    public static func clear(toolID: String) {
-        lock.lock(); defer { lock.unlock() }
-        ShortcutRegistry.unregister(id: registrationID(toolID))
-        var map = loadRaw()
-        map.removeValue(forKey: toolID)
-        saveRaw(map)
-    }
-
     /// 启动时恢复已保存的绑定（ToolboxModule.start 调用）
     public static func restoreAll() {
         for item in all where ToolRegistry.tool(id: item.toolID) != nil {

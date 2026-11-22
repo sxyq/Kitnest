@@ -65,18 +65,13 @@ private struct PinSettingsContent: View {
 
     public var body: some View {
         VStack(spacing: 20) {
-            SettingsSection("预览") {
+            SettingsSection("预览", alwaysExpanded: true) {
                 SettingsGroupBox {
                     PinLivePreview(appearance: draft.appearance)
                         .frame(maxWidth: 360)
                         .frame(height: 220)
-                        .frame(maxWidth: .infinity, alignment: .center)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.vertical, 6)
-                    Text("在场景内拖动、滚轮缩放；悬停显示正式控制条。按钮只演示反馈。")
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .padding(.top, 8)
-                        .padding(.bottom, 6)
                 }
             }
 
@@ -247,8 +242,8 @@ private struct PinSettingsContent: View {
             Text(title)
                 .font(.system(size: 12.5))
                 .frame(width: 74, alignment: .leading)
+            Spacer(minLength: 12)
             content()
-            Spacer(minLength: 0)
         }
         .padding(.vertical, 7)
     }

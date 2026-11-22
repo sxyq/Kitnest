@@ -59,7 +59,6 @@ final class PinPreviewScene: NSView {
         status.alignment = .center
         addSubview(status)
         if interactive {
-            feedback("拖动或方向键移动 · 滚轮或加减缩放 · 0 复位")
             addSubview(toolbar)
             addSubview(closeButton)
             toolbar.onAnnotate = { [weak self] in self?.feedback("标注演示：不打开编辑器") }

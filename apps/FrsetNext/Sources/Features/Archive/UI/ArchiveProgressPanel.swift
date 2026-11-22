@@ -44,9 +44,12 @@ public struct ArchiveProgressPanel: View {
                     .padding(.vertical, 2)
                 } else if compact {
                     // 内嵌在创建面板里：只显示最近几条，不滚动（面板本身高度由 sheet 决定）
-                    ForEach(queue.tasks) { task in
-                        ArchiveTaskRow(task: task)
+                    ScrollView(.vertical, showsIndicators: false) {
+                        ForEach(queue.tasks.suffix(3)) { task in
+                            ArchiveTaskRow(task: task)
+                        }
                     }
+                    .frame(maxHeight: 112)
                 } else {
                     // v182：独立窗里任务会越攒越多，之前没有滚动容器 —— 超出的行直接被窗口裁掉。
                     ScrollView(.vertical, showsIndicators: true) {
@@ -201,14 +204,27 @@ public final class ArchiveProgressWindowController: NSWindowController, NSWindow
 
     private static var current: ArchiveProgressWindowController?
 
+    /// v273：保持置顶偏好变化时实时应用（窗口常驻时也不滞后）。
+    private var keepOnTopObserver: NSObjectProtocol?
+
+    static func applyKeepOnTop(to win: NSWindow) {
+        let onTop = UserDefaults.standard.bool(forKey: Preferences.Keys.archiveProgressKeepOnTop)
+        let target: NSWindow.Level = onTop ? .floating : .normal
+        guard win.level != target else { return }
+        win.level = target
+        Log.info("Archive", "任务队列置顶=\(onTop ? "开(floating)" : "关(normal)")")
+    }
+
     /// 任务窗是否可见（HUD 用它避免重复展示，v180）
     public static var isVisible: Bool { current?.window?.isVisible == true }
 
     /// 弹出（或前置）任务面板浮窗
     public static func show() {
         if let current {
+            if let win = current.window { applyKeepOnTop(to: win) }
             current.window?.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
+            ArchiveTaskCenter.shared.refresh()
             return
         }
         let controller = ArchiveProgressWindowController()
@@ -216,11 +232,13 @@ public final class ArchiveProgressWindowController: NSWindowController, NSWindow
         controller.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
         controller.probeCloseIfNeeded()
+        ArchiveTaskCenter.shared.refresh()
     }
 
     public static func toggle() {
         if let win = current?.window, win.isVisible {
             win.orderOut(nil)
+            ArchiveTaskCenter.shared.refresh()
             return
         }
         show()
@@ -232,6 +250,15 @@ public final class ArchiveProgressWindowController: NSWindowController, NSWindow
                            backing: .buffered, defer: false)
         win.title = "任务队列"
         win.isReleasedWhenClosed = false
+        // v273（ArcZip 1.2.5 settings.progress.keep_on_top 对齐）：任务窗置顶。
+        Self.applyKeepOnTop(to: win)
+        // 设置页切换后立即生效——窗口常驻时不等下次弹出。
+        keepOnTopObserver = NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification, object: nil, queue: .main
+        ) { [weak win] _ in
+            guard let win else { return }
+            Self.applyKeepOnTop(to: win)
+        }
         // v179：这是全工程唯一一个「裸 NSWindow」——默认浅灰底 + 系统三钮，
         // 与设置/OCR 等文档窗不是一套。统一官方外观（灰底 + 透明标题栏 + 圆钮）。
         win.applyOfficialChrome()
@@ -345,6 +372,10 @@ public final class ArchiveProgressWindowController: NSWindowController, NSWindow
         if !visible.isEmpty && !visible.intersects(win.frame) {
             win.center()
         }
+    }
+
+    deinit {
+        if let keepOnTopObserver { NotificationCenter.default.removeObserver(keepOnTopObserver) }
     }
 
     public func windowWillClose(_ notification: Notification) {

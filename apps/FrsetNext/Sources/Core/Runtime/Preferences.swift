@@ -26,6 +26,12 @@ public final class Preferences: ObservableObject {
         public static let launchAtLogin = "launchAtLogin"
         /// 用户开启 ZIP 关联前的默认应用；关闭时恢复，不在启动时设置关联。
         public static let archivePreviousZIPApplication = "archive.previousZIPApplication"
+        // v273（ArcZip 1.2.5 对齐）：打开与解压行为 / 悬浮预览 / 任务窗置顶
+        public static let archiveOpenDirectExtract = "archive.open.directExtract"
+        public static let archiveOpenTrashOriginal = "archive.open.trashOriginal"
+        public static let archiveHoverEnabled = "archive.hover.enabled"
+        public static let archiveHoverSizeLimitMB = "archive.hover.sizeLimitMB"
+        public static let archiveProgressKeepOnTop = "archive.progress.keepOnTop"
         /// 深度释放时顺带暂停闲置应用（v259 第二档；默认开，内存卡上可临时关掉）
         public static let memoryFreezeIdle = "memory.freezeIdleOnRelease"
         /// 已看过的欢迎窗版本（onboardingVersion；空=没看过。见 WelcomeWindowController）
@@ -91,6 +97,8 @@ public final class Preferences: ObservableObject {
         public static let uiPanelMaterial = "ui.panel.material"        // solid / vibrancy
         public static let uiSourceBadge = "ui.clipboard.sourceBadge"   // 来源应用徽章显隐
         public static let uiThumbSize = "ui.clipboard.thumb"           // 44 / 56 / 72
+        public static let uiClipboardPreviewScale = "ui.clipboard.previewScale" // 1.0 / 1.25 / 1.6 / 2.0
+        public static let uiClipboardPreviewScaleVersion = "ui.clipboard.previewScaleVersion" // 3 = 当前口径
         public static let uiToastDuration = "ui.toast.duration"        // 2 / 3 / 5 秒
         public static let uiToastPosition = "ui.toast.position"        // followPanel / screenCenter
         public static let uiBarDividerColor = "ui.bar.divider.color"   // hex，空 = 默认
@@ -111,10 +119,6 @@ public final class Preferences: ObservableObject {
         get { value(Keys.launchAtLogin, default: false) }
         set { set(Keys.launchAtLogin, newValue) }
     }
-    public var menuBarIconsVisible: Bool {
-        get { value(Keys.menuBarIconsVisible, default: true) }
-        set { set(Keys.menuBarIconsVisible, newValue) }
-    }
     public var calendarShowLunar: Bool {
         get { value(Keys.calendarShowLunar, default: true) }
         set { set(Keys.calendarShowLunar, newValue) }
@@ -126,10 +130,3 @@ public final class Preferences: ObservableObject {
     }
 }
 
-/// 简单开关集合（各模块直接用 Preferences.shared 即可；此处提供 SwiftUI 便捷绑定）
-public extension Preferences {
-    func binding<T>(_ key: String, default fallback: T) -> Binding<T> {
-        Binding(get: { self.value(key, default: fallback) },
-                set: { self.set(key, $0) })
-    }
-}

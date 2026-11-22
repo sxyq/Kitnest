@@ -7,9 +7,7 @@ import Foundation
 /// 菜单项 target 均为 StatusBarController.shared，动作实现见其 @objc 方法
 public enum StatusBarMenuBuilder {
 
-    // v126（性能审计 F1324）：SF Symbol 图与候选列表缓存——mainMenu 每次右键都重建，
-    // 其中 3 张 NSImage(systemSymbolName:) 要走符号查找/解码，两个 allCases 过滤结果
-    // 也是常量。提到 static 复用；菜单项本身仍每次新建（勾选态依赖实时偏好，缓存会串态）。
+    // 图像沿菜单结构复用；勾选态在每次打开时读取。
     private static let onboardingImage = NSImage(systemSymbolName: "sparkles",
                                                  accessibilityDescription: "欢迎与权限")
     private static let updateImage = NSImage(systemSymbolName: "arrow.triangle.2.circlepath",
@@ -22,17 +20,9 @@ public enum StatusBarMenuBuilder {
     // 开关统一在「设置 → 监测」里，避免菜单里出现一个勾了也没效果的项。
     private static let monitorModules: [MonitorModuleID] = MonitorModuleID.allCases
         .filter { $0 != .battery }
-    private static let styleCases: [MenuBarIconStyle] = MenuBarIconStyle.allCases
-    private static let styleCasesWithoutCustom: [MenuBarIconStyle] = MenuBarIconStyle.allCases.filter { $0 != .custom }
-
-    // v128（流畅度）：两段式菜单——静态结构（标题/图标/target-action/快捷键）只建一次并缓存，
-    // 每次右键唤起只刷新动态字段（勾选态 state、target 引用）。原实现每帧 new 20+ 个
-    // NSMenuItem + 两层 NSMenu，是状态栏右键首帧卡顿点。
-    // 勾选态仍实时读 Preferences（不缓存值），避免串态；结构随 revealsCustomOption 变化
-    // （隐藏/恢复会增删项），故缓存按 revealed 分版本，翻转时才整体重建（罕见路径）。
+    // 菜单结构随功能入口开关重建，每次打开刷新监测勾选态和暂停菜单。
     private struct MenuCache {
         let menu: NSMenu
-        let revealed: Bool
         /// 三个全局入口开关的位图（v192）。开关变化后菜单要多/少项，
         /// 只刷勾选态不够——必须重建结构。
         let entriesSignature: Int
@@ -40,8 +30,6 @@ public enum StatusBarMenuBuilder {
         let targetItems: [NSMenuItem]
         /// 「显示项」子菜单勾选态 ← MonitorPreferences.isModuleEnabled
         let moduleItems: [MonitorModuleID: NSMenuItem]
-        /// 图标样式单选态 ← MenuBarIconStyleStore.current
-        let styleItems: [MenuBarIconStyle: NSMenuItem]
     }
 
     private static var cachedMenu: MenuCache?
@@ -60,22 +48,16 @@ public enum StatusBarMenuBuilder {
     }
 
     public static func mainMenu(target: AnyObject) -> NSMenu {
-        let revealed = MenuBarIconStyleStore.revealsCustomOption
         let signature = entriesSignature()
-        // v128（流畅度）：命中缓存 → 只刷新勾选态/target，零 alloc
-        if let cache = cachedMenu, cache.revealed == revealed, cache.entriesSignature == signature {
+        if let cache = cachedMenu, cache.entriesSignature == signature {
             for item in cache.targetItems { item.target = target }
             for (module, item) in cache.moduleItems {
                 item.state = MonitorPreferences.isModuleEnabled(module) ? .on : .off
             }
-            let current = MenuBarIconStyleStore.current
-            for (style, item) in cache.styleItems {
-                item.state = (style == current) ? .on : .off
-            }
             refreshPauseMenu(cache.menu)
             return cache.menu
         }
-        let cache = buildMenu(target: target, revealed: revealed, signature: signature)
+        let cache = buildMenu(target: target, signature: signature)
         cachedMenu = cache
         refreshPauseMenu(cache.menu)
         return cache.menu
@@ -99,8 +81,8 @@ public enum StatusBarMenuBuilder {
         menu.insertItem(root, at: 2)
     }
 
-    /// v128（流畅度）：全量构造（仅缓存未命中 / revealed 翻转时走），并登记需刷新的项
-    private static func buildMenu(target: AnyObject, revealed: Bool, signature: Int) -> MenuCache {
+    /// 缓存未命中时构造结构，并登记需刷新的项。
+    private static func buildMenu(target: AnyObject, signature: Int) -> MenuCache {
         let menu = NSMenu()
         var targetItems: [NSMenuItem] = []
         var moduleItems: [MonitorModuleID: NSMenuItem] = [:]
@@ -125,6 +107,8 @@ public enum StatusBarMenuBuilder {
                                 modifiers: [.command],
                                 action: #selector(StatusBarController.openSettingsAction(_:)),
                                 target: target)))
+        menu.addItem(track(item("查看收藏…", key: "", modifiers: [],
+                                action: #selector(StatusBarController.openFavoritesAction(_:)), target: target)))
 
         if GlobalEntries.isEnabled(GlobalEntries.monitorPopoutKey) {
             menu.addItem(track(item("性能监测…", key: "", modifiers: [],
@@ -135,6 +119,9 @@ public enum StatusBarMenuBuilder {
         // 这里给一个全局入口；任务进行中 HUD 会自动出现，这个入口用于重新打开详情。
         menu.addItem(track(item("归档任务…", key: "", modifiers: [],
                                 action: #selector(StatusBarController.openArchiveTasksAction(_:)), target: target)))
+
+        menu.addItem(track(item("新手教程…", key: "", modifiers: [],
+                                action: #selector(StatusBarController.showTutorialAction(_:)), target: target)))
 
         // v206：代码预览独立窗已删除（代码预览改为 hover 预览内联渲染）
 
@@ -194,12 +181,8 @@ public enum StatusBarMenuBuilder {
         modules.submenu = moduleMenu
         menu.addItem(modules)
 
-        // 「自定义菜单栏图标」选项（v83：原彩蛋解锁门控已移除——功能直接可用，
-        // 不再要求「连续单击主图标 10 次」解锁，见 StatusBarController.mainItemClicked）
         menu.addItem(NSMenuItem.separator())
-        let custom = customIconSubmenu(revealed: revealed)
-        menu.addItem(custom.root)
-        let styleItems = custom.styleItems
+        menu.addItem(customIconItem())
 
         menu.addItem(NSMenuItem.separator())
 
@@ -210,56 +193,18 @@ public enum StatusBarMenuBuilder {
                                 target: target)))
 
         return MenuCache(menu: menu,
-                         revealed: revealed,
                          entriesSignature: signature,
                          targetItems: targetItems,
-                         moduleItems: moduleItems,
-                         styleItems: styleItems)
+                         moduleItems: moduleItems)
     }
 
-    /// 菜单栏图标子菜单：五样式单选 + 隐藏/恢复自定义选项
-    /// （spec 13 §6：logo/fan/date/custom 四键；hide/restore 对应对话框的触发点）
-    /// v128（流畅度）：同时返回样式项引用，供缓存命中时只刷单选态
-    private static func customIconSubmenu(revealed: Bool)
-        -> (root: NSMenuItem, styleItems: [MenuBarIconStyle: NSMenuItem]) {
-        let root = NSMenuItem(title: "自定义菜单栏图标", action: nil, keyEquivalent: "")
+    /// 配置项只定位到总设置中的唯一编辑位置。
+    private static func customIconItem() -> NSMenuItem {
+        let root = NSMenuItem(title: "图标与入口…",
+            action: #selector(MenuBarIconStyleMenuActions.openCustomIconSettings(_:)), keyEquivalent: "")
+        root.target = MenuBarIconStyleMenuActions.shared
         root.image = customRootImage
-        let submenu = NSMenu()
-        let current = MenuBarIconStyleStore.current
-        var styleItems: [MenuBarIconStyle: NSMenuItem] = [:]
-        // 自定义项被隐藏时（revealCustomMenuBarIconOption = false）：只给「后悔/恢复」入口（spec §6.3 restore）
-        // v126（性能审计 F1324）：候选样式表提为 static 常量（原每次重建都 allCases.filter）
-        let styles = revealed ? styleCases : styleCasesWithoutCustom
-        for style in styles {
-            let styleItem = NSMenuItem(title: style.title,
-                                       action: #selector(MenuBarIconStyleMenuActions.selectIconStyle(_:)),
-                                       keyEquivalent: "")
-            styleItem.target = MenuBarIconStyleMenuActions.shared
-            styleItem.representedObject = style.rawValue
-            styleItem.state = (style == current) ? .on : .off
-            submenu.addItem(styleItem)
-            styleItems[style] = styleItem
-        }
-        submenu.addItem(NSMenuItem.separator())
-        // 自定义 Symbol 的名称设置入口（仅在自定义项可见时）
-        if revealed {
-            let nameItem = NSMenuItem(title: "设置 Symbol 名称…",
-                                      action: #selector(MenuBarIconStyleMenuActions.openCustomIconSettings(_:)),
-                                      keyEquivalent: "")
-            nameItem.target = MenuBarIconStyleMenuActions.shared
-            submenu.addItem(nameItem)
-        }
-        submenu.addItem(NSMenuItem.separator())
-        // 隐藏 / 恢复：对应 spec 13 §6.3 的 hide / restore 两类对话框
-        let toggleItem = NSMenuItem(
-            title: revealed ? "隐藏这个选项…" : "把 Symbol 选项放回来…",
-            action: revealed ? #selector(MenuBarIconStyleMenuActions.hideIconOption(_:))
-                             : #selector(MenuBarIconStyleMenuActions.restoreIconOption(_:)),
-            keyEquivalent: "")
-        toggleItem.target = MenuBarIconStyleMenuActions.shared
-        submenu.addItem(toggleItem)
-        root.submenu = submenu
-        return (root, styleItems)
+        return root
     }
 
     /// 统一构造带快捷键显示的菜单项

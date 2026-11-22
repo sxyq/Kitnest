@@ -7,6 +7,7 @@ public struct ClipboardQuery {
     public var type: ClipboardItemType? = nil
     /// 仅笔记条目（is_note=1，05 号规格 B6：笔记走同一张表）
     public var noteOnly: Bool = false
+    public var favoriteOnly: Bool = false
     /// 仅工具回流条目（is_generated_by_tool=1，05 号规格 B10）
     public var toolGeneratedOnly: Bool = false
     /// 工具回流来源关键词（过滤项 .color → "colorpicker"；specs/14 §6，证据不足取来源映射）
@@ -25,6 +26,7 @@ public struct ClipboardQuery {
     public init(search: String = "",
                 type: ClipboardItemType? = nil,
                 noteOnly: Bool = false,
+                favoriteOnly: Bool = false,
                 toolGeneratedOnly: Bool = false,
                 generatedSourceKeyword: String? = nil,
                 codeLikeOnly: Bool = false,
@@ -36,6 +38,7 @@ public struct ClipboardQuery {
         self.search = search
         self.type = type
         self.noteOnly = noteOnly
+        self.favoriteOnly = favoriteOnly
         self.toolGeneratedOnly = toolGeneratedOnly
         self.generatedSourceKeyword = generatedSourceKeyword
         self.codeLikeOnly = codeLikeOnly
@@ -44,6 +47,18 @@ public struct ClipboardQuery {
         self.tagID = tagID
         self.limit = limit
         self.offset = offset
+    }
+
+    public init(filter: ClipboardFilterKind, search: String, tagID: String?,
+                limit: Int = ClipboardRepository.defaultPageSize, offset: Int = 0) {
+        let mapping = filter.queryMapping
+        self.init(search: search.trimmingCharacters(in: .whitespacesAndNewlines),
+                  type: mapping.type, noteOnly: mapping.noteOnly, favoriteOnly: filter == .favorite,
+                  toolGeneratedOnly: mapping.toolGeneratedOnly,
+                  generatedSourceKeyword: mapping.generatedSourceKeyword,
+                  codeLikeOnly: mapping.codeLikeOnly, urlLikeOnly: filter == .link,
+                  fileCategoryMask: mapping.fileCategoryMask, tagID: tagID,
+                  limit: limit, offset: offset)
     }
 }
 
@@ -61,7 +76,7 @@ public final class ClipboardRepository: @unchecked Sendable {
 
     static let columns = """
         id, type, content, title, subtitle, timestamp, source_app, image_path, thumbnail_path,
-        is_generated_by_tool, is_note, source_tool_analytics_id, source_tool_keyword, text_path,
+        is_generated_by_tool, is_note, is_favorite, source_tool_analytics_id, source_tool_keyword, text_path,
         rich_text_path, full_text_char_count, full_text_line_count, source_input, file_icon_key,
         image_dimension_unit, payload_key, storage_bytes, dedupe_key, alias_title, file_categories
         """
@@ -72,6 +87,7 @@ public final class ClipboardRepository: @unchecked Sendable {
             values.append(.text(type.rawValue))
         }
         if query.noteOnly { clauses.append("is_note = 1") }
+        if query.favoriteOnly { clauses.append("is_favorite = 1") }
         if query.fileCategoryMask != 0 {
             clauses.append("(file_categories & ?) != 0")
             values.append(.int(Int64(query.fileCategoryMask)))
@@ -140,12 +156,11 @@ public final class ClipboardRepository: @unchecked Sendable {
         var clauses: [String] = []
         Self.appendClauses(query, clauses: &clauses, values: &values)
         if !clauses.isEmpty { sql += " WHERE " + clauses.joined(separator: " AND ") }
-        sql += " ORDER BY timestamp DESC LIMIT ? OFFSET ?"
+        sql += " ORDER BY timestamp DESC, id DESC LIMIT ? OFFSET ?"
         values.append(contentsOf: [.int(Int64(query.limit)), .int(Int64(query.offset))])
 
         do {
-            let rows = try db.query(sql, values)
-            var items = rows.map(Self.makeItem)
+            var items = try db.query(sql, values, transform: Self.makeItem)
             TagStore.shared.attachTags(to: &items)
             return items
         } catch {
@@ -184,10 +199,10 @@ public final class ClipboardRepository: @unchecked Sendable {
         let sql = """
             INSERT INTO clipboard_items (
                 id, type, content, title, subtitle, timestamp, source_app, image_path, thumbnail_path,
-                is_generated_by_tool, is_note, source_tool_analytics_id, source_tool_keyword, text_path,
+                is_generated_by_tool, is_note, is_favorite, source_tool_analytics_id, source_tool_keyword, text_path,
                 rich_text_path, full_text_char_count, full_text_line_count, source_input, file_icon_key,
                 image_dimension_unit, payload_key, storage_bytes, dedupe_key, alias_title, file_categories
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """
         do {
             try db.run(sql, Self.bindings(item))
@@ -209,21 +224,31 @@ public final class ClipboardRepository: @unchecked Sendable {
     public func updateContent(dedupeKey: String,
                               content: String,
                               textPath: String?,
+                              richTextPath: String?,
                               charCount: Int?,
                               lineCount: Int?,
-                              storageBytes: Int) -> Bool {
+                              storageBytes: Int,
+                              aliasTitle: String?) -> Bool {
+        let shouldUpdateAlias = aliasTitle != nil
+        let storedAlias = aliasTitle.flatMap {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0
+        }
         do {
             try db.run("""
             UPDATE clipboard_items
                SET content = ?, text_path = ?, full_text_char_count = ?,
-                   full_text_line_count = ?, storage_bytes = ?, title = ?
+                   rich_text_path = ?, full_text_line_count = ?, storage_bytes = ?, title = ?,
+                   alias_title = CASE WHEN ? THEN ? ELSE alias_title END
              WHERE dedupe_key = ?
             """, [.text(content),
                   textPath.map { SQLiteValue.text($0) } ?? .null,
                   charCount.map { SQLiteValue.int(Int64($0)) } ?? .null,
+                  richTextPath.map { SQLiteValue.text($0) } ?? .null,
                   lineCount.map { SQLiteValue.int(Int64($0)) } ?? .null,
                   .int(Int64(storageBytes)),
                   .text(content.firstLineBrief),
+                  .int(shouldUpdateAlias ? 1 : 0),
+                  storedAlias.map(SQLiteValue.text) ?? .null,
                   .text(dedupeKey)])
             return true
         } catch {
@@ -232,45 +257,22 @@ public final class ClipboardRepository: @unchecked Sendable {
         }
     }
 
-    /// 重命名（alias_title）
-    public func updateAliasTitle(dedupeKey: String, aliasTitle: String?) -> Bool {
+    /// 已存状态沿用 is_note，与收藏标记分别保留。
+    @discardableResult
+    public func updateNote(dedupeKey: String, isNote: Bool) -> Bool {
         do {
-            if let alias = aliasTitle, !alias.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                try db.run("UPDATE clipboard_items SET alias_title = ? WHERE dedupe_key = ?",
-                        [.text(alias), .text(dedupeKey)])
-            } else {
-                try db.run("UPDATE clipboard_items SET alias_title = NULL WHERE dedupe_key = ?", [.text(dedupeKey)])
-            }
+            try db.run("UPDATE clipboard_items SET is_note = ? WHERE dedupe_key = ?",
+                        [.int(isNote ? 1 : 0), .text(dedupeKey)])
             return true
         } catch {
-            Log.error("clipboard", "保存标题失败: \(error)")
+            Log.error("clipboard", "已存状态保存失败: \(error)")
             return false
         }
     }
 
-    /// 更新富文本 / 图片 / 通用字段（工具回流与 OCR 后回填用）
-    public func updateFields(dedupeKey: String, richTextPath: String? = nil, imagePath: String? = nil,
-                             thumbnailPath: String? = nil, storageBytes: Int? = nil, note: Bool? = nil) {
-        if let richTextPath {
-            try? db.run("UPDATE clipboard_items SET rich_text_path = ? WHERE dedupe_key = ?",
-                        [.text(richTextPath), .text(dedupeKey)])
-        }
-        if let imagePath {
-            try? db.run("UPDATE clipboard_items SET image_path = ? WHERE dedupe_key = ?",
-                        [.text(imagePath), .text(dedupeKey)])
-        }
-        if let thumbnailPath {
-            try? db.run("UPDATE clipboard_items SET thumbnail_path = ? WHERE dedupe_key = ?",
-                        [.text(thumbnailPath), .text(dedupeKey)])
-        }
-        if let storageBytes {
-            try? db.run("UPDATE clipboard_items SET storage_bytes = ? WHERE dedupe_key = ?",
-                        [.int(Int64(storageBytes)), .text(dedupeKey)])
-        }
-        if let note {
-            try? db.run("UPDATE clipboard_items SET is_note = ? WHERE dedupe_key = ?",
-                        [.int(note ? 1 : 0), .text(dedupeKey)])
-        }
+    @discardableResult
+    public func updateFavorite(dedupeKey: String, isFavorite: Bool) -> Bool {
+        FavoritesStore.shared.setClipboard(dedupeKey: dedupeKey, favorite: isFavorite)
     }
 
     // MARK: 删
@@ -315,6 +317,7 @@ public final class ClipboardRepository: @unchecked Sendable {
                 for copy in copies { try fm.removeItem(at: copy.original) }
                 try database.run("DELETE FROM clipboard_items WHERE dedupe_key = ?", [.text(dedupeKey)])
                 try database.run("DELETE FROM clipboard_item_tags WHERE item_dedupe_key = ?", [.text(dedupeKey)])
+                try database.run("DELETE FROM resource_favorites WHERE resource_type='clipboard' AND resource_id=?", [.text(dedupeKey)])
             }
         } catch {
             var message = error.localizedDescription
@@ -328,34 +331,37 @@ public final class ClipboardRepository: @unchecked Sendable {
         }
         // 移除 OCR 内存索引，附件已由同一删除流程回收。
         ClipboardOCRTextStorage.remove(dedupeKey: dedupeKey)
+        TagStore.shared.removeMapping(for: dedupeKey)
         onReclaimedBytes?(reclaimed)
         return true
     }
 
+    func unsavedCount() throws -> Int {
+        Int(try db.scalarInt("SELECT COUNT(*) FROM clipboard_items WHERE is_note = 0 AND is_favorite = 0"))
+    }
+
     public func unsavedHistory() throws -> [ClipboardItem] {
-        try db.query("SELECT \(Self.columns) FROM clipboard_items WHERE is_note = 0").map(Self.makeItem)
+        try db.query("SELECT \(Self.columns) FROM clipboard_items WHERE is_note = 0 AND is_favorite = 0", transform: Self.makeItem)
     }
 
     public func savedCount() throws -> Int {
-        Int(try db.scalarInt("SELECT COUNT(*) FROM clipboard_items WHERE is_note = 1"))
+        Int(try db.scalarInt("SELECT COUNT(*) FROM clipboard_items WHERE is_note = 1 OR is_favorite = 1"))
     }
 
     // MARK: 清理辅助（双调度器共用）
 
     /// 早于 cutoff 的条目（时间保留期用）
     public func rowsOlderThan(_ cutoff: Date, limit: Int = 200) -> [ClipboardItem] {
-        let rows = (try? db.query(
-            "SELECT \(Self.columns) FROM clipboard_items WHERE timestamp < ? ORDER BY timestamp ASC LIMIT ?",
-            [.real(cutoff.timeIntervalSince1970), .int(Int64(limit))])) ?? []
-        return rows.map(Self.makeItem)
+        (try? db.query(
+            "SELECT \(Self.columns) FROM clipboard_items WHERE timestamp < ? AND is_note = 0 AND is_favorite = 0 ORDER BY timestamp ASC LIMIT ?",
+            [.real(cutoff.timeIntervalSince1970), .int(Int64(limit))], transform: Self.makeItem)) ?? []
     }
 
     /// 最旧的若干条（容量超限用）
     public func oldestRows(limit: Int = 200) -> [ClipboardItem] {
-        let rows = (try? db.query(
-            "SELECT \(Self.columns) FROM clipboard_items ORDER BY timestamp ASC LIMIT ?",
-            [.int(Int64(limit))])) ?? []
-        return rows.map(Self.makeItem)
+        (try? db.query(
+            "SELECT \(Self.columns) FROM clipboard_items WHERE is_note = 0 AND is_favorite = 0 ORDER BY timestamp ASC LIMIT ?",
+            [.int(Int64(limit))], transform: Self.makeItem)) ?? []
     }
 
     public func totalStorageBytes() -> Int64 {
@@ -393,6 +399,7 @@ public final class ClipboardRepository: @unchecked Sendable {
             dedupeKey: row.string("dedupe_key") ?? "",
             aliasTitle: row.string("alias_title"),
             tagIDs: [],
+            isFavorite: row.bool("is_favorite"),
             fileCategories: Int(row.int("file_categories"))
         )
     }
@@ -412,6 +419,7 @@ public final class ClipboardRepository: @unchecked Sendable {
             optionalText(item.thumbnailPath),
             .int(item.isGeneratedByTool ? 1 : 0),
             .int(item.isNote ? 1 : 0),
+            .int(item.isFavorite ? 1 : 0),
             optionalText(item.sourceToolAnalyticsId),
             optionalText(item.sourceToolKeyword),
             optionalText(item.textPath),
@@ -451,7 +459,7 @@ public final class ClipboardRepository: @unchecked Sendable {
 extension String {
     /// 首行摘要作为 title
     var firstLineBrief: String {
-        let line = split(separator: "\n").first.map(String.init) ?? self
+        let line = split(separator: "\n", maxSplits: 1).first.map(String.init) ?? self
         let s = line.trimmingCharacters(in: .whitespacesAndNewlines)
         if s.count > 80 { return String(s.prefix(80)) + "…" }
         return s.isEmpty ? (self.isEmpty ? "" : String(self.prefix(80))) : s

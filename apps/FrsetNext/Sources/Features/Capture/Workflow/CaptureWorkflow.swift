@@ -1,5 +1,6 @@
 import AppKit
 import Foundation
+import Security
 
 // MARK: - 自定义工作流（v264 · C 档「工作流 + GitHub/Linear」）
 //
@@ -10,9 +11,7 @@ import Foundation
 // 关键设计：
 //   · 步骤之间用**上下文**传递产物（文件 → 文本 → 图片 URL），后面的步骤能引用前面的结果；
 //   · 模板占位符 {name} {text} {url} {date}，写在标题/正文里；
-//   · Token 存在 `~/Library/Application Support/Kitnest/workflows.json`，文件权限 0600，
-//     不写 UserDefaults（那里是明文 plist，任何进程都能读）。
-//   · 任何一步失败只记日志并继续下一步（工作流不该因为图床挂了就不保存截图）。
+//   · GitHub / Linear 凭证由 Keychain 保存；JSON 仅保存工作流配置。
 
 public struct WorkflowStep: Codable, Identifiable, Equatable {
     public enum Kind: String, Codable, CaseIterable, Identifiable {
@@ -34,8 +33,8 @@ public struct WorkflowStep: Codable, Identifiable, Equatable {
             switch self {
             case .save:   return ("文件夹路径", "")
             case .upload: return ("上传地址（multipart）", "文件字段名（默认 file）")
-            case .github: return ("仓库 owner/repo", "Token（repo 权限）")
-            case .linear: return ("Team ID", "API Key")
+            case .github: return ("仓库 owner/repo", "GitHub Token")
+            case .linear: return ("Team ID", "Linear API Key")
             default:      return nil
             }
         }
@@ -70,28 +69,126 @@ public struct CaptureWorkflow: Codable, Identifiable, Equatable {
 
 public enum WorkflowStore {
 
+    private static let credentialService = "com.sxyq.frsetnext.capture-workflow"
+
     private static var fileURL: URL {
         AppDirectories.sub("workflows").appendingPathComponent("workflows.json")
     }
 
     public static func load() -> [CaptureWorkflow] {
         guard let data = try? Data(contentsOf: fileURL),
-              let list = try? JSONDecoder().decode([CaptureWorkflow].self, from: data) else {
+              let stored = try? JSONDecoder().decode([CaptureWorkflow].self, from: data) else {
             return seed
         }
+        var list = stored
+        var migrated = false
+        var migrationComplete = true
+        for workflowIndex in list.indices {
+            for stepIndex in list[workflowIndex].steps.indices {
+                let workflow = list[workflowIndex]
+                let step = workflow.steps[stepIndex]
+                guard step.kind == .github || step.kind == .linear else { continue }
+                let account = credentialAccount(workflow: workflow, step: step)
+                do {
+                    if let credential = try readCredential(account: account) {
+                        list[workflowIndex].steps[stepIndex].b = credential
+                        if !step.b.isEmpty { migrated = true }
+                    } else if !step.b.isEmpty {
+                        try writeCredential(step.b, account: account)
+                        migrated = true
+                    }
+                } catch {
+                    migrationComplete = false
+                    Log.error("Workflow", "Keychain 凭证读取或迁移失败：\(error.localizedDescription)")
+                }
+            }
+        }
+        if migrated, migrationComplete, save(list) == nil { return list }
         return list
     }
 
-    public static func save(_ list: [CaptureWorkflow]) {
+    @discardableResult
+    public static func save(_ list: [CaptureWorkflow]) -> String? {
         do {
+            var sanitized = list
+            var retainedCredentials = Set<String>()
+            for workflowIndex in list.indices {
+                for stepIndex in list[workflowIndex].steps.indices {
+                    let workflow = list[workflowIndex]
+                    let step = workflow.steps[stepIndex]
+                    guard step.kind == .github || step.kind == .linear else { continue }
+                    let account = credentialAccount(workflow: workflow, step: step)
+                    if !step.b.isEmpty {
+                        try writeCredential(step.b, account: account)
+                        retainedCredentials.insert(account)
+                    }
+                    sanitized[workflowIndex].steps[stepIndex].b = ""
+                }
+            }
+            let old = (try? Data(contentsOf: fileURL)).flatMap {
+                try? JSONDecoder().decode([CaptureWorkflow].self, from: $0)
+            } ?? []
             try FileManager.default.createDirectory(at: fileURL.deletingLastPathComponent(),
                                                     withIntermediateDirectories: true)
-            let data = try JSONEncoder().encode(list)
+            let data = try JSONEncoder().encode(sanitized)
             try data.write(to: fileURL, options: [.atomic])
-            // 含 Token：只给当前用户读写
             try FileManager.default.setAttributes([.posixPermissions: 0o600], ofItemAtPath: fileURL.path)
+            for workflow in old {
+                for step in workflow.steps where step.kind == .github || step.kind == .linear {
+                    let account = credentialAccount(workflow: workflow, step: step)
+                    if !retainedCredentials.contains(account) { try deleteCredential(account: account) }
+                }
+            }
+            return nil
         } catch {
             Log.error("Workflow", "保存工作流失败：\(error.localizedDescription)")
+            return "保存工作流失败：\(error.localizedDescription)"
+        }
+    }
+
+    private static func credentialAccount(workflow: CaptureWorkflow, step: WorkflowStep) -> String {
+        "\(workflow.id.uuidString).\(step.id.uuidString).\(step.kind.rawValue)"
+    }
+
+    private static func readCredential(account: String) throws -> String? {
+        var result: CFTypeRef?
+        let status = SecItemCopyMatching([
+            kSecClass: kSecClassGenericPassword,
+            kSecAttrService: credentialService,
+            kSecAttrAccount: account,
+            kSecReturnData: true,
+            kSecMatchLimit: kSecMatchLimitOne
+        ] as CFDictionary, &result)
+        if status == errSecItemNotFound { return nil }
+        guard status == errSecSuccess, let data = result as? Data,
+              let value = String(data: data, encoding: .utf8) else {
+            throw NSError(domain: NSOSStatusErrorDomain, code: Int(status))
+        }
+        return value
+    }
+
+    private static func writeCredential(_ value: String, account: String) throws {
+        let query: [String: Any] = [kSecClass as String: kSecClassGenericPassword,
+                                    kSecAttrService as String: credentialService,
+                                    kSecAttrAccount as String: account]
+        let data = Data(value.utf8)
+        let status = SecItemUpdate(query as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+        if status == errSecItemNotFound {
+            var item = query
+            item[kSecValueData as String] = data
+            let addStatus = SecItemAdd(item as CFDictionary, nil)
+            guard addStatus == errSecSuccess else { throw NSError(domain: NSOSStatusErrorDomain, code: Int(addStatus)) }
+        } else if status != errSecSuccess {
+            throw NSError(domain: NSOSStatusErrorDomain, code: Int(status))
+        }
+    }
+
+    private static func deleteCredential(account: String) throws {
+        let status = SecItemDelete([kSecClass: kSecClassGenericPassword,
+                                    kSecAttrService: credentialService,
+                                    kSecAttrAccount: account] as CFDictionary)
+        guard status == errSecSuccess || status == errSecItemNotFound else {
+            throw NSError(domain: NSOSStatusErrorDomain, code: Int(status))
         }
     }
 
@@ -112,24 +209,37 @@ public final class CaptureWorkflowRunner {
     public static let shared = CaptureWorkflowRunner()
 
     private let queue = DispatchQueue(label: "kitnest.workflow", qos: .utility)
-    private var running = false
+    private let pendingLock = NSLock()
+    private var pendingJobs = 0
+    private let maximumPendingJobs = 3
 
     private init() {}
 
     /// 截图落盘后调用（App 层接线）。只在有启用工作流时才做任何事。
     public func imageCaptured(url: URL, data: Data) {
-        let workflows = WorkflowStore.load().filter { $0.enabled && !$0.steps.isEmpty }
-        guard !workflows.isEmpty else { return }
-        guard !running else {
-            Log.warn("Workflow", "上一次工作流还没跑完，跳过这一次")
+        pendingLock.lock()
+        guard pendingJobs < maximumPendingJobs else {
+            pendingLock.unlock()
+            DispatchQueue.main.async {
+                Toast.show("截图工作流队列已满，截图已保留但未执行工作流", icon: "exclamationmark.triangle", isWarning: true)
+            }
             return
         }
-        running = true
+        pendingJobs += 1
+        pendingLock.unlock()
         queue.async { [weak self] in
-            for workflow in workflows {
-                self?.run(workflow, url: url, data: data)
+            guard let self else { return }
+            defer {
+                self.pendingLock.lock()
+                self.pendingJobs -= 1
+                self.pendingLock.unlock()
             }
-            self?.running = false
+            let workflows = WorkflowStore.load().filter { $0.enabled && !$0.steps.isEmpty }
+            for workflow in workflows {
+                if let failure = self.run(workflow, url: url, data: data) {
+                    self.presentFailure(failure)
+                }
+            }
         }
     }
 
@@ -142,17 +252,48 @@ public final class CaptureWorkflowRunner {
         var name: String
     }
 
-    private func run(_ workflow: CaptureWorkflow, url: URL, data: Data) {
-        var ctx = Context(fileURL: url, name: url.deletingPathExtension().lastPathComponent)
+    private struct StepFailure {
+        let workflow: CaptureWorkflow
+        let stepIndex: Int
+        let context: Context
+        let url: URL
+        let data: Data
+        let message: String
+    }
+
+    private func run(_ workflow: CaptureWorkflow, url: URL, data: Data,
+                     from startIndex: Int = 0, context: Context? = nil) -> StepFailure? {
+        var ctx = context ?? Context(fileURL: url, name: url.deletingPathExtension().lastPathComponent)
         Log.info("Workflow", "开始执行「\(workflow.name)」（\(workflow.steps.count) 步）")
-        for step in workflow.steps {
+        for (index, step) in workflow.steps.enumerated().dropFirst(startIndex) {
             do {
                 try perform(step, data: data, ctx: &ctx)
             } catch {
                 Log.error("Workflow", "「\(workflow.name)」步骤 \(step.kind.rawValue) 失败：\(error.localizedDescription)")
+                return StepFailure(workflow: workflow, stepIndex: index, context: ctx,
+                                   url: url, data: data, message: error.localizedDescription)
             }
         }
         Log.info("Workflow", "「\(workflow.name)」结束（文本 \(ctx.text.count) 字，URL=\(ctx.uploadedURL.isEmpty ? "无" : "有")）")
+        return nil
+    }
+
+    private func presentFailure(_ failure: StepFailure) {
+        DispatchQueue.main.async {
+            let alert = NSAlert()
+            alert.alertStyle = .warning
+            alert.messageText = "工作流「\(failure.workflow.name)」在「\(failure.workflow.steps[failure.stepIndex].kind.title)」失败"
+            alert.informativeText = "\(failure.message)\n截图保留在：\(failure.url.path)"
+            alert.addButton(withTitle: "重试此步骤")
+            alert.addButton(withTitle: "关闭")
+            guard alert.runModal() == .alertFirstButtonReturn else { return }
+            self.queue.async {
+                if let next = self.run(failure.workflow, url: failure.url, data: failure.data,
+                                       from: failure.stepIndex, context: failure.context) {
+                    self.presentFailure(next)
+                }
+            }
+        }
     }
 
     private func perform(_ step: WorkflowStep, data: Data, ctx: inout Context) throws {
@@ -162,12 +303,18 @@ public final class CaptureWorkflowRunner {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             let dest = dir.appendingPathComponent(ctx.fileURL.lastPathComponent)
             if dest.standardizedFileURL != ctx.fileURL.standardizedFileURL {
-                try? FileManager.default.removeItem(at: dest)
-                try FileManager.default.copyItem(at: ctx.fileURL, to: dest)
+                let temporary = dir.appendingPathComponent(".\(UUID().uuidString).\(dest.lastPathComponent)")
+                defer { try? FileManager.default.removeItem(at: temporary) }
+                try FileManager.default.copyItem(at: ctx.fileURL, to: temporary)
+                if FileManager.default.fileExists(atPath: dest.path) {
+                    _ = try FileManager.default.replaceItemAt(dest, withItemAt: temporary)
+                } else {
+                    try FileManager.default.moveItem(at: temporary, to: dest)
+                }
             }
         case .copy:
             let pasteboard = NSPasteboard.general
-            DispatchQueue.main.async {
+            DispatchQueue.main.sync {
                 pasteboard.clearContents()
                 pasteboard.setData(data, forType: NSPasteboard.PasteboardType("public.png"))
             }
@@ -175,23 +322,36 @@ public final class CaptureWorkflowRunner {
             let text = try recognizeText(data: data)
             ctx.text = text
         case .pin:
-            guard let cg = ImageProcessor.cgImage(from: ctx.fileURL) else { return }
-            DispatchQueue.main.async {
+            guard let cg = ImageProcessor.cgImage(from: ctx.fileURL) else {
+                throw NSError(domain: "Workflow", code: 5,
+                              userInfo: [NSLocalizedDescriptionKey: "无法读取截图图片"])
+            }
+            DispatchQueue.main.sync {
                 PinnedScreenshotManager.shared.show(image: cg)
             }
         case .upload:
             let endpoint = step.a.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !endpoint.isEmpty, let url = URL(string: endpoint) else { return }
+            guard !endpoint.isEmpty, let url = URL(string: endpoint),
+                  ["https", "http"].contains(url.scheme?.lowercased() ?? "") else {
+                throw NSError(domain: "Workflow", code: 6,
+                              userInfo: [NSLocalizedDescriptionKey: "上传地址无效"])
+            }
             let field = step.b.isEmpty ? "file" : step.b
             let remote = try upload(data: data, to: url, field: field, filename: ctx.fileURL.lastPathComponent)
             ctx.uploadedURL = remote
         case .github:
             let repo = step.a.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !repo.isEmpty, !step.b.isEmpty else { return }
+            guard !repo.isEmpty, !step.b.isEmpty else {
+                throw NSError(domain: "Workflow", code: 7,
+                              userInfo: [NSLocalizedDescriptionKey: "请填写仓库和 GitHub Token"])
+            }
             try createGitHubIssue(repo: repo, token: step.b, ctx: ctx)
         case .linear:
             let team = step.a.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !team.isEmpty, !step.b.isEmpty else { return }
+            guard !team.isEmpty, !step.b.isEmpty else {
+                throw NSError(domain: "Workflow", code: 8,
+                              userInfo: [NSLocalizedDescriptionKey: "请填写 Team ID 和 Linear API Key"])
+            }
             try createLinearIssue(teamID: team, key: step.b, ctx: ctx)
         }
     }
@@ -302,10 +462,16 @@ public final class CaptureWorkflowRunner {
             throw NSError(domain: "Workflow", code: code,
                           userInfo: [NSLocalizedDescriptionKey: "Linear \(code)"])
         }
-        if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-           let errors = json["errors"] as? [[String: Any]], let first = errors.first {
+        let json = try JSONSerialization.jsonObject(with: data) as? [String: Any]
+        if let errors = json?["errors"] as? [[String: Any]], let first = errors.first {
             throw NSError(domain: "Workflow", code: 1,
                           userInfo: [NSLocalizedDescriptionKey: "Linear: \(first["message"] ?? "")"])
+        }
+        guard let payload = json?["data"] as? [String: Any],
+              let issue = payload["issueCreate"] as? [String: Any],
+              issue["success"] as? Bool == true else {
+            throw NSError(domain: "Workflow", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: "Linear 未能创建 Issue"])
         }
     }
 
