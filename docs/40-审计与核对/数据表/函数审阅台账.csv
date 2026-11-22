@@ -1700,85 +1700,94 @@ Capture,Features/Capture/Screenshot/Eyedropper.swift,Eyedropper,pushRecentColor,
 Capture,Features/Capture/Screenshot/Eyedropper.swift,Eyedropper,copyHexToPasteboard,func,363,KEEP,Eyedropper.swift:310 调用
 Capture,Features/Capture/Screenshot/EyedropperBridge.swift,EyedropperPickBridge,pickColor,func,24,KEEP,2026-11-19：AppBootstrap注册ToolRegistry工具时await调用；主队列建立既有Eyedropper会话并以唯一completion恢复Continuation
 Capture,Features/Capture/Screenshot/ScreenshotManager.swift,NativeRegionCapture,captureScreen,func,31,KEEP,2026-11-20：显示器ID转原生抓屏序号，capture(appKitRect:)调用。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,NativeRegionCapture,captureScreenOnDisplay,func,37,KEEP,2026-11-19：按已映射的显示器 -D 序号抓取独立原生帧，后台任务不再捕获 NSScreen 对象
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,NativeRegionCapture,capture,func,46,KEEP,2026-11-20：按全局选区找完整包含它的屏幕，原生整屏后裁剪；既有抓屏深链调用。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,NativeRegionCapture,run,func,55,KEEP,2026-11-20：固定screencapture路径、参数数组及4秒等待，返回实际PNG，失败返回nil。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,SynchronousImageResult,store,func,98,KEEP,2026-11-19：把窗口与整屏 SCK 异步结果交给有超时的同步入口，锁保护等待与迟到完成间的读写
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,SynchronousImageResult,load,func,104,KEEP,2026-11-19：与 store 共用同一结果锁，超时后调用方返回 nil，不让 SCK 永久卡住截图流程
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,legacyCapture,func,129,KEEP,2026-11-20：动态CoreGraphics底层同步入口；自适应后台、长截图和GenieWarp快照使用，动画消费者仍主线程同步。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,cgCapture,func,138,KEEP,2026-11-20：矩形入口包装旧API，应用和模块探针在后台调用。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,cgRect,func,144,KEEP,2026-11-20：按首屏高度翻转全局Y坐标，保留屏幕横向偏移。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,cgCapture,func,153,KEEP,2026-11-20：屏幕包装复用cgRect与矩形抓屏，供后台自适应路径。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,isUsableImage,func,157,KEEP,2026-11-19：过滤小图、比例错屏与透明空帧；源自安装版 00:04:46 原生抓图失败后仍将 848×77 单色裁图复制成功
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,windowImageMatchesFrozen,func,175,KEEP,2026-11-19：窗口 SCK 重抓仅在点击位置与触发冻结帧一致时采用，否则保留冻结裁片
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,monochromeColor,func,214,KEEP,2026-11-19：以整屏抽样识别异常平面帧并和另一通道对照；同色候选仍可保存
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,sameColor,func,238,KEEP,2026-11-19：允许 3 级像素量化差，用于比较两个通道中的合法纯色屏幕
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,averageDifference,func,242,KEEP,2026-11-19：同尺寸抽样原生与 SCK 的同屏像素，平均色差超过 18 时取消保存
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,pixelColor,func,265,KEEP,2026-11-19：只抽取点击点颜色，用于窗口 SCK 图与触发时屏幕快照的对应校验
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,captureScreenForScreenshot,func,280,KEEP,2026-11-19：覆盖层显示前并行获取 SCK 与 screencapture，校验尺寸透明度和采样内容后冻结供裁切
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,displayID,func,354,KEEP,2026-11-20：从NSScreenNumber读取显示器ID，截图、长截图、录屏均使用。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,screencaptureDisplayIndex,func,359,KEEP,2026-11-19：将 NSScreen 的 CGDirectDisplayID 映射到 screencapture -D 主屏序号，避免抓错屏再套用原坐标
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,captureScreenAdaptive,func,400,KEEP,2026-11-20：按现有通道选SCK或后台legacy；两个分支相同legacy返回可共用。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,legacyCaptureProbed,func,427,KEEP,2026-11-20：保存旧通道首次成功/失败状态，长截图读取存活判断。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,sckCaptureSync,func,448,KEEP,2026-11-20：后台等待异步SCK，用既有锁容器传结果，4秒超时取消Task。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,sckCaptureWindowSync,func,464,KEEP,2026-11-19：窗口 SCK 等待设 4 秒上限，超时回退触发时冻结图而不阻塞交付
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,sckCapture,func,484,KEEP,2026-11-20：按显示器ID枚举内容并排除通知窗口，按系统版本配置图像。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,sckCapture,func,511,KEEP,2026-11-20：按真实窗口ID建立独立窗口过滤器供单窗及多窗抓取。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,init,init,583,KEEP,2026-11-20：单例初始化读最近图及preflight，只有显式诊断标记才请求权限。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,refreshPermission,func,672,KEEP,2026-11-20：截图面板出现更新权限展示，不主动请求授权。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,probePermission,func,694,KEEP,2026-11-20：实际preflight/SCK能力探测；重入返回旧hasPermission会提前失败，permissionProbed只写无读。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,ensureScreenRecordingPermission,func,735,KEEP,2026-11-20：正式截图、取色、长截图及录屏入口共用，保留每启动一次授权请求与说明。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,showPermissionAlert,func,754,KEEP,2026-11-20：权限不可用进入既有引导或系统设置，链接打开失败沿提示处理。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureRegion,func,782,KEEP,2026-11-20：模块、教程、深链及面板调用统一工具条截图流程。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,handleScreenshotShortcut,func,787,KEEP,2026-11-20：快捷键按近期窗、进行中截图或空闲状态分别前置、取消转近期、开始截图。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,openRecentClipboard,func,799,KEEP,2026-11-20：截图快捷键及动作条打开同一近期窗口并传返回应用。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureAndOCR,func,814,KEEP,2026-11-20：默认快捷键与面板交直接OCR流程。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureAndPin,func,817,KEEP,2026-11-20：快捷键和模块交直接钉图流程。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureAndCopy,func,820,KEEP,2026-11-20：默认快捷键交直接复制流程。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureAndScreenTranslate,func,823,KEEP,2026-11-20：命令面板与刘海交直接屏幕翻译。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,startCapture,func,825,KEEP,2026-11-20：保存返回应用与递增generation，权限完成只启动仍有效的一轮。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,beginCapture,func,843,KEEP,2026-11-20：先异步冻结再确认generation、激活并创建逐屏覆盖层；所有选区提交接原流程。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,acquireScreenSnapshots,func,914,KEEP,2026-11-20：区域、长截图和录屏选区逐屏串行取得冻结帧，保留屏幕配对。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,commitRegion,func,923,KEEP,2026-11-20：局部转全局选区，以触发时冻结图裁剪并交finishRegion。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,finishRegion,func,950,KEEP,2026-11-20：直接流程交handle；工具条先暂存、登记、识码，再呈现原动作条。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,cancelCapture,func,974,KEEP,2026-11-20：快捷键与覆盖层取消递增generation、移除覆盖层并退出截图态。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,takeCaptureSessionCompletion,func,981,KEEP,从当前截图会话取出并清空结束回调，交给动作条完成或取消路径单次调用
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,finishCaptureSession,func,987,KEEP,截图授权拒绝、取消或无法产出时收束当前会话并调用其可选完成回调
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,closeOverlays,func,991,KEEP,2026-11-20：开始、取消及提交共用，隐藏窗口并释放覆盖层数组。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureFullScreen,func,999,KEEP,2026-11-20：鼠标屏幕按默认动作抓图；mode在await前写且未更新全屏选区，待处理。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureDelayed,func,1030,KEEP,2026-11-20：面板与模块调用既有倒计时，完成回全屏抓取。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,currentScreen,func,1034,KEEP,2026-11-20：取鼠标所在屏幕，再沿原主屏及首屏规则。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,commitFullScreen,func,1045,KEEP,2026-11-20：覆盖层桌面单击取对应冻结整屏图，设置全屏选区后统一收尾。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureWindow,func,1081,KEEP,2026-11-20：既有窗口热键、模块和深链仍调用，统一到自适应工具条流程。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,commitWindow,func,1086,KEEP,2026-11-20：冻结图与SCK窗口图对照后收尾；异步结束晚读共享pendingFlow可串用下一次动作。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,commitWindows,func,1159,KEEP,2026-11-20：逐窗获取后纵向合成；共享flow及mode晚读、无选区用zero与消费者isNull不一致。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,composeVertically,func,1229,KEEP,2026-11-20：多窗合成保留16间隔与24留白；画布宽遗漏两侧留白且顶部pad未乘scale。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,handle,func,1272,KEEP,2026-11-20：PNG编码、按动作选择用户目录/暂存、登记并执行原动作。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,registerCaptured,func,1297,KEEP,2026-11-20：登记最近图、声音、历史、教程及事件总线，显式mode由标注/长截图使用。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,apply,func,1311,KEEP,2026-11-20：按动作执行复制/OCR/钉图/翻译等；save只有提示，关闭工具条的默认save未实际发布暂存图。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,apply,func,1341,KEEP,2026-11-20：近期图片URL解码后交动作入口；OCR应沿此已知URL保留来源。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,savePNG,func,1350,KEEP,2026-11-20：保存与编辑器共用用户目录写入包装。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,stagePNG,func,1356,KEEP,2026-11-20：动作条、翻译及非保存动作使用私有暂存目录包装。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,writePNG,func,1360,KEEP,2026-11-20：统一创建目录与模板文件名后写PNG；固定模板会覆盖同名实际文件。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,commitToSaveDirectory,func,1376,KEEP,2026-11-20：动作条显式保存复制暂存图；用零像素再命名且改lastHistoryPath为未登记的新路径，影响文件名和OCR历史。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,newFileName,func,1403,KEEP,2026-11-20：模板引擎读取共享currentModeTag；长截图/标注文件名可能沿用其他截图模式。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,copyToPasteboard,func,1407,KEEP,2026-11-20：截图与编辑图统一复制，当前重复编码PNG且教程事件冒用lastHistoryPath。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,copyToPasteboard,func,1411,KEEP,单参数入口先编码原图再复用剪贴板写入；预编码重载使用调用方PNG，两个入口都保留NSImage representation、失败提示和教程通知
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,playShutterSound,func,1427,KEEP,2026-11-20：登记函数在原声音偏好启用时调用Pop。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,reloadRecent,func,1437,KEEP,2026-11-20：同步枚举用户与暂存两目录、按路径去重、时间排序取60项；耗时未量化。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,thumbnail,func,1459,KEEP,最近截图单元格视图读取共享NSCache；缓存未命中只显示占位图，不执行文件读取或图像解码
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,loadThumbnail,func,1464,KEEP,CaptureSectionView最近截图单元格task调用；先读取共享NSCache，未命中时后台ImageIO生成最长边限制缩略图，在主Actor创建NSImage并写入现有有界缓存
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognize,func,1487,KEEP,2026-11-20：内存图编码PNG后进入Data识别，动作条与默认OCR消费。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognizeAndTranslate,func,1493,KEEP,2026-11-20：动作条翻译编码后设autoTranslate，结果窗选择翻译页。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognizeShowing,func,1505,KEEP,2026-11-20：复制并识别入口设forceWindow，保留强制结果窗口语义。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognize,func,1510,KEEP,2026-11-20：异步OCR后发布文字、事件及结果窗；晚读共享lastHistoryPath会将A识别文字写入B截图历史。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,copyOCRText,func,1560,KEEP,2026-11-20：截图区、刘海以及静默识别将现有文字写入系统剪贴板并反馈；不再广播已由 recognize 提交的识别事件
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,autoDetectQR,func,1579,KEEP,2026-11-20：截图完成识码回调展示局部payload；公开qrPayloads只有赋值无人读取。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,saveStitchedResult,func,1596,KEEP,2026-11-20：拼接保存、最近列表、long历史与图像事件具有真实消费者，和统一登记的声音/教程语义不同不直接合并。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,pin,func,1619,KEEP,2026-11-20：近期图或文件选择URL读图后交原钉图管理器。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureLongScreenshot,func,1627,KEEP,2026-11-20：热键与模块使用原长截图协调器进入选区。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,annotate,func,1634,KEEP,2026-11-20：近期图菜单、文件选择和刘海将已知URL交原标注编辑器。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,annotateLatest,func,1640,KEEP,2026-11-20：模块、命令面板及刘海消费打开最近图结果，false时沿各自文件选择入口。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,NativeRegionCapture,captureScreenOnDisplay,func,39,KEEP,2026-11-19：按已映射的显示器 -D 序号抓取独立原生帧，后台任务不再捕获 NSScreen 对象
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,NativeRegionCapture,captureOnce,func,55,KEEP,2026-11-23：输出格式改 BMP（同帧与 PNG 像素一致，实测 389→204ms；满载 PNG 最慢 1487ms 是编码线程被饿死），失败再退回 PNG；captureScreenOnDisplay L39/44 调用
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,NativeRegionCapture,capture,func,65,KEEP,2026-11-20：按全局选区找完整包含它的屏幕，原生整屏后裁剪；既有抓屏深链调用。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,NativeRegionCapture,run,func,74,KEEP,2026-11-20：固定screencapture路径、参数数组及4秒等待，返回实际PNG，失败返回nil。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,SynchronousImageResult,store,func,131,KEEP,2026-11-19：把窗口与整屏 SCK 异步结果交给有超时的同步入口，锁保护等待与迟到完成间的读写
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,SynchronousImageResult,load,func,137,KEEP,2026-11-19：与 store 共用同一结果锁，超时后调用方返回 nil，不让 SCK 永久卡住截图流程
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,legacyCapture,func,162,KEEP,2026-11-20：动态CoreGraphics底层同步入口；自适应后台、长截图和GenieWarp快照使用，动画消费者仍主线程同步。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,cgCapture,func,171,KEEP,2026-11-20：矩形入口包装旧API，应用和模块探针在后台调用。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,cgRect,func,177,KEEP,2026-11-20：按首屏高度翻转全局Y坐标，保留屏幕横向偏移。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,cgCapture,func,186,KEEP,2026-11-20：屏幕包装复用cgRect与矩形抓屏，供后台自适应路径。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,probe,func,201,KEEP,2026-11-23：一次 32×32 采样同时给出尺寸/透明度与纯色判定，替代原来 16×16+32×32 两次整图缩放；captureScreenForScreenshot L361/L395 与 isUsableImage L204 调用
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,isUsableImage,func,239,KEEP,2026-11-19：过滤小图、比例错屏与透明空帧；源自安装版 00:04:46 原生抓图失败后仍将 848×77 单色裁图复制成功
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,windowImageMatchesFrozen,func,243,KEEP,2026-11-19：窗口 SCK 重抓仅在点击位置与触发冻结帧一致时采用，否则保留冻结裁片
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,CaptureEpochCounter,next,func,288,KEEP,2026-11-23：beginEpoch L320 调用；截图代次自增，连按快捷键时让上一轮冻结抓帧作废
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,CaptureEpochCounter,isCurrent,func,294,KEEP,2026-11-23：isCurrentEpoch L321 与 captureScreenForScreenshot 的 shouldCancel L341 调用；只比较代次，不做跨线程业务读取
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,beginEpoch,func,302,KEEP,2026-11-23：ScreenshotManager.beginCapture L985 / cancelCapture L1215 调用；开新一轮冻结抓帧代次
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,isCurrentEpoch,func,303,KEEP,2026-11-23：beginCapture 的 present L999 与 captureScreenForScreenshot L341 调用；旧轮次不再铺覆盖层、不再起 screencapture
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,sameColor,func,312,KEEP,2026-11-19：允许 3 级像素量化差，用于比较两个通道中的合法纯色屏幕
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,averageDifference,func,316,KEEP,2026-11-19：同尺寸抽样原生与 SCK 的同屏像素，平均色差超过 18 时取消保存
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,pixelColor,func,339,KEEP,2026-11-19：只抽取点击点颜色，用于窗口 SCK 图与触发时屏幕快照的对应校验
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,captureScreenForScreenshot,func,358,KEEP,2026-11-19：覆盖层显示前并行获取 SCK 与 screencapture，校验尺寸透明度和采样内容后冻结供裁切
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,displayID,func,463,KEEP,2026-11-20：从NSScreenNumber读取显示器ID，截图、长截图、录屏均使用。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,screencaptureDisplayIndex,func,468,KEEP,2026-11-19：将 NSScreen 的 CGDirectDisplayID 映射到 screencapture -D 主屏序号，避免抓错屏再套用原坐标
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,captureScreenAdaptive,func,509,KEEP,2026-11-20：按现有通道选SCK或后台legacy；两个分支相同legacy返回可共用。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,legacyCaptureProbed,func,536,KEEP,2026-11-20：保存旧通道首次成功/失败状态，长截图读取存活判断。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,sckCaptureSync,func,557,KEEP,2026-11-20：后台等待异步SCK，用既有锁容器传结果，4秒超时取消Task。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,sckCaptureWindowSync,func,573,KEEP,2026-11-19：窗口 SCK 等待设 4 秒上限，超时回退触发时冻结图而不阻塞交付
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,sckCapture,func,593,KEEP,2026-11-20：按显示器ID枚举内容并排除通知窗口，按系统版本配置图像。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenSnapshot,sckCapture,func,620,KEEP,2026-11-20：按真实窗口ID建立独立窗口过滤器供单窗及多窗抓取。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,init,init,694,KEEP,2026-11-20：单例初始化读最近图及preflight，只有显式诊断标记才请求权限。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,refreshPermission,func,783,KEEP,2026-11-20：截图面板出现更新权限展示，不主动请求授权。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,probePermission,func,805,KEEP,2026-11-20：实际preflight/SCK能力探测；重入返回旧hasPermission会提前失败，permissionProbed只写无读。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,ensureScreenRecordingPermission,func,846,KEEP,2026-11-20：正式截图、取色、长截图及录屏入口共用，保留每启动一次授权请求与说明。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,showPermissionAlert,func,865,KEEP,2026-11-20：权限不可用进入既有引导或系统设置，链接打开失败沿提示处理。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureRegion,func,893,KEEP,2026-11-20：模块、教程、深链及面板调用统一工具条截图流程。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,handleScreenshotShortcut,func,898,KEEP,2026-11-20：快捷键按近期窗、进行中截图或空闲状态分别前置、取消转近期、开始截图。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,openRecentClipboard,func,910,KEEP,2026-11-20：截图快捷键及动作条打开同一近期窗口并传返回应用。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureAndOCR,func,925,KEEP,2026-11-20：默认快捷键与面板交直接OCR流程。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureAndPin,func,928,KEEP,2026-11-20：快捷键和模块交直接钉图流程。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureAndCopy,func,931,KEEP,2026-11-20：默认快捷键交直接复制流程。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureAndScreenTranslate,func,934,KEEP,2026-11-20：命令面板与刘海交直接屏幕翻译。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,startCapture,func,936,KEEP,2026-11-20：保存返回应用与递增generation，权限完成只启动仍有效的一轮。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,beginCapture,func,960,KEEP,2026-11-20：先异步冻结再确认generation、激活并创建逐屏覆盖层；所有选区提交接原流程。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,presentOverlay,func,1037,KEEP,2026-11-23：beginCapture 的 present L1000 调用；建窗+接提交/取消回调+首块激活+makeKeyAndOrderFront，每块独立上屏
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenListBox,init,init,1080,KEEP,2026-11-23：streamScreenSnapshots L1081 构造；把 NSScreen 数组以 @unchecked Sendable 交给并发子任务，沿用同一屏对象
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,streamScreenSnapshots,func,1088,KEEP,2026-11-23：beginCapture L1005/L1011 与 acquireScreenSnapshots L1133 调用；并发度 2、光标屏优先、每块就绪即回主线程铺覆盖层
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,orderedScreens,func,1131,KEEP,2026-11-23：streamScreenSnapshots L1080 调用；光标所在屏排首位，其余保持 NSScreen.screens 顺序
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,acquireScreenSnapshots,func,1141,KEEP,2026-11-20：区域、长截图和录屏选区逐屏串行取得冻结帧，保留屏幕配对。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,commitRegion,func,1145,KEEP,2026-11-20：局部转全局选区，以触发时冻结图裁剪并交finishRegion。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,finishRegion,func,1172,KEEP,2026-11-20：直接流程交handle；工具条先暂存、登记、识码，再呈现原动作条。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,cancelCapture,func,1196,KEEP,2026-11-20：快捷键与覆盖层取消递增generation、移除覆盖层并退出截图态。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,takeCaptureSessionCompletion,func,1207,KEEP,从当前截图会话取出并清空结束回调，交给动作条完成或取消路径单次调用
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,finishCaptureSession,func,1213,KEEP,截图授权拒绝、取消或无法产出时收束当前会话并调用其可选完成回调
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,closeOverlays,func,1217,KEEP,2026-11-20：开始、取消及提交共用，隐藏窗口并释放覆盖层数组。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureFullScreen,func,1225,KEEP,2026-11-20：鼠标屏幕按默认动作抓图；mode在await前写且未更新全屏选区，待处理。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureDelayed,func,1256,KEEP,2026-11-20：面板与模块调用既有倒计时，完成回全屏抓取。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,currentScreen,func,1260,KEEP,2026-11-20：取鼠标所在屏幕，再沿原主屏及首屏规则。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,commitFullScreen,func,1271,KEEP,2026-11-20：覆盖层桌面单击取对应冻结整屏图，设置全屏选区后统一收尾。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureWindow,func,1307,KEEP,2026-11-20：既有窗口热键、模块和深链仍调用，统一到自适应工具条流程。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,commitWindow,func,1312,KEEP,2026-11-20：冻结图与SCK窗口图对照后收尾；异步结束晚读共享pendingFlow可串用下一次动作。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,commitWindows,func,1385,KEEP,2026-11-20：逐窗获取后纵向合成；共享flow及mode晚读、无选区用zero与消费者isNull不一致。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,composeVertically,func,1455,KEEP,2026-11-20：多窗合成保留16间隔与24留白；画布宽遗漏两侧留白且顶部pad未乘scale。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,handle,func,1498,KEEP,2026-11-20：PNG编码、按动作选择用户目录/暂存、登记并执行原动作。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,registerCaptured,func,1523,KEEP,2026-11-20：登记最近图、声音、历史、教程及事件总线，显式mode由标注/长截图使用。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,apply,func,1537,KEEP,2026-11-20：按动作执行复制/OCR/钉图/翻译等；save只有提示，关闭工具条的默认save未实际发布暂存图。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,apply,func,1567,KEEP,2026-11-20：近期图片URL解码后交动作入口；OCR应沿此已知URL保留来源。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,savePNG,func,1576,KEEP,2026-11-20：保存与编辑器共用用户目录写入包装。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,stagePNG,func,1582,KEEP,2026-11-20：动作条、翻译及非保存动作使用私有暂存目录包装。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,writePNG,func,1586,KEEP,2026-11-20：统一创建目录与模板文件名后写PNG；固定模板会覆盖同名实际文件。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,commitToSaveDirectory,func,1602,KEEP,2026-11-20：动作条显式保存复制暂存图；用零像素再命名且改lastHistoryPath为未登记的新路径，影响文件名和OCR历史。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,newFileName,func,1629,KEEP,2026-11-20：模板引擎读取共享currentModeTag；长截图/标注文件名可能沿用其他截图模式。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,copyToPasteboard,func,1633,KEEP,2026-11-20：截图与编辑图统一复制，当前重复编码PNG且教程事件冒用lastHistoryPath。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,copyToPasteboard,func,1637,KEEP,单参数入口先编码原图再复用剪贴板写入；预编码重载使用调用方PNG，两个入口都保留NSImage representation、失败提示和教程通知
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,playShutterSound,func,1653,KEEP,2026-11-20：登记函数在原声音偏好启用时调用Pop。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,reloadRecent,func,1663,KEEP,2026-11-20：同步枚举用户与暂存两目录、按路径去重、时间排序取60项；耗时未量化。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,thumbnail,func,1685,KEEP,最近截图单元格视图读取共享NSCache；缓存未命中只显示占位图，不执行文件读取或图像解码
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,loadThumbnail,func,1690,KEEP,CaptureSectionView最近截图单元格task调用；先读取共享NSCache，未命中时后台ImageIO生成最长边限制缩略图，在主Actor创建NSImage并写入现有有界缓存
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognize,func,1713,KEEP,2026-11-20：内存图编码PNG后进入Data识别，动作条与默认OCR消费。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognizeAndTranslate,func,1719,KEEP,2026-11-20：动作条翻译编码后设autoTranslate，结果窗选择翻译页。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognizeShowing,func,1731,KEEP,2026-11-20：复制并识别入口设forceWindow，保留强制结果窗口语义。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognize,func,1736,KEEP,2026-11-20：异步OCR后发布文字、事件及结果窗；晚读共享lastHistoryPath会将A识别文字写入B截图历史。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,copyOCRText,func,1786,KEEP,2026-11-20：截图区、刘海以及静默识别将现有文字写入系统剪贴板并反馈；不再广播已由 recognize 提交的识别事件
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,autoDetectQR,func,1805,KEEP,2026-11-20：截图完成识码回调展示局部payload；公开qrPayloads只有赋值无人读取。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,saveStitchedResult,func,1822,KEEP,2026-11-20：拼接保存、最近列表、long历史与图像事件具有真实消费者，和统一登记的声音/教程语义不同不直接合并。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,pin,func,1845,KEEP,2026-11-20：近期图或文件选择URL读图后交原钉图管理器。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,captureLongScreenshot,func,1853,KEEP,2026-11-20：热键与模块使用原长截图协调器进入选区。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,annotate,func,1860,KEEP,2026-11-20：近期图菜单、文件选择和刘海将已知URL交原标注编辑器。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,annotateLatest,func,1866,KEEP,2026-11-20：模块、命令面板及刘海消费打开最近图结果，false时沿各自文件选择入口。
 Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,DeleteKeyMonitor,init,init,14,KEEP,2026-11-19：每个截图覆盖层创建；本地键盘/右键监视器弱捕获视图并消费onCancel返回true的事件，防窗口失焦漏Esc
 Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,DeleteKeyMonitor,deinit,deinit,22,KEEP,2026-11-19：监视器所有者销毁时移除NSEvent本地监视器token，避免延续到下一次截图
 Capture,Features/Capture/Screenshot/ScreenshotOverlay.swift,ScreenshotMagnifierView,draw,func,39,KEEP,2026-11-19：AppKit按dirtyRect绘制覆写；清底后裁切快照采样区，夹十字准线并留边空白
@@ -2688,33 +2697,35 @@ Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindow
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,49,KEEP,2026-11-20：shared唯一程序化构造1080×720窗口、最小860×560，关闭保留窗口；原生所需coder入口拒绝归档构造，正式入口为私有init
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,show,func,51,KEEP,2026-11-20：监测详情按钮与storage深链共用已有窗口；按参数扫描或延迟发下钻/提示词通知，下钻消费端统一退出分类显示
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageBodyLayout,listMask,func,119,KEEP,2026-11-21：v268 统一正文几何——listBounds 减 seamOutline（左移 seam 的共享轮廓）生成清单遮罩；与 leftPane 行宽同一条轮廓
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageSwipeRegion,makeNSView,func,131,KEEP,2026-11-20：根视图嵌入背景手势区时创建SwipeView，传入共用navigateHistory闭包，不创建业务存储
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageSwipeRegion,updateNSView,func,135,KEEP,2026-11-20：Representable刷新只更新enabled和导航闭包，保留既有NSView及事件监听器
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,init,init,153,KEEP,2026-11-20：makeNSView通过init(onNavigate:)保存导航并零frame创建，实际尺寸交SwiftUI；所需coder构造无归档入口
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,init,init,158,KEEP,2026-11-20：makeNSView通过init(onNavigate:)保存导航并零frame创建，实际尺寸交SwiftUI；所需coder构造无归档入口
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,hitTest,func,160,KEEP,2026-11-20：AppKit命中恒返回nil，滚动监听在本地事件监视器处理，前景按钮继续接收点击
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,viewDidMoveToWindow,func,162,KEEP,2026-11-20：AppKit移窗回调先移除旧事件token，仅在新window非空时装一次监听
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,installSwipeMonitor,func,171,KEEP,2026-11-20：只处理同一可见窗口精确非惯性滚动，按手势起点命中地图并固定归属；横向达42pt且超过纵向1.2倍后只导航一次，闭包弱持有视图
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,deinit,deinit,222,KEEP,2026-11-20：视图释放移除尚存NSEvent monitor，与移窗移除共同结束事件生命周期
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,refreshDiskSpace,func,292,KEEP,2026-11-20：出现、应用激活和indexRevision变化时读取可用空间、完全磁盘访问状态及数据卷f_bfree已用量，展示复用保存值
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,statusLine,func,319,KEEP,2026-11-20：header消费快照范围、扫描日期、节点数与字节，截断时列maxNodes上限；本地日期格式沿StorageFormat
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,openFullDiskAccessSettings,func,349,KEEP,2026-11-20：页头与存储设置去授权按钮共用固定系统设置URL，通过NSWorkspace打开完全磁盘访问页面
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,miniStat,func,544,KEEP,2026-11-21：v268 顶部第一层并排小指标（标签10pt+等宽数值13pt），替代原 headline 两行说明；header 第一行三处调用
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,toolbarButton,func,555,KEEP,2026-11-20：mapControls的扫描、工作记录和设置按钮共用样式，图标标题及action由调用方提供
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,leftPane,func,657,KEEP,2026-11-20：根布局沿地图轮廓采样，LazyVStack只建可见候选行，按画布坐标计算行宽；点击只改变selectedPaths
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,candidateWidth,func,694,KEEP,2026-11-20：leftPane逐行以中心水平线与轮廓边求交，取最左交点作候选右界，未交返回0，调用处限制最终宽非负
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,rightPane,func,810,KEEP,v274：由 contentTop 把液面外轮廓抬到按钮下方、深色图块仍从搜索条下方开始；rightPane 承载 StorageTreemap 的下钻/返回/选中回调与详情浮层，尺寸取自 StorageBodyLayout.mapSize
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,categoryDetail,func,951,KEEP,2026-11-20：rightPane显示分类字节、扫描根、pathBytes与覆盖范围说明；ScrollView内用LazyVStack按可见区域构建全部明细，仍保留文本选择和缺失明细提示
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,refreshedNavigationNode,func,993,KEEP,2026-11-20：indexRevision更新时实际路径查新树，disk-files按父ownSize更新；展示分组递归剔除消失成员并重算字节、排序和数量
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigate,func,1014,KEEP,2026-11-20：深链、面包屑、根和图块共用，先退出分类模式再判是否同目录；下钻重建前缀，回祖先保留前进记录
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigateHistory,func,1026,KEEP,2026-11-20：手势、Esc、前后按钮和地图返回共用，只将历史游标移动到已存在索引，不重建目录树
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,jellyPulse,func,1035,KEEP,2026-11-21：v267 更 Q 弹——切层先把 jelly 压到 0.965（纵向 1.035）再以 spring(0.5/0.4) 弹回；reduceMotion 时跳过；调用点 navigate:945、navigateHistory:953；scaleEffect 应用点 868
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,topDirectories,func,1044,KEEP,2026-11-20：buildAgentPrompt唯一调用，局部visit遍历已保留树前4层的正大小目录，按字节降序取默认12项，父子可同时列出
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,buildAgentPrompt,func,1059,KEEP,2026-11-20：附属页预览和复制共用当前索引快照、候选及Top目录；概况复用statusLine与coverageHelp，准确列缓存时间、排除路径、跳过原因和截断状态，不执行删除，使用通用角色且无客户端选择参数
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,copyAgentPrompt,func,1106,KEEP,2026-11-20：附属页按钮调用同一无参buildAgentPrompt，写系统剪贴板后关闭提示词页；没有客户端选择器或agentKind状态
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,selectedBytesForPending,func,1287,KEEP,2026-11-20：删除确认框先去掉pendingTrash内已被父路径覆盖的项，再从当前快照合计真实节点字节，不操作文件
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,performTrash,func,1293,KEEP,2026-11-20：确认删除取出并清空pendingTrash，非空才交store.trash；按回传成功数、字节和lastError显示结果
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageCandidateRow,displayPath,func,1318,KEEP,2026-11-20：候选行只把当前home本身或home/后代缩写为~，其他路径原样显示，不误缩写同名前缀
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageSwipeRegion,makeNSView,func,134,KEEP,2026-11-20：根视图嵌入背景手势区时创建SwipeView，传入共用navigateHistory闭包，不创建业务存储
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageSwipeRegion,updateNSView,func,138,KEEP,2026-11-20：Representable刷新只更新enabled和导航闭包，保留既有NSView及事件监听器
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,init,init,167,KEEP,2026-11-20：makeNSView通过init(onNavigate:)保存导航并零frame创建，实际尺寸交SwiftUI；所需coder构造无归档入口
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,init,init,173,KEEP,2026-11-20：makeNSView通过init(onNavigate:)保存导航并零frame创建，实际尺寸交SwiftUI；所需coder构造无归档入口
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,hitTest,func,175,KEEP,2026-11-20：AppKit命中恒返回nil，滚动监听在本地事件监视器处理，前景按钮继续接收点击
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,viewDidMoveToWindow,func,177,KEEP,2026-11-20：AppKit移窗回调先移除旧事件token，仅在新window非空时装一次监听
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,refreshHitPathIfNeeded,func,189,KEEP,2026-11-23：updateNSView 与 installSwipeMonitor 调用；命中区=StorageMapShape ∩ 图块画布（排除顶部搜索/面包屑光条）
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,resetGesture,func,199,KEEP,2026-11-23：手势开始/ended/enabled 关闭时清空累计与轴锁定，保证一次触控只导航一级
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,installSwipeMonitor,func,205,KEEP,2026-11-20：只处理同一可见窗口精确非惯性滚动，按手势起点命中地图并固定归属；横向达42pt且超过纵向1.2倍后只导航一次，闭包弱持有视图
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,deinit,deinit,267,KEEP,2026-11-20：视图释放移除尚存NSEvent monitor，与移窗移除共同结束事件生命周期
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,refreshDiskSpace,func,337,KEEP,2026-11-20：出现、应用激活和indexRevision变化时读取可用空间、完全磁盘访问状态及数据卷f_bfree已用量，展示复用保存值
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,statusLine,func,364,KEEP,2026-11-20：header消费快照范围、扫描日期、节点数与字节，截断时列maxNodes上限；本地日期格式沿StorageFormat
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,openFullDiskAccessSettings,func,394,KEEP,2026-11-20：页头与存储设置去授权按钮共用固定系统设置URL，通过NSWorkspace打开完全磁盘访问页面
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,miniStat,func,591,KEEP,2026-11-21：v268 顶部第一层并排小指标（标签10pt+等宽数值13pt），替代原 headline 两行说明；header 第一行三处调用
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,toolbarButton,func,602,KEEP,2026-11-20：mapControls的扫描、工作记录和设置按钮共用样式，图标标题及action由调用方提供
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,leftPane,func,704,KEEP,2026-11-20：根布局沿地图轮廓采样，LazyVStack只建可见候选行，按画布坐标计算行宽；点击只改变selectedPaths
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,candidateWidth,func,741,KEEP,2026-11-20：leftPane逐行以中心水平线与轮廓边求交，取最左交点作候选右界，未交返回0，调用处限制最终宽非负
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,rightPane,func,857,KEEP,v274：由 contentTop 把液面外轮廓抬到按钮下方、深色图块仍从搜索条下方开始；rightPane 承载 StorageTreemap 的下钻/返回/选中回调与详情浮层，尺寸取自 StorageBodyLayout.mapSize
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,categoryDetail,func,998,KEEP,2026-11-20：rightPane显示分类字节、扫描根、pathBytes与覆盖范围说明；ScrollView内用LazyVStack按可见区域构建全部明细，仍保留文本选择和缺失明细提示
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,refreshedNavigationNode,func,1040,KEEP,2026-11-20：indexRevision更新时实际路径查新树，disk-files按父ownSize更新；展示分组递归剔除消失成员并重算字节、排序和数量
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigate,func,1061,KEEP,2026-11-20：深链、面包屑、根和图块共用，先退出分类模式再判是否同目录；下钻重建前缀，回祖先保留前进记录
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigateHistory,func,1073,KEEP,2026-11-20：手势、Esc、前后按钮和地图返回共用，只将历史游标移动到已存在索引，不重建目录树
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,jellyPulse,func,1082,KEEP,2026-11-21：v267 更 Q 弹——切层先把 jelly 压到 0.965（纵向 1.035）再以 spring(0.5/0.4) 弹回；reduceMotion 时跳过；调用点 navigate:945、navigateHistory:953；scaleEffect 应用点 868
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,topDirectories,func,1091,KEEP,2026-11-20：buildAgentPrompt唯一调用，局部visit遍历已保留树前4层的正大小目录，按字节降序取默认12项，父子可同时列出
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,buildAgentPrompt,func,1106,KEEP,2026-11-20：附属页预览和复制共用当前索引快照、候选及Top目录；概况复用statusLine与coverageHelp，准确列缓存时间、排除路径、跳过原因和截断状态，不执行删除，使用通用角色且无客户端选择参数
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,copyAgentPrompt,func,1153,KEEP,2026-11-20：附属页按钮调用同一无参buildAgentPrompt，写系统剪贴板后关闭提示词页；没有客户端选择器或agentKind状态
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,selectedBytesForPending,func,1334,KEEP,2026-11-20：删除确认框先去掉pendingTrash内已被父路径覆盖的项，再从当前快照合计真实节点字节，不操作文件
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,performTrash,func,1340,KEEP,2026-11-20：确认删除取出并清空pendingTrash，非空才交store.trash；按回传成功数、字节和lastError显示结果
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageCandidateRow,displayPath,func,1365,KEEP,2026-11-20：候选行只把当前home本身或home/后代缩写为~，其他路径原样显示，不误缩写同名前缀
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskVoronoiLayout,make,func,45,KEEP,DiskLayoutCache.tiles:133
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskVoronoiLayout,inradius,func,135,KEEP,DiskVoronoiLayout.make 在布局时计算标签质心到各边的最小距离，供标签档位和宽度复用；悬停不再求内切圆半径
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskLayoutCache,tiles,func,157,KEEP,StorageTreemap.body:171
