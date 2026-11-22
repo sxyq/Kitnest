@@ -45,6 +45,8 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Core/Motion/GenieWarp.swift", "footprintMB"):
+        "2026-11-23：神灯 play() 阶段计时的内存读数——task_info 取 phys_footprint 换算 MB，只读无副作用，记录帧序列构建前后占用；与 LogArchive.STATUS 的 footprint 各自短小独立",
     ("Features/Capture/Workflow/WorkflowSettingsPane.swift", "init"):
         "2026-11-21：工作流设置草稿只读取一次配置，当前值与已保存值共用同一组UUID，首次示例不会因两次随机身份生成而被标成未保存",
     ("Features/Clipboard/Store/ClipboardManager.swift", "readAndIngest"):
