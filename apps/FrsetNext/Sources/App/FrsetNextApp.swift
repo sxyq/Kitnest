@@ -477,6 +477,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             case "castapps":
                 // v166.3 排障/直达：打开「全部应用」独立窗口
                 CastAppLibraryWindowController.shared.show()
+            case "paneltoggle":
+                // 排障：模拟「反复点状态栏图标」——kitnest://paneltoggle?count=6&gap=0.12
+                // 用来复现连点抽搐；偶数次结束回到收起态。
+                let count = min(max(Int(comps?.queryItems?.first(where: { $0.name == "count" })?.value ?? "4") ?? 4, 1), 20)
+                let gap = max(Double(comps?.queryItems?.first(where: { $0.name == "gap" })?.value ?? "0.12") ?? 0.12, 0.02)
+                for index in 0..<count {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * gap) {
+                        PanelController.shared.toggle()
+                    }
+                }
             case "storage":
                 // v211 排障/直达：kitnest://storage —— 直接打开存储管理面板，
                 // 便于无 UI 自动化环境下核对气泡地图、扫描进度与缓存加载。

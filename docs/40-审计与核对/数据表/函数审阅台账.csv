@@ -64,14 +64,14 @@ Core,Core/Motion/GenieWarp.swift,GenieWarp,startLeg,func,493,KEEP,2026-11-19：�
 Core,Core/Motion/GenieWarp.swift,GenieWarp,switchDirection,func,541,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v244 新增：反向复用帧序列；play() 打断分支调用
 Core,Core/Motion/GenieWarp.swift,GenieWarp,stopWatchdog,func,556,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；cancel:227 / finish:413
 Core,Core/Motion/GenieWarp.swift,GenieWarp,finish,func,561,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；watchdog Timer:399 回调
-Core,Core/Motion/GenieWarp.swift,GenieWarp,teardownOverlay,func,594,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；cancel:228 / finish:417
-Core,Core/Motion/GenieWarp.swift,GenieWarp,isBlank,func,603,KEEP,2026-11-21：play在快照后调用；24×24 RGB 缩略图逐像素与首色比较，RGB差异即判非空白、全相同判空白
-Core,Core/Motion/GenieWarp.swift,GenieWarp,easeExponent,func,622,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v244 新增：缓动指数读取，帧采样循环外调用
-Core,Core/Motion/GenieWarp.swift,GenieWarp,pixelScale,func,629,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:291,300 帧内存预算"
-Core,Core/Motion/GenieWarp.swift,GenieWarp,downscale,func,638,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:293 快照降采样
-Core,Core/Motion/GenieWarp.swift,GenieWarp,heldProgress,func,652,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:305 probe.genieHold 定格
-Core,Core/Motion/GenieWarp.swift,GenieWarp,snapshot,func,658,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:246,251 抓窗口快照"
-Core,Core/Motion/GenieWarp.swift,GenieWarp,local,func,684,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:273,274 坐标换算"
+Core,Core/Motion/GenieWarp.swift,GenieWarp,teardownOverlay,func,598,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；cancel:228 / finish:417
+Core,Core/Motion/GenieWarp.swift,GenieWarp,isBlank,func,607,KEEP,2026-11-21：play在快照后调用；24×24 RGB 缩略图逐像素与首色比较，RGB差异即判非空白、全相同判空白
+Core,Core/Motion/GenieWarp.swift,GenieWarp,easeExponent,func,626,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v244 新增：缓动指数读取，帧采样循环外调用
+Core,Core/Motion/GenieWarp.swift,GenieWarp,pixelScale,func,633,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:291,300 帧内存预算"
+Core,Core/Motion/GenieWarp.swift,GenieWarp,downscale,func,642,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:293 快照降采样
+Core,Core/Motion/GenieWarp.swift,GenieWarp,heldProgress,func,656,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:305 probe.genieHold 定格
+Core,Core/Motion/GenieWarp.swift,GenieWarp,snapshot,func,662,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:246,251 抓窗口快照"
+Core,Core/Motion/GenieWarp.swift,GenieWarp,local,func,688,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:273,274 坐标换算"
 Core,Core/Motion/PanelMotion.swift,PanelMotion,animation,func,34,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v243 新增：PanelRootView:704/735、MonitorDetailView:101 调用
 Core,Core/Motion/PanelMotion.swift,PanelMotion,transition,func,39,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v243 新增：panel 四处 page transition 调用
 Core,Core/Runtime/AppUpdateChecker.swift,AppUpdateChecker,init,init,32,KEEP,2026-11-20：私有构造仅供shared单例，原启动轮询与手动更新共用同一清单及待安装交接
@@ -3013,29 +3013,30 @@ Panel,Features/Panel/Presentation/PanelChildWindow.swift,PanelChildWindowTag,upd
 Panel,Features/Panel/Presentation/PanelChildWindow.swift,View,panelChildWindow,func,34,KEEP,CastView.swift:224 给弹层打标
 Panel,Features/Panel/Presentation/PanelChildWindow.swift,PanelChildWindow,isPanelChild,func,46,KEEP,PanelController.swift:477 resignKey 白名单判定
 Panel,Features/Panel/Presentation/PanelController.swift,PanelPresentationState,init,init,16,KEEP,PanelController :25 构造状态宿主
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,init,init,35,KEEP,static shared :22 单例构造（private override init）
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,prepare,func,42,KEEP,PanelModule.start :11；show(atAnchor:) :183 兜底
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,syncPanelFrameToPersonalization,func,86,KEEP,prepare 通知闭包 :67 与 show :192
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,scheduleWarmup,func,115,KEEP,prepare :69 调用
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,prewarmAtLaunch,func,146,KEEP,启动3秒后先prepare建面板再离屏预热：窗口停到屏幕上沿之外且alpha保持1，参与正常显示周期；probe.warmup=NO可关；预热用warmupToken与warmupOnScreen防止把用户刚打开的面板收走
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,warmupPanel,func,152,KEEP,scheduleWarmup :125 延时闭包（probe.warmup=YES）
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,toggle,func,193,KEEP,PanelControlling 协议；StatusBar/热键经 ServiceLocator.panel
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,toggle,func,198,KEEP,StatusBarController.swift:123 主图标点击
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,show,func,209,KEEP,协议方法；ToolShortcutStore:74、CommandPalette:122 等
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,show,func,219,KEEP,FrsetNextApp.swift:251、StatusBarController.swift:159
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,revealUnit,func,363,KEEP,show :215 计算动画锚点
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,hide,func,388,KEEP,onDismiss 闭包 :50、toggle :164、TransientWindowCenter:246
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,hide,func,393,KEEP,029de12已有onDismiss/toggle/TransientWindowCenter消费说明；当前无参重载交带completion入口，收回保存尺寸并关闭来源预览，Genie正在展开立即反向，其余按hideGeneration只启动一次performHide
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,performHide,func,437,KEEP,hide 完成回调 :322 与 0.6s 超时兜底 :328
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,parkOrigin,func,477,KEEP,v244 新增：show() 计算屏外停靠位，两处调用
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,defaultSlot,func,485,KEEP,show :269 与 performHide :358 神灯插槽
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,handleGlobalShortcut,func,492,KEEP,项目 tools/perf_audit/remove_dead.py KEEP 名单：预留热键接线公开接口
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,rightEdgeOrigin,func,499,KEEP,show :200 与 anchorOrigin :399
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,anchorOrigin,func,508,KEEP,show :197 锚点定位
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,persistSize,func,520,KEEP,hide :318 与 windowDidResize :485
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,windowDidResignKey,func,556,KEEP,NSWindowDelegate 回调（prepare :56 设 delegate）
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,windowDidResize,func,593,KEEP,NSWindowDelegate 协议回调
-Panel,Features/Panel/Presentation/PanelController.swift,PanelController,windowWillClose,func,598,KEEP,NSWindowDelegate 协议回调
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,init,init,40,KEEP,static shared :22 单例构造（private override init）
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,prepare,func,47,KEEP,PanelModule.start :11；show(atAnchor:) :183 兜底
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,syncPanelFrameToPersonalization,func,91,KEEP,prepare 通知闭包 :67 与 show :192
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,scheduleWarmup,func,120,KEEP,prepare :69 调用
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,prewarmAtLaunch,func,151,KEEP,启动3秒后先prepare建面板再离屏预热：窗口停到屏幕上沿之外且alpha保持1，参与正常显示周期；probe.warmup=NO可关；预热用warmupToken与warmupOnScreen防止把用户刚打开的面板收走
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,warmupPanel,func,157,KEEP,scheduleWarmup :125 延时闭包（probe.warmup=YES）
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,cancelWarmup,func,200,KEEP,预热期间窗口已orderFront但停在屏幕外：取消时作废token、复位presentation.visible、orderOut并把窗口移回预热前位置，让toggle按未打开处理（否则连点会判成收起或从屏外长出）
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,toggle,func,212,KEEP,PanelControlling 协议；StatusBar/热键经 ServiceLocator.panel
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,toggle,func,217,KEEP,StatusBarController.swift:123 主图标点击
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,show,func,231,KEEP,协议方法；ToolShortcutStore:74、CommandPalette:122 等
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,show,func,241,KEEP,FrsetNextApp.swift:251、StatusBarController.swift:159
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,revealUnit,func,394,KEEP,show :215 计算动画锚点
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,hide,func,419,KEEP,onDismiss 闭包 :50、toggle :164、TransientWindowCenter:246
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,hide,func,424,KEEP,029de12已有onDismiss/toggle/TransientWindowCenter消费说明；当前无参重载交带completion入口，收回保存尺寸并关闭来源预览，Genie正在展开立即反向，其余按hideGeneration只启动一次performHide
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,performHide,func,469,KEEP,hide 完成回调 :322 与 0.6s 超时兜底 :328
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,parkOrigin,func,509,KEEP,v244 新增：show() 计算屏外停靠位，两处调用
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,defaultSlot,func,517,KEEP,show :269 与 performHide :358 神灯插槽
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,handleGlobalShortcut,func,524,KEEP,项目 tools/perf_audit/remove_dead.py KEEP 名单：预留热键接线公开接口
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,rightEdgeOrigin,func,531,KEEP,show :200 与 anchorOrigin :399
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,anchorOrigin,func,540,KEEP,show :197 锚点定位
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,persistSize,func,552,KEEP,hide :318 与 windowDidResize :485
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,windowDidResignKey,func,588,KEEP,NSWindowDelegate 回调（prepare :56 设 delegate）
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,windowDidResize,func,625,KEEP,NSWindowDelegate 协议回调
+Panel,Features/Panel/Presentation/PanelController.swift,PanelController,windowWillClose,func,630,KEEP,NSWindowDelegate 协议回调
 Panel,Features/Panel/Presentation/PanelModule.swift,PanelModule,start,func,8,KEEP,AppBootstrap.swift:23 ModuleRegistry.register + startAll 派发
 Panel,Features/Panel/Presentation/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,presentPreview,func,16,KEEP,PanelPreviewPresenting 协议；ClipboardTableHostView:817
 Panel,Features/Panel/Presentation/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,dismissPreview,func,28,KEEP,协议方法；ClipboardTableHostView:809/826/904/909

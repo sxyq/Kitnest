@@ -31,6 +31,11 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     private var warmupOnScreen = false
     /// 上次预热完成时刻：启动预热与 prepare 的 2s 定时器会各触发一次，20s 内只做一次
     private var lastWarmupAt: TimeInterval = 0
+    /// 预热前的正常位置（取消预热时还原）
+    private var warmupOrigin: NSPoint = .zero
+    /// v280：连击去抖——90ms 内的重复开合直接丢弃（人手两次点击间隔通常 ≥150ms，
+    /// 但连击会打出「刚起一腿就掉头」的抽动）
+    private var lastToggleAt: TimeInterval = 0
 
     private override init() {
         super.init()
@@ -158,6 +163,7 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         let token = warmupToken
         // 停到屏幕上沿之外：完全不可见，但不是 alpha=0，窗口照常走显示周期。
         let origin = p.frame.origin
+        warmupOrigin = origin
         p.setFrameOrigin(parkOrigin(for: p, origin: origin))
         p.orderFrontRegardless()         // 只上屏、不激活 app、不抢 key
         warmupOnScreen = true
@@ -188,6 +194,19 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         }
     }
 
+    /// 预热期间窗口是「已上屏但停在屏幕外」：对外必须当成未打开，
+    /// 否则 toggle 会判成 hide、show 会走「已在屏上」分支而不挪回原位——
+    /// 连点时的抽搐（面板闪一下/从错误位置长出）就是这么来的。
+    private func cancelWarmup() {
+        guard warmupOnScreen else { return }
+        warmupToken += 1
+        warmupOnScreen = false
+        presentation.visible = false
+        panel?.orderOut(nil)
+        panel?.setFrameOrigin(warmupOrigin)
+        Log.info("Panel", "取消预热（窗口已上屏但未打开）")
+    }
+
     // MARK: - PanelControlling
 
     public func toggle() {
@@ -196,10 +215,13 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
 
     /// 锚点开合（状态栏主图标点击）：展开时停到图标正下方并显示三角指示器
     public func toggle(atAnchor anchorRect: NSRect?) {
+        let now = ProcessInfo.processInfo.systemUptime
+        if now - lastToggleAt < 0.09 { return }
+        lastToggleAt = now
         // v247：收起动画进行中再点 → 直接掉头重开。
         // 原来这里会走 hide()，而 hide() 被 isHiding 挡住直接 return，
         // 用户连点时第二下、第三下全被吞掉——这就是「连续点击鬼畜」的来源。
-        if isHiding {
+        if isHiding || warmupOnScreen {
             show(atAnchor: anchorRect)
             return
         }
@@ -218,6 +240,7 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
     ///    「从图标长出来」，与监测独立窗（e466a3c）同款弹簧。
     public func show(atAnchor anchorRect: NSRect?) {
         prepare()
+        cancelWarmup()
         guard let p = panel else { return }
         // v84（2026-10-20）：面板打开埋点（主图标 / 快捷键 / 深链统一收口）
         StatisticsManager.shared.record(.panelOpen)
@@ -306,7 +329,13 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         Log.info("Panel", "show: frame=\(Int(p.frame.width))x\(Int(p.frame.height)) anchored=\(presentation.anchored) origin=\(Int(origin.x)),\(Int(origin.y)) 布局=\(Int(layoutMs))ms")
         RenderProbe.snapshot(p, name: "panel", reason: "show")
         let finishShow: () -> Void = { [weak self] in
-            guard let self, self.panel?.isVisible == true, !self.isHiding else { return }
+            guard let self, let p = self.panel, !self.isHiding else { return }
+            // v280：连点收尾时，上一腿的收起可能刚好把窗口 orderOut；这里兜底补回，
+            // 避免「漏斗播完面板却不见了」。
+            if !p.isVisible {
+                p.alphaValue = 1
+                p.orderFront(nil)
+            }
             MonitorSampler.shared.setHomePanelActive(true)
         }
         guard !wasVisible else {
@@ -339,10 +368,12 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
         p.contentView?.layer?.removeAllAnimations()
         p.contentView?.layer?.transform = CATransform3DIdentity
         p.contentView?.layer?.opacity = 1      // 快照要抓完整不透明的面板
-        // v279：show 路径刚做完透明首帧布局，神灯不必再整窗重绘一遍（省一次玻璃重采样）
+        // v280（用户：「反复点按会抽搐」）：这里恢复神灯自带的 layout+display+flush。
+        // v279 曾为省一次玻璃重采样把它跳过，但连点时内容层刚被还原成不透明，
+        // 同一轮 runloop 尚未提交到窗口服务器，抓到的帧可能过期——表现出来就是抽一下。
+        // 省下的几十毫秒不值得用画面稳定性换。
         let usedGenie = GenieWarp.shared.playIn(window: p, slot: slot, duration: duration,
-                                                destination: origin, skipInitialDisplay: true,
-                                                completion: finishShow)
+                                                destination: origin, completion: finishShow)
         if !usedGenie {
             // 没走成神灯：先把窗口从屏外挪回原位再显示，否则会看不见面板
             if p.frame.origin != origin { p.setFrameOrigin(origin) }
@@ -391,6 +422,7 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
 
     /// 截图等动作在本轮面板真实隐藏后执行；已经隐藏则立即执行。
     func hide(completion: (() -> Void)?) {
+        if warmupOnScreen { cancelWarmup(); completion?(); return }
         guard let p = panel, p.isVisible else { completion?(); return }
         guard !isHiding else { return }
         isHiding = true
