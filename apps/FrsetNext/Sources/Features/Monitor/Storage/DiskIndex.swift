@@ -891,6 +891,7 @@ final class DiskIndexStore: ObservableObject {
             guard let self else { return }
             var moved = Set<String>()
             var errors: [String] = []
+            var bytes: Int64 = 0
             for p in unique {
                 guard let node = Self.findNode(root, path: p), !node.isAggregate else {
                     errors.append("\(p)：不是可操作的索引路径")
@@ -901,12 +902,10 @@ final class DiskIndexStore: ObservableObject {
                     try FileManager.default.trashItem(at: URL(fileURLWithPath: p),
                                                       resultingItemURL: &resulting)
                     moved.insert(p)
+                    bytes += node.size
                 } catch {
                     errors.append("\(p)：\(error.localizedDescription)")
                 }
-            }
-            let bytes = moved.reduce(Int64(0)) { sum, p in
-                sum + (Self.findNode(root, path: p)?.size ?? 0)
             }
             let state = DispatchQueue.main.sync { (snapshot: self.snapshot, revision: self.indexRevision) }
             let update = state.snapshot.map { Self.removing(moved, from: $0) }
@@ -958,12 +957,13 @@ final class DiskIndexStore: ObservableObject {
                 || root.hasPrefix($0 == "/" ? "/" : $0 + "/")
         })
         guard !affected.isEmpty else { return (false, snapshot) }
-        guard !affected.contains(where: { root == $0 || root.hasPrefix($0 == "/" ? "/" : $0 + "/") }),
-              affected.allSatisfy({ findNode(snapshot.root, path: $0) != nil }) else {
+        guard !affected.contains(where: { root == $0 || root.hasPrefix($0 == "/" ? "/" : $0 + "/") }) else {
             return (true, nil)
         }
         var updated = snapshot
-        updated.root = pruned(updated.root, removing: affected)
+        var removed = Set<String>()
+        updated.root = pruned(updated.root, removing: affected, removed: &removed)
+        guard removed == affected else { return (true, nil) }
         updated.totalBytes = updated.root.size
         updated.recomputeDataCategories()
         return (true, updated)
@@ -995,14 +995,20 @@ final class DiskIndexStore: ObservableObject {
     }
 
     /// 从树里删掉指定路径并重算父节点大小
-    static func pruned(_ node: DiskNode, removing paths: Set<String>) -> DiskNode {
+    static func pruned(_ node: DiskNode, removing paths: Set<String>, removed: inout Set<String>) -> DiskNode {
         guard paths.contains(where: { $0.hasPrefix(node.path == "/" ? "/" : node.path + "/") }) else {
             return node
         }
         var n = node
-        let kept = n.children
-            .filter { !paths.contains($0.path) }
-            .map { pruned($0, removing: paths) }
+        var kept: [DiskNode] = []
+        kept.reserveCapacity(n.children.count)
+        for child in n.children {
+            if paths.contains(child.path) {
+                removed.insert(child.path)
+            } else {
+                kept.append(pruned(child, removing: paths, removed: &removed))
+            }
+        }
         n.children = kept.sorted { $0.size > $1.size }
         n.size = n.ownSize + kept.reduce(Int64(0)) { $0 + $1.size }
         return n

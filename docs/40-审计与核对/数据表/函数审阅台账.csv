@@ -2677,13 +2677,13 @@ Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,clearCache,func,
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,invalidateCandidates,func,844,KEEP,2026-11-20：snapshot.didSet调用，清候选数组与scannedAt标记，indexRevision由原观察器递增供窗口导航及图形刷新
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,candidates,func,850,KEEP,2026-11-20：窗口候选列表调用，复用同scannedAt缓存；递归排除临时路径和.app子树，命中父候选后不再收子项，按大小排序
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,trash,func,886,KEEP,2026-11-20：窗口performTrash只移动索引中的真实路径至废纸篓；同串行队列在文件移动后取最新快照，统一裁剪内存与home/fullDisk缓存，缺失折叠明细则失效；发布核对revision，连续删除不恢复旧节点
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,removing,func,953,KEEP,2026-11-20：trash更新内存与两个范围缓存共用；按路径分隔判断交集，无交集沿用，根被移走或折叠导致目标节点缺失时失效该范围，其余仅裁剪已删除路径并重算总量与分类
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,removing,func,952,KEEP,2026-11-20：trash更新内存与两个范围缓存共用；按路径分隔判断交集，无交集沿用，根被移走或折叠导致目标节点缺失时失效该范围，其余仅裁剪已删除路径并重算总量与分类
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,findNode,func,972,KEEP,2026-11-20：窗口查找和trash确认对象及计数调用，按实际路径和disk-folded前缀沿相关子树递归，不搜索无关路径
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,independentPaths,func,984,KEEP,2026-11-20：窗口选择、提示词及trash操作共用，Set去重后沿父路径排除已选父目录所含子项；分类无用directories已删除，不再调用它
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,pruned,func,998,KEEP,2026-11-20：trash裁剪已删除路径时先按完整目录前缀判断交集，无关子树直接复用原值；仅目标祖先分支重建、排序并汇总大小，不复制整树
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,bytes,func,1015,KEEP,2026-11-20：存储窗口与堆块尺寸说明调用，系统十进制ByteCountFormatter格式；负值仅呈现0
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,shortBytes,func,1018,KEEP,2026-11-20：存储窗口和堆块紧凑标签调用，沿Finder十进制1000换算GB/MB/KB，显示一位小数或整数KB
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,date,func,1025,KEEP,2026-11-20：存储扫描日期与清理记录标签调用；按MM-dd HH:mm格式呈现本地时间，不改变索引状态
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,bytes,func,1021,KEEP,2026-11-20：存储窗口与堆块尺寸说明调用，系统十进制ByteCountFormatter格式；负值仅呈现0
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,shortBytes,func,1024,KEEP,2026-11-20：存储窗口和堆块紧凑标签调用，沿Finder十进制1000换算GB/MB/KB，显示一位小数或整数KB
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,date,func,1031,KEEP,2026-11-20：存储扫描日期与清理记录标签调用；按MM-dd HH:mm格式呈现本地时间，不改变索引状态
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,27,KEEP,2026-11-20：shared唯一程序化构造1080×720窗口、最小860×560，关闭保留窗口；原生所需coder入口拒绝归档构造，正式入口为私有init
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,49,KEEP,2026-11-20：shared唯一程序化构造1080×720窗口、最小860×560，关闭保留窗口；原生所需coder入口拒绝归档构造，正式入口为私有init
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,show,func,51,KEEP,2026-11-20：监测详情按钮与storage深链共用已有窗口；按参数扫描或延迟发下钻/提示词通知，下钻消费端统一退出分类显示
