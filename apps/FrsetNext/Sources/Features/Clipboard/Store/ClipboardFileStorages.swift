@@ -216,19 +216,43 @@ public enum ClipboardImageStorage {
 
     /// 原图写盘 + 生成 200px 缩略图
     public static func store(imageData: Data, id: String = UUID().uuidString) -> StoredImage? {
-        let ext = Self.fileExtension(for: imageData)
+        // v280（2026-11-22 用户：「重点优化最终存储占用」）：系统剪贴板里的截屏常是
+        // 未压缩 TIFF（实测单张 42MB、images/ 累计 1.0GB）。写盘前按内容重编码：
+        // 大图 → HEIC（带 alpha 也不丢）/ 退 JPEG，只有在确实更小（<70%）时才替换。
+        let payload = Self.reencodedIfSmaller(imageData)
+        let data = payload.data
+        let ext = payload.ext
         let relative = "\(imageDirectoryName)/\(id).\(ext)"
-        guard ClipboardFileStore.write(imageData, toRelativePath: relative) else { return nil }
+        guard ClipboardFileStore.write(data, toRelativePath: relative) else { return nil }
 
-        guard let source = CGImageSourceCreateWithData(imageData as CFData, nil) else {
+        guard let source = CGImageSourceCreateWithData(data as CFData, nil) else {
             return StoredImage(imagePath: relative, thumbnailPath: nil,
-                               byteCount: imageData.count)
+                               byteCount: data.count)
         }
         let thumbRelative = "\(thumbnailDirectoryName)/\(id).png"
         let thumbnailPath: String? = makeThumbnail(from: source, toRelativePath: thumbRelative) ? thumbRelative : nil
         return StoredImage(imagePath: relative,
                            thumbnailPath: thumbnailPath,
-                           byteCount: imageData.count)
+                           byteCount: data.count)
+    }
+
+    /// 大图重编码：>1.5MB 才尝试；HEIC 优先（支持 alpha），失败退 JPEG；收益不足 30% 就放弃。
+    private static func reencodedIfSmaller(_ data: Data) -> (data: Data, ext: String) {
+        guard data.count > 1_500_000,
+              let source = CGImageSourceCreateWithData(data as CFData, nil),
+              let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { return (data, fileExtension(for: data)) }
+        let alpha = image.alphaInfo
+        let hasAlpha = alpha != .none && alpha != .noneSkipFirst && alpha != .noneSkipLast
+        for (type, ext, quality) in [("public.heic", "heic", 0.90), ("public.jpeg", "jpg", 0.90)] {
+            if ext == "jpg" && hasAlpha { continue }
+            let out = NSMutableData()
+            guard let dest = CGImageDestinationCreateWithData(out, type as CFString, 1, nil) else { continue }
+            CGImageDestinationAddImage(dest, image, [kCGImageDestinationLossyCompressionQuality: quality] as CFDictionary)
+            guard CGImageDestinationFinalize(dest) else { continue }
+            let encoded = out as Data
+            if encoded.count < Int(Double(data.count) * 0.7) { return (encoded, ext) }
+        }
+        return (data, fileExtension(for: data))
     }
 
     @discardableResult

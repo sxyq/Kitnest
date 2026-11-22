@@ -1672,6 +1672,8 @@ EVIDENCE.update({
         "无锚点重载进入show(atAnchor:)；可见窗口重开保留现有origin、anchorRect及三角态，仅首次显示校准材质尺寸和排版；playIn实际完成后执行finishShow启用采样，同一腿反向不提前启动采样",
     ("Features/Panel/Presentation/PanelController.swift", "toggle"):
         "无锚点重载进入toggle(atAnchor:)；isHiding期间再次触发立即show使旧关闭回调失效，覆盖预览等待与神灯收起两阶段；其余按真实窗口可见性开合",
+    ("Features/Clipboard/Store/ClipboardFileStorages.swift", "reencodedIfSmaller"):
+        "大于1.5MB的剪贴板图片写盘前重编码：HEIC quality 0.90 优先（保留alpha），失败退JPEG；只有编码结果小于原始70%才替换，否则原样落盘；扩展名随之改为heic/jpg",
     ("Features/Clipboard/Store/ClipboardFileStorages.swift", "write"):
         "基础写盘原子写入Data并返回成功标记；长文本和RTF返回已写相对路径，长文本含字节数；OCR按dedupeKey写UTF-8，成功后更新已有小写索引并在主线程发clipboardOCRTextChanged，PreviewImageView仅接收当前键且非设置预览的通知，回读ocrText、重算tidiedOCR并清除ocrError",
 })

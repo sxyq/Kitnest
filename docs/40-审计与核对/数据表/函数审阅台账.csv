@@ -1922,10 +1922,11 @@ Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextS
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,loadIndex,func,163,KEEP,2026-11-17：matchingDedupeKeys惰性取用；首次最多读取2000份txt为小写全文；已有索引直接返回且写删增量更新；冷读在锁内执行
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardOCRTextStorage,matchingDedupeKeys,func,189,KEEP,2026-11-17：Repository.appendClauses搜索调用；至少两字符才检索；逐项contains后仅返回命中键集合；浮窗fetch与count会重复本次检索待后续按请求复用
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,store,func,218,KEEP,2026-11-17：Manager.writeToDatabase唯一调用；原图写盘并生成200px缩略图；只返回消费方读取的两类路径与字节数；未消费的pixelSize和专用读取函数已删
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,makeThumbnail,func,235,KEEP,2026-11-17：store唯一调用；ImageIO直接按200px最大边生成并写PNG；沿用原图方向变换；不把全分辨率NSImage加入缩略图缓存
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,image,func,262,KEEP,2026-11-17：剪贴板行显示调用；按相对路径查80张和16MiB的NSCache；未命中读盘后按图像尺寸记成本；原图回退路径仍需后续结合实际UI阅读
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,fileExtension,func,274,KEEP,2026-11-17：store调用；按PNG JPEG GIF RIFF头选择已支持的原图扩展名；其他已有图片数据用tiff路径
-Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardStorageUsageProvider,exceeds,func,310,KEEP,2026-11-17：容量prune循环调用；先SQL总量再按需枚举五类目录；等价于既有max数据库磁盘口径超限判定
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,reencodedIfSmaller,func,240,KEEP,大于1.5MB的剪贴板图片写盘前重编码：HEIC quality 0.90 优先（保留alpha），失败退JPEG；只有编码结果小于原始70%才替换，否则原样落盘；扩展名随之改为heic/jpg
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,makeThumbnail,func,259,KEEP,2026-11-17：store唯一调用；ImageIO直接按200px最大边生成并写PNG；沿用原图方向变换；不把全分辨率NSImage加入缩略图缓存
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,image,func,286,KEEP,2026-11-17：剪贴板行显示调用；按相对路径查80张和16MiB的NSCache；未命中读盘后按图像尺寸记成本；原图回退路径仍需后续结合实际UI阅读
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,fileExtension,func,298,KEEP,2026-11-17：store调用；按PNG JPEG GIF RIFF头选择已支持的原图扩展名；其他已有图片数据用tiff路径
+Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardStorageUsageProvider,exceeds,func,334,KEEP,2026-11-17：容量prune循环调用；先SQL总量再按需枚举五类目录；等价于既有max数据库磁盘口径超限判定
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardFilterKind,matches,func,77,KEEP,2026-11-20：设置预览及悬浮列表按12种分类判断；文件媒体用已存位集，代码交正式文本分类器，正式列表另走SQL查询。
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,init,init,168,KEEP,2026-11-20：shared构造时注册主队列标签通知，闭包弱持Manager并调用applyTagChange。
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,deinit,deinit,174,KEEP,2026-11-20：删除init注册的标签通知观察者；通知回调弱持有manager，析构不操作用户数据
@@ -3482,8 +3483,8 @@ Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSes
 Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,end,func,160,KEEP,设置窗口关闭时清空草稿实例和全部默认标记，并递增 generation，使下次打开重建内容与预览生命周期；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsDraftEditor,init,init,232,KEEP,SettingsEditingSession.init注册各类外观和八个模块工厂，新增transferLocal供本地暂存设置缓存；SettingsDraftEditor.init保存id、工厂及内容闭包，切页借用同一草稿；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsModule.swift,SettingsModule,start,func,14,KEEP,AppModule 协议；ModuleRegistry.startAll 派发；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsNavigation.swift,SettingsGroup,section,func,97,KEEP,按页面反查所属二级小节；小节 ID 以一级目录名为前缀，跨目录唯一
-Settings,Features/Settings/Shell/SettingsNavigation.swift,SettingsGroup,group,func,101,KEEP,由二级 SettingsPage 反查一级 SettingsGroup，统一驱动分组高亮与导航归属；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsNavigation.swift,SettingsGroup,section,func,99,KEEP,按页面反查所属二级小节；小节 ID 以一级目录名为前缀，跨目录唯一
+Settings,Features/Settings/Shell/SettingsNavigation.swift,SettingsGroup,group,func,103,KEEP,由二级 SettingsPage 反查一级 SettingsGroup，统一驱动分组高亮与导航归属；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsPanes.swift,StartupSettingsDraft,save,func,18,KEEP,先验证自定义 SF Symbol，变更小猫时调用 FSBarSaveConfiguration；只应用变化的图标/符号/入口键，发入口通知并刷新正式图标和小猫，失败返回具体原因；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsPanes.swift,StartupSettingsDraft,discard,func,35,KEEP,重新读取图标存储、引擎小猫配置与七项入口偏好，替换草稿并更新 saved；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsPanes.swift,StartupSettingsDraft,restoreDefaults,func,41,KEEP,菜单栏草稿恢复 logo、默认自定义符号、关闭小猫并启用七项入口，正式图标和入口不立即变化；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
