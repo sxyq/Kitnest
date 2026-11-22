@@ -168,13 +168,30 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
               panelFrame: panelFrame, visibleFrame: visibleFrame, animated: wasVisible && (!sameItem || finishedLoading))
         guard let w = window else { return }
         let reduceMotion = NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        if !wasVisible { w.contentView?.layer?.opacity = 0 }
-        // 轻量呈现：不激活 app、不抢面板焦点（key 在用户点击窗体时才取得）
-        w.orderFront(nil)
-        // 只在开窗时展开；换项保留同窗，以尺寸动画连续过渡。
+        let duration = reduceMotion ? 0.1 : Personalization.shared.openAnimation.duration
         if !wasVisible {
-            WindowReveal.playIn(on: w, from: revealUnit, scale: reduceMotion ? 1 : 0.97,
-                                duration: reduceMotion ? 0.1 : Personalization.shared.openAnimation.duration)
+            // v279（用户：「悬停到剪贴板预览，它的展开动画之前有，重新实现一下」）：
+            // 从锚点那一行「拉开」——先落在 18pt 宽的窄条（高度=该行高度），
+            // 再展开成整窗；内容同步淡入。比单纯缩放更像抽屉，也不会闪白。
+            let target = w.frame
+            let startWidth: CGFloat = 18
+            let startHeight = max(48, min(anchorRectInScreen.height, target.height))
+            let startX = revealUnit.x >= 0.5 ? target.maxX - startWidth : target.minX
+            let startY = min(max(anchorRectInScreen.midY - startHeight / 2, target.minY), target.maxY - startHeight)
+            w.contentView?.alphaValue = 0
+            w.setFrame(NSRect(x: startX, y: startY, width: startWidth, height: startHeight), display: false)
+            // 轻量呈现：不激活 app、不抢面板焦点（key 在用户点击窗体时才取得）
+            w.orderFront(nil)
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = duration
+                context.timingFunction = Theme.Motion.caEaseOut
+                context.allowsImplicitAnimation = true
+                w.animator().setFrame(target, display: true)
+                w.contentView?.animator().alphaValue = 1
+            }
+        } else {
+            // 轻量呈现：不激活 app、不抢面板焦点
+            w.orderFront(nil)
         }
     }
 

@@ -1677,6 +1677,8 @@ EVIDENCE.update({
         "playIn与playOut共用入口；同一窗口反向请求交switchDirection复用现有帧序列，新动画采用probe.genieDuration或duration(for:)并预渲染后交startLeg；现有展开/收起日志追加self.duration×1000的实际播放毫秒",
     ("Core/Motion/GenieWarp.swift", "switchDirection"):
         "读取当前播放位置并翻转legSpeed，复用同一帧序列从当前位置续播；移除位置不足20ms时直接finish的分支，连续反向后接近起点仍可向终点播放",
+    ("Features/Panel/Presentation/PanelController.swift", "prewarmAtLaunch"):
+        "启动3秒后先prepare建面板再离屏预热：窗口停到屏幕上沿之外且alpha保持1，参与正常显示周期；probe.warmup=NO可关；预热用warmupToken与warmupOnScreen防止把用户刚打开的面板收走",
     ("Features/Panel/Presentation/PanelController.swift", "show"):
         "无锚点重载进入show(atAnchor:)；可见窗口重开保留现有origin、anchorRect及三角态，仅首次显示校准材质尺寸和排版；playIn实际完成后执行finishShow启用采样，同一腿反向不提前启动采样",
     ("Features/Panel/Presentation/PanelController.swift", "toggle"):

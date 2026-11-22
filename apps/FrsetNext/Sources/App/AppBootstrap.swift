@@ -76,6 +76,14 @@ enum AppBootstrap {
         Log.breadcrumb("Bootstrap", "hotkeys done")
 
         Log.info("Bootstrap", "全部模块已启动")
+        // v279（用户：「点开主面板卡顿不跟手」）：把面板整棵树的首次布局挪到启动后空闲期。
+        // 之前预热排在首次 prepare 之后（等于「开过一次才预热」），首开仍要 1~2s。
+        // 这里启动 3s 后先建面板再离屏布局一次；probe.warmup=NO 可整体关掉。
+        if UserDefaults.standard.object(forKey: "probe.warmup") as? Bool != false {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
+                PanelController.shared.prewarmAtLaunch()
+            }
+        }
         // v143：**取消**启动预热。原先这里后台调 PPOCROCR.shared.prepare()，
         // 代价是把 43MB 运行时 + 10MB 模型映射进来常驻（实测进程 RSS +54MB），
         // 而收益只是「首次点识字」省 110ms。实测 dlclose 也归还不了这块内存

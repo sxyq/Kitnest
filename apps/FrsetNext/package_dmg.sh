@@ -12,7 +12,9 @@ SIGNING_IDENTITY="2EFBEE27CEFEF9F60C03BA222A972127D9286542"
 STAGE=$(mktemp -d /tmp/frset_dmg.XXXXXX)
 trap 'rm -rf "$STAGE"' EXIT
 cp -R "$APP" "$STAGE/"
-xcrun strip -x "$STAGE/$APP_NAME.app/Contents/MacOS/$APP_NAME"
+# v279：`strip -x` 只删 STAB 调试符号，保留 12 万个本地符号（实测字符串表 25.7MB，
+# 占主二进制六成）。`-u -r` 删本地符号、保留全局/动态符号，功能不变。
+xcrun strip -u -r "$STAGE/$APP_NAME.app/Contents/MacOS/$APP_NAME"
 codesign --force -s "$SIGNING_IDENTITY" "$STAGE/$APP_NAME.app" >/dev/null
 
 cat > "$STAGE/安装说明.txt" <<'TXT'
