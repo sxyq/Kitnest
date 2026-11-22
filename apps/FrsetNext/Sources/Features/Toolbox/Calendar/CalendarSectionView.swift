@@ -191,20 +191,21 @@ public struct CalendarSectionView: View {
     // MARK: 两行日期
 
     private var weeksGrid: some View {
-        VStack(spacing: 1) {
+        let days = twoWeekDays
+        return VStack(spacing: 1) {
             ForEach(0..<2, id: \.self) { row in
                 HStack(spacing: 0) {
                     ForEach(0..<7, id: \.self) { column in
-                        dayCell(row: row, column: column)
+                        dayCell(row: row, column: column, days: days)
                     }
                 }
             }
         }
     }
 
-    private func dayCell(row: Int, column: Int) -> some View {
+    private func dayCell(row: Int, column: Int, days: [CalendarDay]) -> some View {
         let index = row * 7 + column
-        let day = index < twoWeekDays.count ? twoWeekDays[index] : nil
+        let day = index < days.count ? days[index] : nil
         let isToday = day?.isToday ?? false
         let isFestival = day.map { isFestivalDay($0) } ?? false
         // v132：点选态（今天有蓝底胶囊，其余选中日用描边环）
