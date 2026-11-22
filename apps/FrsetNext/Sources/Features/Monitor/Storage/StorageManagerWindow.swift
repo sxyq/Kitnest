@@ -126,21 +126,35 @@ struct StorageBodyLayout {
 
 private struct StorageSwipeRegion: NSViewRepresentable {
     let enabled: Bool
+    /// 图块画布上沿（map 局部坐标）。搜索/面包屑条所在的光条不属于手势区，
+    /// 从那里起手的横滑不能吃掉控件自己的操作。
+    let hitTop: CGFloat
     let onNavigate: (Int) -> Void
 
     func makeNSView(context: Context) -> SwipeView {
-        SwipeView(onNavigate: onNavigate)
+        SwipeView(hitTop: hitTop, onNavigate: onNavigate)
     }
 
     func updateNSView(_ nsView: SwipeView, context: Context) {
         nsView.enabled = enabled
+        nsView.hitTop = hitTop
         nsView.onNavigate = onNavigate
+        nsView.refreshHitPathIfNeeded()
     }
 
     final class SwipeView: NSView {
         private enum Axis { case pending, horizontal, vertical }
 
-        var enabled = true
+        /// 一次手势累计到多少 pt 才切一层。28 = 轻扫（约 1/3 掌幅）即可触发，
+        /// 又不至于把「斜着滚一下」误判成导航。
+        static let navigateThreshold: CGFloat = 28
+
+        var enabled = true {
+            didSet { if !enabled { resetGesture() } }
+        }
+        var hitTop: CGFloat = 0 {
+            didSet { if hitTop != oldValue { hitBounds = .zero } }
+        }
         var onNavigate: (Int) -> Void
         private var swipeMonitor: Any?
         private var delta = CGSize.zero
@@ -150,7 +164,8 @@ private struct StorageSwipeRegion: NSViewRepresentable {
         private var hitPath = Path()
         private var hitBounds = CGRect.zero
 
-        init(onNavigate: @escaping (Int) -> Void) {
+        init(hitTop: CGFloat, onNavigate: @escaping (Int) -> Void) {
+            self.hitTop = hitTop
             self.onNavigate = onNavigate
             super.init(frame: .zero)
         }
@@ -168,36 +183,57 @@ private struct StorageSwipeRegion: NSViewRepresentable {
             if window != nil { installSwipeMonitor() }
         }
 
+        /// 命中的是**图块画布**那一段外轮廓（不含顶部搜索/面包屑光条）。
+        /// 轮廓与 SwiftUI 绘制共用 StorageMapShape，窗口缩放后重算；
+        /// 左侧候选清单与轮廓互不重叠（清单遮罩减掉的正是这条轮廓），竖向滚动不会被吞。
+        func refreshHitPathIfNeeded() {
+            guard bounds.width > 0, bounds.height > 0, bounds != hitBounds else { return }
+            hitBounds = bounds
+            let blob = StorageMapShape().path(in: bounds)
+            let top = min(max(hitTop, 0), max(0, bounds.height - 1))
+            let canvas = CGRect(x: bounds.minX, y: bounds.minY + top,
+                                width: bounds.width, height: bounds.height - top)
+            hitPath = Path(blob.cgPath.intersection(CGPath(rect: canvas, transform: nil)))
+        }
+
+        private func resetGesture() {
+            delta = .zero
+            swipeDidNavigate = false
+            swipeAxis = nil
+        }
+
         private func installSwipeMonitor() {
             swipeMonitor = NSEvent.addLocalMonitorForEvents(matching: .scrollWheel) { [weak self] event in
                 guard let self, self.enabled, let window = self.window, window.isVisible,
                       event.window === window, event.momentumPhase.isEmpty else { return event }
-                if self.bounds != self.hitBounds {
-                    self.hitBounds = self.bounds
-                    self.hitPath = StorageMapShape().path(in: self.bounds)
-                }
+                self.refreshHitPathIfNeeded()
                 let now = ProcessInfo.processInfo.systemUptime
                 // v266：兼容两类输入。触控板带 phase；鼠标横向滚轮 / 部分驱动没有 phase，
                 // 用 260ms 静默当作新手势起点——旧实现只认 phase，这类设备完全划不动。
                 let phaseStart = event.phase.contains(.began) || event.phase.contains(.mayBegin)
                 let idleStart = event.phase.isEmpty && now - self.lastEventAt > 0.26
                 if phaseStart || idleStart {
-                    self.delta = .zero
-                    self.swipeDidNavigate = false
+                    self.resetGesture()
                     let location = self.convert(event.locationInWindow, from: nil)
                     self.swipeAxis = self.hitPath.contains(location) ? .pending : nil
                 }
                 self.lastEventAt = now
                 if event.phase.contains(.ended) || event.phase.contains(.cancelled) {
                     let handled = self.swipeAxis == .horizontal
-                    self.swipeAxis = nil
-                    self.swipeDidNavigate = false
+                    self.resetGesture()
                     return handled ? nil : event
                 }
                 guard let axis = self.swipeAxis, axis != .vertical else { return event }
                 if self.swipeDidNavigate { return nil }
-                // 还原手指方向；系统「自然滚动」开关不改变「右滑返回 / 左滑前进」。
-                self.delta.width += event.scrollingDeltaX * (event.isDirectionInvertedFromDevice ? -1 : 1)
+                // 方向（2026-11-23 复核关系）：
+                //  · NSEvent 的 scrollingDeltaX 在系统「自然滚动」下与手指方向相反，
+                //    此时 isDirectionInvertedFromDevice = true；乘 -1 还原成**手指方向**。
+                //    自然滚动关掉时该值为 false，不做补偿。
+                //  · 还原后 > 0 = 手指向左。需求「两指左滑 = 返回上一目录」，
+                //    所以 > 0 交给 navigateHistory(-1)（-1 = 历史游标后退 = 返回）。
+                let rawX = event.scrollingDeltaX
+                let fingerDeltaX = rawX * (event.isDirectionInvertedFromDevice ? -1 : 1)
+                self.delta.width += fingerDeltaX
                 self.delta.height += event.scrollingDeltaY
                 let dx = abs(self.delta.width)
                 let dy = abs(self.delta.height)
@@ -209,10 +245,19 @@ private struct StorageSwipeRegion: NSViewRepresentable {
                 // 一次手势只跳一层：命中后吞掉本手势余下事件（含回扫方向），
                 // 松开后新起一次手势才继续 —— 「连续往返」仍逐层跟手，但不会一跳多级。
                 // v267：阈值 32→28pt，轻扫更容易触发，轴判定仍要求横向占比 1.2 倍。
-                if dx >= 28 {
+                if dx >= Self.navigateThreshold {
                     self.swipeDidNavigate = true
-                    let direction = self.delta.width > 0 ? -1 : 1
+                    let accumulated = self.delta.width
                     self.delta = .zero
+                    let direction = accumulated > 0 ? -1 : 1
+                    // 实测凭据：这一行把「手指方向 / rawX / 自然滚动」写进日志，
+                    // 真机上划一次就能核对方向是否与提示一致。
+                    Log.info("Storage", String(format: "手势导航：%@（手指%@ rawX=%.1f 反向=%@ 累计%.0fpt）",
+                                               direction < 0 ? "返回" : "前进",
+                                               accumulated > 0 ? "左" : "右",
+                                               rawX,
+                                               event.isDirectionInvertedFromDevice ? "是" : "否",
+                                               accumulated))
                     self.onNavigate(direction)
                 }
                 return nil
@@ -367,7 +412,9 @@ struct StorageManagerRootView: View {
                     rightPane(contentTop: layout.tileInset)
                         .frame(width: layout.mapSize.width, height: layout.mapSize.height)
                         .overlay {
-                            StorageSwipeRegion(enabled: !showDataCategories, onNavigate: navigateHistory(by:))
+                            StorageSwipeRegion(enabled: !showDataCategories,
+                                               hitTop: layout.tileInset,
+                                               onNavigate: navigateHistory(by:))
                                 .allowsHitTesting(false)
                         }
                         // v274：外轮廓顶边抬到按钮下方。用 offset 而不是 padding——
