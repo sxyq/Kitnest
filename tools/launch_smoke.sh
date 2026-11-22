@@ -112,5 +112,5 @@ echo "  最近日志："
 tail -n +"$((BEFORE + 1))" "$LOG" 2>/dev/null | tail -12 | sed 's/^/    /'
 echo
 echo "  下一步：sample \$(pgrep -x Kitnest | head -1) 3 -f /tmp/hang.txt 看主线程栈；"
-echo "  复盘：docs/40-审计与核对/2026-11-22-启动失败复盘-单实例与同步TCC.md"
+echo "  排查手册：docs/00-总览/开发工作流.md §六「启动不了 / 点了没反应 / 卡死」"
 exit 1

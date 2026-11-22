@@ -42,7 +42,7 @@ Kitnest（原名 FrsetNext，macOS 菜单栏工具）每次更改的固定收尾
    ```bash
    sample $(pgrep -x Kitnest | head -1) 3 -f /tmp/hang.txt
    ```
-   并读 `docs/40-审计与核对/2026-11-22-启动失败复盘-单实例与同步TCC.md`。
+   并读 `docs/00-总览/开发工作流.md` 第六节「启动不了 / 点了没反应 / 卡死」。
    该文档里还有两条硬纪律：**启动路径禁止同步 TCC/XPC**、**单实例只能用 flock 判定**。
 
 3. **验证**：按 `frset-verify` skill 的方法截图/探针确认改动生效。
