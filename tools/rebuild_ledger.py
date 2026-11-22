@@ -32,8 +32,8 @@ import os
 import sys
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CSV = os.path.join(ROOT, "docs", "40-审计与核对", "数据表", "FrsetNext-函数清单.csv")
-LED = os.path.join(ROOT, "docs", "40-审计与核对", "数据表", "函数审阅台账.csv")
+CSV = os.path.join(ROOT, "docs", "00-总览", "数据表", "FrsetNext-函数清单.csv")
+LED = os.path.join(ROOT, "docs", "00-总览", "数据表", "函数审阅台账.csv")
 FUNC_KINDS = ("func", "init", "deinit", "subscript")
 
 # 已重命名：台账旧名 → 现名
@@ -2484,6 +2484,161 @@ EVIDENCE.update({
     ("Features/Settings/Panes/HapticSettingsPane.swift", "eventSection"): "按统一事件枚举生成场景名称说明和独立开关，三类场景复用相同行组件",
     ("Features/TransferDock/Cast/TransferCastEngines.swift", "sharingService"): "既有隔空投送服务的完成回调才反馈成功，真实失败反馈失败，用户取消跳过；不把发起分享当完成",
     ("Features/TransferDock/Cast/TransferCastEngines.swift", "deviceConnectionChanged"): "无线连接命令与已有设备扫描共用已知连接集合，实际连接或断开才反馈，后续相同扫描不重复",
+})
+
+
+
+# ── 2026-11-23 文档体系整理：源码大文件职责拆分（纯类型搬家，无行为变化）──
+# 台账把搬家视为新 (file, name)，这里补真实迁入证据。
+EVIDENCE.update({
+    ('Features/Capture/Screenshot/NativeRegionCapture.swift', 'capture'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/NativeRegionCapture.swift', 'captureOnce'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/NativeRegionCapture.swift', 'captureScreen'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/NativeRegionCapture.swift', 'captureScreenOnDisplay'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/NativeRegionCapture.swift', 'run'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/ScreenSnapshot.swift', 'averageDifference'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/ScreenSnapshot.swift', 'beginEpoch'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/ScreenSnapshot.swift', 'captureScreenAdaptive'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/ScreenSnapshot.swift', 'captureScreenForScreenshot'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/ScreenSnapshot.swift', 'cgCapture'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/ScreenSnapshot.swift', 'cgRect'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/ScreenSnapshot.swift', 'displayID'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/ScreenSnapshot.swift', 'isCurrent'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/ScreenSnapshot.swift', 'isCurrentEpoch'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/ScreenSnapshot.swift', 'isUsableImage'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/ScreenSnapshot.swift', 'legacyCapture'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/ScreenSnapshot.swift', 'legacyCaptureProbed'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/ScreenSnapshot.swift', 'load'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/ScreenSnapshot.swift', 'next'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/ScreenSnapshot.swift', 'pixelColor'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/ScreenSnapshot.swift', 'probe'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/ScreenSnapshot.swift', 'sameColor'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/ScreenSnapshot.swift', 'sckCapture'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/ScreenSnapshot.swift', 'sckCaptureSync'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/ScreenSnapshot.swift', 'sckCaptureWindowSync'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/ScreenSnapshot.swift', 'screencaptureDisplayIndex'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/ScreenSnapshot.swift', 'store'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Screenshot/ScreenSnapshot.swift', 'windowImageMatchesFrozen'):
+        '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandCalendarContent.swift', 'calendarLayout'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandCalendarContent.swift', 'copySelectedDate'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandCalendarContent.swift', 'eventRows'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandCalendarContent.swift', 'eventTime'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandCalendarContent.swift', 'fullDate'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandCalendarContent.swift', 'monthDay'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandCalendarContent.swift', 'monthGrid'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandCalendarContent.swift', 'monthTitle'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandCalendarContent.swift', 'moveDate'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandCalendarContent.swift', 'movePreviewDate'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandCalendarContent.swift', 'reload'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandCalendarContent.swift', 'reloadEvents'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandCalendarContent.swift', 'selectDate'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandCalendarContent.swift', 'weekdayTitle'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandFileDrag.swift', 'cancelSelection'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandFileDrag.swift', 'draggingSession'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandFileDrag.swift', 'hitTest'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandFileDrag.swift', 'keyDown'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandFileDrag.swift', 'makeNSView'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandFileDrag.swift', 'mouseDown'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandFileDrag.swift', 'mouseDragged'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandFileDrag.swift', 'mouseUp'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandFileDrag.swift', 'updateNSView'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandFileDrag.swift', 'viewDidMoveToWindow'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandFileDrag.swift', 'viewWillMove'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandRecordRows.swift', 'body'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Island/IslandRecordRows.swift', 'copy'):
+        '2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Panel/Presentation/PanelToolbar.swift', 'placeSubviews'):
+        '2026-11-23：随类型自 Features/Panel/Presentation/PanelRootView.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Panel/Presentation/PanelToolbar.swift', 'sizeThatFits'):
+        '2026-11-23：随类型自 Features/Panel/Presentation/PanelRootView.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Settings/Panes/AppearanceSettingsDraft.swift', 'discard'):
+        '2026-11-23：随类型自 Features/Settings/Panes/PersonalizationSettingsPane.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Settings/Panes/AppearanceSettingsDraft.swift', 'init'):
+        '2026-11-23：随类型自 Features/Settings/Panes/PersonalizationSettingsPane.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Settings/Panes/AppearanceSettingsDraft.swift', 'observeChanges'):
+        '2026-11-23：随类型自 Features/Settings/Panes/PersonalizationSettingsPane.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Settings/Panes/AppearanceSettingsDraft.swift', 'refreshUnownedValues'):
+        '2026-11-23：随类型自 Features/Settings/Panes/PersonalizationSettingsPane.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Settings/Panes/AppearanceSettingsDraft.swift', 'reloadSavedValues'):
+        '2026-11-23：随类型自 Features/Settings/Panes/PersonalizationSettingsPane.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Settings/Panes/AppearanceSettingsDraft.swift', 'restoreDefaults'):
+        '2026-11-23：随类型自 Features/Settings/Panes/PersonalizationSettingsPane.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Settings/Panes/AppearanceSettingsDraft.swift', 'save'):
+        '2026-11-23：随类型自 Features/Settings/Panes/PersonalizationSettingsPane.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Settings/Panes/PersonalizationPreview.swift', 'dropEntered'):
+        '2026-11-23：随类型自 Features/Settings/Panes/PersonalizationSettingsPane.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Settings/Panes/PersonalizationPreview.swift', 'dropUpdated'):
+        '2026-11-23：随类型自 Features/Settings/Panes/PersonalizationSettingsPane.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Settings/Panes/PersonalizationPreview.swift', 'image'):
+        '2026-11-23：随类型自 Features/Settings/Panes/PersonalizationSettingsPane.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Settings/Panes/PersonalizationPreview.swift', 'init'):
+        '2026-11-23：随类型自 Features/Settings/Panes/PersonalizationSettingsPane.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Settings/Panes/PersonalizationPreview.swift', 'makeCoordinator'):
+        '2026-11-23：随类型自 Features/Settings/Panes/PersonalizationSettingsPane.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Settings/Panes/PersonalizationPreview.swift', 'makeNSView'):
+        '2026-11-23：随类型自 Features/Settings/Panes/PersonalizationSettingsPane.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Settings/Panes/PersonalizationPreview.swift', 'performDrop'):
+        '2026-11-23：随类型自 Features/Settings/Panes/PersonalizationSettingsPane.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Settings/Panes/PersonalizationPreview.swift', 'press'):
+        '2026-11-23：随类型自 Features/Settings/Panes/PersonalizationSettingsPane.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Settings/Panes/PersonalizationPreview.swift', 'reduce'):
+        '2026-11-23：随类型自 Features/Settings/Panes/PersonalizationSettingsPane.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Settings/Panes/PersonalizationPreview.swift', 'updateNSView'):
+        '2026-11-23：随类型自 Features/Settings/Panes/PersonalizationSettingsPane.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
 })
 
 def main() -> int:

@@ -26,6 +26,9 @@ name        声明名
 line        声明起始行（1-based）
 lines       函数体行数（含签名与结尾大括号；属性为 0）
 complexity  1 + if/guard/for/while/repeat/case/catch/&&/||/? 的粗计（同旧表口径的近似值）
+feature_id  功能归属 ID（2026-11-23 增）——按 docs/00-总览/源码与文档映射.csv 自动填入，
+            匹配优先级 override_symbol > override_file > 最长 source_prefix；未命中填「未映射」
+doc_path    该归属的主要实现文档（2026-11-23 增，仓库相对路径）；未命中填「未映射」，不生成假链接
 
 用法
 ----
@@ -43,7 +46,8 @@ from collections import Counter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "apps", "FrsetNext", "Sources")
-OUT = os.path.join(ROOT, "docs", "40-审计与核对", "数据表", "FrsetNext-函数清单.csv")
+OUT = os.path.join(ROOT, "docs", "00-总览", "数据表", "FrsetNext-函数清单.csv")
+MAP_CSV = os.path.join(ROOT, "docs", "00-总览", "源码与文档映射.csv")
 
 MODULE_DIRS = {
     "Core": "Core", "App": "App", "Storage": "Storage", "Models": "Models",
@@ -157,6 +161,54 @@ def module_of(rel: str) -> str:
     if len(parts) >= 2 and parts[0] == "Features":
         return parts[1]
     return MODULE_DIRS.get(parts[0], parts[0])
+
+
+def load_mapping(path: str = MAP_CSV):
+    """读「源码与文档映射.csv」→ (符号覆盖, 文件覆盖, 前缀规则)。
+
+    2026-11-23：函数 CSV 增 feature_id/doc_path 两列，归属由本映射唯一决定。
+    匹配优先级：override_symbol（file#owner#name 三元组，覆盖同名重载整族）
+    > override_file（整文件）> 最长 source_prefix（目录前缀）。
+    声明的 owner/name 参与三元组，避免单纯按函数名建不可靠对应。
+    """
+    sym_rules: dict[str, tuple[str, str]] = {}
+    file_rules: dict[str, tuple[str, str]] = {}
+    prefix_rules: list[tuple[str, str, str]] = []
+    if not os.path.exists(path):
+        print("警告：缺映射表", os.path.relpath(path, ROOT), "——feature_id/doc_path 全部记未映射")
+        return sym_rules, file_rules, prefix_rules
+    with open(path, encoding="utf-8-sig") as fh:
+        for r in csv.DictReader(fh):
+            fid = (r.get("feature_id") or "").strip()
+            doc = (r.get("doc_path") or "").strip()
+            if not fid or not doc:
+                continue
+            sym = (r.get("override_symbol") or "").strip()
+            fl = (r.get("override_file") or "").strip()
+            pre = (r.get("source_prefix") or "").strip()
+            if sym:
+                sym_rules[sym] = (fid, doc)
+            if fl:
+                file_rules[fl] = (fid, doc)
+            if pre:
+                prefix_rules.append((pre, fid, doc))
+    prefix_rules.sort(key=lambda x: -len(x[0]))  # 最长前缀优先
+    return sym_rules, file_rules, prefix_rules
+
+
+def map_decl(rel_file: str, owner: str, name: str, rules) -> tuple[str, str]:
+    """给一条声明填 (feature_id, doc_path)。未命中显式返回「未映射」。"""
+    sym_rules, file_rules, prefix_rules = rules
+    full = ("apps/FrsetNext/Sources/" + rel_file.replace(os.sep, "/"))
+    key = f"{full}#{owner}#{name}"
+    if key in sym_rules:
+        return sym_rules[key]
+    if full in file_rules:
+        return file_rules[full]
+    for pre, fid, doc in prefix_rules:
+        if full.startswith(pre):
+            return (fid, doc)
+    return ("未映射", "未映射")
 
 
 def scan_file(path: str, rel: str):
@@ -283,6 +335,14 @@ def main() -> int:
             all_rows.extend(scan_file(path, rel))
 
     all_rows.sort(key=lambda r: (r["file"], r["line"]))
+    # 2026-11-23：feature_id/doc_path 由映射表自动填入（不手工逐函数填）。
+    rules = load_mapping()
+    unmapped = Counter()
+    for r in all_rows:
+        fid, doc = map_decl(r["file"], r["owner"], r["name"], rules)
+        r["feature_id"], r["doc_path"] = fid, doc
+        if fid == "未映射":
+            unmapped[r["file"]] += 1
     funcs = [r for r in all_rows if r["kind"] in ("func", "init", "deinit", "subscript")]
     kinds = Counter(r["kind"] for r in all_rows)
     modules = Counter(r["module"] for r in all_rows if r["kind"] != "var" and r["kind"] != "let")
@@ -290,6 +350,9 @@ def main() -> int:
     print(f"文件 {files}；声明 {len(all_rows)}；函数 {len(funcs)}")
     print("kind:", dict(kinds))
     print("模块:", modules.most_common())
+    if unmapped:
+        print(f"未映射 {sum(unmapped.values())} 条声明，分布在 {len(unmapped)} 个文件：",
+              ", ".join(sorted(unmapped)[:12]), "…" if len(unmapped) > 12 else "")
 
     if args.check:
         return 0
@@ -297,7 +360,8 @@ def main() -> int:
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
     with open(args.out, "w", newline="", encoding="utf-8-sig") as fh:
         writer = csv.DictWriter(fh, fieldnames=["module", "file", "owner", "kind",
-                                                "name", "line", "lines", "complexity"])
+                                                "name", "line", "lines", "complexity",
+                                                "feature_id", "doc_path"])
         writer.writeheader()
         writer.writerows(all_rows)
     print("已写入", os.path.relpath(args.out, ROOT))
