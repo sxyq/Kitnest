@@ -653,6 +653,9 @@ final class IslandController: NSObject, ObservableObject {
         hoverWork = nil
         openedExplicitly = openedExplicitly || takeFocus
         if !expanded {
+            // 2026-11-23 阶段计时：展开同步段到底花在哪（与主面板 布局=XXms 同口径）。
+            // 只记毫秒，不动动画曲线（弹簧 0.42s/0.80 保持原值）。
+            let t0 = CFAbsoluteTimeGetCurrent()
             if useOpeningPage { applyOpeningPage() }
             if !previewOnly { selection = AppBootstrap.readSelection() }
             refreshClipboard()
@@ -663,6 +666,9 @@ final class IslandController: NSObject, ObservableObject {
             revealedEntryID = nil
             if !previewOnly { refreshEntries() }
             revealContent(after: 0.08)
+            if !previewOnly {
+                Log.info("Island", String(format: "岛展开：首次布局 %.0fms", (CFAbsoluteTimeGetCurrent() - t0) * 1000))
+            }
         }
         hoverArmed = false
         if takeFocus { panel?.makeKeyAndOrderFront(nil) }
@@ -678,6 +684,9 @@ final class IslandController: NSObject, ObservableObject {
     }
 
     func collapse() {
+        // 2026-11-23 阶段计时：同 expand()，只记同步段毫秒。
+        let t0 = CFAbsoluteTimeGetCurrent()
+        let wasExpanded = expanded
         if editingLayout { cancelLayoutEditing() }
         if let panel, MainPanelPreviewPopoverCoordinator.shared.hasPreview(from: panel) {
             MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .panelCollapse)
@@ -694,6 +703,9 @@ final class IslandController: NSObject, ObservableObject {
         if !previewOnly { refreshEntries() }
         hoverArmed = false
         panel?.makeFirstResponder(nil)
+        if wasExpanded, !previewOnly {
+            Log.info("Island", String(format: "岛收起：首次布局 %.0fms", (CFAbsoluteTimeGetCurrent() - t0) * 1000))
+        }
     }
 
     func stop() {
