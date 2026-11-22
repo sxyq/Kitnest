@@ -211,11 +211,11 @@ final class IslandController: NSObject, ObservableObject {
 
     func finishLayoutEditing() {
         let next = layoutDraft ?? configuration
-        if let reason = apply(next) { feedback = reason; HapticFeedback.perform(.operationFailed); return }
+        if let reason = apply(next) { feedback = reason; HapticService.shared.perform(.operationFailed); return }
         layoutDraft = nil
         layoutDidChange?(next)
         feedback = previewOnly ? "布局已更新到设置草稿，保存后应用" : "布局已保存"
-        if !previewOnly { HapticFeedback.perform(.layoutSaved) }
+        if !previewOnly { HapticService.shared.perform(.layoutSaved) }
         endInteraction()
     }
 
@@ -333,7 +333,6 @@ final class IslandController: NSObject, ObservableObject {
         pageSlide = 1
         page = .monitor          // page.didSet 会记录来源页；goBack() 回得去
         feedback = "左右切换指标 · Esc 返回上一页"
-        HapticFeedback.perform(.gridMove)
     }
 
     /// 详情内左右切换指标。作用域优先于整页切换。
@@ -346,7 +345,6 @@ final class IslandController: NSObject, ObservableObject {
         guard next != current else { return }
         MonitorCenterPresenter.shared.monitorSelection.module = next
         if let metric = IslandMetric(rawValue: next.rawValue) { selectedMetric = metric }
-        HapticFeedback.perform(.gridMove)   // 离散切换才发一次，不跟手连续触发
     }
 
     /// 当前是否处在「指标详情」这类非 tab 页面（Esc 先返回，再收起）。

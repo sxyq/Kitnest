@@ -178,8 +178,8 @@ struct IslandWidgetGrid<Content: View>: View {
         if next != controller.layoutConfiguration {
             controller.updateLayout(next)
             if !controller.previewOnly {
-                if let size, size != previousSize { HapticFeedback.perform(.gridResize) }
-                else if size == nil, previous != place { HapticFeedback.perform(.gridMove) }
+                if let size, size != previousSize { HapticService.shared.perform(.gridResize) }
+                else if size == nil, previous != place { HapticService.shared.perform(.gridMove) }
             }
         }
         else if crossedCell { rebuild() }

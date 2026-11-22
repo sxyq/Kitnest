@@ -287,7 +287,7 @@ public final class LanTransferServer: ObservableObject {
         queue.asyncAfter(deadline: .now() + 300) {
             if !context.done {
                 context.done = true
-                if context.isFileTransfer { HapticFeedback.perform(.transferFailed) }
+                if context.isFileTransfer { HapticService.shared.perform(.transferFailed) }
                 self.cleanupBody(context)
                 connection.cancel()
             }
@@ -300,7 +300,7 @@ public final class LanTransferServer: ObservableObject {
             guard let self, !context.done else { return }
             if error != nil {
                 context.done = true
-                if context.isFileTransfer { HapticFeedback.perform(.transferFailed) }
+                if context.isFileTransfer { HapticService.shared.perform(.transferFailed) }
                 self.cleanupBody(context)
                 context.connection.cancel()
                 return
@@ -311,7 +311,7 @@ public final class LanTransferServer: ObservableObject {
             }
             if isComplete {
                 context.done = true
-                if context.isFileTransfer { HapticFeedback.perform(.transferFailed) }
+                if context.isFileTransfer { HapticService.shared.perform(.transferFailed) }
                 self.cleanupBody(context)
                 context.connection.cancel()
                 return
@@ -639,7 +639,7 @@ public final class LanTransferServer: ObservableObject {
         context.connection.send(content: payload, completion: .contentProcessed { error in
             if let transferSucceeded {
                 let succeeded = transferSucceeded && error == nil
-                HapticFeedback.perform(succeeded ? .transferCompleted : .transferFailed)
+                HapticService.shared.perform(succeeded ? .transferCompleted : .transferFailed)
                 if succeeded && context.method == "GET" {
                     DispatchQueue.main.async {
                         self.sentCount += 1

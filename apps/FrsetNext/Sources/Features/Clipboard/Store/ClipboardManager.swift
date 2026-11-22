@@ -739,7 +739,7 @@ public final class ClipboardManager: ObservableObject {
         lastChangeCount = pasteboard.changeCount
         StatisticsManager.shared.record(event)
         Toast.show(message, icon: "checkmark.circle.fill")
-        HapticFeedback.perform(.copy)
+        HapticService.shared.perform(.copy)
     }
 
     // MARK: 暂缓的通知条场景（spec 13 §4，等依赖能力落地后接）

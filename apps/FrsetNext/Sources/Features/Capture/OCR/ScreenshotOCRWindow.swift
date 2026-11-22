@@ -786,19 +786,19 @@ public final class ScreenshotOCRWindowController: NSObject, NSWindowDelegate {
                 // spec 13 §4：未读取到文字场景（0x10000d45c，重新识别为空）
                 guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
                     Toast.show("未读取到文字", icon: "exclamationmark.circle.fill")
-                    HapticFeedback.perform(.operationFailed)
+                    HapticService.shared.perform(.operationFailed)
                     return
                 }
                 win.setResultText(text)
                 self.invalidateTranslation()
                 CaptureEventBus.onTextRecognized?(text)
-                HapticFeedback.perform(.ocr)
+                HapticService.shared.perform(.ocr)
             } catch {
                 guard let win, !Task.isCancelled, !error.isLLMCancellation,
                       self.recognitionGeneration == generation,
                       self.window === win else { return }
                 Toast.show("文字识别失败", icon: "exclamationmark.circle.fill")   // spec 13 §4：OCR 失败场景
-                HapticFeedback.perform(.operationFailed)
+                HapticService.shared.perform(.operationFailed)
                 Log.error("Capture", "重新识别失败: \(error.localizedDescription)")
             }
         }

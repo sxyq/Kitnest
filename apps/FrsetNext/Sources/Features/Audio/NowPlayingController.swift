@@ -107,7 +107,7 @@ final class NowPlayingController: ObservableObject {
                         self.feedback = next.commandAccepted == true ? "" : "播放器未接受该操作"
                     }
                     if ["0", "1", "2"].contains(action), next.commandAccepted == true {
-                        HapticFeedback.perform(.mediaPlayPause)
+                        HapticService.shared.perform(.mediaPlayPause)
                     }
                     // 上次隐藏时若取消了尚未完成的封面读取，重新可见后继续读取同一封面。
                     if changed || (self.artwork == nil && self.artworkTask == nil && next.artworkURL != nil) { self.loadArtwork(next) }

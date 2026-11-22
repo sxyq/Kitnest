@@ -21,9 +21,11 @@ final class HapticSettingsDraft: SettingsEditableDraft {
 
     var isDirty: Bool { configuration != saved }
 
+    /// 只有保存才写盘并替换业务侧快照；未保存时业务仍然使用已保存配置。
     func save() -> String? {
-        do { try configuration.persist() }
-        catch { return "触觉设置保存失败：\(error.localizedDescription)" }
+        if let error = HapticService.shared.apply(configuration) {
+            return "触觉设置保存失败：\(error.localizedDescription)"
+        }
         saved = configuration
         objectWillChange.send()
         return nil
@@ -35,24 +37,15 @@ final class HapticSettingsDraft: SettingsEditableDraft {
 
 private struct HapticSettingsContent: View {
     @ObservedObject var draft: HapticSettingsDraft
+    @ObservedObject var service = HapticService.shared
     @Stored private var previewEvent: HapticEvent = .copy
 
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
             controls
-            eventSection("布局与复制", events: [
-                .gridMove, .gridResize, .layoutSaved, .copy
-            ])
-            eventSection("截图、录制与传输", events: [
-                .screenshot, .ocr, .recordingStarted, .recordingSaved,
-                .transferCompleted, .downloadCompleted, .transferFailed
-            ])
-            eventSection("AI、搜索与设备", events: [
-                .aiCompleted, .searchCompleted, .deviceConnected, .deviceDisconnected
-            ])
-            eventSection("提醒与媒体", events: [
-                .operationFailed, .mediaPlayPause, .volumeBoundary
-            ])
+            ForEach(HapticEvent.settingGroups, id: \.title) { group in
+                eventSection(group.title, events: group.events)
+            }
         }
     }
 
@@ -66,7 +59,10 @@ private struct HapticSettingsContent: View {
                         .toggleStyle(.switch)
                         .controlSize(.small)
                         .onChange(of: draft.configuration.enabled) { enabled in
-                            if enabled { HapticFeedback.preview(draft.configuration.intensity) }
+                            if enabled {
+                                HapticService.shared.preview(event: .copy,
+                                                             intensity: draft.configuration.intensity)
+                            }
                         }
                 }
                 SettingsDivider()
@@ -81,31 +77,52 @@ private struct HapticSettingsContent: View {
                     .frame(width: 220)
                     .disabled(!draft.configuration.enabled)
                     .onChange(of: draft.configuration.intensity) { intensity in
-                        if draft.configuration.enabled { HapticFeedback.preview(intensity) }
+                        if draft.configuration.enabled {
+                            HapticService.shared.preview(event: .copy, intensity: intensity)
+                        }
                     }
                 }
                 SettingsDivider()
-                SettingsRow(title: "试听场景") {
+                SettingsRow(title: "试听场景", subtitle: previewSubtitle) {
                     HStack(spacing: 8) {
                         Picker("模拟场景", selection: $previewEvent) {
                             ForEach(HapticEvent.allCases, id: \.self) { event in
-                                Text(event.setting.title).tag(event)
+                                Text(event.settingTitle).tag(event)
                             }
                         }
                         .labelsHidden()
                         .frame(width: 180)
-                        Button("试听") {
-                            HapticFeedback.simulate(event: previewEvent,
-                                                    intensity: draft.configuration.intensity)
-                        }
-                        .controlSize(.small)
-                        .disabled(!draft.configuration.enabled
-                                  || draft.configuration.intensity == .off
-                                  || !draft.configuration.isEnabled(previewEvent))
+                        Button("试听") { playPreview() }
+                            .controlSize(.small)
+                            .disabled(!draft.configuration.enabled
+                                      || draft.configuration.intensity == .off
+                                      || !draft.configuration.isEnabled(previewEvent)
+                                      || service.availability == .unavailable)
+                            .help("试听只演示这台设备能给出的节奏与强度；"
+                                  + "场景是否生效取决于真实业务事件，两者不是一回事。")
                     }
                 }
             }
         }
+    }
+
+    /// 设备不支持时如实说明；支持时不占版面（保持原布局）。
+    private var previewSubtitle: String? {
+        switch service.availability {
+        case .ready, .unknown: return nil
+        case .publicOnly(let reason):
+            return "\(reason.text)：试听只能请求系统接口，手指贴着触控板时才有感"
+        case .unavailable:
+            return "没有可用的触觉设备"
+        }
+    }
+
+    private func playPreview() {
+        let intensity = draft.configuration.intensity
+        HapticService.shared.preview(event: previewEvent, intensity: intensity)
+        // 把「试听 ≠ 已接线」和当前设备边界说清楚，避免把演示当成场景已生效。
+        Toast.show("已按「\(previewEvent.settingTitle)」的节奏试听一次 · \(service.deviceSummary)",
+                   icon: "hand.tap")
     }
 
     private func eventSection(_ title: String, events: [HapticEvent]) -> some View {
@@ -113,14 +130,15 @@ private struct HapticSettingsContent: View {
             SettingsGroupBox {
                 ForEach(Array(events.enumerated()), id: \.element) { index, event in
                     if index > 0 { SettingsDivider() }
-                    SettingsRow(title: event.setting.title, subtitle: event.setting.detail) {
-                        Toggle(event.setting.title, isOn: Binding(
+                    SettingsRow(title: event.settingTitle, subtitle: event.settingDetail) {
+                        Toggle(event.settingTitle, isOn: Binding(
                             get: { draft.configuration.isEnabled(event) },
                             set: { enabled in
                                 if enabled { draft.configuration.disabledEvents.remove(event) }
                                 else { draft.configuration.disabledEvents.insert(event) }
                                 if draft.configuration.enabled, draft.configuration.intensity != .off {
-                                    HapticFeedback.preview(draft.configuration.intensity)
+                                    HapticService.shared.preview(event: event,
+                                                                 intensity: draft.configuration.intensity)
                                 }
                             }
                         ))
@@ -130,31 +148,6 @@ private struct HapticSettingsContent: View {
                     }
                 }
             }
-        }
-    }
-}
-
-private extension HapticEvent {
-    var setting: (title: String, detail: String) {
-        switch self {
-        case .gridMove: return ("网格吸附", "组件进入新的网格位置")
-        case .gridResize: return ("组件尺寸切档", "组件切换到另一种网格尺寸")
-        case .layoutSaved: return ("布局保存成功", "点击完成并成功保存布局")
-        case .copy: return ("主动复制成功", "点击复制或使用复制快捷键")
-        case .screenshot: return ("截图完成", "截图完成并可供使用")
-        case .ocr: return ("文字识别完成", "OCR 识别结果准备完成")
-        case .recordingStarted: return ("录屏开始", "录制正式开始")
-        case .recordingSaved: return ("录屏保存完成", "录制文件成功保存")
-        case .transferCompleted: return ("文件传输完成", "文件中转或设备传输任务完成")
-        case .downloadCompleted: return ("下载完成", "下载文件成功保存")
-        case .transferFailed: return ("下载或传输失败", "下载中断或文件传输失败")
-        case .aiCompleted: return ("AI 回复完成", "模型生成结束并出现完整回复")
-        case .searchCompleted: return ("搜索完成", "搜索结果准备完成")
-        case .deviceConnected: return ("设备连接", "设备成功建立连接")
-        case .deviceDisconnected: return ("设备断开", "已连接设备断开连接")
-        case .operationFailed: return ("操作失败", "操作失败、权限不足或系统拒绝")
-        case .mediaPlayPause: return ("播放与暂停", "主动切换媒体播放状态")
-        case .volumeBoundary: return ("音量边界", "音量到达最小值或最大值")
         }
     }
 }

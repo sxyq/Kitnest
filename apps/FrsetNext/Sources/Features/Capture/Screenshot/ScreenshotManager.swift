@@ -944,7 +944,7 @@ public final class ScreenshotManager: ObservableObject {
             // 已授权时不要再走一次跨线程的权限异步函数（每次截图都白白多两次调度跳转）
             if !self.hasPermission {
                 guard await self.ensureScreenRecordingPermission() else {
-                    HapticFeedback.perform(.operationFailed)
+                    HapticService.shared.perform(.operationFailed)
                     self.finishCaptureSession()
                     return
                 }
@@ -1022,7 +1022,7 @@ public final class ScreenshotManager: ObservableObject {
             if shown == 0 {
                 self.isCapturing = false
                 self.statusMessage = CaptureError.captureFailed.errorDescription
-                HapticFeedback.perform(.operationFailed)
+                HapticService.shared.perform(.operationFailed)
                 Toast.show("截图失败：没有可用屏幕", icon: "exclamationmark.triangle", isWarning: true)
                 self.finishCaptureSession()
             }
@@ -1158,7 +1158,7 @@ public final class ScreenshotManager: ObservableObject {
         guard let snapshot,
               let image = ImageProcessor.crop(snapshot, rectInPoints: global, screenFrame: screenFrame) else {
             statusMessage = CaptureError.captureFailed.errorDescription
-            HapticFeedback.perform(.operationFailed)
+            HapticService.shared.perform(.operationFailed)
             Log.error("Capture", "选区截图失败：没有有效的触发时冻结帧")
             Toast.show("截图失败，请重试", icon: "exclamationmark.triangle", isWarning: true)
             finishCaptureSession()
@@ -1178,13 +1178,13 @@ public final class ScreenshotManager: ObservableObject {
             let pixel = CGSize(width: cropped.width, height: cropped.height)
             guard let data = ImageProcessor.pngData(cropped),
                   let url = stagePNG(data, pixelSize: pixel) else {
-                HapticFeedback.perform(.operationFailed)
+                HapticService.shared.perform(.operationFailed)
                 Toast.show("截图暂存失败，请检查磁盘空间", icon: "exclamationmark.triangle", isWarning: true)
                 finishCaptureSession()
                 return
             }
             registerCaptured(url: url, data: data, playSound: true)
-            HapticFeedback.perform(.screenshot)
+            HapticService.shared.perform(.screenshot)
             autoDetectQR(in: cropped)   // v130⑤：自动检测二维码
             // v267：右下角拖拽角标整套移除（用户：「之前不是没让你加」）。
             // 截图完成后只保留动作工具条，不再有任何自动浮在右下角的预览窗。
@@ -1225,11 +1225,11 @@ public final class ScreenshotManager: ObservableObject {
     public func captureFullScreen() {
         Task { @MainActor in
             guard await ensureScreenRecordingPermission() else {
-                HapticFeedback.perform(.operationFailed)
+                HapticService.shared.perform(.operationFailed)
                 return
             }
             guard let screen = currentScreen() else {
-                HapticFeedback.perform(.operationFailed)
+                HapticService.shared.perform(.operationFailed)
                 return
             }
             let action = defaultAction
@@ -1239,7 +1239,7 @@ public final class ScreenshotManager: ObservableObject {
             let image = await ScreenSnapshot.captureScreenForScreenshot(screen)
             guard let image = image else {
                 self.statusMessage = CaptureError.captureFailed.errorDescription
-                HapticFeedback.perform(.operationFailed)
+                HapticService.shared.perform(.operationFailed)
                 Log.error("Capture", "全屏截图失败")
                 // v274：面板此刻没开，只写 statusMessage 用户什么也看不到；
                 // 与 commitFullScreen / commitWindow 的失败分支保持一致给 Toast。
@@ -1278,7 +1278,7 @@ public final class ScreenshotManager: ObservableObject {
         lastSelectionAppKit = global
         guard let snapshot else {
             statusMessage = CaptureError.captureFailed.errorDescription
-            HapticFeedback.perform(.operationFailed)
+            HapticService.shared.perform(.operationFailed)
             Toast.show("截图失败，请重试", icon: "exclamationmark.triangle", isWarning: true)
             finishCaptureSession()
             return
@@ -1348,7 +1348,7 @@ public final class ScreenshotManager: ObservableObject {
             }
             guard let image else {
                 self.statusMessage = CaptureError.captureFailed.errorDescription
-                HapticFeedback.perform(.operationFailed)
+                HapticService.shared.perform(.operationFailed)
                 Toast.show("窗口截图失败，请重试", icon: "exclamationmark.triangle", isWarning: true)
                 self.finishCaptureSession()
                 return
@@ -1361,13 +1361,13 @@ public final class ScreenshotManager: ObservableObject {
                 let pixel = CGSize(width: image.width, height: image.height)
                 guard let data = ImageProcessor.pngData(image),
                       let url = self.stagePNG(data, pixelSize: pixel) else {
-                    HapticFeedback.perform(.operationFailed)
+                    HapticService.shared.perform(.operationFailed)
                     Toast.show("截图暂存失败，请检查磁盘空间", icon: "exclamationmark.triangle", isWarning: true)
                     self.finishCaptureSession()
                     return
                 }
                 self.registerCaptured(url: url, data: data, playSound: true)
-                HapticFeedback.perform(.screenshot)
+                HapticService.shared.perform(.screenshot)
                 self.autoDetectQR(in: image)   // v130⑤：自动检测二维码
                 CaptureActionChain.present(image: image, url: url, selectionAppKit: global,
                                            completion: self.takeCaptureSessionCompletion())
@@ -1418,13 +1418,13 @@ public final class ScreenshotManager: ObservableObject {
                 if let image { images.append(image) }
             }
             guard !images.isEmpty else {
-                HapticFeedback.perform(.operationFailed)
+                HapticService.shared.perform(.operationFailed)
                 Toast.show("窗口截图失败，请重试", icon: "exclamationmark.triangle", isWarning: true)
                 self.finishCaptureSession()
                 return
             }
             guard let composed = Self.composeVertically(images) else {
-                HapticFeedback.perform(.operationFailed)
+                HapticService.shared.perform(.operationFailed)
                 Toast.show("窗口图片合成失败", icon: "exclamationmark.triangle", isWarning: true)
                 self.finishCaptureSession()
                 return
@@ -1438,13 +1438,13 @@ public final class ScreenshotManager: ObservableObject {
                 guard let data = ImageProcessor.pngData(composed),
                       let url = self.stagePNG(data, pixelSize: CGSize(width: composed.width,
                                                                       height: composed.height)) else {
-                    HapticFeedback.perform(.operationFailed)
+                    HapticService.shared.perform(.operationFailed)
                     Toast.show("截图暂存失败，请检查磁盘空间", icon: "exclamationmark.triangle", isWarning: true)
                     self.finishCaptureSession()
                     return
                 }
                 self.registerCaptured(url: url, data: data, playSound: true)
-                HapticFeedback.perform(.screenshot)
+                HapticService.shared.perform(.screenshot)
                 CaptureActionChain.present(image: composed, url: url, selectionAppKit: .zero,
                                            completion: self.takeCaptureSessionCompletion())
             }
@@ -1498,7 +1498,7 @@ public final class ScreenshotManager: ObservableObject {
     private func handle(_ image: CGImage, action: CaptureDefaultAction) {
         guard let data = ImageProcessor.pngData(image) else {
             statusMessage = CaptureError.saveFailed.errorDescription
-            HapticFeedback.perform(.operationFailed)
+            HapticService.shared.perform(.operationFailed)
             Toast.show("截图失败：图片编码失败", icon: "exclamationmark.triangle", isWarning: true)
             return
         }
@@ -1508,11 +1508,11 @@ public final class ScreenshotManager: ObservableObject {
                                         : stagePNG(data, pixelSize: pixel)) else {
             statusMessage = CaptureError.saveFailed.errorDescription
             Toast.show("截图保存失败，请检查保存路径", icon: "exclamationmark.triangle", isWarning: true)
-            HapticFeedback.perform(.operationFailed)
+            HapticService.shared.perform(.operationFailed)
             return
         }
         registerCaptured(url: url, data: data, playSound: true)
-        HapticFeedback.perform(.screenshot)
+        HapticService.shared.perform(.screenshot)
         autoDetectQR(in: image)   // v130（SnowShot 对齐）⑤：截图完成后自动检测二维码
         apply(action, to: image, url: url)
     }
@@ -1711,13 +1711,13 @@ public final class ScreenshotManager: ObservableObject {
 
     /// 识别一张图（结果写入 ocrText，并广播给剪贴板等模块）
     public func recognize(_ image: CGImage) {
-        guard let data = ImageProcessor.pngData(image) else { HapticFeedback.perform(.operationFailed); return }
+        guard let data = ImageProcessor.pngData(image) else { HapticService.shared.perform(.operationFailed); return }
         recognize(imageData: data)
     }
 
     /// v139：动作条「翻译」——识字后直接打开结果窗的翻译页签（自动提取并翻译）
     public func recognizeAndTranslate(_ image: CGImage) {
-        guard let data = ImageProcessor.pngData(image) else { HapticFeedback.perform(.operationFailed); return }
+        guard let data = ImageProcessor.pngData(image) else { HapticService.shared.perform(.operationFailed); return }
         recognize(imageData: data, autoTranslate: true)
     }
 
@@ -1729,7 +1729,7 @@ public final class ScreenshotManager: ObservableObject {
     /// 信息可以让用户手动选择」。所以这两个动作不再自动写剪贴板，
     /// 窗口里可以框选、可以点复制、可以切翻译页签。
     public func recognizeShowing(_ image: CGImage) {
-        guard let data = ImageProcessor.pngData(image) else { HapticFeedback.perform(.operationFailed); return }
+        guard let data = ImageProcessor.pngData(image) else { HapticService.shared.perform(.operationFailed); return }
         recognize(imageData: data, forceWindow: true)
     }
 
@@ -1746,12 +1746,12 @@ public final class ScreenshotManager: ObservableObject {
                 // spec 13 §4：未读取到文字场景（0x10000d45c，空识别结果分支）
                 if text.isEmpty {
                     Toast.show("未读取到文字", icon: "exclamationmark.circle.fill")
-                    HapticFeedback.perform(.operationFailed)
+                    HapticService.shared.perform(.operationFailed)
                 }
                 if !text.isEmpty {
                     NotificationCenter.default.post(name: .tutorialScreenshotOCRCompleted, object: nil,
                                                     userInfo: ["path": self.lastHistoryPath ?? ""])
-                    HapticFeedback.perform(.ocr)
+                    HapticService.shared.perform(.ocr)
                     CaptureEventBus.onTextRecognized?(text)
                     // v130（SnowShot 对齐）②：OCR 文本回填截图历史（历史窗可按文本搜索）
                     if let p = self.lastHistoryPath {
@@ -1775,7 +1775,7 @@ public final class ScreenshotManager: ObservableObject {
             } catch {
                 guard !Task.isCancelled, !error.isLLMCancellation else { return }
                 Toast.show("文字识别失败", icon: "exclamationmark.circle.fill")   // spec 13 §4：OCR 失败场景
-                HapticFeedback.perform(.operationFailed)
+                HapticService.shared.perform(.operationFailed)
                 self.statusMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
                 Log.error("Capture", "OCR 失败: \(error.localizedDescription)")
             }
@@ -1822,12 +1822,12 @@ public final class ScreenshotManager: ObservableObject {
     public func saveStitchedResult(_ image: CGImage, overlaps: [Int]) -> URL? {
         guard let data = ImageProcessor.pngData(image) else {
             statusMessage = CaptureError.saveFailed.errorDescription
-            HapticFeedback.perform(.operationFailed)
+            HapticService.shared.perform(.operationFailed)
             return nil
         }
         guard let url = savePNG(data, pixelSize: CGSize(width: image.width, height: image.height)) else {
             statusMessage = CaptureError.saveFailed.errorDescription
-            HapticFeedback.perform(.operationFailed)
+            HapticService.shared.perform(.operationFailed)
             return nil
         }
         recent.insert(CapturedImage(url: url, createdAt: Date()), at: 0)
@@ -1837,7 +1837,7 @@ public final class ScreenshotManager: ObservableObject {
         CaptureEventBus.onImageCaptured?(url, data)
         let total = overlaps.reduce(0, +)
         statusMessage = "长截图已保存（重叠 \(total) 像素）"
-        HapticFeedback.perform(.screenshot)
+        HapticService.shared.perform(.screenshot)
         return url
     }
 

@@ -366,7 +366,7 @@ public final class ScreenRecorder: ObservableObject {
 
         guard await ScreenshotManager.shared.ensureScreenRecordingPermission() else {
             state = .idle
-            HapticFeedback.perform(.operationFailed)
+            HapticService.shared.perform(.operationFailed)
             return
         }
         guard state == .preparing else { state = .idle; return }
@@ -447,7 +447,7 @@ public final class ScreenRecorder: ObservableObject {
             accumulated = 0
             elapsed = 0
             state = .recording
-            HapticFeedback.perform(.recordingStarted)
+            HapticService.shared.perform(.recordingStarted)
             startTimer()
             RecordingHUDController.shared.show()
             if !unavailableFeatures.isEmpty {
@@ -473,7 +473,7 @@ public final class ScreenRecorder: ObservableObject {
             errorText = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
             Log.error("Recording", "启动失败：\(error.localizedDescription)")
             Toast.show(errorText ?? "录屏启动失败", icon: "exclamationmark.triangle", isWarning: true)
-            HapticFeedback.perform(.operationFailed)
+            HapticService.shared.perform(.operationFailed)
         }
     }
 
@@ -528,15 +528,15 @@ public final class ScreenRecorder: ObservableObject {
         guard let file else {
             errorText = errorText ?? "录制文件写入失败"
             Toast.show(errorText!, icon: "exclamationmark.triangle", isWarning: true)
-            HapticFeedback.perform(.operationFailed)
+            HapticService.shared.perform(.operationFailed)
             return nil
         }
         let seconds = max(1, Int(elapsed.rounded()))
         if let errorText {
             Toast.show("\(errorText)；已保存中断前视频", icon: "exclamationmark.triangle", isWarning: true)
-            HapticFeedback.perform(.operationFailed)
+            HapticService.shared.perform(.operationFailed)
         } else {
-            HapticFeedback.perform(.recordingSaved)
+            HapticService.shared.perform(.recordingSaved)
             Toast.show("录制完成 · \(seconds / 60):\(String(format: "%02d", seconds % 60))", icon: "checkmark.circle.fill")
         }
         // 录制完成 → 打开编辑器（用户可直接裁剪 / 导出）

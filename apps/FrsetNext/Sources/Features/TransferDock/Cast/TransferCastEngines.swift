@@ -43,13 +43,13 @@ public enum AirDropSendEngine {
 
     private final class FeedbackDelegate: NSObject, NSSharingServiceDelegate {
         func sharingService(_ sharingService: NSSharingService, didShareItems items: [Any]) {
-            HapticFeedback.perform(.transferCompleted)
+            HapticService.shared.perform(.transferCompleted)
             let paths = items.compactMap { ($0 as? URL)?.path }
             NotificationCenter.default.post(name: .tutorialFileTransferCompleted, object: nil,
                                             userInfo: ["paths": paths])
         }
         func sharingService(_ sharingService: NSSharingService, didFailToShareItems items: [Any], error: Error) {
-            if (error as NSError).code != NSUserCancelledError { HapticFeedback.perform(.transferFailed) }
+            if (error as NSError).code != NSUserCancelledError { HapticService.shared.perform(.transferFailed) }
         }
     }
 
@@ -80,7 +80,7 @@ public enum AirDropSendEngine {
             return false
         }
         guard let service = cachedService else {
-            HapticFeedback.perform(.transferFailed)
+            HapticService.shared.perform(.transferFailed)
             Toast.show("本机隔空投送不可用（检查系统设置）", icon: "exclamationmark.triangle", isWarning: true)
             return false
         }
@@ -206,7 +206,7 @@ public enum ScreenCastEngine {
         if knownDevices != nil {
             if connected { knownDevices?.insert(serial) } else { knownDevices?.remove(serial) }
         }
-        HapticFeedback.perform(connected ? .deviceConnected : .deviceDisconnected)
+        HapticService.shared.perform(connected ? .deviceConnected : .deviceDisconnected)
     }
 
     /// 已连接设备列表（后台执行——adb 挂起不得卡主线程，v105 卡死教训）
@@ -241,8 +241,8 @@ public enum ScreenCastEngine {
             DispatchQueue.main.async {
                 let current = Set(result.filter { $0.1 == "device" }.map { $0.0 })
                 if let previous = knownDevices {
-                    if !current.subtracting(previous).isEmpty { HapticFeedback.perform(.deviceConnected) }
-                    if !previous.subtracting(current).isEmpty { HapticFeedback.perform(.deviceDisconnected) }
+                    if !current.subtracting(previous).isEmpty { HapticService.shared.perform(.deviceConnected) }
+                    if !previous.subtracting(current).isEmpty { HapticService.shared.perform(.deviceDisconnected) }
                 }
                 knownDevices = current
                 completion(result)
@@ -673,13 +673,13 @@ public enum ADBFileBridge {
 
         ADBExtrasEngine.run(["shell", "mkdir", "-p", remoteDir], timeout: nil) { output, status in
             guard status == 0 else {
-                HapticFeedback.perform(.transferFailed)
+                HapticService.shared.perform(.transferFailed)
                 completion(0, output ?? "adb 不可用")
                 return
             }
             pushOne(urls: urls, sizes: sizes, remoteDir: remoteDir, index: 0,
                     sent: 0, tracker: tracker, progress: progress) { sent, log in
-                HapticFeedback.perform(sent == urls.count ? .transferCompleted : .transferFailed)
+                HapticService.shared.perform(sent == urls.count ? .transferCompleted : .transferFailed)
                 completion(sent, log)
             }
         }
@@ -793,19 +793,19 @@ public enum ADBFileBridge {
         try? fm.createDirectory(at: stagingDir, withIntermediateDirectories: true)
         ADBExtrasEngine.run(["pull", remoteDir + "/.", stagingDir.path], timeout: nil) { out, status in
             guard let out else {
-                HapticFeedback.perform(.transferFailed)
+                HapticService.shared.perform(.transferFailed)
                 DispatchQueue.main.async { completion(0, "adb 不可用") }
                 return
             }
             guard status == 0 else {
-                HapticFeedback.perform(.transferFailed)
+                HapticService.shared.perform(.transferFailed)
                 completion(0, out)
                 return
             }
             // 输出形如 "N files pulled, 0 skipped."
             let count = out.range(of: #"\d+(?= files? pulled)"#, options: .regularExpression)
                 .flatMap { Int(out[$0]) } ?? 0
-            if count > 0 { HapticFeedback.perform(.transferCompleted) }
+            if count > 0 { HapticService.shared.perform(.transferCompleted) }
             DispatchQueue.main.async { completion(count, out) }
         }
     }
