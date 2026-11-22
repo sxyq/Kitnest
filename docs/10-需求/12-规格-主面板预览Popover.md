@@ -178,7 +178,7 @@ final class PreviewArrowGeometryStore {                                         
 
 ---
 
-## 5. 行为对照条目（回填 tests/行为对照表.md）
+## 5. 行为对照条目（回填 30-测试/行为对照表.md）
 
 | # | 场景 | 原作行为（证据） |
 |---|---|---|

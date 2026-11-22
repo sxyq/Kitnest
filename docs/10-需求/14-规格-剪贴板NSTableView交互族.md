@@ -1,6 +1,6 @@
 # 14 - 规格：剪贴板列表交互族 + 捕获时序（逆向待查 #1）
 
-> 2026-10-15。作者：re-clipboard（汇编探索代理）。上游：docs/10-规格/11 §2 任务书、docs/10-规格/05（本篇深化其 4.3 节并回答其待查 #1）。
+> 2026-10-15。作者：re-clipboard（汇编探索代理）。上游：docs/10-需求/11 §2 任务书、docs/10-需求/05（本篇深化其 4.3 节并回答其待查 #1）。
 > 方法：`otool -oV` ObjC 元数据（类/方法表/ivar 表，含 IMP 地址）+ disasm.txt 函数窗读 + 反射字符串考古（__swift5_reflstr / __cstring）+ `__objc_stubs` 二进制解析（otool -tvV 不含 __objc_stubs，选择器调用必须经 stub 映射才能找到调用者——本轮自建 `/tmp/re14/stubs.py`，1188 条 stub 全解）。
 > 工件：`/tmp/frset-re/`（disasm.txt / strings-all.txt / Frset.arm64 / defaults）。工具脚本沉淀：`/tmp/re14/strat.py`（按虚拟地址读 C 串）、`/tmp/re14/stubs.py`（stub→selref 映射）、`/tmp/re14/xref.py`（串→指针引用）。
 
@@ -95,11 +95,11 @@ activeClipboardCaptureTransaction / monitoringStartRequestedDuringCaptureTransac
 **自写回声抑制**：
 - `0x10016cc40` 起函数：`objc_opt_self`（NSPasteboard 类）→ `generalPasteboard` → **连续两次 `changeCount`**（`0x10016cc78`/`0x10016cc84`，比对 `cmp x21, x23`）——"读取时变化则重读/放弃"的防撕裂模式
 - 标记类型字符串 **`com.frset.selfwrite-token`**（`__cstring` 0xb43f 区）；配合 `lastSelfWriteToken/lastSelfWriteExpiresAt/selfWriteTokenTTL` 做 TTL 化回声忽略
-- `copy(_:)` 写回后同步 `lastChangeCount`（docs/10-规格/05 5.1 已推断，ivar 表证实）
+- `copy(_:)` 写回后同步 `lastChangeCount`（docs/10-需求/05 5.1 已推断，ivar 表证实）
 
 **CGEventTap 与捕获无关**：全二进制仅 1 处 `CGEventTapCreate`（`0x1005c1894`），参数 (session, headInsert, **listenOnly**, mask `0x1c00` = keyDown(1<<10)+keyUp(1<<11)+flagsChanged(1<<12))，回调经 MainActor Task 分派，归属 `ShortcutRuntimeCoordinator`（双击/快捷键）；捕获路径零 CGEventTap。
 
-**与重建的差异（必须修正）**：`apps/FrsetNext/.../ClipboardManager.swift` 现为固定 0.5s 轮询 + 可选 EventMonitor 复制键检测（0.15s 延迟 ingest）。原作无复制键检测路径；应改为：Timer 自适应（1.0/0.5/2.0）+ changeCount 双读防撕裂 + selfwrite-token 标记 + 重试一次性 Timer。
+**与重建的差异（必须修正）**：`apps/FrsetNext/Sources/Features/Clipboard/Store/ClipboardManager.swift` 现为固定 0.5s 轮询 + 可选 EventMonitor 复制键检测（0.15s 延迟 ingest）。原作无复制键检测路径；应改为：Timer 自适应（1.0/0.5/2.0）+ changeCount 双读防撕裂 + selfwrite-token 标记 + 重试一次性 Timer。
 
 ### 3.2 Q② 右键判定 ——★★★
 
@@ -143,13 +143,13 @@ activeClipboardCaptureTransaction / monitoringStartRequestedDuringCaptureTransac
 ### 3.6 Q⑥ 过滤栏 ——★★★
 
 - `ClipboardFilterType` case 全集（反射串块 `0xaed3c0`，顺序即反射序）：**all, text, image, link, file, code, color, generated, note**
-  - 与重建差异：原作**无独立"富文本"过滤项**；多出 `code`（代码）与 `color`（颜色）两项；`url` 原作叫 `link`；`generated`（工具生成）是过滤项（docs/10-规格/05 B10）
+  - 与重建差异：原作**无独立"富文本"过滤项**；多出 `code`（代码）与 `color`（颜色）两项；`url` 原作叫 `link`；`generated`（工具生成）是过滤项（docs/10-需求/05 B10）
   - ⬜ UI 展示顺序是否严格等于反射序（推断是，case 表常以声明序）
 - 过滤栏组成（反射 + cstring）：类型项 + 搜索（`FilterBar_Search`，placeholder "Search Clipboard"，icon `square.and.pencil`）+ 回顶（`FilterBar_ScrollToTop`，icon `arrow.up.to.line`）+ 漏斗菜单（icon `line.3.horizontal.decrease.circle`，`__isFilterMenuPresented`）+ 标签菜单（`__isTagMenuPresented`，全标签哨兵 `__clipboard_tag_filter_all_tagged__`）
 - 状态字段：`_searchQuery` / `_isSearchActive` / `_selectedFilter` / `filterSession*`（ClipboardManager 侧 7 个 filterSession ivar，会话式过滤搜索）
 - 过滤栏 hover：`__isHoveringFilterBar` + `__hoverTimer`
 - 其他实证交互字段：`isDoubleClickSearchInsertionEnabled`（双击插入搜索）、`showsSearchDefaultHighlight`、`showsKeyboardPreviewHint`、`clipboardItemTitleLineMode`
-- 文案来源注记：过滤项中文标签（全部/文本/图片/链接/笔记…）**不在 Mach-O 切片内**（已用 allstrings-addr.txt 全文验证，仅 whatsNew 句子命中）；标签在 Localizable 资源，开发时按 §4 枚举自拟中文，随 docs/10-规格/18 L10n 基建收口
+- 文案来源注记：过滤项中文标签（全部/文本/图片/链接/笔记…）**不在 Mach-O 切片内**（已用 allstrings-addr.txt 全文验证，仅 whatsNew 句子命中）；标签在 Localizable 资源，开发时按 §4 枚举自拟中文，随 docs/10-需求/18 L10n 基建收口
 
 ### 3.7 主面板行点击语义（planning 补证）——★★★
 
@@ -159,10 +159,10 @@ activeClipboardCaptureTransaction / monitoringStartRequestedDuringCaptureTransac
 - `0x100b43d70` "Frset 提示：双击条目可复制" —— 一次性引导
 - 悬浮窗特性串（WhatsNew）：`0x100b57910` "支持双击快捷键唤起"（与 §3.5 双击修饰键唤起互证）、`0x100b57030` 搜索与类型筛选、`0x100b577e0` 取消置顶、`0x100b57840` 键盘 ↑/↓ Enter Space、`0x100b57ae0` 鼠标附近打开需辅助功能
 
-**重建关键差异（必须修）**：重建版现行为"单击=复制"；原作主面板为 **单击/空格=预览（Popover，接 docs/10-规格/12）+ 双击/↩=复制**。NSTableView 骨架的行点击分派应为：
+**重建关键差异（必须修）**：重建版现行为"单击=复制"；原作主面板为 **单击/空格=预览（Popover，接 docs/10-需求/12）+ 双击/↩=复制**。NSTableView 骨架的行点击分派应为：
 ```swift
 // 行点击分派（对齐原作）
-单击 / Space   -> previewCoordinator.present(item)      // docs/10-规格/12 Popover
+单击 / Space   -> previewCoordinator.present(item)      // docs/10-需求/12 Popover
 双击 / ↩       -> manager.copy(item)                    // 并按偏好可选自动粘贴
 右键按下       -> contextMenu(for: item)                // §3.2
 ```
@@ -283,7 +283,7 @@ enum ClipboardFilterKind: String, CaseIterable {          // 反射序 0xaed3c0
 2. `ClipboardManager` 数据供给不变（items 分页 loadMoreIfNeeded 挂在 `tableView(_:willDisplay:)` 尾行）。
 3. 行 hover 高亮从 SwiftUI onHover 迁到 tracker NSView 的 mouseEntered/mouseExited（NSTrackingArea，`activeHoverIntentThreshold` 用 NSTrackingArea.Options.activeWhenFirstResponder 语义近似）；浮动窗 `FloatingClipboardActiveHoverTrackerNSView` 已是原样（单击预览/双击粘贴由 hitTest+mouseDown 处理，骨架照抄 §2.2）。
 4. 回顶按钮与 `isMainListAtTop` 经 `topTracker.onFirstItemScrolledOutChange` 驱动，替代现有 GeometryReader 方案。
-5. 过滤枚举先改 `.url→.link`、删 `.richtext`、加 `.code/.color/.generated`（UI 文案后随 docs/10-规格/18 L10n 基建补齐）。
+5. 过滤枚举先改 `.url→.link`、删 `.richtext`、加 `.code/.color/.generated`（UI 文案后随 docs/10-需求/18 L10n 基建补齐）。
 
 ---
 
@@ -307,7 +307,7 @@ enum ClipboardFilterKind: String, CaseIterable {          // 反射序 0xaed3c0
 
 ---
 
-## 6. 行为对照条目（回填 tests/行为对照表 C 系）
+## 6. 行为对照条目（回填 30-测试/行为对照表 C 系）
 
 | C# | 行为 | 期望（原作语义） |
 |---|---|---|

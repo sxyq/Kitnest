@@ -24,7 +24,7 @@ Kitnest（原名 FrsetNext）：macOS 菜单栏效率工具（arm64，macOS 13+�
    手工改表会让 owner/行号再次漂移）
    再 `python3 tools/rebuild_ledger.py --strict` 重锚台账（新增函数必须补 `EVIDENCE`，
    缺证据会失败——**不要用占位文案蒙过去**），
-   然后 `python3 tools/symbol_index_md.py apps/FrsetNext/Sources docs/40-审计与核对/数据表/FrsetNext-函数清单.csv docs/00-总览/符号索引.md`
+   然后 `python3 tools/symbol_index_md.py apps/FrsetNext/Sources docs/00-总览/数据表/FrsetNext-函数清单.csv docs/00-总览/符号索引.md`
    与 `python3 tools/swift_catalog.py`，最后 `python3 tools/reconcile.py` 必须全绿
    （CSV ↔ 审阅台账 ↔ 两份索引文档四步对账，v261 起闸门会区分「行号漂移」与「真缺函数」）
 4. **每次改完必须重跑 CodeGraph 索引**：`codegraph sync .`
@@ -51,7 +51,7 @@ Kitnest（原名 FrsetNext）：macOS 菜单栏效率工具（arm64，macOS 13+�
     - 排查与成因：`docs/00-总览/开发工作流.md` 第六节「启动不了 / 点了没反应 / 卡死」。
 
 7. **窗口目录与函数 CSV 同步维护**：窗口、面板、附属表单、浮层及系统对话框新增、修改、移除，或收到窗口问题反馈时，在同一次改动中更新
-   `docs/40-审计与核对/数据表/预览窗口排查.csv`。每个窗口或呈现入口单独一行，记录源码定位、尺寸约束、关闭与状态保留、日期及问题处理；同一窗口沿用编号，移除后保留历史记录，不另建平行目录。源码结论与实际运行结果分开填写，尚未实测就标记待实测。
+   `docs/00-总览/数据表/预览窗口排查.csv`。每个窗口或呈现入口单独一行，记录源码定位、尺寸约束、关闭与状态保留、日期及问题处理；同一窗口沿用编号，移除后保留历史记录，不另建平行目录。源码结论与实际运行结果分开填写，尚未实测就标记待实测。
 8. **屏幕录制授权身份固定**：本机部署只用 `build.sh` 声明的 FrsetDev 身份和指定 requirement；缺证书或身份不符就停止，不得退回临时签名。旧身份迁移后，macOS 不会把已有 TCC 记录自动改绑，需对最终安装版重新授权一次；身份固定后构建不得再要求重复授权。勿用 `tccutil reset` 清权限。
 9. **整机编译负载有上限**：本机 16GB 内存环境固定 no-WMO、Swift 并发 2、`nice -n 10`；不叠加多个完整构建，不用环境变量恢复全模块优化或无限并发。
 10. **外置变体分支随主线同步**：每次主线改完，跑 `bash tools/sync_variant.sh`

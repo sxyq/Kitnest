@@ -1,6 +1,6 @@
 # FrsetNext UI 一致性审计与设计规范（v179）
 
-> 依据 `docs/40-审计与核对/数据表/FrsetNext-函数清单.csv`（11,562 个成员 / 144 个 View·Panel·Window 类型）
+> 依据 `docs/00-总览/数据表/FrsetNext-函数清单.csv`（11,562 个成员 / 144 个 View·Panel·Window 类型）
 > 全量扫描源码得出，不是抽样。审计日期 2026-11-02。
 
 ## 一、审计结果（改前）

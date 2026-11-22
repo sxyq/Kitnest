@@ -8,7 +8,7 @@
 > 用词勘误：原作用语为「**贴图**」（0x100b57b80 "优化截图与贴图体验。"，v1.3.12 changelog；截图动作 "Screenshot and Pin" → zh-Hans "截图并贴图"），类名 PinnedScreenshot*。
 > **补丁（zh-Hans lproj 交叉验证，2026-10-15）**：钉图全部 UI 文案均为 `Localizable.strings` 本地化键（英文键面 = 代码内小串立即数，中文值实译）：
 > `Zoom→缩放`、`Annotate→标注`、`Extract Text→提取文字`、`Translate→翻译`、`Save→保存`、`Close→关闭`、`Right-click for more actions→右键查看更多操作`、`Text Recognition Failed→文字识别失败`、`Failed to load image→无法加载图片`、`No text recognized→未识别到文字`。
-> 重建时须走 L10n（docs/10-规格/18 基建），键面用上列英文句。
+> 重建时须走 L10n（docs/10-需求/18 基建），键面用上列英文句。
 
 ---
 
@@ -241,7 +241,7 @@ menu.popUp(positioning: nil, at: locationInWindow, in: self)
 
 ---
 
-## 5. 行为对照条目（回填 tests/行为对照表）
+## 5. 行为对照条目（回填 30-测试/行为对照表）
 
 | # | 条目 | 证据 |
 |---|---|---|

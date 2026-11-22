@@ -95,7 +95,7 @@
 ### 2.7 `PanelControlling` / `SettingsWindowControlling` / `PanelPreviewPresenting`（Registry.swift:111/127/149）
 
 - 三个协议 + 两个 `public extension` 默认实现（`toggle(atAnchor:)`→`toggle()`）。
-- `PanelPreviewPresenting` 8 个方法，是 docs/10-规格/12 契约面：Clipboard 模块**不得**直接引用 Panel 的 `MainPanelPreviewPopoverCoordinator`。
+- `PanelPreviewPresenting` 8 个方法，是 docs/10-需求/12 契约面：Clipboard 模块**不得**直接引用 Panel 的 `MainPanelPreviewPopoverCoordinator`。
 - **依赖方向**：Core 定义协议 → Features 实现并注入 → Core 只通过 `ServiceLocator` 调用。**唯一破例**见 `RenderProbe`（Core 直接引用 `PanelController`/`SettingsWindow`）。
 
 ### 2.8 `Stored` / `StoredBox`（StateCompat.swift）

@@ -1,0 +1,31 @@
+﻿feature_id,doc_path,source_prefix,override_file,override_symbol,note
+APP,docs/20-源码实现/App/模块说明.md,apps/FrsetNext/Sources/App/,,,启动/实例锁/URL 路由/生命周期
+CORE-UI,docs/20-源码实现/Core/UI/模块说明.md,apps/FrsetNext/Sources/Core/UI/,,,主题令牌/玻璃分层/Toast/光标
+CORE-MOTION,docs/20-源码实现/Core/Motion/模块说明.md,apps/FrsetNext/Sources/Core/Motion/,,,神灯 GenieWarp/WindowReveal/动效策略
+CORE-RUNTIME,docs/20-源码实现/Core/Runtime/模块说明.md,apps/FrsetNext/Sources/Core/Runtime/,,,日志归档/个性化/更新检查/挂钟
+CORE-SHARED,docs/20-源码实现/README.md,apps/FrsetNext/Sources/Core/,,,ServiceLocator/Tracker 等 Core 根辅助（见 README 辅助模块节）
+CAPTURE,docs/20-源码实现/Features/Capture/模块说明.md,apps/FrsetNext/Sources/Features/Capture/,,,截图/OCR/工作流/钉图/长截图/图帘
+CLIPBOARD,docs/20-源码实现/Features/Clipboard/模块说明.md,apps/FrsetNext/Sources/Features/Clipboard/,,,剪贴板存储/UI/悬浮工作台
+PANEL,docs/20-源码实现/Features/Panel/模块说明.md,apps/FrsetNext/Sources/Features/Panel/,,,主面板总域（预览/网盘子域见各自子文档）
+PANEL-PREVIEW,docs/20-源码实现/Features/Panel/Preview/模块说明.md,apps/FrsetNext/Sources/Features/Panel/Preview/,,,主面板预览 Popover 子域
+PANEL-CLINK,docs/20-源码实现/Features/Panel/CloudLink/模块说明.md,apps/FrsetNext/Sources/Features/Panel/CloudLink/,,,网盘链接子域
+MONITOR,docs/20-源码实现/Features/Monitor/模块说明.md,apps/FrsetNext/Sources/Features/Monitor/,,,性能监测采样/图表/独立窗/状态栏
+STORAGE,docs/20-源码实现/Features/Monitor/Storage/模块说明.md,apps/FrsetNext/Sources/Features/Monitor/Storage/,,,存储管理器/气泡地图/扫描/缓存
+ISLAND,docs/20-源码实现/Features/Island/模块说明.md,apps/FrsetNext/Sources/Features/Island/,,,刘海岛收起/展开/Peeks/组件网格
+TRANSFER,docs/20-源码实现/Features/TransferDock/模块说明.md,apps/FrsetNext/Sources/Features/TransferDock/,,,中转站/投屏/互传
+SETTINGS,docs/20-源码实现/Features/Settings/模块说明.md,apps/FrsetNext/Sources/Features/Settings/,,,设置窗口/三级导航/草稿编辑体系
+ONBOARDING,docs/20-源码实现/Features/Onboarding/模块说明.md,apps/FrsetNext/Sources/Features/Onboarding/,,,权限引导/欢迎/WhatsNew
+AI,docs/20-源码实现/Features/AI/模块说明.md,apps/FrsetNext/Sources/Features/AI/,,,Gemini/翻译/AI 体系
+TOOLBOX,docs/20-源码实现/Features/Toolbox/模块说明.md,apps/FrsetNext/Sources/Features/Toolbox/,,,工具箱/热键/设备/任务
+ARCHIVE,docs/20-源码实现/Features/Archive/模块说明.md,apps/FrsetNext/Sources/Features/Archive/,,,压缩包/文件盒
+STATUSBAR,docs/20-源码实现/Features/StatusBar/模块说明.md,apps/FrsetNext/Sources/Features/StatusBar/,,,菜单栏图标/菜单构建/彩蛋
+HAPTICS,docs/20-源码实现/Features/Haptics/模块说明.md,apps/FrsetNext/Sources/Features/Haptics/,,,触觉事件/配置/驱动/设置页
+RECORDING,docs/20-源码实现/Features/Recording/模块说明.md,apps/FrsetNext/Sources/Features/Recording/,,,屏幕录制
+AUDIO,docs/20-源码实现/Features/Audio/模块说明.md,apps/FrsetNext/Sources/Features/Audio/,,,音频混音器 AudioMixer + 正在播放 NowPlayingController（MediaRemote）
+CODEPREVIEW,docs/20-源码实现/Features/CodePreview/模块说明.md,apps/FrsetNext/Sources/Features/CodePreview/,,,代码渲染子系统
+FLOATINGBALL,docs/20-源码实现/Features/FloatingBall/模块说明.md,apps/FrsetNext/Sources/Features/FloatingBall/,,,悬浮球
+MODELS,docs/20-源码实现/README.md,apps/FrsetNext/Sources/Models/,,,共享数据模型（辅助模块，见 README 辅助模块节）
+MEMORYHELPER,docs/20-源码实现/README.md,apps/FrsetNext/Sources/MemoryHelper/,,,内存整理辅助进程（辅助模块，见 README）
+OCRHELPER,docs/20-源码实现/README.md,apps/FrsetNext/Sources/OCRHelper/,,,OCR 辅助进程（辅助模块，见 README）
+MANUAL,docs/20-源码实现/README.md,apps/FrsetNext/Sources/Features/Manual/,,,内置用户手册（辅助模块，见 README）
+DATABASE,docs/20-源码实现/README.md,apps/FrsetNext/Sources/Storage/,,,SQLite 数据库层（辅助模块，见 README）
