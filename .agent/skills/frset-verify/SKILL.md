@@ -59,6 +59,8 @@ kitnest://cloudlink?url=<URL>&action=download   直驱网盘解析下载（测�
 kitnest://toast?text=测试                 全局提示
 ```
 
+性能监测窗：`open 'kitnest://monitor?module=cpu'`；核对 `监测独立窗口预热完成`、`打开（CPU）`、`已收起` 日志。
+
 ## 4. 日志核对
 
 ```bash
