@@ -157,7 +157,9 @@ final class HapticService: ObservableObject {
     /// 后重启，2.5s 后按真实业务路径敲一次（走配置、走节流）；用完删键。
     private func checkDebugProbe() {
         guard UserDefaults.standard.bool(forKey: "probe.haptic") else { return }
-        Log.info("Haptics", "探针：检测到 probe.haptic，2.5s 后按真实事件触发")
+        // 用完即删：探针是一次性排障开关，不删会让每次启动都敲一下
+        UserDefaults.standard.removeObject(forKey: "probe.haptic")
+        Log.info("Haptics", "探针：检测到 probe.haptic，2.5s 后按真实事件触发（键已自删）")
         queue.asyncAfter(deadline: .now() + 2.5) { [weak self] in
             self?.perform(.gridMove)
         }
