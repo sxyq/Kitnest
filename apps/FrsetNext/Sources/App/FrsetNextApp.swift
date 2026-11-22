@@ -138,13 +138,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
             Log.warn("App", "旧进程 pid=\(holder) 未释放实例锁，本次仍退出（避免两套菜单栏）")
         }
+        // v283（复盘第 7 节）：日志必须写「锁的持有者是谁、它活不活」。
+        // 旧日志挑的是 `others.first`，实测挑中了一个僵尸 pid=8677，而真正握着锁的是
+        // 另一个活着的实例——一条误导性日志能让排查多花半小时。
+        let holderAlive = holder > 0 && NSRunningApplication(processIdentifier: holder) != nil
+        Log.info("App", "已有实例在运行：实例锁持有者 pid=\(holder)（\(holderAlive ? "存活" : "未找到进程")）→ 本实例退出")
         if let bid = Bundle.main.bundleIdentifier,
            let existing = NSRunningApplication.runningApplications(withBundleIdentifier: bid)
-            .first(where: { $0.processIdentifier != getpid() && !Self.isZombie($0.processIdentifier) }) {
-            Log.info("App", "已有实例在运行（pid=\(existing.processIdentifier)）→ 本实例退出，保证菜单栏只有一套监控组件")
+            .first(where: { $0.processIdentifier == holder }) {
             existing.activate(options: NSApplication.ActivationOptions.activateIgnoringOtherApps)
-        } else {
-            Log.info("App", "实例锁被占用但找不到对应进程（pid=\(holder)）→ 本实例退出")
+        } else if let bid = Bundle.main.bundleIdentifier,
+                  let existing = NSRunningApplication.runningApplications(withBundleIdentifier: bid)
+            .first(where: { $0.processIdentifier != getpid() && !Self.isZombie($0.processIdentifier) }) {
+            existing.activate(options: NSApplication.ActivationOptions.activateIgnoringOtherApps)
         }
         NSApp.terminate(nil)
         return false
@@ -670,27 +676,73 @@ final class InstanceLock {
 
     /// 尝试拿锁。拿到返回 true（并把自己的 pid 写进锁文件）。
     /// 锁文件本身打不开时**放行**——不能因为一把锁把 App 彻底拦死。
+    ///
+    /// v283 补充（冷启动闸门当场抓到的坑）：`open` 必须带 `O_CLOEXEC`。
+    /// 不带的话 fd 会被子进程继承（OCR helper、screencapture、sample…），
+    /// 父进程退出后锁仍然被那个孩子握着 → 下次启动永远抢不到锁 →
+    /// 又变成「打不开」，而且 pid 已经死了，看谁都像幽灵。
+    /// 另外补一条兜底：抢不到锁时若锁文件里记录的 pid 已经不存在，
+    /// 说明锁是「继承残留」，unlink 掉重建一个 inode 再抢一次。
     @discardableResult
     func acquire() -> Bool {
         if fd >= 0 { return true }
         try? FileManager.default.createDirectory(at: AppDirectories.base, withIntermediateDirectories: true)
-        let handle = Darwin.open(url.path, O_CREAT | O_RDWR, 0o644)
-        guard handle >= 0 else { return true }
+        if let handle = tryAcquire() { fd = handle; return true }
+
+        // 第一次没抢到：判断「握锁的那个」是不是还有资格握着。
+        let holder = readHolderPid()
+        holderPid = holder
+        if !isLegitimateHolder(holder) {
+            // 只回收**放了 3 秒以上**的锁：避免双击两下时把对方刚写好的锁当成残留。
+            let age = (try? FileManager.default.attributesOfItem(atPath: url.path)[.modificationDate] as? Date)
+                .flatMap { $0 }.map { Date().timeIntervalSince($0) } ?? 99
+            if age > 3 {
+                Log.warn("App", "实例锁持有者 pid=\(holder) 不是活着的同 bundle 实例 → 回收残留锁")
+                try? FileManager.default.removeItem(at: url)
+                if let handle = tryAcquire() { fd = handle; return true }
+            }
+        }
+        return false
+    }
+
+    /// 有资格握锁的只有一种：**还活着、而且确实是同 bundle 的 App 实例**。
+    /// 排掉三类幽灵：
+    ///   · pid 已不存在（进程被回收，锁是别人继承下去的）；
+    ///   · pid 是僵尸（`kill(pid,0)` 仍然成功，判据会骗人）；
+    ///   · pid 存在但不是本 App（helper / 子进程继承了 fd，或 pid 被系统复用）。
+    private func isLegitimateHolder(_ holder: pid_t) -> Bool {
+        guard holder > 0, holder != getpid() else { return false }
+        guard !Self.isZombie(holder) else { return false }
+        guard let app = NSRunningApplication(processIdentifier: holder) else { return false }
+        return app.bundleIdentifier == Bundle.main.bundleIdentifier
+    }
+
+    /// 与 AppDelegate.isZombie 同口径（这里独立一份，避免锁逻辑依赖 UI 层）。
+    private static func isZombie(_ pid: pid_t) -> Bool {
+        var info = proc_bsdinfo()
+        let size = Int32(MemoryLayout<proc_bsdinfo>.size)
+        guard proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &info, size) == size else { return false }
+        return info.pbi_status == 5     // SZOMB（sys/proc.h）
+    }
+
+    /// 一次「打开 + 非阻塞抢锁」。成功返回 fd，失败返回 nil（锁被别人握着）。
+    private func tryAcquire() -> Int32? {
+        let handle = Darwin.open(url.path, O_CREAT | O_RDWR | O_CLOEXEC, 0o644)
+        guard handle >= 0 else { return nil }
         if flock(handle, LOCK_EX | LOCK_NB) == 0 {
-            fd = handle
             ftruncate(handle, 0)
             let text = "\(getpid())\n"
             _ = text.withCString { write(handle, $0, strlen($0)) }
             fsync(handle)
-            return true
-        }
-        var buf = [UInt8](repeating: 0, count: 32)
-        lseek(handle, 0, SEEK_SET)
-        let n = read(handle, &buf, 31)
-        if n > 0, let s = String(bytes: buf.prefix(n), encoding: .utf8) {
-            holderPid = pid_t(s.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
+            return handle
         }
         close(handle)
-        return false
+        return nil
+    }
+
+    /// 读锁文件里记录的持有者 pid（读不到返回 0）。
+    private func readHolderPid() -> pid_t {
+        guard let text = try? String(contentsOf: url, encoding: .utf8) else { return 0 }
+        return pid_t(text.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
     }
 }

@@ -21,13 +21,17 @@ App,App/AppBootstrap.swift,AppBootstrap,runSelectionAction,func,748,KEEP,快捷�
 App,App/FrsetNextApp.swift,AppDelegate,applicationDidFinishLaunching,func,33,KEEP,NSApplicationDelegate启动回调；启动日志与更新探针只记阶段和凭据是否提供，不记更新URL或校验值
 App,App/FrsetNextApp.swift,AppDelegate,isZombie,func,93,KEEP,"单实例检查过滤用；proc_pidinfo取pbi_status==SZOMB(5)判定僵尸，NSRunningApplication与kill(pid,0)都会把僵尸当成活进程"
 App,App/FrsetNextApp.swift,AppDelegate,enforceSingleMenubarOwner,func,109,KEEP,applicationDidFinishLaunching L37 调用；同 bundle 多实例退出 + 原版并存提示
-App,App/FrsetNextApp.swift,AppDelegate,continueAfterSingleInstanceCheck,func,154,KEEP,抢到实例锁后的公共启动路径；2.5秒后检查官方原版com.maoux.frset是否在跑并提示重复菜单栏，其余沿用原单实例检查后半段
-App,App/FrsetNextApp.swift,AppDelegate,applicationShouldTerminate,func,168,KEEP,2026-11-20：系统退出回调先取得原归档任务确认结果，再由更新器处理待安装交接；取消时不启动替换，替换程序启动失败也保留当前进程
-App,App/FrsetNextApp.swift,AppDelegate,applicationWillTerminate,func,173,KEEP,NSApplicationDelegate 回调；个性化落盘 + 日志归档停止 + bootstrap.stop
-App,App/FrsetNextApp.swift,AppDelegate,applicationShouldHandleReopen,func,183,KEEP,NSApplicationDelegate 回调；点 Dock/重开时显示主面板
-App,App/FrsetNextApp.swift,AppDelegate,updateDockPresence,func,193,KEEP,applicationDidFinishLaunching 注册 NSWindow 键状态/关闭通知；函数统计可见标题窗后在 regular 与 accessory 策略间切换
-App,App/FrsetNextApp.swift,AppDelegate,application,func,210,KEEP,NSApplicationDelegate回调；文件URL与kitnest://深链分流，入站URL日志只保留scheme和host，不记录路径、参数或文件名
-App,App/FrsetNextApp.swift,InstanceLock,acquire,func,674,KEEP,待补证据：新增函数，尚未逐个读源码填写
+App,App/FrsetNextApp.swift,AppDelegate,continueAfterSingleInstanceCheck,func,160,KEEP,抢到实例锁后的公共启动路径；2.5秒后检查官方原版com.maoux.frset是否在跑并提示重复菜单栏，其余沿用原单实例检查后半段
+App,App/FrsetNextApp.swift,AppDelegate,applicationShouldTerminate,func,174,KEEP,2026-11-20：系统退出回调先取得原归档任务确认结果，再由更新器处理待安装交接；取消时不启动替换，替换程序启动失败也保留当前进程
+App,App/FrsetNextApp.swift,AppDelegate,applicationWillTerminate,func,179,KEEP,NSApplicationDelegate 回调；个性化落盘 + 日志归档停止 + bootstrap.stop
+App,App/FrsetNextApp.swift,AppDelegate,applicationShouldHandleReopen,func,189,KEEP,NSApplicationDelegate 回调；点 Dock/重开时显示主面板
+App,App/FrsetNextApp.swift,AppDelegate,updateDockPresence,func,199,KEEP,applicationDidFinishLaunching 注册 NSWindow 键状态/关闭通知；函数统计可见标题窗后在 regular 与 accessory 策略间切换
+App,App/FrsetNextApp.swift,AppDelegate,application,func,216,KEEP,NSApplicationDelegate回调；文件URL与kitnest://深链分流，入站URL日志只保留scheme和host，不记录路径、参数或文件名
+App,App/FrsetNextApp.swift,InstanceLock,acquire,func,687,KEEP,待补证据：新增函数，尚未逐个读源码填写
+App,App/FrsetNextApp.swift,InstanceLock,isLegitimateHolder,func,713,KEEP,待补证据：新增函数，尚未逐个读源码填写
+App,App/FrsetNextApp.swift,InstanceLock,isZombie,func,721,KEEP,"单实例检查过滤用；proc_pidinfo取pbi_status==SZOMB(5)判定僵尸，NSRunningApplication与kill(pid,0)都会把僵尸当成活进程"
+App,App/FrsetNextApp.swift,InstanceLock,tryAcquire,func,729,KEEP,待补证据：新增函数，尚未逐个读源码填写
+App,App/FrsetNextApp.swift,InstanceLock,readHolderPid,func,744,KEEP,待补证据：新增函数，尚未逐个读源码填写
 Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,init,init,82,KEEP,2026-11-21：v270 显式空 init 保留 HapticConfiguration() 调用点（设置页恢复默认、解码回落），与新增加密字段共存
 Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,encode,func,89,KEEP,2026-11-21：v271 CodingKeys 新增 schemaVersion（无对应存储属性，Encodable 无法合成）→ 手写编码写 schemaVersion=2 + 三字段；persist:103 调用
 Core,Core/Haptics/HapticFeedback.swift,HapticConfiguration,init,init,97,KEEP,2026-11-21：v270 显式空 init 保留 HapticConfiguration() 调用点（设置页恢复默认、解码回落），与新增加密字段共存

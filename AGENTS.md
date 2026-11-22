@@ -32,6 +32,21 @@ Kitnest（原名 FrsetNext）：macOS 菜单栏效率工具（arm64，macOS 13+�
 6. 更新后**本地重启 App**（`pkill … ; open -a /Applications/Kitnest.app`），
    供用户随时查看效果
 
+11. **启动路径纪律（2026-11-22 「点了打不开」P0 之后新增，违反即视为未完成）**
+    - 启动路径（`applicationDidFinishLaunching` 到 `启动完成` 之间）**禁止任何同步 TCC / 同步 XPC / 同步等待**：
+      `CGPreflightScreenCaptureAccess`、`CGRequestScreenCaptureAccess`、`AXIsProcessTrusted`、
+      `SCShareableContent`、`AVCaptureDevice.authorizationStatus`、`NSAppleScript`、
+      `Process.waitUntilExit` 一律改「后台队列查询 → 回主线程发布」。
+      tccd 卡住会让 App 在画出第一个界面之前挂死，用户看到的就是“点了没反应”。
+    - **单实例判定只能用内核对象**（`InstanceLock` 的 `flock` + pid 文件），不得只用
+      `NSRunningApplication.runningApplications(withBundleIdentifier:)`：进程列表在「主线程卡死」
+      与「僵尸（defunct）」两种状态下都会说谎，两种情况下旧实现都会让新实例自杀。
+    - **禁止无条件 `NSApp.terminate(nil)`**：先判断旧实例是否还活着；不确定时选择**接管**
+      （菜单栏重复一秒，比打不开一小时轻）。
+    - 每次构建后必须跑 `bash tools/launch_smoke.sh`：杀掉全部本机 Kitnest 进程 → 冷启动 →
+      确认日志出现新的 `启动完成` 且没有 `已有实例在运行` / `应用退出`。**不通过不算改完。**
+    - 复盘：`docs/40-审计与核对/2026-11-22-启动失败复盘-单实例与同步TCC.md`。
+
 7. **窗口目录与函数 CSV 同步维护**：窗口、面板、附属表单、浮层及系统对话框新增、修改、移除，或收到窗口问题反馈时，在同一次改动中更新
    `docs/40-审计与核对/数据表/预览窗口排查.csv`。每个窗口或呈现入口单独一行，记录源码定位、尺寸约束、关闭与状态保留、日期及问题处理；同一窗口沿用编号，移除后保留历史记录，不另建平行目录。源码结论与实际运行结果分开填写，尚未实测就标记待实测。
 8. **屏幕录制授权身份固定**：本机部署只用 `build.sh` 声明的 FrsetDev 身份和指定 requirement；缺证书或身份不符就停止，不得退回临时签名。旧身份迁移后，macOS 不会把已有 TCC 记录自动改绑，需对最终安装版重新授权一次；身份固定后构建不得再要求重复授权。勿用 `tccutil reset` 清权限。

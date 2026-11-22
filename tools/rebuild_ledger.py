@@ -2868,6 +2868,14 @@ EVIDENCE.update({
     # 后者保留原来对官方原版 Frset 的提示。
     ("App/FrsetNextApp.swift", "continueAfterSingleInstanceCheck"):
         "抢到实例锁后的公共启动路径；2.5秒后检查官方原版com.maoux.frset是否在跑并提示重复菜单栏，其余沿用原单实例检查后半段",
+    # v283（复盘第 7 节）：抢锁拆成「试抢 / 读持有者 / 判断持有者是否合法」三小块，
+    # 便于在日志里说清「谁握着锁、它活不活」，也给残留锁回收一个明确判据。
+    ("App/FrsetNextApp.swift", "InstanceLock.tryAcquire"):
+        "acquire第一次与回收残留锁后各调一次；open带O_CREAT|O_RDWR|O_CLOEXEC防止fd被helper子进程继承，flock非阻塞抢锁成功后写入自身pid并返回fd",
+    ("App/FrsetNextApp.swift", "InstanceLock.readHolderPid"):
+        "acquire抢锁失败后读取锁文件里记录的持有者pid，读不到返回0，供是否回收残留锁的判断使用",
+    ("App/FrsetNextApp.swift", "InstanceLock.isLegitimateHolder"):
+        "判断握锁者是否仍有资格：pid存在、不是僵尸、且NSRunningApplication的bundleIdentifier与本App一致；三类幽灵（已回收、僵尸、helper或pid复用）都返回false以便回收残留锁",
     ("App/FrsetNextApp.swift", "InstanceLock.acquire"):
         "启动时抢占instance.lock的排他flock；抢到则写入自身pid返回true，抢不到读回持有者pid返回false，锁文件打不开时放行以免把App拦死",
     ("App/FrsetNextApp.swift", "isZombie"):
