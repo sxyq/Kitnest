@@ -2641,6 +2641,13 @@ EVIDENCE.update({
         '2026-11-23：随类型自 Features/Settings/Panes/PersonalizationSettingsPane.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
 })
 
+# ── 2026-11-23 存储布局重整 ──
+EVIDENCE.update({
+    ("Features/Monitor/Storage/StorageManagerWindow.swift", "handleIndexRevisionChange"):
+        "2026-11-23：索引换代后的状态收拢（刷新磁盘容量/导航节点重锚/所选过滤/详情刷新/挂起下钻），"
+        "从 body 的 onChange 回调抽出为独立函数（打断 ViewBuilder 修饰链的类型检查超时）；行为与原回调一致",
+})
+
 def main() -> int:
     strict = "--strict" in sys.argv
 
