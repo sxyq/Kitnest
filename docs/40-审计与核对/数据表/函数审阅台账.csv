@@ -4131,7 +4131,7 @@ TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,authorized
 TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,respond,func,218,KEEP,2026-11-19：receive已完成认证后调用；解析JSON对象并沿原方法列表分发initialize及ping和工具清单调用；解析失败400
 TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,tool,func,285,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：toolDefinitions逐项构造8个正式工具schema；required仅对原有必需参数填写；未发现外部动态注册
 TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,call,func,294,KEEP,2026-11-20：认证后的8项工具唯一分发；设备和命令及文件按退出码返回；截图成功才pull；安装和清单复用引擎；应用启动改异步并把后台解析失败原文交给isError响应
-TransferDock,Features/TransferDock/Transfer/QRCodeView.swift,QRCodeImage,make,func,19,KEEP,QRCodeView.swift:41；CastView.swift:184
+TransferDock,Features/TransferDock/Transfer/QRCodeView.swift,QRCodeImage,make,func,21,KEEP,QRCodeView.swift:41；CastView.swift:184
 TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,init,init,89,KEEP,2026-11-20：shared唯一构造；串行bridge队列及云端状态独立于本地暂存；初始化不启动同步或保活
 TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,startLiveSync,func,92,KEEP,2026-11-20：云端设置开始同步按钮调用；每30秒且已登录且无上传才交refresh按isLoading合并；已有timer时不重建；停止按钮取消同一timer
 TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockService,stopLiveSync,func,104,KEEP,2026-11-20：云端设置停止同步按钮调用；停止并释放30秒liveSyncTimer；当前中转页onDisappear只移除鼠标监听不调此方法

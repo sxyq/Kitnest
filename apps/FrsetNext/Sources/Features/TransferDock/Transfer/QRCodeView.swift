@@ -15,6 +15,8 @@ import SwiftUI
 // 手机端要「零安装」，最稳的是 qrcp 这条路，所以这里就内置一个 HTTP 服务。
 
 enum QRCodeImage {
+    private static let context = CIContext(options: [.useSoftwareRenderer: false])
+
     /// 生成指定**点数**的二维码位图（内部按 3× 超采样后交给 SwiftUI 缩放）
     static func make(from string: String, size: CGFloat) -> NSImage? {
         guard !string.isEmpty else { return nil }
@@ -25,7 +27,6 @@ enum QRCodeImage {
 
         let scale = size / max(1, output.extent.width)
         let scaled = output.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
-        let context = CIContext(options: [.useSoftwareRenderer: false])
         guard let cgImage = context.createCGImage(scaled, from: scaled.extent) else { return nil }
         return NSImage(cgImage: cgImage, size: NSSize(width: size, height: size))
     }

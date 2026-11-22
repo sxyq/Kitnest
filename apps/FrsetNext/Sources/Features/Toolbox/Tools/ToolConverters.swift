@@ -6,6 +6,18 @@ import AppKit
 // MARK: 时间戳转换
 
 public enum TimestampConverter {
+    private static let inputFormatters: [(pattern: String, formatter: DateFormatter)] = [
+        "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm", "yyyy-MM-dd",
+        "yyyy/MM/dd HH:mm:ss", "yyyy/MM/dd HH:mm", "yyyy/MM/dd",
+        "yyyy年M月d日 HH:mm:ss", "yyyy年M月d日", "yyyy.MM.dd"
+    ].map { pattern in
+        let formatter = DateFormatter()
+        formatter.dateFormat = pattern
+        formatter.locale = Locale(identifier: "zh_CN")
+        formatter.timeZone = .current
+        return (pattern, formatter)
+    }
+
     /// 自动识别：纯数字 → 按位数判定秒/毫秒/微秒/纳秒并输出日期；否则按日期字符串 → 输出各精度时间戳
     /// direction: 自动 / 时间戳→日期 / 日期→时间戳
     public static func convert(_ raw: String, direction: String) -> String {
@@ -58,17 +70,10 @@ public enum TimestampConverter {
             let now = Date()
             return "当前时间戳\n秒：\(Int64(now.timeIntervalSince1970))\n毫秒：\(Int64(now.timeIntervalSince1970 * 1_000))"
         }
-        let patterns = ["yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm", "yyyy-MM-dd",
-                        "yyyy/MM/dd HH:mm:ss", "yyyy/MM/dd HH:mm", "yyyy/MM/dd",
-                        "yyyy年M月d日 HH:mm:ss", "yyyy年M月d日", "yyyy.MM.dd"]
-        for pattern in patterns {
-            let fmt = DateFormatter()
-            fmt.dateFormat = pattern
-            fmt.locale = Locale(identifier: "zh_CN")
-            fmt.timeZone = .current
-            if let date = fmt.date(from: input) {
+        for entry in inputFormatters {
+            if let date = entry.formatter.date(from: input) {
                 var lines: [String] = []
-                lines.append("解析格式：\(pattern)")
+                lines.append("解析格式：\(entry.pattern)")
                 lines.append("秒：\(Int64(date.timeIntervalSince1970))")
                 lines.append("毫秒：\(Int64(date.timeIntervalSince1970 * 1_000))")
                 lines.append("纳秒：\(Int64(date.timeIntervalSince1970 * 1_000_000_000))")
@@ -243,6 +248,17 @@ public enum JSONFormatterTool {
 // 契约禁止修改 Core，因此本模块自带一份正确的 sha256，并在注释中标注，待 Core 修复后可切回。
 
 public enum HashGenerator {
+    private static let md5K: [UInt32] = [
+        0xd76aa478, 0xe8c7b756, 0x242070db, 0xc1bdceee, 0xf57c0faf, 0x4787c62a, 0xa8304613, 0xfd469501,
+        0x698098d8, 0x8b44f7af, 0xffff5bb1, 0x895cd7be, 0x6b901122, 0xfd987193, 0xa679438e, 0x49b40821,
+        0xf61e2562, 0xc040b340, 0x265e5a51, 0xe9b6c7aa, 0xd62f105d, 0x02441453, 0xd8a1e681, 0xe7d3fbc8,
+        0x21e1cde6, 0xc33707d6, 0xf4d50d87, 0x455a14ed, 0xa9e3e905, 0xfcefa3f8, 0x676f02d9, 0x8d2a4c8a,
+        0xfffa3942, 0x8771f681, 0x6d9d6122, 0xfde5380c, 0xa4beea44, 0x4bdecfa9, 0xf6bb4b60, 0xbebfbc70,
+        0x289b7ec6, 0xeaa127fa, 0xd4ef3085, 0x04881d05, 0xd9d4d039, 0xe6db99e5, 0x1fa27cf8, 0xc4ac5665,
+        0xf4292244, 0x432aff97, 0xab9423a7, 0xfc93a039, 0x655b59c3, 0x8f0ccc92, 0xffeff47d, 0x85845dd1,
+        0x6fa87e4f, 0xfe2ce6e0, 0xa3014314, 0x4e0811a1, 0xf7537e82, 0xbd3af235, 0x2ad7d2bb, 0xeb86d391
+    ]
+
     public static func digest(_ text: String, algorithm: String) -> String {
         let bytes = Array(text.utf8)
         switch algorithm {
@@ -341,8 +357,7 @@ public enum HashGenerator {
                 case 2: f = b ^ c ^ d;          g = (3 * i + 5) % 16
                 default: f = c ^ (b | ~d);      g = (7 * i) % 16
                 }
-                let k = UInt32((abs(sin(Double(i + 1))) * 4294967296.0).truncatingRemainder(dividingBy: 4294967296.0))
-                f = f &+ a &+ k &+ m[g]
+                f = f &+ a &+ md5K[i] &+ m[g]
                 a = d; d = c; c = b
                 b = b &+ rotateLeft(f, shifts[i])
             }

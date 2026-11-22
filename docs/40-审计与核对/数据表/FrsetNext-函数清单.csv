@@ -10897,10 +10897,11 @@ TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,func,respo
 TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,var,toolDefinitions,262,0,1
 TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,func,tool,285,6,2
 TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,func,call,294,60,14
-TransferDock,Features/TransferDock/Transfer/QRCodeView.swift,QRCodeImage,func,make,19,13,4
-TransferDock,Features/TransferDock/Transfer/QRCodeView.swift,QRCodeView,let,text,36,0,1
-TransferDock,Features/TransferDock/Transfer/QRCodeView.swift,QRCodeView,var,size,37,0,1
-TransferDock,Features/TransferDock/Transfer/QRCodeView.swift,QRCodeView,var,body,39,0,1
+TransferDock,Features/TransferDock/Transfer/QRCodeView.swift,QRCodeImage,let,context,18,0,1
+TransferDock,Features/TransferDock/Transfer/QRCodeView.swift,QRCodeImage,func,make,21,12,4
+TransferDock,Features/TransferDock/Transfer/QRCodeView.swift,QRCodeView,let,text,37,0,1
+TransferDock,Features/TransferDock/Transfer/QRCodeView.swift,QRCodeView,var,size,38,0,1
+TransferDock,Features/TransferDock/Transfer/QRCodeView.swift,QRCodeView,var,body,40,0,1
 TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockFile,let,id,11,0,1
 TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockFile,let,name,12,0,1
 TransferDock,Features/TransferDock/Transfer/TransferDockService.swift,TransferDockFile,let,size,13,0,1
