@@ -453,6 +453,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 } else {
                     Log.warn("App", "stagetest：需要 ?file= 指定图片")
                 }
+            case "paneltoggle":
+                // 排障：模拟「反复点状态栏图标」——kitnest-lite://paneltoggle?count=6&gap=0.12
+                let count = min(max(Int(comps?.queryItems?.first(where: { $0.name == "count" })?.value ?? "4") ?? 4, 1), 20)
+                let gap = max(Double(comps?.queryItems?.first(where: { $0.name == "gap" })?.value ?? "0.12") ?? 0.12, 0.02)
+                for index in 0..<count {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + Double(index) * gap) {
+                        PanelController.shared.toggle()
+                    }
+                }
             case "storage":
                 // v211 排障/直达：kitnest://storage —— 直接打开存储管理面板，
                 // 便于无 UI 自动化环境下核对气泡地图、扫描进度与缓存加载。

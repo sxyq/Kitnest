@@ -566,9 +566,13 @@ final class GenieWarp {
         let wasOpening = opening
         teardownOverlay()
 
-        if let win, win.isVisible {
+        if let win {
             if wasOpening {
                 win.alphaValue = 1
+                // v280（用户：「反复点按会抽搐」）：连点时上一腿的收起可能刚好在
+                // 这一腿展开结束前后把窗口 orderOut；展开收尾必须保证窗口真的在屏上，
+                // 否则播完漏斗整块面板不见了（看着就是抽一下然后消失）。
+                if !win.isVisible { win.orderFront(nil) }
             } else {
                 // v240（用户：「收纳动画重复播放，还有闪回」）：
                 // 收起时**不能**先把 alpha 拉回 1 再 orderOut——那一下窗口会完整
