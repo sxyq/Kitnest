@@ -271,6 +271,9 @@ private struct IslandMaterialHost: NSViewRepresentable {
     }
     func updateNSView(_ view: IslandMaterialView, context: Context) {
         if view.radius != radius { view.radius = radius; view.needsLayout = true }
+        // 材质/深色程度都可以事后变：`.id()` 契约下同 id 复用视图时，
+        // 只有这里能把状态补齐（否则切材质后玻璃不会出现/不会消失）。
+        if view.material != material { view.applyMaterial(material) }
         // 深色程度只改着色，不重建玻璃、不重算遮罩
         if view.shellOpacity != shellOpacity { view.shellOpacity = shellOpacity }
         controller.surfaceDidChange(size: size, radius: radius)
@@ -279,6 +282,10 @@ private struct IslandMaterialHost: NSViewRepresentable {
 
 private final class IslandMaterialView: NSView {
     var radius: CGFloat = 0
+    /// 当前外壳材质。**必须能事后变更**：`.id()` 契约是「同 id → updateNSView」，
+    /// 若 SwiftUI 复用了视图而 init 又提前 return，切到玻璃后就永远没有玻璃子视图
+    /// （2026-11-23 子代理复核指出的补建陷阱）。这里统一用 `applyMaterial()` 收敛。
+    private(set) var material: IslandMaterial = .liquidGlass
     /// 展开态外壳深色程度；改动只重着色（`LiquidGlass.reapplyStyle`），不重建采样层。
     var shellOpacity: CGFloat = 0.32 {
         didSet { if shellOpacity != oldValue { applyTint() } }
@@ -286,8 +293,8 @@ private final class IslandMaterialView: NSView {
     private let mask = CAShapeLayer()
     private var renderedBounds = CGRect.zero
     private var renderedRadius: CGFloat = -1
-    /// 玻璃采样层；纯色外壳为 nil —— 旧实现纯色/降低透明度时也照样建一层
-    /// 玻璃再用全幅黑幕盖住，采样等于白做（附审计 A-2）。
+    /// 玻璃采样层。**始终创建**：纯色/降低透明度时只 `isHidden`，不移除——
+    /// 隐藏的视图不参与渲染（不采样、不模糊），但材质切回玻璃时不需要补建。
     private var glassView: NSView?
     override var isFlipped: Bool { true }
 
@@ -296,11 +303,6 @@ private final class IslandMaterialView: NSView {
         wantsLayer = true
         layer?.mask = mask
         self.shellOpacity = shellOpacity
-        // 纯色外壳：整块深色由外层黑幕给出，这里不再建玻璃采样层
-        guard material != .solid else {
-            layer?.backgroundColor = NSColor.black.cgColor
-            return
-        }
         let glass = LiquidGlass.makeView(cornerRadius: 0,
                                          tint: Self.tint(shellOpacity),
                                          solid: false,
@@ -310,6 +312,7 @@ private final class IslandMaterialView: NSView {
         glass.autoresizingMask = [.width, .height]
         addSubview(glass)
         glassView = glass
+        applyMaterial(material)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
 
@@ -318,8 +321,19 @@ private final class IslandMaterialView: NSView {
         NSColor.black.withAlphaComponent(min(1, max(0, opacity)))
     }
 
+    /// 材质切换收敛：玻璃建一次、只切显隐；纯色/降透明由外层黑幕给深色。
+    func applyMaterial(_ new: IslandMaterial) {
+        material = new
+        let needsGlass = new != .solid
+        glassView?.isHidden = !needsGlass
+        // 纯色时留一层黑底：即使外层黑幕将来调整，形状也不会透出背后内容
+        layer?.backgroundColor = needsGlass ? nil : NSColor.black.cgColor
+        applyTint()
+        needsLayout = true
+    }
+
     private func applyTint() {
-        guard let glass = glassView else { return }
+        guard let glass = glassView, !glass.isHidden else { return }
         LiquidGlass.reapplyStyle(on: glass, cornerRadius: 0,
                                  tint: Self.tint(shellOpacity), solid: false)
     }
@@ -331,8 +345,11 @@ private final class IslandMaterialView: NSView {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         // 将玻璃上角移至屏幕外：可见上沿贴顶，下角保持原生折射曲率。
-        glassView?.frame = CGRect(x: 0, y: -radius, width: bounds.width, height: bounds.height + radius)
-        if let glass = glassView { LiquidGlass.setCornerRadius(radius, on: glass) }
+        // 纯色时玻璃隐藏，不参与布局绘制（不采样、不模糊）。
+        if let glass = glassView, !glass.isHidden {
+            glass.frame = CGRect(x: 0, y: -radius, width: bounds.width, height: bounds.height + radius)
+            LiquidGlass.setCornerRadius(radius, on: glass)
+        }
         mask.frame = bounds
         mask.path = IslandOutline(radius: radius).path(in: bounds).cgPath
         CATransaction.commit()

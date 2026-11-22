@@ -1087,21 +1087,6 @@ struct StorageManagerRootView: View {
 
     // MARK: 让 Agent 清理（v212）
 
-    /// 跨层级取最大的目录：作为「详细占用日志」喂给 Agent（父子会同时出现，属正常）
-    private func topDirectories(limit: Int = 12) -> [DiskNode] {
-        guard let root = store.snapshot?.root else { return [] }
-        var all: [DiskNode] = []
-        func visit(_ n: DiskNode, depth: Int) {
-            guard depth < 4 else { return }
-            for c in n.children where c.isDirectory && c.size > 0 {
-                all.append(c)
-                visit(c, depth: depth + 1)
-            }
-        }
-        visit(root, depth: 0)
-        return all.sorted { $0.size > $1.size }.prefix(limit).map { $0 }
-    }
-
     /// 结构化提示词：扫描概况 + 可清理候选 + 最大目录 + 明确的执行纪律
     private func buildAgentPrompt() -> String {
         let snap = store.snapshot
@@ -1127,7 +1112,7 @@ struct StorageManagerRootView: View {
                          + " — \(c.node.path) — \(c.safe ? "常见缓存" : "需确认")")
         }
         lines.append("")
-        let tops = topDirectories()
+        let tops = store.largestDirectories()
         lines.append("## 占用最大的目录（跨层级 Top \(tops.count)）")
         for (i, n) in tops.enumerated() {
             lines.append("\(i + 1). \(n.path) — \(StorageFormat.bytes(n.size))")

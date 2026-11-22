@@ -661,7 +661,11 @@ final class DiskIndexStore: ObservableObject {
     static let shared = DiskIndexStore()
 
     @Published private(set) var snapshot: DiskIndexSnapshot? {
-        didSet { invalidateCandidates(); indexRevision += 1 }
+        didSet {
+            invalidateCandidates()
+            largestDirectoryCache = nil
+            indexRevision += 1
+        }
     }
     @Published private(set) var indexRevision = 0
     @Published private(set) var isScanning = false
@@ -840,6 +844,7 @@ final class DiskIndexStore: ObservableObject {
     /// 不能每帧都遍历索引树（最多 12 万节点）。只在索引变化时重算一次。
     private var candidateCache: [CleanupCandidate] = []
     private var candidateCacheStamp: TimeInterval = -1
+    private var largestDirectoryCache: [DiskNode]?
 
     private func invalidateCandidates() {
         candidateCache = []
@@ -877,6 +882,24 @@ final class DiskIndexStore: ObservableObject {
         let result = out.sorted { $0.node.size > $1.node.size }
         candidateCache = result
         candidateCacheStamp = snap.scannedAt
+        return result
+    }
+
+    /// `agentSheet` 重绘时复用同一份跨层级目录汇总。
+    func largestDirectories() -> [DiskNode] {
+        if let largestDirectoryCache { return largestDirectoryCache }
+        guard let root = snapshot?.root else { return [] }
+        var all: [DiskNode] = []
+        func visit(_ node: DiskNode, depth: Int) {
+            guard depth < 4 else { return }
+            for child in node.children where child.isDirectory && child.size > 0 {
+                all.append(child)
+                visit(child, depth: depth + 1)
+            }
+        }
+        visit(root, depth: 0)
+        let result = all.sorted { $0.size > $1.size }.prefix(12).map { $0 }
+        largestDirectoryCache = result
         return result
     }
 
