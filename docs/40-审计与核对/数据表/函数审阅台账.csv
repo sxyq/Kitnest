@@ -2597,18 +2597,18 @@ Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,applyPrefe
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,scheduleNext,func,187,KEEP,2026-11-20：取消旧定时任务，在采样队列延时执行；执行前读取总开关，采样后按当前界面可见性安排下一帧
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,sampleOnce,func,212,KEEP,2026-11-20：优先使用有效 C 快照，补深层指标及时间轴；轮换同一组历史缓冲，在 MonitorExtra 的锁内合并峰值，主队列发布当前值与历史
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,resetHistory,func,347,KEEP,2026-11-20：监测设置的清空按钮调用，锁内重置环形缓冲与两份快照，重置补充指标后发布空历史
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,init,init,71,KEEP,2026-11-20：shared 唯一构造，从空应用及网卡历史开始；启动由 MonitorModule 决定
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,applyKeepAlivePreference,func,87,KEEP,2026-11-20：MonitorModule 启动和 MonitorSampler 原偏好观察者共用；两个开关均开启时首采并启用 5 秒定时器，任一关闭时取消
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,backgroundTick,func,104,KEEP,2026-11-21：首拍及5秒定时器派发到既有采样队列；启用时读nettop并累计；菜单栏快照有效时复用网速，停用时直接读取网卡差分，避免继续累计旧速率
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,ingestApps,func,125,KEEP,2026-11-21：后台定时器与StatsDataProvider共用原时间及总量判重；持锁在apps字典内直接更新元数据与追加历史，移除局部AppState共享samples再写回造成的数组复制；600秒裁剪及超200保留120项沿原实现
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,ingestNIC,func,165,KEEP,2026-11-21：后台定时器输入整机上下行速率，间隔不足0.4秒跳过；累计量供未归属流量计算，旧NetworkPulse已移除
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,snapshot,func,194,KEEP,2026-11-20：正式监测网络页读取；锁内裁剪并取得快照，锁外累计并按总字节排序，保留实际覆盖时长
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,reset,func,230,KEEP,2026-11-20：设置页清空正式监测历史时加锁进入 resetLocked
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,resetLocked,func,237,KEEP,2026-11-20：手动清空及应用或网卡采样间断超过 120 秒时清除历史和计时状态
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,prune,func,248,KEEP,2026-11-20：读写历史共用 600 秒截止；网卡移除旧读数，应用部分过期裁去前段、全部过期移除项目
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,trimApps,func,261,KEEP,2026-11-20：应用数超过 200 时按窗口累计字节排序并保留前 120 个，限制常驻历史
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,sanitize,func,267,KEEP,2026-11-20：应用与网卡共用，把非有限、非正及超上限的速率转成零
-Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowIcon,icon,func,282,KEEP,2026-11-20：正式流量图根据可执行路径取得图标；按路径缓存最多 64 项，设置预设预览不访问图标
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,init,init,75,KEEP,2026-11-20：shared 唯一构造，从空应用及网卡历史开始；启动由 MonitorModule 决定
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,applyKeepAlivePreference,func,91,KEEP,2026-11-20：MonitorModule 启动和 MonitorSampler 原偏好观察者共用；两个开关均开启时首采并启用 5 秒定时器，任一关闭时取消
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,backgroundTick,func,108,KEEP,2026-11-21：首拍及5秒定时器派发到既有采样队列；启用时读nettop并累计；菜单栏快照有效时复用网速，停用时直接读取网卡差分，避免继续累计旧速率
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,ingestApps,func,129,KEEP,2026-11-21：后台定时器与StatsDataProvider共用原时间及总量判重；持锁在apps字典内直接更新元数据与追加历史，移除局部AppState共享samples再写回造成的数组复制；600秒裁剪及超200保留120项沿原实现
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,ingestNIC,func,172,KEEP,2026-11-21：后台定时器输入整机上下行速率，间隔不足0.4秒跳过；累计量供未归属流量计算，旧NetworkPulse已移除
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,snapshot,func,203,KEEP,2026-11-20：正式监测网络页读取；锁内裁剪并取得快照，锁外累计并按总字节排序，保留实际覆盖时长
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,reset,func,231,KEEP,2026-11-20：设置页清空正式监测历史时加锁进入 resetLocked
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,resetLocked,func,238,KEEP,2026-11-20：手动清空及应用或网卡采样间断超过 120 秒时清除历史和计时状态
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,prune,func,251,KEEP,2026-11-20：读写历史共用 600 秒截止；网卡移除旧读数，应用部分过期裁去前段、全部过期移除项目
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,trimApps,func,283,KEEP,2026-11-20：应用数超过 200 时按窗口累计字节排序并保留前 120 个，限制常驻历史
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,sanitize,func,289,KEEP,2026-11-20：应用与网卡共用，把非有限、非正及超上限的速率转成零
+Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowIcon,icon,func,304,KEEP,2026-11-20：正式流量图根据可执行路径取得图标；按路径缓存最多 64 项，设置预设预览不访问图标
 Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsProcItem,init,init,37,KEEP,readProcList:677、684 构造聚合行
 Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsSnapshot,init,init,170,KEEP,storage 初值 StatsDataProvider.swift:180
 Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,init,init,216,KEEP,私有 init，shared:174

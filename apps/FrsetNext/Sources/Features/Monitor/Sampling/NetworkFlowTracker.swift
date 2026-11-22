@@ -53,12 +53,16 @@ public final class NetworkFlowTracker {
         var iconPath: String
         var liveDown: Double
         var liveUp: Double
+        var downBytes: Double
+        var upBytes: Double
         var samples: [Sample]
     }
 
     private let lock = NSLock()
     private var apps: [String: AppState] = [:]
     private var nicSamples: [Sample] = []
+    private var nicDownBytes = 0.0
+    private var nicUpBytes = 0.0
     private var lastAppAt: TimeInterval = 0
     private var lastNICAt: TimeInterval = 0
     /// 上一轮 nettop 的指纹（速率合计）：数据没变就不再计一次，
@@ -148,12 +152,15 @@ public final class NetworkFlowTracker {
             guard downBytes + upBytes > 0 || apps[key] != nil else { continue }
             if apps[key] == nil {
                 apps[key] = AppState(name: item.name, iconPath: item.iconPath,
-                                     liveDown: 0, liveUp: 0, samples: [])
+                                     liveDown: 0, liveUp: 0,
+                                     downBytes: 0, upBytes: 0, samples: [])
             }
             apps[key]?.name = item.name
             if !item.iconPath.isEmpty { apps[key]?.iconPath = item.iconPath }
             apps[key]?.liveDown = downRate
             apps[key]?.liveUp = upRate
+            apps[key]?.downBytes += downBytes
+            apps[key]?.upBytes += upBytes
             // 直接追加到字典内的数组，避免每次读取局部 state 后复制整段历史。
             apps[key]?.samples.append(Sample(at: t, down: downBytes, up: upBytes))
             if apps.count > 200 { trimApps() }
@@ -171,9 +178,11 @@ public final class NetworkFlowTracker {
         guard t - lastNICAt >= 0.4 else { return }
         lastNICAt = t
         if startedAt == 0 { startedAt = t }
-        nicSamples.append(Sample(at: t,
-                                 down: sanitize(down) * interval,
-                                 up: sanitize(up) * interval))
+        let downBytes = sanitize(down) * interval
+        let upBytes = sanitize(up) * interval
+        nicDownBytes += downBytes
+        nicUpBytes += upBytes
+        nicSamples.append(Sample(at: t, down: downBytes, up: upBytes))
         prune(t)
     }
 
@@ -195,29 +204,21 @@ public final class NetworkFlowTracker {
         let t = now.timeIntervalSince1970
         lock.lock()
         prune(t)
-        let appStates = apps
-        let nic = nicSamples
+        var entries = apps.compactMap { key, state -> NetworkFlowEntry? in
+            guard !state.samples.isEmpty else { return nil }
+            return NetworkFlowEntry(key: key,
+                                    name: state.name,
+                                    iconPath: state.iconPath,
+                                    downBytes: state.downBytes,
+                                    upBytes: state.upBytes,
+                                    liveDown: state.liveDown,
+                                    liveUp: state.liveUp)
+        }
+        let nicDown = nicDownBytes
+        let nicUp = nicUpBytes
         let started = startedAt
         lock.unlock()
-
-        var entries: [NetworkFlowEntry] = []
-        entries.reserveCapacity(appStates.count)
-        for (key, state) in appStates {
-            guard !state.samples.isEmpty else { continue }
-            var down = 0.0, up = 0.0
-            for sample in state.samples { down += sample.down; up += sample.up }
-            entries.append(NetworkFlowEntry(key: key,
-                                            name: state.name,
-                                            iconPath: state.iconPath,
-                                            downBytes: down,
-                                            upBytes: up,
-                                            liveDown: state.liveDown,
-                                            liveUp: state.liveUp))
-        }
         entries.sort { $0.totalBytes > $1.totalBytes }
-
-        var nicDown = 0.0, nicUp = 0.0
-        for sample in nic { nicDown += sample.down; nicUp += sample.up }
 
         return Snapshot(entries: entries,
                         nicTotalBytes: nicDown + nicUp,
@@ -237,6 +238,8 @@ public final class NetworkFlowTracker {
     private func resetLocked() {
         apps.removeAll()
         nicSamples.removeAll()
+        nicDownBytes = 0
+        nicUpBytes = 0
         lastAppAt = 0
         lastNICAt = 0
         lastAppSignature = -1
@@ -247,19 +250,38 @@ public final class NetworkFlowTracker {
 
     private func prune(_ now: TimeInterval) {
         let cutoff = now - Self.windowSeconds
-        nicSamples.removeAll { $0.at < cutoff }
-        for (key, state) in apps {
-            if let firstKeep = state.samples.firstIndex(where: { $0.at >= cutoff }) {
-                if firstKeep > 0 { apps[key]?.samples.removeFirst(firstKeep) }
-            } else {
+        let expiredNICCount = nicSamples.prefix { $0.at < cutoff }.count
+        if expiredNICCount > 0 {
+            for sample in nicSamples.prefix(expiredNICCount) {
+                nicDownBytes -= sample.down
+                nicUpBytes -= sample.up
+            }
+            nicSamples.removeFirst(expiredNICCount)
+            if nicSamples.isEmpty {
+                nicDownBytes = 0
+                nicUpBytes = 0
+            }
+        }
+        for key in Array(apps.keys) {
+            guard var state = apps[key] else { continue }
+            let expiredCount = state.samples.prefix { $0.at < cutoff }.count
+            guard expiredCount > 0 else { continue }
+            for sample in state.samples.prefix(expiredCount) {
+                state.downBytes -= sample.down
+                state.upBytes -= sample.up
+            }
+            state.samples.removeFirst(expiredCount)
+            if state.samples.isEmpty {
                 apps.removeValue(forKey: key)
+            } else {
+                apps[key] = state
             }
         }
     }
 
     /// App 数量失控时，丢掉窗口总量最小的那一半
     private func trimApps() {
-        let ranked = apps.map { (key: $0.key, total: $0.value.samples.reduce(0) { $0 + $1.down + $1.up }) }
+        let ranked = apps.map { (key: $0.key, total: $0.value.downBytes + $0.value.upBytes) }
             .sorted { $0.total > $1.total }
         for item in ranked.dropFirst(120) { apps.removeValue(forKey: item.key) }
     }
