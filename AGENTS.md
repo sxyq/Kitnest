@@ -55,7 +55,8 @@ Kitnest（原名 FrsetNext）：macOS 菜单栏效率工具（arm64，macOS 13+�
     把 main 合入外置盘上的 `variant/without-transfer-cast`（去掉中转与文件传输、保留投屏）。
     变体工作树在 `/Volumes/Lexar/Project/frset-rebuild-lite`，拔盘后 worktree 会变 prunable，
     脚本会自动 `worktree prune` + 重建；合并冲突不自动解决，脚本会列出冲突文件。
-    外置盘属「可移除宗卷」，未授权时脚本会在第一步就明确报出来（不是静默跳过）。
+    外置盘属「可移除宗卷」，未授权时脚本会在第一步就明确报出来（不是静默跳过）；
+    拔盘后 `/Volumes` 里可能留下僵尸挂载点，`ls` 会卡在内核里，脚本已加 5s 超时。
     需要连构建一起做就加 `--build`。
 
 ## 项目级 Skill（可复用操作，`.agent/skills/`）

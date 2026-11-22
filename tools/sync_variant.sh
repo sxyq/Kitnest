@@ -26,8 +26,16 @@ git -C "$ROOT" branch --show-current | xargs echo "  当前分支:"
 git -C "$ROOT" log --oneline -1 | xargs echo "  最新提交:"
 
 # 外置盘权限：macOS 会对「可移除宗卷」单独要授权，没授权时这里直接说清楚。
-if ! ls "$(dirname "$(dirname "$VARIANT_DIR")")" >/dev/null 2>&1; then
-  echo "✗ 外置盘不可读：$(dirname "$(dirname "$VARIANT_DIR")")"
+#
+# v283 补 timeout：盘被拔掉但 /Volumes 里留着「僵尸挂载点」时，`ls` 会一直卡在
+# 内核里（本机 2026-11-22 实测：/Volumes 整目录 stat 卡死，连 `ls /Volumes` 都超时）。
+# 没有超时的话这个脚本会把终端一起吊住，看起来像脚本挂了。
+VOLUME_ROOT="$(dirname "$(dirname "$VARIANT_DIR")")"
+if ! timeout 5 ls "$VOLUME_ROOT" >/dev/null 2>&1; then
+  echo "✗ 外置盘不可读：$VOLUME_ROOT"
+  echo "  可能原因：① 盘没插/没上电；② 系统没给「可移除宗卷」权限；③ 拔盘留下的僵尸挂载点。"
+  echo "  自查：timeout 5 ls /Volumes；timeout 5 mount | grep -i lexar；diskutil list"
+  echo "  若 mount 里没有该盘、diskutil 也看不到它，说明盘已经不在系统里，先接好线再说。"
   echo "  到「系统设置 → 隐私与安全性 → 文件与文件夹」给终端/WorkBuddy 打开「可移除宗卷」，或手动拷贝工作树。"
   exit 1
 fi
