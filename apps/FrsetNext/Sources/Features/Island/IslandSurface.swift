@@ -189,9 +189,15 @@ private struct IslandMorph: AnimatableModifier {
             .frame(width: size.width, height: size.height, alignment: .top)
             .background {
                 IslandMaterialHost(controller: controller, size: size, radius: radius,
-                                   material: reduceTransparency ? .solid : controller.configuration.effectiveMaterial)
+                                   material: reduceTransparency ? .solid : controller.configuration.effectiveMaterial,
+                                   shellOpacity: controller.configuration.opacity)
                     .id(reduceTransparency ? IslandMaterial.solid : controller.configuration.effectiveMaterial)
-                    .overlay(Color.black.opacity(controller.usesGlass && !reduceTransparency ? 1 - phase * (1 - controller.configuration.opacity) : 1))
+                    // 收起 → 展开的深色过渡只由这**一层**黑幕负责：
+                    //   收起态恒 1（纯黑，与硬件刘海融合）；
+                    //   展开态恒 0（深色程度交给玻璃自身的 tint，= 用户「外壳通透度」）。
+                    // 旧实现把 tint(0.32) 与这层黑幕(0.32) 叠在一起，展开态实际不透明度
+                    // 有 0.54，滑块写着 68% 通透却糊成一块灰毛玻璃（设置与执行不一致）。
+                    .overlay(Color.black.opacity(controller.usesGlass && !reduceTransparency ? 1 - phase : 1))
                     .overlay(alignment: .top) {
                         if controller.previewOnly && controller.displayScreen.safeAreaInsets.top > 0 {
                             Color.black.frame(width: controller.notchWidth, height: controller.notchHeight)
@@ -208,13 +214,18 @@ private struct IslandMorph: AnimatableModifier {
                     .accessibilityHidden(controller.expanded)
             }
             .overlay {
-                outline.stroke(Color.primary.opacity(0.12 * phase), lineWidth: Theme.Stroke.hairline)
-                    .mask(LinearGradient(stops: [.init(color: .clear, location: 0),
-                                                .init(color: .clear, location: 0.12),
-                                                .init(color: .white, location: 0.3),
-                                                .init(color: .white, location: 1)],
-                                         startPoint: .top, endPoint: .bottom))
-                    .allowsHitTesting(false)
+                // v274：系统自带折光（原生液态玻璃）时不再叠仿玻璃亮边——
+                // NSGlassEffectView 自己有边缘高光，再画一条就是「双重描边」。
+                // 毛玻璃 / 纯色没有系统边缘，保留这条发丝线维持形状可读性。
+                if controller.configuration.effectiveMaterial != .liquidGlass || reduceTransparency {
+                    outline.stroke(Color.primary.opacity(0.12 * phase), lineWidth: Theme.Stroke.hairline)
+                        .mask(LinearGradient(stops: [.init(color: .clear, location: 0),
+                                                    .init(color: .clear, location: 0.12),
+                                                    .init(color: .white, location: 0.3),
+                                                    .init(color: .white, location: 1)],
+                                             startPoint: .top, endPoint: .bottom))
+                        .allowsHitTesting(false)
+                }
             }
             .contentShape(outline)
     }
@@ -253,32 +264,66 @@ private struct IslandMaterialHost: NSViewRepresentable {
     let size: CGSize
     let radius: CGFloat
     let material: IslandMaterial
+    /// 展开态外壳深色程度（= 设置里「外壳通透度」的补数）。收起态由外层黑幕负责，与它无关。
+    let shellOpacity: Double
     func makeNSView(context: Context) -> IslandMaterialView {
-        IslandMaterialView(material: material)
+        IslandMaterialView(material: material, shellOpacity: shellOpacity)
     }
     func updateNSView(_ view: IslandMaterialView, context: Context) {
         if view.radius != radius { view.radius = radius; view.needsLayout = true }
+        // 深色程度只改着色，不重建玻璃、不重算遮罩
+        if view.shellOpacity != shellOpacity { view.shellOpacity = shellOpacity }
         controller.surfaceDidChange(size: size, radius: radius)
     }
 }
 
 private final class IslandMaterialView: NSView {
     var radius: CGFloat = 0
+    /// 展开态外壳深色程度；改动只重着色（`LiquidGlass.reapplyStyle`），不重建采样层。
+    var shellOpacity: CGFloat = 0.32 {
+        didSet { if shellOpacity != oldValue { applyTint() } }
+    }
     private let mask = CAShapeLayer()
     private var renderedBounds = CGRect.zero
     private var renderedRadius: CGFloat = -1
+    /// 玻璃采样层；纯色外壳为 nil —— 旧实现纯色/降低透明度时也照样建一层
+    /// 玻璃再用全幅黑幕盖住，采样等于白做（附审计 A-2）。
+    private var glassView: NSView?
     override var isFlipped: Bool { true }
-    init(material: IslandMaterial) {
+
+    init(material: IslandMaterial, shellOpacity: CGFloat) {
         super.init(frame: .zero)
         wantsLayer = true
         layer?.mask = mask
-        let glass = LiquidGlass.makeView(cornerRadius: 0, tint: IslandLayout.tint, solid: material == .solid,
-                                        followsWindowFocus: material == .liquidGlass, systemGlass: material == .liquidGlass)
+        self.shellOpacity = shellOpacity
+        // 纯色外壳：整块深色由外层黑幕给出，这里不再建玻璃采样层
+        guard material != .solid else {
+            layer?.backgroundColor = NSColor.black.cgColor
+            return
+        }
+        let glass = LiquidGlass.makeView(cornerRadius: 0,
+                                         tint: Self.tint(shellOpacity),
+                                         solid: false,
+                                         followsWindowFocus: material == .liquidGlass,
+                                         systemGlass: material == .liquidGlass)
         glass.appearance = NSAppearance(named: .darkAqua)
         glass.autoresizingMask = [.width, .height]
         addSubview(glass)
+        glassView = glass
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
+
+    /// 外壳深色程度 = 一层黑 tint（不再与外层黑幕叠加）
+    private static func tint(_ opacity: CGFloat) -> NSColor {
+        NSColor.black.withAlphaComponent(min(1, max(0, opacity)))
+    }
+
+    private func applyTint() {
+        guard let glass = glassView else { return }
+        LiquidGlass.reapplyStyle(on: glass, cornerRadius: 0,
+                                 tint: Self.tint(shellOpacity), solid: false)
+    }
+
     override func layout() {
         super.layout()
         guard bounds != renderedBounds || radius != renderedRadius else { return }
@@ -286,8 +331,8 @@ private final class IslandMaterialView: NSView {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         // 将玻璃上角移至屏幕外：可见上沿贴顶，下角保持原生折射曲率。
-        subviews[0].frame = CGRect(x: 0, y: -radius, width: bounds.width, height: bounds.height + radius)
-        LiquidGlass.setCornerRadius(radius, on: subviews[0])
+        glassView?.frame = CGRect(x: 0, y: -radius, width: bounds.width, height: bounds.height + radius)
+        if let glass = glassView { LiquidGlass.setCornerRadius(radius, on: glass) }
         mask.frame = bounds
         mask.path = IslandOutline(radius: radius).path(in: bounds).cgPath
         CATransaction.commit()

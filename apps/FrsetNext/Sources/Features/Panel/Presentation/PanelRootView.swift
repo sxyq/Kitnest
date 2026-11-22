@@ -714,14 +714,24 @@ struct PanelRootView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 7)
-        // v271：玻璃改用统一配方 GlassSurface（与主面板/悬浮剪贴板同一套：
+        // v271：玻璃改用统一配方 GlassSurface（与主面板/悬浮剪贴板同一套：）
         // 通透度底衬 + 磨砂霜感，四个玻璃滑块直接生效）。面板窗口本身已有
-        // 毛玻璃 → includesBlur=false 不叠第二层。旧手写「surface+frost+
-        // 0.55 白渐变描边」是一套自成一体的假玻璃——白边太重，和面板
-        // 其它浮层对不上（用户原话：「玻璃态效果十分的怪」）。
+        // 毛玻璃 → includesBlur=false 不叠第二层。
+        //
+        // 2026-11-23：这层底衬与页面级 GlassSurface 完全同配方 —— 同一窗口里
+        // 「着色 + 磨砂」被铺了两遍（附审计 A-1）。工具条是浮在内容上的小胶囊，
+        // 霜感（整面漫反射）在这里既看不见又多一次合成：改为只留一层通透度底衬
+        // （两个滑块仍生效），描边与阴影照旧，形状与描边统一成 Capsule。
         .background(
-            GlassSurface(cornerRadius: 20, includesBlur: false, appliesWindowShadow: false)
-                .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
+            Group {
+                if LiquidGlass.reduceTransparency {
+                    Theme.windowSurface.opacity(1)
+                } else {
+                    Theme.windowSurface
+                }
+            }
+            .clipShape(Capsule(style: .continuous))
+            .shadow(color: .black.opacity(0.18), radius: 12, y: 4)
         )
         .overlay(
             Capsule(style: .continuous)
