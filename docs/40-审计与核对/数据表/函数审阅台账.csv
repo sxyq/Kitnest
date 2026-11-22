@@ -1360,10 +1360,10 @@ Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,runAsync,fu
 Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,translateBlocks,func,108,KEEP,2026-11-19：runAsync调用；按batchSize=24切片串行交translateBatch并按offset放回原序
 Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,translateBatch,func,123,KEEP,2026-11-19：translateBlocks每批调用；优先行号协议整批结果且数量/空值完整，否则逐块请求并用原文兜底
 Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,render,func,146,KEEP,2026-11-19：runAsync detached绘制调用；归一RGBA画布，按Vision框采背景并用CoreText自适应绘制译文
-Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,rgbaBuffer,func,209,KEEP,2026-11-19：render唯一调用；CGContext生成指定插值质量的RGBA8888图缓冲
-Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,sampleBackground,func,222,KEEP,2026-11-19：render每个有效文本框调用；在框四边外环采样RGB均值取盖字底色
-Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,foregroundColor,func,255,KEEP,2026-11-19：render每译文块调用；按加权RGB亮度选择深色或浅色文本
-Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,layout,func,270,KEEP,2026-11-19：render按块多次调用；逐字符测CoreText宽度并按maxWidth/换行符生成行与总高度
+Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,rgbaBuffer,func,217,KEEP,2026-11-19：render唯一调用；CGContext生成指定插值质量的RGBA8888图缓冲
+Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,sampleBackground,func,230,KEEP,2026-11-19：render每个有效文本框调用；在框四边外环采样RGB均值取盖字底色
+Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,foregroundColor,func,259,KEEP,2026-11-19：render每译文块调用；按加权RGB亮度选择深色或浅色文本
+Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,layout,func,274,KEEP,2026-11-19：render按块多次调用；逐字符测CoreText宽度并按maxWidth/换行符生成行与总高度
 Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,SourceNSTextView,init,init,8,KEEP,2026-11-19：SourceScroll与OCRReadOnly实例都使用带NSTextContainer的构造；禁编辑/可选择纯文本，关闭富文本与背景
 Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,SourceNSTextView,init,init,18,KEEP,2026-11-19：NSView必需coder构造但当前窗口只程序化创建，故明确不支持归档
 Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRSourceScrollView,init,init,36,KEEP,2026-11-19：结果窗构造scroll view；配置双向滚动、无边框透明背景，image/text document由不同入口替换
