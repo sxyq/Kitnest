@@ -2350,7 +2350,7 @@ Haptics,Features/Haptics/HapticService.swift,HapticService,emit,func,121,KEEP,20
 Haptics,Features/Haptics/HapticService.swift,HapticService,record,func,136,KEEP,2026-11-23：记录投递结果并把设备能力发布到主线程；日志含事件/类型/强度/结果，不含用户数据
 Haptics,Features/Haptics/HapticService.swift,HapticService,publishAvailability,func,148,KEEP,2026-11-23：驱动准备结束后更新设置页可见的设备状态（主线程）
 Haptics,Features/Haptics/HapticService.swift,HapticService,checkDebugProbe,func,158,KEEP,2026-11-23：probe.haptic 排障键；2.5s 后走真实 perform 路径触发一次，用完删键
-Haptics,Features/Haptics/HapticService.swift,HapticPattern,steps,func,175,KEEP,2026-11-23：事件类型 → 实际节奏；边界封顶「中」、失败不低于「中」、里程碑/失败为双次，硬件只有三档波形不做 18 种波形
+Haptics,Features/Haptics/HapticService.swift,HapticPattern,steps,func,177,KEEP,2026-11-23：事件类型 → 实际节奏；边界封顶「中」、失败不低于「中」、里程碑/失败为双次，硬件只有三档波形不做 18 种波形
 Haptics,Features/Haptics/HapticSettingsPane.swift,HapticSettingsDraft,init,init,16,KEEP,2026-11-23：读已保存配置做草稿，保存/丢弃语义与其它设置页一致
 Haptics,Features/Haptics/HapticSettingsPane.swift,HapticSettingsDraft,save,func,25,KEEP,2026-11-23：SettingsDraftEditor 保存回调；写盘成功才更新 saved，失败返回错误文案
 Haptics,Features/Haptics/HapticSettingsPane.swift,HapticSettingsDraft,discard,func,34,KEEP,2026-11-23：丢弃未保存草稿，回到已保存配置
