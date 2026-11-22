@@ -107,7 +107,7 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
     // MARK: 开关
 
     /// 窗口当前是否可见
-    public var isVisible: Bool { window?.isVisible == true }
+    public var isVisible: Bool { window?.isVisible == true && !warmupOnScreen }
 
     /// 开/关动画序号（v71 白屏实障修复）：dismissPopout 的 completion 原来用
     /// `isVisible` 判断「动画期间是否重开」——但动画结束时窗口尚未 orderOut，
@@ -134,22 +134,35 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
     // MARK: 空闲预热（v62）
 
     private var warmupDone = false
+    private var warmupToken = 0
+    private var warmupOnScreen = false
 
     /// 启动空闲期离屏布局一次（与主面板 warmup 同模式，3s 错峰避免争抢）。
     /// 预热后首开只剩定位 + 入场动画。
     public func scheduleWarmup(after delay: TimeInterval = 3.0) {
         guard !warmupDone else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
-            guard let self, !self.isVisible, let w = self.window, w.alphaValue == 1 else { return }
+            guard let self, !self.isVisible, !self.warmupOnScreen,
+                  let w = self.window, w.alphaValue == 1 else { return }
             let t0 = CFAbsoluteTimeGetCurrent()
+            self.warmupToken += 1
+            let token = self.warmupToken
+            let origin = w.frame.origin
+            self.warmupOnScreen = true
+            w.setFrameOrigin(self.parkOrigin(for: w, dest: origin))
             w.orderFrontRegardless()      // 只上屏、不激活、不抢 key
             w.contentView?.layoutSubtreeIfNeeded()
             w.displayIfNeeded()
-            RunLoop.current.run(until: Date(timeIntervalSinceNow: 0.1))
-            w.orderOut(nil)
-            self.warmupDone = true
-            Log.info("Monitor", String(format: "监测独立窗口预热完成 %.0fms",
-                                      (CFAbsoluteTimeGetCurrent() - t0) * 1000))
+            // 不嵌套运行主 RunLoop，下一轮再收尾，避免布局期间重入 AppKit。
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self, weak w] in
+                guard let self, let w, self.warmupToken == token, self.warmupOnScreen else { return }
+                self.warmupOnScreen = false
+                w.orderOut(nil)
+                w.setFrameOrigin(origin)
+                self.warmupDone = true
+                Log.info("Monitor", String(format: "监测独立窗口预热完成 %.0fms",
+                                          (CFAbsoluteTimeGetCurrent() - t0) * 1000))
+            }
         }
     }
 
@@ -187,6 +200,12 @@ public final class MonitorPopoutWindowController: NSWindowController, NSWindowDe
         // 不再用独立窗自己的 lastModule——否则刚在主页性能页选好温度，
         // 从状态栏打开又跳回 CPU，两个入口就像两套东西。
         let target = module ?? sharedSelection.module
+        if warmupOnScreen {
+            warmupToken += 1
+            warmupOnScreen = false
+            warmupDone = true
+            w.orderOut(nil)
+        }
         lastModule = target
         sharedSelection.module = target
         appearToken += 1                       // v71：递增，令在途 dismiss completion 失效

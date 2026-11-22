@@ -2714,20 +2714,20 @@ Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowCon
 Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,init,init,101,KEEP,同文件:89 self.init(window: nil) 调用
 Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,init,init,105,KEEP,NSCoder 协议要求 required init
 Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,wasJustDismissed,func,130,KEEP,StatsBarEngine.swift:283 去抖判断调用
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,scheduleWarmup,func,140,KEEP,MonitorModule.swift:43 调用
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,toggle,func,157,KEEP,AppBootstrap:368/388、CommandPalette:114
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,reverseToOpen,func,170,KEEP,v257 收起途中被要求重开：复用已有帧反向播，不重抓快照
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,open,func,182,KEEP,FrsetNextApp.swift:157 深链、MonitorModule:38
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,showModule,func,227,KEEP,StatsBarEngine.swift:277 部件切换调用
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,playAppearAnimation,func,241,KEEP,同文件:236 open 调用
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,parkOrigin,func,259,KEEP,神灯展开前停靠屏幕上方之外（抓快照临时位，抓完移回）
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,defaultSlot,func,265,KEEP,无锚点路径兜底插槽（窗口上沿右侧 22pt 方块）
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,anchorUnit,func,270,KEEP,同文件:302、333 调用
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,dismissPopout,func,282,KEEP,StatsBarEngine:274、PanelController:190、同文件:204
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,finishDismiss,func,315,KEEP,同文件:335、339 两路调用
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,origin,func,337,KEEP,同文件:228 open 定位调用
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,screen,func,359,KEEP,同文件:283、368 调用
-Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,windowDidResignKey,func,373,KEEP,NSWindowDelegate 协议回调（:141 设 delegate）
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,scheduleWarmup,func,142,KEEP,MonitorModule.swift:43 调用
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,toggle,func,170,KEEP,AppBootstrap:368/388、CommandPalette:114
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,reverseToOpen,func,183,KEEP,v257 收起途中被要求重开：复用已有帧反向播，不重抓快照
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,open,func,195,KEEP,FrsetNextApp.swift:157 深链、MonitorModule:38
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,showModule,func,246,KEEP,StatsBarEngine.swift:277 部件切换调用
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,playAppearAnimation,func,260,KEEP,同文件:236 open 调用
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,parkOrigin,func,278,KEEP,神灯展开前停靠屏幕上方之外（抓快照临时位，抓完移回）
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,defaultSlot,func,284,KEEP,无锚点路径兜底插槽（窗口上沿右侧 22pt 方块）
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,anchorUnit,func,289,KEEP,同文件:302、333 调用
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,dismissPopout,func,301,KEEP,StatsBarEngine:274、PanelController:190、同文件:204
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,finishDismiss,func,334,KEEP,同文件:335、339 两路调用
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,origin,func,356,KEEP,同文件:228 open 定位调用
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,screen,func,378,KEEP,同文件:283、368 调用
+Monitor,Features/Monitor/Window/MonitorPopoutWindow.swift,MonitorPopoutWindowController,windowDidResignKey,func,392,KEEP,NSWindowDelegate 协议回调（:141 设 delegate）
 Monitor,Features/Monitor/Window/MonitorSettingsPane.swift,Values,saved,func,14,KEEP,读取正式监测总开关、刷新间隔、模块显隐、温度、网络常驻和分流数量，作为设置草稿初值。
 Monitor,Features/Monitor/Window/MonitorSettingsPane.swift,MonitorSettingsState,init,init,35,KEEP,同文件:16 默认参构造；SettingsRootView:132
 Monitor,Features/Monitor/Window/MonitorSettingsPane.swift,MonitorSettingsState,save,func,37,KEEP,仅应用本页相对已保存值发生变化的字段；刷新间隔沿用菜单栏同步入口，未改字段保留其他页面的配置。
