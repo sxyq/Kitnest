@@ -2516,11 +2516,11 @@ Monitor,Features/Monitor/Memory/MemoryBreakdown.swift,MemoryBreakdownReader,read
 Monitor,Features/Monitor/Memory/MemoryHelperClient.swift,MemoryHelperClient,isReady,func,38,KEEP,ensureReady:48、install:81 探活
 Monitor,Features/Monitor/Memory/MemoryHelperClient.swift,MemoryHelperClient,ensureReady,func,47,KEEP,MemoryOptimizer.swift:93 调 ensureReady
 Monitor,Features/Monitor/Memory/MemoryHelperClient.swift,MemoryHelperClient,install,func,54,KEEP,ensureReady:50 首次授权安装时调用
-Monitor,Features/Monitor/Memory/MemoryHelperClient.swift,MemoryHelperClient,optimize,func,92,KEEP,MemoryOptimizer.swift:104
-Monitor,Features/Monitor/Memory/MemoryHelperClient.swift,MemoryHelperClient,send,func,114,KEEP,isReady:39、optimize:111
-Monitor,Features/Monitor/Memory/MemoryHelperClient.swift,AdministratorShell,run,func,188,KEEP,install:77、uninstall:101
-Monitor,Features/Monitor/Memory/MemoryHelperClient.swift,AdministratorShell,quote,func,200,KEEP,install:62、uninstall:93
-Monitor,Features/Monitor/Memory/MemoryHelperClient.swift,AdministratorShell,appleScriptEscape,func,204,KEEP,run:206 组装 osascript 转义
+Monitor,Features/Monitor/Memory/MemoryHelperClient.swift,MemoryHelperClient,optimize,func,95,KEEP,MemoryOptimizer.swift:104
+Monitor,Features/Monitor/Memory/MemoryHelperClient.swift,MemoryHelperClient,send,func,117,KEEP,isReady:39、optimize:111
+Monitor,Features/Monitor/Memory/MemoryHelperClient.swift,AdministratorShell,run,func,190,KEEP,install:77、uninstall:101
+Monitor,Features/Monitor/Memory/MemoryHelperClient.swift,AdministratorShell,quote,func,202,KEEP,install:62、uninstall:93
+Monitor,Features/Monitor/Memory/MemoryHelperClient.swift,AdministratorShell,appleScriptEscape,func,206,KEEP,run:206 组装 osascript 转义
 Monitor,Features/Monitor/Memory/MemoryOptimizeCard.swift,MemoryOptimizeSection,reportView,func,119,KEEP,body:38 有 report 时渲染
 Monitor,Features/Monitor/Memory/MemoryOptimizeCard.swift,MemoryOptimizeSection,deltaRow,func,181,KEEP,reportView:75-78
 Monitor,Features/Monitor/Memory/MemoryOptimizeCard.swift,MemoryOptimizeSection,signed,func,193,KEEP,reportView:68、deltaRow:121
