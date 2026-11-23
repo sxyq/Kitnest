@@ -40,8 +40,10 @@ public final class ArchiveBrowserModel: ObservableObject {
     @Published public var draftText: String = ""
     @Published public var dirty = false
     @Published public var searchText: String = ""
-    /// v124：是否显示 `__MACOSX` / `.DS_Store` 等辅助文件（默认隐藏）
-    @Published public var showAuxiliary = false
+    /// v127：是否显示 `__MACOSX` / `.DS_Store` 等辅助文件（默认隐藏）
+    @Published public var showAuxiliary = false {
+        didSet { if showAuxiliary != oldValue { invalidateChildIndex() } }
+    }
     /// v127（ArcZip P1）：当前层级（"" = 根）
     @Published public var currentPath: String = ""
     /// 2026-11-23（ArcZip 1.2.5 对齐）：三档视图（图标 / 列表 / 分栏），跨窗口记住
@@ -130,35 +132,77 @@ public final class ArchiveBrowserModel: ObservableObject {
     /// 当前层级的直接子项（+ 为「无显式目录条目」的中间目录合成虚拟文件夹）；
     /// 搜索时跳过层级过滤，全量匹配
     public var visibleEntries: [ArchiveEntry] {
+        rebuildChildIndexIfNeeded()
         let list = showAuxiliary ? entries : entries.filter { !ArchiveCore.isAuxiliary($0.path) }
         guard searchText.isEmpty else {
             return list.filter { $0.path.localizedCaseInsensitiveContains(searchText) }
         }
-        return children(in: list, of: currentPath)
+        return childIndex[currentPath] ?? []
     }
 
-    /// v127（ArcZip P1）：某目录的直接子项。zip 可以没有显式目录条目（7zz -slt 只列文件
-    /// 路径，实测），按深层路径补出中间文件夹，否则这些文件在层级视图里「消失」。
-    private func children(in list: [ArchiveEntry], of dir: String) -> [ArchiveEntry] {
-        let direct = list.filter { $0.parent == dir }
-        var known = Set(list.filter { $0.isDirectory }.map { $0.path })
-        var extra: [ArchiveEntry] = []
-        let prefix = dir.isEmpty ? "" : dir + "/"
-        for e in list where !e.isDirectory && e.path.hasPrefix(prefix) && e.path.count > prefix.count {
-            let rest = e.path.dropFirst(prefix.count)
-            guard let slash = rest.firstIndex(of: "/") else { continue }
-            let dirName = String(rest[..<slash])
-            let dirPath = dir.isEmpty ? dirName : dir + "/" + dirName
-            if !known.contains(dirPath) {
-                known.insert(dirPath)
-                extra.append(ArchiveEntry(path: dirPath, name: dirName, size: 0, packedSize: 0,
-                                          modified: "", method: "", isDirectory: true, parent: dir))
+    /// v288（2026-11-24 审计包 04）：parent → 直接子项索引（含隐式中间目录）。
+    ///
+    /// 旧 `children(in:of:)` 每调用一次就全表扫三遍——`filter { parent == dir }`、
+    /// 重建显式目录 `Set`、再全表探测隐式目录；分栏视图 `columnTrail` 对**每一列**
+    /// 都各扫一遍 = O(深度 × 3N)。万条档案 × 10 列 ≈ 30 万次比较，而且这是
+    /// SwiftUI body 求值路径上的纯计算，每次状态变化都重来。
+    /// 现在只在 entries / showAuxiliary 变化时构建一次（O(N + 路径段数)），
+    /// 列内 O(1) 查表；语义逐条对齐旧实现：
+    ///   · 显式子项按 parent 分组（等价于 filter parent == dir）；
+    ///   · 隐式目录 = 文件路径逐级前缀里「该层第一个目录段」，且路径不在显式
+    ///     目录集合中才合成（旧 known 集合是全表显式目录，路径全局唯一，等价）；
+    ///   · 目录在前、名称 localizedStandardCompare 排序；
+    ///   · 辅助文件过滤先行（aux 文件被滤掉时它撑起的隐式目录同样消失）；
+    ///   · 搜索分支不经过索引（全量匹配，不变）。
+    private var childIndex: [String: [ArchiveEntry]] = [:]
+    /// 索引版本：entries 重载与 showAuxiliary 切换时递增，命中即重建。
+    private var childIndexGeneration = 0
+
+    private func rebuildChildIndexIfNeeded() {
+        guard childIndexGeneration != 0 else { return }
+        // generation 在失效点已递增；这里用「已构建版本号」做幂等
+        if builtChildIndexGeneration == childIndexGeneration { return }
+        builtChildIndexGeneration = childIndexGeneration
+
+        let list = showAuxiliary ? entries : entries.filter { !ArchiveCore.isAuxiliary($0.path) }
+        var map: [String: [ArchiveEntry]] = [:]
+        var knownDirs = Set<String>()
+        for e in list {
+            map[e.parent, default: []].append(e)
+            if e.isDirectory { knownDirs.insert(e.path) }
+        }
+        // 隐式中间目录：每个**文件**路径的每一级前缀目录，都向其父层注册一个合成项
+        for e in list where !e.isDirectory {
+            let segments = e.path.split(separator: "/")
+            guard segments.count > 1 else { continue }
+            var acc = ""
+            for seg in segments.dropLast() {
+                let parent = acc
+                let dirPath = acc.isEmpty ? String(seg) : acc + "/" + seg
+                if !knownDirs.contains(dirPath) {
+                    knownDirs.insert(dirPath)
+                    map[parent, default: []].append(
+                        ArchiveEntry(path: dirPath, name: String(seg), size: 0, packedSize: 0,
+                                     modified: "", method: "", isDirectory: true, parent: parent))
+                }
+                acc = dirPath
             }
         }
-        return (direct + extra).sorted { a, b in
-            if a.isDirectory != b.isDirectory { return a.isDirectory }
-            return a.name.localizedStandardCompare(b.name) == .orderedAscending
+        for key in map.keys {
+            map[key]!.sort { a, b in
+                if a.isDirectory != b.isDirectory { return a.isDirectory }
+                return a.name.localizedStandardCompare(b.name) == .orderedAscending
+            }
         }
+        childIndex = map
+    }
+
+    /// 与 generation 配对的「已构建」标记（0 = 从未构建）。
+    private var builtChildIndexGeneration = 0
+
+    /// 索引失效：entries 重载与辅助文件开关两处（generation 递增，查表前惰性重建）。
+    private func invalidateChildIndex() {
+        childIndexGeneration += 1
     }
 
     /// v127（ArcZip P1）：面包屑（根 / docs / images），每段可点
@@ -181,6 +225,7 @@ public final class ArchiveBrowserModel: ObservableObject {
     }
 
     public var columnTrail: [ColumnTrailItem] {
+        rebuildChildIndexIfNeeded()
         var paths: [String] = [""]
         if !currentPath.isEmpty {
             var acc = ""
@@ -189,8 +234,7 @@ public final class ArchiveBrowserModel: ObservableObject {
                 paths.append(acc)
             }
         }
-        let list = showAuxiliary ? entries : entries.filter { !ArchiveCore.isAuxiliary($0.path) }
-        return paths.map { ColumnTrailItem(path: $0, entries: children(in: list, of: $0)) }
+        return paths.map { ColumnTrailItem(path: $0, entries: childIndex[$0] ?? []) }
     }
 
     /// 切层级：默认记进历史（ArcZip 的 ‹ › 走访问历史，不是简单上一层）
@@ -300,6 +344,7 @@ public final class ArchiveBrowserModel: ObservableObject {
             guard let self else { return }
             self.loading = false
             self.entries = list
+            self.invalidateChildIndex()   // v288：目录索引随重载失效（惰性重建）
             if let err {
                 // v124：像是缺密码就弹输入框，输对自动重载
                 if ArchiveCore.ArchivePasswords.looksLikePasswordError(err) {

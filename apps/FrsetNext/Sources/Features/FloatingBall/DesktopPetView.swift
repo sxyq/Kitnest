@@ -5,6 +5,30 @@ import SwiftUI
 // 动画全部走 TimelineView(.animation(minimumInterval:)) 限频 + SwiftUI 隐式过渡，
 // 没有 Timer / CADisplayLink 全帧率循环。
 
+/// v288（2026-11-24 审计包 04）：自定义形象 PNG 缓存（路径 + mtime 绑定）。
+///
+/// 旧实现 `petContent` 里每次 `NSImage(contentsOfFile:)`——动画时钟约 3fps，
+/// 等于每 0.3s 从盘上完整解码一张 PNG（还要走一次图片初始化），纯属重复工作；
+/// 换形象/换文件本来就该即时生效，所以缓存键取 **路径 + mtime**：路径变了或
+/// 文件被外部替换（mtime 变）都会自动重读，不缓存失效问题。mtime 探测是
+/// 一次 stat 系统调用，成本可以忽略；海豚动画本体（呼吸/漂浮/眨眼）不动。
+private enum PetImageCache {
+    private static let lock = NSLock()
+    private static var cached: (path: String, mtime: Date, image: NSImage)?
+
+    static func image(at path: String) -> NSImage? {
+        let mtime = (try? FileManager.default.attributesOfItem(atPath: path))?[.modificationDate] as? Date
+        lock.lock()
+        defer { lock.unlock() }
+        if let cached, cached.path == path, cached.mtime == (mtime ?? .distantPast) {
+            return cached.image
+        }
+        guard let image = NSImage(contentsOfFile: path) else { return nil }
+        cached = (path, mtime ?? .distantPast, image)
+        return image
+    }
+}
+
 struct DesktopPetView: View {
     let appearance: DesktopPetAppearance
     /// 拖动中 → 装饰动画冻结
@@ -61,7 +85,7 @@ struct DesktopPetView: View {
         let isBlinking = t > 0 && t.truncatingRemainder(dividingBy: 5.5) < 0.12
         Group {
             if let path = appearance.customImagePath,
-               let image = NSImage(contentsOfFile: path) {
+               let image = PetImageCache.image(at: path) {
                 Image(nsImage: image)
                     .resizable()
                     .scaledToFit()
