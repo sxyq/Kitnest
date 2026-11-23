@@ -571,6 +571,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 StorageManagerWindowController.shared.show(autoScan: autoScan,
                                                            drill: drill,
                                                            openAgent: openAgent)
+                // 排障/录屏：?hover=1 让液态地图的悬停巡航重放一次
+                // （只在 probe.storageHover 打开时生效，正常使用没有任何影响）
+                if comps?.queryItems?.first(where: { $0.name == "hover" })?.value == "1" {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                        NotificationCenter.default.post(name: .frsetStorageDemoHover, object: nil)
+                    }
+                }
             case "castpair":
                 // v166.5 排障/直达：打开面板并弹出「连接手机」弹层。
                 // 等一个 runloop 再发通知——面板刚建好时 CastView 还没 onAppear，

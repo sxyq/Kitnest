@@ -333,6 +333,22 @@ struct StorageTreemap: View {
     /// 本工程 @State 宏不可用，按项目约定用 @Stored（StateCompat）。
     @Stored private var pressedID: String?
 
+    /// 演示/排障：脚本化悬停。深链 `kitnest://storage?hover=1` 会发通知重放，
+    /// 场景重开窗口（onAppear）时也自动跑一次；默认键关着时什么都不做。
+    private func startScriptedHoverIfNeeded(tiles: [DiskTile]) {
+        guard StorageHoverScript.isEnabled else { return }
+        let route = tiles
+            .sorted { $0.frame.width * $0.frame.height > $1.frame.width * $1.frame.height }
+            .prefix(6)
+            .map { CGPoint(x: $0.frame.midX, y: $0.frame.midY) }
+        StorageHoverScript.shared.start(route: Array(route)) { [self] point in
+            let id = tiles.first {
+                $0.frame.contains(point) && $0.hitPath.contains(point)
+            }?.id
+            hover = (point, id, true)
+        }
+    }
+
     var body: some View {
         GeometryReader { geo in
             let tiles = DiskLayoutCache.shared.tiles(for: node, size: geo.size,
@@ -370,6 +386,25 @@ struct StorageTreemap: View {
                     ForEach(tiles) { tile in
                         tileView(tile, in: geo.size)
                     }
+                    // 2026-11-23 实测：某些目录（如 Users）只有一个子项，整层就是一大块深灰，
+                    // 看起来像「空白/坏了」。给一句可行动的提示，数据面积不变（不伪造比例）。
+                    // 判据用「最大图块占画布面积」而非 ratio：ratio 是相对父级数据的，不直观。
+                    if let biggest = tiles.filter({ !$0.isFreeSpace })
+                        .max(by: { $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height }),
+                       biggest.frame.width * biggest.frame.height
+                        > geo.size.width * geo.size.height * 0.82 {
+                        Text("这一层只有 1 个子项 · 点击继续下钻")
+                            .font(.system(size: 10.5))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Capsule(style: .continuous).fill(Theme.cardFill))
+                            .overlay(Capsule(style: .continuous)
+                                .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline))
+                            .padding(12)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                            .allowsHitTesting(false)
+                    }
                 }
                 .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
                 .contentShape(StorageMapShape())
@@ -388,6 +423,15 @@ struct StorageTreemap: View {
                         if hover.id != nil || hover.active { hover = (hover.point, nil, false) }
                     }
                 }
+                // 排障/演示（probe.storageHover=1，默认关闭）：脚本化悬停。
+                // 液态回弹真实触发需要鼠标；自动化录屏时让压力中心沿最大几块巡航，
+                // 走的仍是同一条压力场与同一根弹簧（0.26/0.86），只是输入源换成定时器。
+                // 只读这个 defaults 键，不改变真实鼠标交互与任何产品行为。
+                .onAppear { startScriptedHoverIfNeeded(tiles: tiles) }
+                .onReceive(NotificationCenter.default.publisher(for: .frsetStorageDemoHover)) { _ in
+                    startScriptedHoverIfNeeded(tiles: tiles)
+                }
+                .onDisappear { StorageHoverScript.shared.stop() }
                 // v268：压力中心与强度用 0.26/0.86 弹簧跟随——移动平滑、
                 // 离开自然回弹、快速反向不跳变。
                 .animation(reduceMotion ? nil : .spring(response: 0.26, dampingFraction: 0.86),
@@ -501,4 +545,60 @@ struct StorageTreemap: View {
     private func contentColor(_ ratio: Double) -> Color {
         ratio >= 0.09 ? Color(nsColor: .windowBackgroundColor) : Color.primary
     }
+}
+
+// MARK: - 排障/演示：脚本化悬停（默认关闭）
+
+/// 存储地图的液态回弹由真实鼠标的 `onContinuousHover` 驱动。自动化录屏/截图时
+/// 不能移动用户光标，这里用定时器把压力中心沿「最大几块的中心」巡航一圈：
+/// 目标仍是同一个 `hover` 状态、同一根 0.26/0.86 弹簧、同一条压力场绘制路径，
+/// 所以录到的是真实形变与回弹，只是输入源不是鼠标。
+///
+/// 开关：`defaults write com.sxyq.frsetnext probe.storageHover -bool true`（默认关）。
+private final class StorageHoverScript {
+
+    static let shared = StorageHoverScript()
+
+    static var isEnabled: Bool {
+        UserDefaults.standard.bool(forKey: "probe.storageHover")
+    }
+
+    private var timer: Timer?
+    private var started: CFTimeInterval = 0
+
+    func start(route: [CGPoint], duration: TimeInterval = 6, onUpdate: @escaping (CGPoint) -> Void) {
+        stop()
+        guard route.count >= 2 else { return }
+        started = CACurrentMediaTime()
+        // 往返路线：A→B→C→B→A，端点处自然减速换向（线性插值，弹簧负责柔化）
+        let path = route + route.dropLast().reversed()
+        let timer = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] timer in
+            guard let self else { timer.invalidate(); return }
+            let elapsed = CACurrentMediaTime() - self.started
+            if elapsed >= duration {
+                self.stop()
+                return
+            }
+            let u = min(0.999, elapsed / duration)
+            let scaled = u * Double(path.count - 1)
+            let index = min(Int(scaled), path.count - 2)
+            let frac = CGFloat(scaled - Double(index))
+            let a = path[index], b = path[index + 1]
+            onUpdate(CGPoint(x: a.x + (b.x - a.x) * frac,
+                             y: a.y + (b.y - a.y) * frac))
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
+        Log.info("Storage", "probe.storageHover：脚本化悬停开始（\(route.count) 个落点 / \(Int(duration))s）")
+    }
+
+    func stop() {
+        timer?.invalidate()
+        timer = nil
+    }
+}
+
+extension Notification.Name {
+    /// 存储地图脚本化悬停重放（`kitnest://storage?hover=1`，排障/录屏用；默认不触发）
+    static let frsetStorageDemoHover = Notification.Name("frsetStorageDemoHover")
 }

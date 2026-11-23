@@ -53,8 +53,13 @@ public final class StorageManagerWindowController: NSWindowController, NSWindowD
             Log.warn("Storage", "show：window 尚未创建，深链无效")
             return
         }
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        // 零打扰验证（--no-activate）：只上屏、不激活、不抢 key（截图/录屏用）
+        if DebugLaunch.noActivate {
+            window.orderFrontRegardless()
+        } else {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+        }
         let f = window.frame
         Log.info("Storage", "show：\(Int(f.width))x\(Int(f.height)) @\(Int(f.minX)),\(Int(f.minY)) visible=\(window.isVisible)")
         // v211 排障：kitnest://storage?scan=1 —— 无人值守触发一次扫描（验证全盘索引/进度/截断提示）
@@ -436,6 +441,9 @@ struct StorageManagerRootView: View {
             .frame(maxHeight: .infinity)
         }
         .padding(.top, 8)
+        // 2026-11-23 实测（存储录屏）：地图画布高度原来正好顶到窗口底边，
+        // 最下一排图块/标签被 .clipped() 切掉。留 10pt 底沟，让有机轮廓完整收在窗内。
+        .padding(.bottom, 10)
         .clipped()
         .onAppear {
             refreshDiskSpace()

@@ -311,8 +311,15 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
             p.contentView?.layer?.opacity = 0
             p.alphaValue = 1                       // 整窗 alpha 动画会逐帧重采样玻璃，弃用
         }
-        NSApp.activate(ignoringOtherApps: true)    // v30：LSUIElement 需显式激活，否则被前端 app 抢焦点后立刻收起
-        p.makeKeyAndOrderFront(nil)
+        // 零打扰验证（启动参数 --no-activate）：只上屏、不激活 app、不拿 key，
+        // 用户当前前台 app 与键盘焦点完全不变；配合 --panel-pin 防止失焦即收。
+        // 默认不带该参数，行为与原来完全一致。
+        if DebugLaunch.noActivate {
+            p.orderFrontRegardless()
+        } else {
+            NSApp.activate(ignoringOtherApps: true)    // v30：LSUIElement 需显式激活，否则被前端 app 抢焦点后立刻收起
+            p.makeKeyAndOrderFront(nil)
+        }
         // makeKey 有可能把「key 窗口」约束回屏幕内，抓图前再钉一次停靠位
         if parked { p.setFrameOrigin(parkOrigin(for: p, origin: origin)) }
         if !wasVisible {

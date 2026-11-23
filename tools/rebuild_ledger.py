@@ -3191,5 +3191,24 @@ EVIDENCE.update({
         "TagGroup 初始化（id/名称/颜色/排序/时间戳），侧栏与设置页共用同一模型",
 })
 
+EVIDENCE.update({
+    # 2026-11-23 GenieWarp 分阶段实测补测（神灯动画）
+    ("Core/Motion/GenieWarp.swift", "record"):
+        "显示链路回调打点：只把 CACurrentMediaTime 追加进数组（加锁），不做任何计算/绘制，回调里零分配",
+    ("Core/Motion/GenieWarp.swift", "start"):
+        "一腿动画开始时建 CVDisplayLink 并每帧记时；refresh 取实际刷新率、declaredFrames 用于反推「帧序列需要多少 fps」",
+    ("Core/Motion/GenieWarp.swift", "finish"):
+        "收尾停表并结算：实测 fps、p50/p95/max 回调间隔、按刷新率推算的缺失回调数，一条日志说明「合成链路有没有被抢占」",
+    ("Core/Motion/GenieWarp.swift", "cancel"):
+        "停 CVDisplayLink 并释放；finish/cancel/teardown 都会走到，保证探针不常驻、不制造持续开销",
+    # 2026-11-23 存储地图录屏/排障
+    ("Features/Monitor/Storage/StorageTreemap.swift", "startScriptedHoverIfNeeded"):
+        "仅当 probe.storageHover=1（或深链 ?hover=1）时，按面积最大的几块中心生成巡航路线并驱动同一个 hover 状态；默认不启用，真实鼠标交互与产品行为不变",
+    ("Features/Monitor/Storage/StorageTreemap.swift", "start"):
+        "30Hz 定时器沿「A→B→C→B→A」线性插值移动压力中心，仍走同一条压力场与 0.26/0.86 弹簧，因此录到的是真实形变与回弹（只是输入源非鼠标）",
+    ("Features/Monitor/Storage/StorageTreemap.swift", "stop"):
+        "停表并置 nil；到时自动停、onDisappear 也停，不留下常驻定时器",
+})
+
 if __name__ == "__main__":
     sys.exit(main())
