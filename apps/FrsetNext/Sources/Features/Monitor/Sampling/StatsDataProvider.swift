@@ -440,6 +440,7 @@ public final class StatsDataProvider {
             items.reserveCapacity(Int(n))
             var cpuTemps: [Double] = []
             var gpuTemps: [Double] = []
+            var gpuTempMax = 0.0
             for i in 0..<Int(n) {
                 var raw = sensorPtr[i]
                 let key = String(cString: FSStatsSensorKey(&raw))
@@ -481,19 +482,18 @@ public final class StatsDataProvider {
                     if meta.group == 1 { cpuTemps.append(raw.value) }
                     if meta.group == 2 { gpuTemps.append(raw.value) }
                 }
+                if raw.category == 0
+                    && (meta.key.hasPrefix("TV") || meta.key.hasPrefix("TG"))
+                    && raw.value > gpuTempMax {
+                    gpuTempMax = raw.value
+                }
             }
             snap.sensors = items
             snap.calcAverageCPU = cpuTemps.isEmpty ? nil : cpuTemps.reduce(0, +) / Double(cpuTemps.count)
             snap.calcHottestCPU = cpuTemps.max()
             snap.calcAverageGPU = gpuTemps.isEmpty ? nil : gpuTemps.reduce(0, +) / Double(gpuTemps.count)
             snap.calcHottestGPU = gpuTemps.max()
-            // GPU 温度：TV*/TG* 最大值
-            // v129（内存）：filter+map 双中间数组 → 单循环求 max（600 项扫描每5s/30s 一轮）
-            var gpuTempMax = 0.0
-            for item in items where item.category == 0
-                && (item.key.hasPrefix("TV") || item.key.hasPrefix("TG")) {
-                if item.value > gpuTempMax { gpuTempMax = item.value }
-            }
+            // GPU 温度：TV*/TG* 最大值在 SMC 扫描中同步计算
             snap.gpuTemperature = gpuTempMax
             // 多风扇：FNum + F{i}ID/F{i}Ac + 官方百分比
             snap.fans = StatsDataProvider.readFans()

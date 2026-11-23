@@ -57,22 +57,6 @@ public enum MonitorExtra {
     }
 }
 
-/// MonitorSample 的只读便捷属性（数据来自 MonitorExtra 旁路容器）
-public extension MonitorSample {
-    /// 压缩内存字节数
-    var compressedMemory: UInt64 { MonitorExtra.current.compressedMemory }
-    /// 1 分钟平均负载
-    var loadAverage1m: Double { MonitorExtra.current.loadAverages.first ?? 0 }
-    /// 5 分钟平均负载
-    var loadAverage5m: Double { MonitorExtra.current.loadAverages.count > 1 ? MonitorExtra.current.loadAverages[1] : 0 }
-    /// 15 分钟平均负载
-    var loadAverage15m: Double { MonitorExtra.current.loadAverages.count > 2 ? MonitorExtra.current.loadAverages[2] : 0 }
-    /// 本次采样之后的累计下载字节
-    var netTotalDownload: UInt64 { MonitorExtra.current.netTotalIn }
-    /// 本次采样之后的累计上传字节
-    var netTotalUpload: UInt64 { MonitorExtra.current.netTotalOut }
-}
-
 /// 使用系统 API 直接读取性能指标；单个指标失败不影响其他指标。
 ///
 /// - CPU：`host_processor_info` 差分（system/user/idle/nice + 每核）

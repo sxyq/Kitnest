@@ -2669,21 +2669,21 @@ Monitor,Features/Monitor/Sampling/MonitorPreferences.swift,MonitorPreferences,no
 Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReadResult,init,init,11,KEEP,2026-11-20：readResult 把采样主体和压缩内存放在同一次返回；MonitorSampler 取主体并向补充数据发布压缩计数
 Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorExtra,update,func,47,KEEP,2026-11-20：采样线程使用同一把锁把闭包作用于补充指标；发布压缩、负载、流量累计与峰值
 Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorExtra,reset,func,53,KEEP,2026-11-20：设置重置历史调用；在同一把锁内替换补充快照，网络累计和磁盘峰值随之清零
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,init,init,115,KEEP,2026-11-20：MonitorSampler 独有读取器；由实例跨采样保留 CPU、网络及磁盘上一轮计数
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readResult,func,131,KEEP,2026-11-20：采样器按 C 快照是否有效传 needFull；有效时跳过 CPU、吞吐和电池五路备用读取，但保留内存压力、温度与功耗
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readCPU,func,169,KEEP,2026-11-20：备用路径从 host_processor_info 读取每核四类时间并及时释放内存；与上一帧作差，生成即时分项和每核占比
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readMemory,func,232,KEEP,2026-11-20：两种快照路径均调用；Mach VM 读取系统页面计数，计算已用、压力及压缩字节，交换值直接消费已有深层快照
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,loadAverages,func,263,KEEP,2026-11-20：仅 C 快照无效时 MonitorSampler 调用 getloadavg 取得 1、5、15 分钟负载；保留有效返回数，失败或无效的值为零
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readNetworkCounters,func,274,KEEP,2026-11-20：备用网络吞吐取数；getifaddrs 只纳入启用的非回环接口，按接口名去重计数，释放链表
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readNetworkRate,func,306,KEEP,2026-11-20：备用网络路径；按系统单调运行时间与上一轮接口字节累计作差，第一次返回零速率
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readDiskRate,func,320,KEEP,2026-11-20：备用磁盘路径；IOKit 汇总各块存储驱动读写量并释放句柄；与上一帧作差后返回 bytes/s
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readTemperatures,func,358,KEEP,2026-11-20：温度已启用时筛选本次深层采样的类别0条目，以传感器键返回读数，不重新扫描 SMC
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readBatteryLevel,func,364,KEEP,2026-11-20：备用电池路径读取 IOKit 电源描述；从第一条容量有效的来源计算比例，否则无电池值
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readPower,func,382,KEEP,2026-11-20：两种快照路径共用 C 功耗采样，系统负载与输入功率分别保存；AppleSmartBattery 提供外接电源和充电状态
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,delta,func,409,KEEP,2026-11-20：CPU 核心时间和网络、磁盘累计共用，向下跳变视作前计数失效并返回零差值
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,rate,func,413,KEEP,2026-11-20：网络及磁盘共同把字节差换成速率；有效时长下转 UInt64，与上层显示统一使用字节每秒
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,clamp,func,420,KEEP,2026-11-20：CPU、内存压力和电池利用率使用共同的0至1范围，避免非有限值进入显示
-Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,uint64Value,func,425,KEEP,2026-11-20：从 IOKit Statistics 中读取读写累计字节，并桥接 NSNumber 或 UInt64；缺值为零
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,init,init,99,KEEP,2026-11-20：MonitorSampler 独有读取器；由实例跨采样保留 CPU、网络及磁盘上一轮计数
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readResult,func,115,KEEP,2026-11-20：采样器按 C 快照是否有效传 needFull；有效时跳过 CPU、吞吐和电池五路备用读取，但保留内存压力、温度与功耗
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readCPU,func,153,KEEP,2026-11-20：备用路径从 host_processor_info 读取每核四类时间并及时释放内存；与上一帧作差，生成即时分项和每核占比
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readMemory,func,216,KEEP,2026-11-20：两种快照路径均调用；Mach VM 读取系统页面计数，计算已用、压力及压缩字节，交换值直接消费已有深层快照
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,loadAverages,func,247,KEEP,2026-11-20：仅 C 快照无效时 MonitorSampler 调用 getloadavg 取得 1、5、15 分钟负载；保留有效返回数，失败或无效的值为零
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readNetworkCounters,func,258,KEEP,2026-11-20：备用网络吞吐取数；getifaddrs 只纳入启用的非回环接口，按接口名去重计数，释放链表
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readNetworkRate,func,290,KEEP,2026-11-20：备用网络路径；按系统单调运行时间与上一轮接口字节累计作差，第一次返回零速率
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readDiskRate,func,304,KEEP,2026-11-20：备用磁盘路径；IOKit 汇总各块存储驱动读写量并释放句柄；与上一帧作差后返回 bytes/s
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readTemperatures,func,342,KEEP,2026-11-20：温度已启用时筛选本次深层采样的类别0条目，以传感器键返回读数，不重新扫描 SMC
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readBatteryLevel,func,348,KEEP,2026-11-20：备用电池路径读取 IOKit 电源描述；从第一条容量有效的来源计算比例，否则无电池值
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,readPower,func,366,KEEP,2026-11-20：两种快照路径共用 C 功耗采样，系统负载与输入功率分别保存；AppleSmartBattery 提供外接电源和充电状态
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,delta,func,393,KEEP,2026-11-20：CPU 核心时间和网络、磁盘累计共用，向下跳变视作前计数失效并返回零差值
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,rate,func,397,KEEP,2026-11-20：网络及磁盘共同把字节差换成速率；有效时长下转 UInt64，与上层显示统一使用字节每秒
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,clamp,func,404,KEEP,2026-11-20：CPU、内存压力和电池利用率使用共同的0至1范围，避免非有限值进入显示
+Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,uint64Value,func,409,KEEP,2026-11-20：从 IOKit Statistics 中读取读写累计字节，并桥接 NSNumber 或 UInt64；缺值为零
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,History,init,init,36,KEEP,2026-11-20：为空时发布初始历史，构建两份快照缓存及清空历史后的空快照；图表按字段读取
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setIslandActive,func,65,KEEP,2026-11-20：IslandContent 仅正式监测组件可见时更新此位，离开关闭；变化后重排定时并在进入时立即请求一帧
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setPanelActive,func,72,KEEP,2026-11-20：MonitorPopoutWindow 显示标记可见，面板收起和关闭清除此位；不改变主面板状态
