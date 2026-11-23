@@ -36,6 +36,21 @@ defaults read com.apple.universalaccess reduceMotion   # 1 = 系统已减弱动�
 设置页通知条预览的稳定判据：弹入 77→450→533→586（过冲）→530；隐藏 474→261→0。
 若只有 0→满值，先查 `reduceMotion`，再查 `withAnimation` 的两帧是否被合并。
 
+## 1.2 零打扰验证（用户正在使用电脑时必须遵守，2026-11-23）
+
+用户明确要求：**不能抢鼠标、不能改变屏幕焦点、不能在使用时跳出新窗口打断**。
+验证时按下面这套做，全程不 `open -a`、不 `activate`、不移动系统光标：
+
+- **窗口 id 列表**：CGWindowList 读 `kCGWindowOwnerName / kCGWindowNumber / kCGWindowBounds`（swift 脚本），不要用 System Events（会要辅助访问权限）。
+- **截图**：`screencapture -l<窗id> -o out.png` 直接抓该窗口缓冲，窗口被其他 App 遮挡也能抓到，不置前。
+- **录屏**：`screencapture -l<窗id> -V 9 out.mov` 只录该窗口，不会录到用户正在用的窗口。
+- **改窗口尺寸**：AX `kAXSizeAttribute` 设置后读回核对；这一步会改变用户眼前的窗口，**先问再做**。
+- **按键/点击**：`CGEvent.postToPid(pid)` 不移动真实光标、不切前台，但对 SwiftUI 无边框 sheet / `onContinuousHover` 常常无效——别把它当可靠手段。
+- **禁止**：`open kitnest://…`（会弹窗）、`osascript activate`、`NSApp.activate`、真实 CGEvent 光标移动。
+- **可安全做**：读源码、读日志、读数据库（先 `cp` 到 /tmp 再查，避免锁）、`check.sh` 静态校验、`func_table/ledger/reconcile`。
+
+> 做不到的验证（悬停液态、触控板震动、Instruments 帧率）**如实标注待实测**，不要用截图或编译成功代替。
+
 ## 2. defaults 探针（非交互触发）
 
 ```bash
