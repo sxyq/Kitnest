@@ -80,8 +80,8 @@ final class ArchiveEntryTableHost: NSView {
         tableView.addTableColumn(col)
         tableView.headerView = nil
         tableView.style = .plain
-        tableView.rowHeight = 24
-        tableView.usesAlternatingRowBackgroundColors = false
+        tableView.rowHeight = 28
+        tableView.usesAlternatingRowBackgroundColors = true
         tableView.allowsMultipleSelection = true
         tableView.allowsEmptySelection = true
         tableView.allowsColumnSelection = false
@@ -240,7 +240,7 @@ final class ArchiveEntryRowView: NSView {
     private let nameLabel = NSTextField(labelWithString: "")
     private let auxLabel = NSTextField(labelWithString: "辅助")
     private let sizeLabel = NSTextField(labelWithString: "")
-    private let ratioLabel = NSTextField(labelWithString: "")
+    private let dateLabel = NSTextField(labelWithString: "")
 
     init(entry: ArchiveEntry) {
         super.init(frame: .zero)
@@ -255,23 +255,29 @@ final class ArchiveEntryRowView: NSView {
         unsafeView.contentTintColor = .systemOrange
         unsafeView.toolTip = "路径不安全（../ 穿越 / 绝对路径 / 设备名）。穿越与绝对路径解压时拦截跳过，设备名仅警告（v127.1）"
 
-        nameLabel.font = .systemFont(ofSize: 11)
+        nameLabel.font = .systemFont(ofSize: 12)
         nameLabel.lineBreakMode = .byTruncatingMiddle
         nameLabel.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
 
         auxLabel.font = .systemFont(ofSize: 8)
         auxLabel.textColor = .tertiaryLabelColor
 
-        sizeLabel.font = .monospacedDigitSystemFont(ofSize: 10, weight: .regular)
+        sizeLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
         sizeLabel.textColor = .secondaryLabelColor
         sizeLabel.alignment = .right
 
-        ratioLabel.font = .monospacedDigitSystemFont(ofSize: 10, weight: .regular)
-        ratioLabel.textColor = .tertiaryLabelColor
-        ratioLabel.alignment = .right
+        dateLabel.font = .monospacedDigitSystemFont(ofSize: 11, weight: .regular)
+        dateLabel.textColor = .tertiaryLabelColor
+        dateLabel.alignment = .right
+
+        // 弹性占位：名称与「大小/日期」之间必须有一个可拉伸的空视图，
+        // 否则 NSStackView 会把四段文字挤在最左侧（实测：值与列头错位约 100pt）。
+        let spacer = NSView()
+        spacer.setContentHuggingPriority(.init(1), for: .horizontal)
+        spacer.setContentCompressionResistancePriority(.init(1), for: .horizontal)
 
         let stack = NSStackView(views: [iconView, lockView, unsafeView, nameLabel, auxLabel,
-                                       sizeLabel, ratioLabel])
+                                       spacer, sizeLabel, dateLabel])
         stack.orientation = .horizontal
         stack.spacing = 6
         stack.alignment = .centerY
@@ -288,8 +294,8 @@ final class ArchiveEntryRowView: NSView {
             iconView.heightAnchor.constraint(equalToConstant: 16),
             lockView.widthAnchor.constraint(equalToConstant: 10),
             unsafeView.widthAnchor.constraint(equalToConstant: 10),
-            sizeLabel.widthAnchor.constraint(equalToConstant: 64),
-            ratioLabel.widthAnchor.constraint(equalToConstant: 48)
+            sizeLabel.widthAnchor.constraint(equalToConstant: 76),
+            dateLabel.widthAnchor.constraint(equalToConstant: 132)
         ])
         update(entry: entry)
     }
@@ -301,7 +307,7 @@ final class ArchiveEntryRowView: NSView {
         nameLabel.stringValue = entry.path
         auxLabel.isHidden = !ArchiveCore.isAuxiliary(entry.path)
         sizeLabel.stringValue = entry.sizeText
-        ratioLabel.stringValue = entry.ratioText
+        dateLabel.stringValue = entry.modified
     }
 
     required init?(coder: NSCoder) {

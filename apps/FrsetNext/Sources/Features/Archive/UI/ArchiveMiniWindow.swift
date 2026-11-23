@@ -57,36 +57,39 @@ private enum MiniFileIcon {
     }
 }
 
-/// v127（ArcZip P3）：Mini 窗专用简化 tile（图标 + 名称 + 大小，支持拖出）。
-/// 与 ArchiveEntryTile 思路一致但独立实现——避免与浏览窗缩略图链路耦合。
-struct MiniEntryTile: View {
+/// Mini 行（ArcZip 1.2.5 截图：图标 16 + 名称 12 + 右对齐大小 11，行高 28）
+struct MiniEntryRow: View {
     let archiveURL: URL
     let entry: ArchiveEntry
     var onOpen: (ArchiveEntry) -> Void
 
+    @Environment(\.colorScheme) private var colorScheme
+    @Stored private var hovering = false
+
     var body: some View {
-        VStack(spacing: 2) {
+        HStack(spacing: 8) {
             Image(nsImage: MiniFileIcon.icon(for: entry))
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-                .frame(width: 34, height: 34)
+                .frame(width: 16, height: 16)
             Text(entry.name)
-                .font(.system(size: 11))
-                .lineLimit(2)
-                .multilineTextAlignment(.center)
+                .font(.system(size: 12))
+                .lineLimit(1)
                 .truncationMode(.middle)
+            Spacer(minLength: 8)
             Text(entry.sizeText)
                 .font(.system(size: 11, design: .monospaced))
-                .foregroundStyle(Theme.tertiaryText)
+                .foregroundStyle(.secondary)
                 .lineLimit(1)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 4)
+        .padding(.horizontal, 12)
+        .frame(height: 28)
+        .background(hovering ? Theme.insetFill : Color.clear)
         .contentShape(Rectangle())
-        .help(entry.path)
-        // v127（ArcZip P3）：拖出即解压（MiniEntryDragPayload 按需解到临时目录）
-        .draggable(MiniEntryDragPayload(archiveURL: archiveURL, entry: entry))
+        .onHover { hovering = $0 }
         .onTapGesture(count: 2) { onOpen(entry) }
+        .draggable(MiniEntryDragPayload(archiveURL: archiveURL, entry: entry))
+        .help(entry.path)
     }
 }
 
@@ -159,8 +162,6 @@ final class ArchiveMiniModel: ObservableObject {
 struct ArchiveMiniView: View {
     @ObservedObject var model: ArchiveMiniModel
 
-    private let columns = [GridItem(.adaptive(minimum: 78), spacing: 6)]
-
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -169,35 +170,46 @@ struct ArchiveMiniView: View {
             Divider()
             footer
         }
-        .frame(minWidth: 320, minHeight: 380)
+        .frame(minWidth: 400, minHeight: 340)
     }
 
     private var header: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "archivebox.fill")
-                .foregroundStyle(Theme.accent)
-            VStack(alignment: .leading, spacing: 0) {
+        HStack(spacing: 10) {
+            ArchiveGlyph(size: 34)
+            VStack(alignment: .leading, spacing: 1) {
                 Text(model.title)
-                    .font(.system(size: 11, weight: .semibold))
+                    .font(.system(size: 12, weight: .semibold))
                     .lineLimit(1)
                     .truncationMode(.middle)
-                Text("\(model.entries.count) 项")
-                    .font(.system(size: 11))
+                Text("\(ArchiveFormat.describe(model.url)) · \(model.entries.count) 个项目")
+                    .font(.system(size: 10))
                     .foregroundStyle(Theme.tertiaryText)
+                    .lineLimit(1)
             }
-            Spacer()
-            // v127（ArcZip P3）：置顶图钉按钮（状态与 window.level 同步）
+            Spacer(minLength: 8)
+
             Button {
                 model.isPinned.toggle()
             } label: {
                 Image(systemName: model.isPinned ? "pin.fill" : "pin")
+                    .font(.system(size: 11))
                     .foregroundStyle(model.isPinned ? Theme.accent : .secondary)
+                    .frame(width: 24, height: 24)
+                    .background(Circle().fill(Theme.insetFill))
             }
             .buttonStyle(.plain)
-            .help(model.isPinned ? "取消置顶" : "置顶（悬浮在其他窗口之上）")
+            .help(model.isPinned ? "取消置顶" : "置顶窗口")
+
+            HStack(spacing: 6) {
+                ArchiveGlyph(size: 20)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Kitnest").font(.system(size: 10, weight: .semibold))
+                    Text("Mini").font(.system(size: 9)).foregroundStyle(Theme.tertiaryText)
+                }
+            }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 12)
+        .frame(height: 56)
     }
 
     @ViewBuilder
@@ -219,34 +231,53 @@ struct ArchiveMiniView: View {
                 .controlSize(.small)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else if model.entries.isEmpty {
-            Text("归档为空")
+            Text("压缩包中没有项目")
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ScrollView {
-                LazyVGrid(columns: columns, spacing: 6) {
-                    ForEach(model.entries.filter { !$0.isDirectory } + model.entries.filter { $0.isDirectory },
-                            id: \.id) { entry in
-                        MiniEntryTile(archiveURL: model.url, entry: entry) { model.openEntry($0) }
+                LazyVStack(spacing: 0) {
+                    ForEach(sortedEntries, id: \.id) { entry in
+                        MiniEntryRow(archiveURL: model.url, entry: entry) { model.openEntry($0) }
                     }
                 }
-                .padding(8)
+                .padding(.vertical, 4)
             }
         }
     }
 
+    private var sortedEntries: [ArchiveEntry] {
+        model.entries.filter { $0.isDirectory } + model.entries.filter { !$0.isDirectory }
+    }
+
     private var footer: some View {
-        HStack(spacing: 6) {
-            Button("完整界面") { model.openFullBrowser() }
-                .help("切换到完整归档浏览窗口")
-            Button("解压到…") { model.extractAll() }
-                .keyboardShortcut(.defaultAction)
-            Spacer()
+        HStack(spacing: 8) {
+            ArchiveCircleButton(symbol: "arrow.up.left.and.arrow.down.right", help: "进入主工作区") {
+                model.openFullBrowser()
+            }
+            ArchiveCircleButton(symbol: "arrow.down.to.line", help: "全部解压…") {
+                model.extractAll()
+            }
+            Spacer(minLength: 8)
+            Button {
+                model.extractAll()
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "bolt.fill").font(.system(size: 10))
+                    Text("解压").font(.system(size: 11, weight: .semibold))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14)
+                .frame(height: 26)
+                .background(Capsule().fill(Theme.accent))
+            }
+            .buttonStyle(.plain)
+            .help("全部解压到…")
         }
-        .controlSize(.small)
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
+        .padding(.horizontal, 12)
+        .frame(height: 46)
+        .background(.bar)
     }
 }
 
@@ -277,9 +308,9 @@ public final class ArchiveMiniWindowController: NSWindowController, NSWindowDele
         let hosting = NSHostingController(rootView: ArchiveMiniView(model: model))
         let win = NSWindow(contentViewController: hosting)
         win.title = "Mini · \(url.lastPathComponent)"
-        // v127（ArcZip P3）：约 360×420 的浏览专用小窗
-        win.setContentSize(NSSize(width: 360, height: 420))
-        win.minSize = NSSize(width: 320, height: 380)
+        // 2026-11-23（ArcZip 1.2.5 截图）：Mini 约 520×430，列表式浏览
+        win.setContentSize(NSSize(width: 520, height: 430))
+        win.minSize = NSSize(width: 400, height: 340)
         win.styleMask = [.titled, .closable, .resizable, .miniaturizable]
         win.isReleasedWhenClosed = false
         win.applyOfficialChrome()   // v179：与其它文档窗统一（灰底 + 透明标题栏 + 圆钮）

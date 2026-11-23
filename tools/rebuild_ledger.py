@@ -3218,5 +3218,24 @@ EVIDENCE.update({
         "私有框架路径，默认永远是系统真实路径；只有排障参数 --haptic-framework=<path> 才指向别处，用于在真实进程里走到「系统移除 MTActuator 符号」分支，业务调用不带该参数",
 })
 
+
+EVIDENCE.update({
+    # 2026-11-23 ArcZip 1.2.5 工作区外观对齐
+    ("Features/Archive/UI/ArchiveWorkspaceChrome.swift", "navButton"):
+        "路径胶囊里的 ‹ › ↑ 单钮：禁用态变淡且不可点，不占 Tab 焦点，命中区固定 22×22",
+    ("Features/Archive/UI/ArchiveWorkspaceChrome.swift", "previewCanvas"):
+        "检查器预览画布：固定 180pt、圆角用 Theme.Radius.card；有内容才显示展开角标，点开走原大预览 sheet（文本编辑仍在 sheet）",
+    ("Features/Archive/UI/ArchiveWorkspaceChrome.swift", "metadata"):
+        "元信息行：左标签 58pt 宽灰字 11pt、右值 11pt 截断中间，行高 26 加一条发丝线；压缩包态与条目态共用",
+    ("Features/Archive/UI/ArchiveWorkspaceChrome.swift", "init"):
+        "PDF 首页缩略：按画布宽度等比生成 NSImage，检查器只放缩略图不嵌完整 PDFView，避免小面板里加载整份文档",
+    ("Features/Archive/UI/ArchiveWorkspaceChrome.swift", "describe"):
+        "按扩展名给检查器类型说明（ZIP/7Z/TAR.GZ/TAR/RAR 压缩包、DMG/ISO 磁盘映像），不读文件内容",
+    ("Features/Archive/UI/ArchiveWorkspaceChrome.swift", "fileType"):
+        "条目态副标题：文件夹显示「文件夹」，文件按扩展名显示「PDF 文件」等；空扩展名回落「文件」",
+    ("Features/Archive/UI/ArchiveWorkspaceChrome.swift", "symbol"):
+        "没有缩略图时按扩展名选 SF Symbol（图片/视频/音频/表格/文档/应用），只在检查器预览画布用",
+})
+
 if __name__ == "__main__":
     sys.exit(main())
