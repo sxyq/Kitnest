@@ -2335,7 +2335,7 @@ F1617,objc,FrsetStatsBar/frset_barwidgets.m,,FSRunCatImage,1710,1722,13,3,,,,,,s
 F1618,objc,FrsetStatsBar/frset_barwidgets.m,,FSRunCatEnsureMainIconOverlay,1751,1795,45,2,,,Y,,,static,static void FSRunCatEnsureMainIconOverlay(void) {,static,normal,low,静态判定：热点=无
 F1619,objc,FrsetStatsBar/frset_barwidgets.m,,FSRunCatIconEnabled,1798,1798,1,1,,,,,,,BOOL FSRunCatIconEnabled(void) { return g_mainIconCatEnabled; },static,normal,low,静态判定：热点=无
 F1620,objc,FrsetStatsBar/frset_barwidgets.m,,FSRunCatIconSetEnabled,1799,1814,16,1,,,Y,,,,void FSRunCatIconSetEnabled(BOOL on) {,static,normal,low,静态判定：热点=无
-F1621,objc,FrsetStatsBar/frset_barwidgets.m,,FSRunCatTick,1816,1889,74,2,,,Y,,,static,static void FSRunCatTick(void) {,static,normal,low,静态判定：热点=无
+F1621,objc,FrsetStatsBar/frset_barwidgets.m,,FSRunCatTick,1955,2019,65,1,,,Y,,mainThread,static,static void FSRunCatTick(void) {,manual,normal,low,2026-11-23：0.10 秒定时器推进现有 8fps 帧动画，仅帧变化时调用 FSRunCatUpdateMainIcon；小猫保持启用并沿用既有帧序与 CPU 倍速。
 F1622,objc,FrsetStatsBar/frset_barwidgets.m,,FSRunCatStartTimer,1891,1898,8,2,,,,,timer,static,static void FSRunCatStartTimer(void) {,static,normal,low,静态判定：热点=timer
 F1623,objc,FrsetStatsBar/frset_barwidgets.m,,FSFindMainBarItem,1908,1918,11,4,,,Y,,,static,static NSStatusItem *FSFindMainBarItem(void) {,static,normal,low,静态判定：热点=无
 F1624,objc,FrsetStatsBar/frset_barwidgets.m,,FSBarRebuildModuleViews,1942,1950,9,1,,,Y,,,static,static void FSBarRebuildModuleViews(NSString *module) {,static,normal,low,静态判定：热点=无
@@ -2822,3 +2822,4 @@ F3122,swift,Features/Clipboard/UI/RecentClipboardWindow.swift,-,windowWillClose,
 F3123,swift,Features/Clipboard/UI/RecentClipboardWindow.swift,RecentClipboardCell,draw,284,291,8,,,,,,,,override func draw(_ dirtyRect: NSRect) {,manual,keep,low,2026-11-19人工源码复核：已阅读实现并沿实际调用入口、系统回调与异步资源生命周期核对；保留当前处理，未确认收益明确且语义不变的减负方式。
 F3124,swift,Features/Clipboard/UI/RecentClipboardWindow.swift,RecentClipboardCell,init,303,329,27,,,,,,,,override init(frame frameRect: NSRect) {,manual,keep,low,2026-11-19人工源码复核：已阅读实现并沿实际调用入口、系统回调与异步资源生命周期核对；保留当前处理，未确认收益明确且语义不变的减负方式。
 F3125,swift,Features/Clipboard/UI/RecentClipboardWindow.swift,RecentClipboardCell,init,331,331,1,,,,,,,,required init?(coder: NSCoder) {,manual,keep,low,2026-11-19人工源码复核：已阅读实现并沿实际调用入口、系统回调与异步资源生命周期核对；保留当前处理，未确认收益明确且语义不变的减负方式。
+F3127,objc,FrsetStatsBar/frset_barwidgets.m,,FSRunCatUpdateMainIcon,1919,1931,13,2,,,,,mainThread,static,static void FSRunCatUpdateMainIcon(void) {,manual,optimize_done,medium,"2026-11-23：每帧只在 NSButton 的 title、imagePosition、imageScaling 不同时赋值；图片更新与 34pt 宽度不变。安装版前后各采样 3 秒，_redrawReplicantSnapshot 245→125 次、_updateReplicants 350→179 次；下降约49%，CPU百分比未单独归因。3 秒录制小猫区域 24 帧，帧间像素变化确认动效保持。"
