@@ -1920,9 +1920,11 @@ static void FSRunCatUpdateMainIcon(void) {
     NSStatusItem *main = FSFindMainBarItem();
     if (!main || !main.button) return;
     NSButton *b = main.button;
-    b.title = @"";
-    b.imagePosition = NSImageOnly;
-    b.imageScaling = NSImageScaleProportionallyDown;
+    if (b.title.length != 0) b.title = @"";
+    if (b.imagePosition != NSImageOnly) b.imagePosition = NSImageOnly;
+    if (b.imageScaling != NSImageScaleProportionallyDown) {
+        b.imageScaling = NSImageScaleProportionallyDown;
+    }
     b.image = FSRunCatImage(g_runCatFrame, FSRunCatImageTemplate);
     if (main.length != 34) main.length = 34;
     g_mainIconCatLastFrame = g_runCatFrame;
