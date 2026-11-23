@@ -32,8 +32,15 @@ BASELINE = os.path.join(ROOT, "tools", "ui-lint-baseline.txt")
 
 # 微元素圆角（圆点、格子、发丝条）与文档登记的 HUD 例外
 ALLOWED_CORNER_LITERALS = {"1", "1.5", "2", "3"}
-# 这些文件是「玻璃基础设施」本身，允许直接出现 material / NSVisualEffectView
-GLASS_INFRA = {"Core/UI/LiquidGlass.swift", "Core/UI/OfficialWindowChrome.swift"}
+# 这些文件是「玻璃基础设施」本身，允许直接出现 material / NSVisualEffectView。
+# 注意 LiquidGlassMaterial.swift 持有 `enum LiquidGlass` 的 makeView 工厂
+# （NSGlassEffectView 26+ / NSVisualEffectView 回退的唯一入口），与 LiquidGlass.swift
+# 同属玻璃核心，必须一并豁免——否则 R2 会把「统一玻璃实现本身」判成绕过统一玻璃。
+GLASS_INFRA = {
+    "Core/UI/LiquidGlass.swift",
+    "Core/UI/LiquidGlassMaterial.swift",
+    "Core/UI/OfficialWindowChrome.swift",
+}
 
 R_EDGE = re.compile(r"cornerRadius:\s*([0-9]+(?:\.[0-9]+)?)\s*[,)]")
 R_MATERIAL = re.compile(r"\.regularMaterial\b")

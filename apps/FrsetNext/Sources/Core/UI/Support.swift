@@ -132,6 +132,12 @@ public struct ThemeAppearance {
         thumbSize + personalization.density.statsRowHeight - personalization.density.thumbSize
     }
     public var windowSurface: Color { Theme.windowSurface(for: personalization, midnight: isMidnight) }
+    /// 阅读面不透明底（预览栏 / 长文区：切断玻璃透射，保证正文对比度）
+    public var readingBase: Color { Theme.readingBase(for: personalization, midnight: isMidnight) }
+    /// 侧栏磨砂底衬（分类导航栏：比 contentBase 实、比 floatingGlass 透）
+    public var sidebarFill: Color { Theme.sidebarFill(for: personalization, midnight: isMidnight) }
+    /// 侧栏磨砂霜感（跟随「磨砂」滑块，强度是窗口级的一半）
+    public var sidebarFrost: Color { Theme.sidebarFrost(for: personalization) }
     public var glassFrost: Color { Theme.glassFrost(for: personalization) }
     public var cardFill: Color { Theme.cardFill(for: personalization, midnight: isMidnight) }
     public var cardStroke: Color { Theme.cardStroke(for: personalization) }
@@ -235,6 +241,59 @@ extension Theme {
                 ? NSColor(srgbRed: 0.110, green: 0.110, blue: 0.118, alpha: 1)
                 : NSColor(srgbRed: 0.957, green: 0.957, blue: 0.969, alpha: 1)
             return (base, CGFloat(opacity))
+        }
+    }
+
+    /// 阅读面不透明底（2026-11-23 需求 B 五：「预览文字可读，不被玻璃透射干扰」）。
+    ///
+    /// 与 `windowSurface` **同基色**，但 alpha 恒为 1。预览栏 / 长文阅读区
+    /// 这类要长时间盯正文的面，铺在窗口玻璃之上时必须切断玻璃透射——
+    /// 否则壁纸/桌面内容会从正文底下透出来，小字号对比度直接塌掉。
+    /// 只给「阅读面」用；普通卡片仍走 cardFill（半透明是层次感来源）。
+    public static var readingBase: Color {
+        readingBase(for: .shared, midnight: AppearanceState.shared.isMidnight)
+    }
+    public static func readingBase(for p: Personalization, midnight: Bool) -> Color {
+        if midnight { return MidnightTheme.baseBackground(for: p) }
+        return cachedSurface("reading") { isDark in
+            let base = isDark
+                ? NSColor(srgbRed: 0.110, green: 0.110, blue: 0.118, alpha: 1)
+                : NSColor(srgbRed: 0.957, green: 0.957, blue: 0.969, alpha: 1)
+            return (base, 1)
+        }
+    }
+
+    // MARK: 侧栏磨砂（2026-11-23 需求 B 三：三栏工作台左侧分类导航栏）
+    //
+    // 口径：**比 contentBase 实一点、比 floatingGlass 透一点**——
+    // 分类导航栏要「轻微磨砂感」，与中间卡片区有微妙区分，但不能像浮层那样抢戏。
+    // 配方沿用 GlassSurface 的两层色调（底衬 + 霜感），**不另加模糊**：
+    // 侧栏坐在窗口玻璃之上，采样已经由窗口那层做过，再叠一层只会掉帧。
+    // 两层强度都比窗口级轻一档（底衬 ≈ insetFill 的一半，霜感 ≈ glassFrost 的一半）。
+
+    /// 侧栏底衬：极轻的明暗微调，把侧栏和卡片区分成两块但不抢内容。
+    /// 浅色压一点暗、深色提一点亮（与设置窗侧栏原实色同向、略轻）。
+    public static var sidebarFill: Color {
+        sidebarFill(for: .shared, midnight: AppearanceState.shared.isMidnight)
+    }
+    public static func sidebarFill(for p: Personalization, midnight: Bool) -> Color {
+        if midnight { return MidnightTheme.baseBackground(for: p).opacity(0.30) }
+        return cachedSurface("sidebar.fill") { isDark in
+            let base = isDark ? NSColor(white: 1, alpha: 1) : NSColor(white: 0, alpha: 1)
+            return (base, isDark ? 0.05 : 0.028)
+        }
+    }
+
+    /// 侧栏霜感：玻璃之上的漫反射薄雾，「磨砂」观感的来源。
+    /// 跟随「磨砂」滑块（`glassBlur`），强度是窗口级 `glassFrost` 的一半。
+    public static var sidebarFrost: Color {
+        sidebarFrost(for: .shared)
+    }
+    public static func sidebarFrost(for p: Personalization) -> Color {
+        let blur = p.glassBlur
+        return cachedSurface("sidebar.frost.\(blur)") { isDark in
+            let b = CGFloat(blur)
+            return (NSColor(white: 1, alpha: 1), isDark ? 0.055 * b : 0.10 * b)
         }
     }
 

@@ -20,6 +20,12 @@ public struct ClipboardQuery {
     public var urlLikeOnly: Bool = false
     public var fileCategoryMask: Int = 0
     public var tagID: String? = nil
+    /// 收藏等级筛选：nil=不限；1/2/3=按 resource_favorites.level 精确匹配（05 号规格 B8：等级收藏）
+    public var favoriteLevel: Int? = nil
+    /// 标签分组筛选：nil=不限；按 tags.group_id 子查询（05 号规格 B8：标签分组）
+    public var tagGroupID: String? = nil
+    /// 最近使用：仅最近 24 小时（三栏工作台「最近使用」入口；时间维度与类型/等级正交）
+    public var recentOnly: Bool = false
     public var limit: Int = ClipboardRepository.defaultPageSize
     public var offset: Int = 0
 
@@ -33,6 +39,9 @@ public struct ClipboardQuery {
                 urlLikeOnly: Bool = false,
                 fileCategoryMask: Int = 0,
                 tagID: String? = nil,
+                favoriteLevel: Int? = nil,
+                tagGroupID: String? = nil,
+                recentOnly: Bool = false,
                 limit: Int = ClipboardRepository.defaultPageSize,
                 offset: Int = 0) {
         self.search = search
@@ -45,19 +54,31 @@ public struct ClipboardQuery {
         self.urlLikeOnly = urlLikeOnly
         self.fileCategoryMask = fileCategoryMask
         self.tagID = tagID
+        self.favoriteLevel = favoriteLevel
+        self.tagGroupID = tagGroupID
+        self.recentOnly = recentOnly
         self.limit = limit
         self.offset = offset
     }
 
+    /// 三栏工作台入口：**类型、收藏等级、标签分组是三个正交维度**。
+    /// `favoriteOnly` 由调用方显式传入（不再由 `filter == .favorite` 推导），
+    /// 这样「文本 + 重要收藏 + 工作分组」能同时生效。
     public init(filter: ClipboardFilterKind, search: String, tagID: String?,
+                favoriteOnly: Bool = false,
+                favoriteLevel: Int? = nil, tagGroupID: String? = nil,
+                recentOnly: Bool = false,
                 limit: Int = ClipboardRepository.defaultPageSize, offset: Int = 0) {
         let mapping = filter.queryMapping
         self.init(search: search.trimmingCharacters(in: .whitespacesAndNewlines),
-                  type: mapping.type, noteOnly: mapping.noteOnly, favoriteOnly: filter == .favorite,
+                  type: mapping.type, noteOnly: mapping.noteOnly,
+                  favoriteOnly: favoriteOnly || filter == .favorite,
                   toolGeneratedOnly: mapping.toolGeneratedOnly,
                   generatedSourceKeyword: mapping.generatedSourceKeyword,
                   codeLikeOnly: mapping.codeLikeOnly, urlLikeOnly: filter == .link,
                   fileCategoryMask: mapping.fileCategoryMask, tagID: tagID,
+                  favoriteLevel: favoriteLevel, tagGroupID: tagGroupID,
+                  recentOnly: recentOnly,
                   limit: limit, offset: offset)
     }
 }
@@ -132,6 +153,21 @@ public final class ClipboardRepository: @unchecked Sendable {
         if let tagID = query.tagID {
             clauses.append(#"dedupe_key IN (SELECT item_dedupe_key FROM clipboard_item_tags WHERE tag_id = ?)"#)
             values.append(.text(tagID))
+        }
+        // 收藏等级筛选：通过 resource_favorites.level 关联（与 is_favorite 兼容字段独立）
+        if let level = query.favoriteLevel {
+            clauses.append(#"dedupe_key IN (SELECT resource_id FROM resource_favorites WHERE resource_type='clipboard' AND level = ?)"#)
+            values.append(.int(Int64(level)))
+        }
+        // 标签分组筛选：通过 tags.group_id 子查询
+        if let groupID = query.tagGroupID {
+            clauses.append(#"dedupe_key IN (SELECT cit.item_dedupe_key FROM clipboard_item_tags cit JOIN tags t ON cit.tag_id = t.id WHERE t.group_id = ?)"#)
+            values.append(.text(groupID))
+        }
+        // 最近使用：24 小时窗口（三栏工作台「最近使用」；与类型/等级/分组正交）
+        if query.recentOnly {
+            clauses.append("timestamp >= ?")
+            values.append(.real(Date().timeIntervalSince1970 - 86_400))
         }
         if !query.search.isEmpty {
             let pattern = SQLiteValue.text("%" + Self.escapeLike(query.search) + "%")

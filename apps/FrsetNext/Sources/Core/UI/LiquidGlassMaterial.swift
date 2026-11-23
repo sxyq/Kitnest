@@ -41,7 +41,14 @@ enum LiquidGlass {
         let effect = NSVisualEffectView(frame: frame)
         effect.material = solid ? .windowBackground : material
         effect.blendingMode = solid ? .withinWindow : .behindWindow
-        effect.state = .inactive        // 固定失焦态：不随 key window 改变
+        // 固定失焦态：不随 key window 改变浓淡（v202 用户「焦点两套观感」的解法）。
+        // 2026-11-23 需求 B 六：这一档本身不会随焦点跳变（state 是硬钉的）；
+        // 真正会跳的是上面 26+ 的 NSGlassEffectView —— SDK 头文件
+        // (NSGlassEffectView.h) 里没有 state / isActive 之类的固定口子，
+        // 失焦观感由系统管。要彻底钉死就走 `followsWindowFocus: false`
+        // 回到本分支。任何后续重套样式请走 reapplyStyle（幂等 + 隐式动画），
+        // 不要直接改这三个属性，否则会作废整窗采样 → 闪一下。
+        effect.state = .inactive
         effect.wantsLayer = true
         if effect.layer == nil { effect.layer = CALayer() }
         setCornerRadius(cornerRadius, on: effect)
@@ -63,6 +70,19 @@ enum LiquidGlass {
     }
 
     /// 已存在的玻璃容器在「材质/圆角/着色」变更后重新套样式（个性化即改即生效）
+    ///
+    /// 2026-11-23（需求 B 六：「窗口失焦时 .inactive 态要平滑过渡，不能闪烁」）：
+    /// 旧实现每次调用都无条件重设 `material / blendingMode / state` 三个属性——
+    /// 哪怕值一个都没变，AppKit 也会作废整窗的玻璃采样并重采一遍，
+    /// 肉眼就是「失焦瞬间玻璃闪一下」。`reapplyStyle` 又被 show 前、
+    /// 数据刷新、外观切换等高频路径调用，等于把闪烁接到焦点切换上。
+    ///
+    /// 现在分两步：
+    ///   1. **幂等**：三个值都未变时直接短路，完全不碰采样层（首选路径）；
+    ///   2. **平滑**：真要改（降透明度切换 / 材质切换）时把赋值放进
+    ///      `NSAnimationContext` 隐式动画，.inactive 态以淡入方式到位，
+    ///      而不是硬切一帧。
+    /// 着色（tint）与圆角不参与采样失效，照旧即时生效。
     static func reapplyStyle(on view: NSView, cornerRadius: CGFloat, tint: NSColor?,
                              solid: Bool) {
         setCornerRadius(cornerRadius, on: view)
@@ -74,9 +94,20 @@ enum LiquidGlass {
             return
         }
         let solid = solid || reduceTransparency
-        effect.material = solid ? .windowBackground : .hudWindow
-        effect.blendingMode = solid ? .withinWindow : .behindWindow
-        effect.state = .inactive        // 与 makeView 一致：固定失焦态
+        let targetMaterial: NSVisualEffectView.Material = solid ? .windowBackground : .hudWindow
+        let targetBlending: NSVisualEffectView.BlendingMode = solid ? .withinWindow : .behindWindow
+        // 与 makeView 一致：固定失焦态（不随 key window 改变浓淡）。
+        let targetState: NSVisualEffectView.State = .inactive
+        guard effect.material != targetMaterial
+                || effect.blendingMode != targetBlending
+                || effect.state != targetState else { return }
+        NSAnimationContext.runAnimationGroup { context in
+            context.duration = Theme.Motion.dFast
+            context.allowsImplicitAnimation = true
+            effect.material = targetMaterial
+            effect.blendingMode = targetBlending
+            effect.state = targetState
+        }
     }
 
     /// 动画只更新几何，不重复设置材质与着色。

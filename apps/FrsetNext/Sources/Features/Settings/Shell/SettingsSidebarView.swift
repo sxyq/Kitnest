@@ -115,9 +115,12 @@ struct SettingsSidebarView: View {
             footer
         }
         .frame(width: Theme.settingsSidebarWidth)
-        .background(
-            Rectangle().fill(Color.primary.opacity(colorScheme == .dark ? 0.055 : 0.035))
-        )
+        // 2026-11-23（需求 B 三：「侧栏磨砂，与中间卡片区有微妙区分」）：
+        // 底色从写死的 primary 0.035/0.055 实色换成统一「侧栏磨砂」表面
+        // （.surface(.sidebar) = sidebarFill 微暗底衬 + sidebarFrost 霜感薄雾，
+        // 不叠模糊——窗口玻璃已经采样）。与内容区的 cardFill 卡片在同一块玻璃上
+        // 拉出微妙层次，同时跟着「磨砂 / 通透度」滑块走。
+        .surface(.sidebar)
     }
 
     private var trimmedQuery: String {

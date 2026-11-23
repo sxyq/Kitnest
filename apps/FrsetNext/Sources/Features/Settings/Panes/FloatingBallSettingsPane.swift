@@ -28,6 +28,17 @@ struct FloatingBallSettingsPane: View {
                         .labelsHidden().toggleStyle(.switch)
                 }
                 SettingsDivider()
+                SettingsRow(title: "海豚桌面精灵", subtitle: "默认关闭；球面换成小海豚，单击展开、双击自定义动作、右键菜单") {
+                    Toggle("海豚桌面精灵", isOn: Binding(
+                        get: { DesktopPetSettings.isEnabled },
+                        set: {
+                            UserDefaults.standard.set($0, forKey: DesktopPetSettings.enabledKey)
+                            FloatingBallController.shared.applyConfiguration()
+                            revision &+= 1
+                        }
+                    )).labelsHidden().toggleStyle(.switch)
+                }
+                SettingsDivider()
                 VStack(alignment: .leading, spacing: 6) {
                     Text("组件显示与顺序").font(.system(size: 12, weight: .medium))
                     ForEach(Array(FloatingBallSettings.orderedActions.enumerated()), id: \.element.id) { index, action in
