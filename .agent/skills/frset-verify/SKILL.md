@@ -9,7 +9,16 @@ agent_created: true
 
 ## 0. 零打扰验证（用户正在用电脑时必须遵守）
 
-硬约束：**不抢鼠标、不改变前台焦点、不弹出无关窗口打断**。可用的做法：
+硬约束：**不抢鼠标、不改变前台焦点、不弹出无关窗口打断、不重启/终止 Kitnest**。
+
+- **默认允许**：静态分析、无 UI 编译、读现有日志（第 4 节）、读源码。这些不需要任何窗口。
+- **本节及后面所有会创建窗口 / 打开页面 / 录屏 / 重启实例的手段**（`open -g` 深链、
+  defaults 探针 + 重启、`screencapture -l`、AX 关窗等）**默认禁止自动执行**——
+  「不激活」不等于「不打扰」：`open -g` 与深链仍会弹出新窗口盖在用户屏幕上。
+  它们只在**用户明确批准的独占验证时段**使用（开工前先 `git status` 保护未提交改动，
+  用完即清理探针键与截图/录屏）。
+
+已批准的独占时段内可用的做法：
 
 ```bash
 # 1) 启动时只上屏不激活（二选一；probe.noActivate 对已运行实例也即时生效）
@@ -65,11 +74,12 @@ defaults read com.apple.universalaccess reduceMotion   # 1 = 系统已减弱动�
 若只有 0→满值，先查 `reduceMotion`，再查 `withAnimation` 的两帧是否被合并。
 短动画（如神灯 380ms）常短于录制启动：用 `probe.genieDuration` 慢放，日志里的「动画 2500ms」可证明是同一套动画。
 
-## 2. defaults 探针（非交互触发）
+## 2. defaults 探针（非交互触发；**会重启实例，仅限已批准的独占时段**）
 
 ```bash
 defaults write com.sxyq.frsetnext probe.preview -string "text"     # 启动3s后预览首条文本
 defaults write com.sxyq.frsetnext probe.openTool -string "qrcode"  # 启动3.5s后打开工具窗
+# 下面的 pkill + open 会杀掉运行中的实例，用户在用电脑时禁止：
 pkill -f "Kitnest.app/Contents/MacOS/Kitnest"; sleep 2; open -a /Applications/Kitnest.app
 # 用完删除：defaults delete com.sxyq.frsetnext probe.preview
 ```
@@ -99,6 +109,6 @@ print(''.join(open(p,errors='replace').readlines()[-8:]))"
 
 ## 常见坑
 
-- 截图拿不到内容 ≠ 功能坏：先确认窗口 id 对不对、是否被遮挡（必要时 `osascript` 把 Kitnest 设为 frontmost 再全屏截）
+- 截图拿不到内容 ≠ 功能坏：先确认窗口 id 对不对、是否被遮挡（被遮挡时**等独占时段**或请用户配合，不要 `osascript` 抢 frontmost）
 - 设置类"没生效"：先分清「链路没接」还是「没生效反馈」——后者补 UI 反馈（如关闭项显示「已停用」）
 - 网盘下载测试后记得删 ~/Downloads 里的测试文件

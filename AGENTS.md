@@ -15,7 +15,16 @@ Kitnest（原名 FrsetNext）：macOS 菜单栏效率工具（arm64，macOS 13+�
 
 ## 铁律（每次改动必走）
 
-1. **改 → 构建 → 验证 → 重生成函数表 → CodeGraph 同步 → git 提交 → 推送 origin → 重打完整版 DMG → 重启 App → 复核 skill/AGENTS.md**，一步不省
+> **零打扰优先（2026-11-24 修订，覆盖下述流程里所有「必须部署/重启/出包」的旧口径）**：
+> 用户正在使用电脑时**禁止**抢鼠标、改变前台焦点、弹出任何窗口、重启/终止 Kitnest、
+> 运行 `launch_smoke.sh` / `pkill` / `open -a` / 会开窗口的深链与探针、覆盖 `/Applications` 的
+> 构建部署、打 DMG、自动 push 之外会打断用户的操作。**默认允许**的是：静态分析、
+> 独立无 UI 编译（`swiftc typecheck` / check.sh）、读现有日志与源码、git 提交。
+> 任何窗口相关验证先记为「待许可验证」，交付时可以只报告「已准备好构建、未部署」；
+> 部署/重启/冷启动闸门/DMG 只在用户明确授权独占时段时执行（此时先看 `git status` 保护未提交改动）。
+
+1. **改 → 验证（默认零打扰档：无 UI 编译/静态检查/读日志）→ 重生成函数表 → CodeGraph 同步 → git 提交**；
+   构建-部署-重启-DMG 属于发布动作，仅在用户明确授权时执行
    （DMG 指 `package_dmg.sh` 的**完整版**，不是 Lite 变体；Skill/AGENTS 与实际流程不一致时同一次改动里改掉）
 2. **每次改完必须提交并推送**：不允许把改动留在工作区过夜。收尾时 `git status --short` 必须为空。
    commit 写清楚：**需求原话 + 改动文件 + 具体改动**（含数值）+ 实测方式
@@ -29,9 +38,9 @@ Kitnest（原名 FrsetNext）：macOS 菜单栏效率工具（arm64，macOS 13+�
    （CSV ↔ 审阅台账 ↔ 两份索引文档四步对账，v261 起闸门会区分「行号漂移」与「真缺函数」）
 4. **每次改完必须重跑 CodeGraph 索引**：`codegraph sync .`
    （不 sync 时 `codegraph_explore` 会跳过「索引后已改动」的文件，拿不到源码）
-5. DMG 版本号**固定 1.0.0 不变**；每次改动后重打（用户分发用）
-6. 更新后**本地重启 App**（`pkill … ; open -a /Applications/Kitnest.app`），
-   供用户随时查看效果
+5. DMG 版本号**固定 1.0.0 不变**；仅用户明确要求出包/发版时重打（用户分发用）
+6. 更新后**是否本地重启 App 由用户决定**：禁止 Agent 自动 `pkill` / `open -a`；
+   用户明确授权时可代为重启，之后不再抢前台
 
 11. **启动路径纪律（2026-11-22 「点了打不开」P0 之后新增，违反即视为未完成）**
     - 启动路径（`applicationDidFinishLaunching` 到 `启动完成` 之间）**禁止任何同步 TCC / 同步 XPC / 同步等待**：
@@ -46,7 +55,8 @@ Kitnest（原名 FrsetNext）：macOS 菜单栏效率工具（arm64，macOS 13+�
       （菜单栏重复一秒，比打不开一小时轻）。判活不能只看进程还在——必须看
       `instance.heartbeat`（每 2s 一跳）和锁文件里的 `build=` 构建戳；心跳 >12s 或构建戳不一致
       就接管，杀不掉就无锁启动，不准自杀。
-    - 每次构建后必须跑 `bash tools/launch_smoke.sh`：杀掉全部本机 Kitnest 进程 → 冷启动 →
+    - `launch_smoke.sh` 会杀掉全部运行中的 Kitnest 实例：**只在用户明确授权独占设备时运行**
+      （改完部署后想要冷启动验收的那次）；普通收尾不做。跑的时候仍是：杀 → 冷启动 →
       确认日志出现新的 `启动完成` 且没有 `已有实例在运行` / `应用退出`。**不通过不算改完。**
     - 排查与成因：`docs/00-总览/开发工作流.md` 第六节「启动不了 / 点了没反应 / 卡死」。
 
@@ -68,9 +78,12 @@ Kitnest（原名 FrsetNext）：macOS 菜单栏效率工具（arm64，macOS 13+�
 
 | Skill | 用途 | 触发词 |
 |---|---|---|
-| `frset-release` | 完整发布闭环（构建→提交→打包→重启） | 发布 / 更新 / 改完 / release |
-| `frset-verify` | 截图 / 探针 / 深链验证方法 | 验证 / 截图 / 看效果 / 探针 |
+| `frset-release` | 完整发布闭环（构建→提交→打包→重启）；**其中的重启/DMG/冷启动步骤仅在用户明确授权打断时执行** | 发布 / 更新 / 改完 / release |
+| `frset-verify` | 截图 / 探针 / 深链验证方法；**任何会创建窗口、重启实例的操作默认禁止，需用户批准独占验证时段** | 验证 / 截图 / 看效果 / 探针 |
 | `frset-package-dmg` | DMG 打包与安装测试 | 打包 / dmg / 安装测试 |
+| `kitnest-perf-lens` | Kitnest 全链路性能/交互/渲染热点诊断（先读完整函数与调用链，热点先取证再改） | 性能 / 热点 / 掉帧 / 卡顿 / CPU |
+
+性能相关任务的读取顺序：**先读 `.agent/skills/kitnest-perf-lens/SKILL.md`，再读 `.agent/skills/fast-anything/SKILL.md`，最后独立审查实际完整调用链；不得从 Skill 描述直接下优化结论。** `fast-anything` 原版只面向其支持语言（Python/Node/TS/Ruby/Java/Go/PHP/C/C++/C#）的**纯计算函数**，**不能用于 Swift**；Kitnest 主程序不安装、不运行其 CLI（`@el4cteo/fast-anything`），只借鉴其方法论；独立工具脚本有代表性安全负载时才可用。
 
 ## 操作清单（历史做过的全部操作类型）
 
