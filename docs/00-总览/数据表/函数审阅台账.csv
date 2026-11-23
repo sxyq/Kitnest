@@ -197,14 +197,14 @@ Core,Core/UI/LiquidGlass.swift,UnifiedGlassBackingView,init,init,305,KEEP,2026-1
 Core,Core/UI/LiquidGlass.swift,UnifiedGlassBackingView,setContent,func,307,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；替换统一玻璃容器的内容视图并按 topInset 重排内部区域
 Core,Core/UI/LiquidGlass.swift,UnifiedGlassBackingView,layout,func,315,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSView layout 回调，铺满玻璃+底衬
 Core,Core/UI/LiquidGlass.swift,NSWindow,installUnifiedGlassBackground,func,335,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；applyOfficialChrome:51 + 5 个窗口调用
-Core,Core/UI/LiquidGlass.swift,WhiteGlassCard,body,func,427,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；WhiteGlassCard 经 whiteGlassCard:409 使用
-Core,Core/UI/LiquidGlass.swift,View,whiteGlassCard,func,466,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；CalendarSectionView.swift:57 调用
-Core,Core/UI/LiquidGlass.swift,SpringyIconButtonStyle,makeBody,func,478,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ButtonStyle 协议；PanelRootView:290,654"
-Core,Core/UI/LiquidGlass.swift,GlassPlate,body,func,505,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ViewModifier 协议；glassPlate 4 文件 7 处
-Core,Core/UI/LiquidGlass.swift,View,glassPlate,func,529,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；CommandPalette:295 / MonitorPopoutWindow 等
-Core,Core/UI/LiquidGlass.swift,View,glassCard,func,538,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；27 文件 40+ 处 .glassCard 调用
-Core,Core/UI/LiquidGlass.swift,GlassCard,body,func,557,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ViewModifier 协议；glassCard:496 派发
-Core,Core/UI/LiquidGlass.swift,NSWindow,adoptGlassSurface,func,574,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ArchiveFileBox.swift:394 调用
+Core,Core/UI/LiquidGlass.swift,WhiteGlassCard,body,func,384,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；WhiteGlassCard 经 whiteGlassCard:409 使用
+Core,Core/UI/LiquidGlass.swift,View,whiteGlassCard,func,423,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；CalendarSectionView.swift:57 调用
+Core,Core/UI/LiquidGlass.swift,SpringyIconButtonStyle,makeBody,func,435,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ButtonStyle 协议；PanelRootView:290,654"
+Core,Core/UI/LiquidGlass.swift,GlassPlate,body,func,462,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ViewModifier 协议；glassPlate 4 文件 7 处
+Core,Core/UI/LiquidGlass.swift,View,glassPlate,func,486,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；CommandPalette:295 / MonitorPopoutWindow 等
+Core,Core/UI/LiquidGlass.swift,View,glassCard,func,495,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；27 文件 40+ 处 .glassCard 调用
+Core,Core/UI/LiquidGlass.swift,GlassCard,body,func,514,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ViewModifier 协议；glassCard:496 派发
+Core,Core/UI/LiquidGlass.swift,NSWindow,adoptGlassSurface,func,531,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ArchiveFileBox.swift:394 调用
 Core,Core/UI/LiquidGlassMaterial.swift,LiquidGlass,makeView,func,19,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；正式玻璃背景和刘海共用工厂，26+且非纯色、随焦点及系统玻璃开关允许时建NSGlassEffectView，其余建固定inactive的NSVisualEffectView；降低透明度走不透明材质
 Core,Core/UI/LiquidGlassMaterial.swift,LiquidGlass,reapplyStyle,func,66,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；LiquidGlassBackground更新共用已建容器重设圆角，真玻璃改tint，毛玻璃按solid与降低透明度更新材质/混合并固定inactive
 Core,Core/UI/LiquidGlassMaterial.swift,LiquidGlass,setCornerRadius,func,83,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；工厂、重套样式与刘海layout共用几何更新，真玻璃设cornerRadius，其余CALayer设连续圆角，不重设材质

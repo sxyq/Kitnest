@@ -698,11 +698,10 @@ static CGFloat FSBarNumberWidth(NSString *text, CGFloat size, NSFontWeight weigh
 // ======== v32/v34/v35 移植（注入版）：奔跑小猫 RunCat ========
 //   帧资源：RunCat Neo（https://github.com/runcat-dev/RunCatNeo，Apache License 2.0）
 //     5 帧循环 · 56×36 · 黑白双版（浅色菜单栏→黑猫 / 深色→白猫）
-//   动画：独立 20Hz 定时器推进帧号（部件首绘或部件系统启动时启动；无消费方时空返）；
+//   动画：主图标使用 10Hz 定时器推进帧号；小猫关闭时定时器停止；
 //     v81：倍速 7 档 0.5~1.5×（用户：最高只能 1.5 倍），基础 8fps → 有效 4~12fps
-//   v34/v35（用户需求"小猫替换官方图标"）：主图标 button 上覆盖 FSRunCatIconView
-//     绘制猫帧（hitTest 穿透，点击行为不变），并隐藏 App 原图标子视图；帧/明暗变化时重绘。
-//     开关：widgets.plist 键 MainIconCat（缺省=开）；改后重启生效。
+//   主图标按钮按帧切换模板图；设置预览由 FSRunCatIconView 绘制。
+//   开关：widgets.plist 键 Bar_MainIconCat（缺省=关）；设置即时生效。
 static int g_runCatFrame = 0;
 static double g_runCatCpuEMA = 0;
 typedef NS_ENUM(NSInteger, FSRunCatImageVariant) {
@@ -711,10 +710,11 @@ typedef NS_ENUM(NSInteger, FSRunCatImageVariant) {
     FSRunCatImageTemplate,
 };
 static NSMutableDictionary<NSNumber *, NSImage *> *g_runCatImgs = nil;
-static BOOL g_runCatTimerStarted = NO;
+static NSTimer *g_runCatTimer = nil;
 // v32/v34 前向声明（实现见 FSBarWidgetView @end 之后的 run_cat static 区）
 static NSImage *FSRunCatImage(int idx, FSRunCatImageVariant variant);
 static void FSRunCatStartTimer(void);
+static void FSRunCatStopTimer(void);
 // 主图标使用原生按钮图像；预览视图沿用相同帧资源。
 // v43（2026-10-18 用户指示）：**默认关闭**——状态栏主图标回到之前版本
 // （动态风扇 / Logo / 日期，由通用页「菜单栏图标」选择）。奔跑小猫只是注入版
@@ -1965,14 +1965,17 @@ static void FSRunCatTick(void) {
             if ([v isKindOfClass:[NSNumber class]]) g_mainIconCatEnabled = [v boolValue];
         }
     }
-    if (!g_mainIconCatEnabled) return;   // v71：合并条 run_cat 形态已移除，仅主图标一套
+    if (!g_mainIconCatEnabled) {
+        FSRunCatStopTimer();
+        return;
+    }
 
     double cpu = g_snap.valid ? g_snap.cpuUsage : 0;
     if (cpu < 0) cpu = 0;
     if (cpu > 1) cpu = 1;
     // v82（用户：小猫有两套时间）：速度档只在 **CPU 部件刷新时刻**更新一次
     // （FSBarModuleInterval(@"CPU")，当前 3s），与菜单栏 CPU 数值同一节奏；
-    // 动画帧本身仍 20Hz 平滑推进，不再每个 tick 都改变速度。
+    // 10Hz 定时器推进动画帧；速度档只在 CPU 样本刷新时改变。
     double now = CFAbsoluteTimeGetCurrent();
     static double g_runCatLastSpeedAt = 0;
     double speedIv = FSBarModuleInterval(@"CPU");
@@ -2014,12 +2017,15 @@ static void FSRunCatTick(void) {
 }
 
 static void FSRunCatStartTimer(void) {
-    if (g_runCatTimerStarted) return;
-    g_runCatTimerStarted = YES;
-    // v101 性能审计：20Hz 常驻空转 → 10Hz（8fps 动画步进本就 1/8s），见 FSRunCatTick 门控
-    NSTimer *t = [NSTimer timerWithTimeInterval:0.10 repeats:YES block:^(NSTimer *tm) { FSRunCatTick(); }];
-    [[NSRunLoop mainRunLoop] addTimer:t forMode:NSRunLoopCommonModes];
-    FSBarLog(@"[runcat] 奔跑小猫动画定时器已启动（20Hz——部件动画 / 主图标换猫）");
+    if (g_runCatTimer) return;
+    g_runCatTimer = [NSTimer timerWithTimeInterval:0.10 repeats:YES block:^(NSTimer *tm) { FSRunCatTick(); }];
+    [[NSRunLoop mainRunLoop] addTimer:g_runCatTimer forMode:NSRunLoopCommonModes];
+    FSBarLog(@"[runcat] 奔跑小猫动画定时器已启动（主图标 10Hz）");
+}
+
+static void FSRunCatStopTimer(void) {
+    [g_runCatTimer invalidate];
+    g_runCatTimer = nil;
 }
 
 // ============ 状态项管理器 ============
@@ -2753,7 +2759,10 @@ void FSBarSystemStart(NSMutableArray *statusItems) {
     g_nativeItems = [NSMutableDictionary dictionary];
     g_manager = [[FSBarManager alloc] init];
     FSBarResolveNativeItems();   // 必须先解析原生项，否则首轮会把原生模块也建成自建项（重复图标）
-    FSRunCatStartTimer();   // v34 移植：小猫定时器随部件系统启动（主图标换猫不依赖部件绘制）
+    const char *catOverride = getenv("FRSET_MAINICON_CAT");
+    if ((catOverride && *catOverride) || FSBarAsBool(FSBarCfgRaw(@"Bar", nil, @"MainIconCat"), NO)) {
+        FSRunCatStartTimer();
+    }
     NSLog(@"[FrsetStats] 原生项解析: %lu 个", (unsigned long)g_nativeItems.count);
     FSBarReconcile();
     NSLog(@"[FrsetStats] 部件系统启动（%lu 个模块已配置）", (unsigned long)FSBarAllModules().count);
