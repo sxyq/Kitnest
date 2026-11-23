@@ -36,8 +36,29 @@ struct DesktopPetAppearance {
     var skinSaturation: Double
     var skinBrightness: Double
 
+    /// 动态模式：静态（不跑动画时钟，零重绘开销）/ 轻量（约 3fps 呼吸漂浮）
+    enum MotionMode: String, CaseIterable, Identifiable {
+        case staticMode = "static"
+        case light = "light"
+
+        var id: String { rawValue }
+
+        var title: String {
+            switch self {
+            case .staticMode: return "静态"
+            case .light: return "轻动"
+            }
+        }
+    }
+
     // MARK: 大小
     var sizeMode: SizeMode
+
+    // MARK: 动态模式
+    var motionMode: MotionMode
+
+    // MARK: 自定义 PNG（用户替换形象；nil = 内置矢量海豚）
+    var customImagePath: String?
 
     // MARK: 气泡
     var showsBubble: Bool
@@ -87,6 +108,8 @@ enum DesktopPetSettings {
     static let sizeModeKey = "desktopPet.sizeMode"
     static let showsBubbleKey = "desktopPet.showsBubble"
     static let doubleClickActionKey = "desktopPet.doubleClickAction"
+    static let motionModeKey = "desktopPet.motionMode"
+    static let customImagePathKey = "desktopPet.customImagePath"
 
     /// 桌面精灵是否启用（默认关闭）
     static var isEnabled: Bool {
@@ -102,6 +125,9 @@ enum DesktopPetSettings {
             skinBrightness: d.object(forKey: skinBrightnessKey) as? Double ?? 0.72,
             sizeMode: (d.string(forKey: sizeModeKey))
                 .flatMap(DesktopPetAppearance.SizeMode.init(rawValue:)) ?? .medium,
+            motionMode: (d.string(forKey: motionModeKey))
+                .flatMap(DesktopPetAppearance.MotionMode.init(rawValue:)) ?? .light,
+            customImagePath: d.string(forKey: customImagePathKey),
             showsBubble: d.object(forKey: showsBubbleKey) as? Bool ?? true
         )
     }

@@ -539,6 +539,10 @@ struct TagManagementSheet: View {
     @Stored private var isAdding = false
     @Stored private var editingTagID: String?
     @Stored private var editingTagName = ""
+    @Stored private var newGroupName = ""
+    @Stored private var isAddingGroup = false
+    @Stored private var editingGroupID: String?
+    @Stored private var editingGroupName = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -550,63 +554,39 @@ struct TagManagementSheet: View {
             }
             .padding(20)
             Divider()
-            List {
-                ForEach(store.tags, id: \.id) { tag in
-                    HStack(spacing: 10) {
-                        Circle()
-                            .fill(Color(hex: tag.colorHex) ?? .gray)
-                            .frame(width: 10, height: 10)
-                        if editingTagID == tag.id {
-                            TextField("标签名称", text: $editingTagName)
-                                .textFieldStyle(.roundedBorder)
-                                .onSubmit { saveRename(id: tag.id) }
-                            Button("保存") { saveRename(id: tag.id) }
-                                .controlSize(.small)
-                        } else {
-                            Text(tag.name)
-                        }
-                        Spacer()
-                        if editingTagID != tag.id {
-                            Button {
-                                editingTagID = tag.id
-                                editingTagName = tag.name
-                            } label: {
-                                Image(systemName: "pencil")
-                            }
-                            .buttonStyle(.plain)
-                            .help("重命名标签")
-                        }
-                        Button {
-                            store.delete(id: tag.id)
-                        } label: {
-                            Image(systemName: "trash")
-                                .foregroundStyle(.red)
-                        }
-                        .buttonStyle(.plain)
+            ScrollView {
+                LazyVStack(alignment: .leading, spacing: 12) {
+                    ForEach(store.groups) { group in
+                        groupSection(group)
                     }
+                    ungroupedSection
                 }
-                if store.tags.isEmpty && !isAdding {
-                    Text(L10n.t("No tags yet"))
-                        .foregroundStyle(.secondary)
-                }
-                if isAdding {
-                    HStack(spacing: 10) {
-                        TextField(L10n.t("New Tag"), text: $newTagName)
-                            .textFieldStyle(.roundedBorder)
-                            .frame(width: 200)
-                            .onSubmit(createTag)
-                        Button(L10n.t("Add Tag")) { createTag() }
-                            .controlSize(.small)
-                            .disabled(newTagName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                    }
-                }
+                .padding(16)
             }
-            .listStyle(.inset)
             Divider()
-            HStack {
+            HStack(spacing: 8) {
+                if isAddingGroup {
+                    TextField("分组名称", text: $newGroupName)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 160)
+                        .onSubmit(createGroup)
+                    Button("创建") { createGroup() }
+                        .controlSize(.small)
+                        .disabled(newGroupName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    Button("取消") { isAddingGroup = false; newGroupName = "" }
+                        .controlSize(.small)
+                } else {
+                    Button {
+                        isAddingGroup = true
+                    } label: {
+                        Label("新建分组", systemImage: "folder.badge.plus")
+                    }
+                    .controlSize(.small)
+                }
                 Spacer()
                 Button {
                     isAdding = true
+                    _ = newTagName
                 } label: {
                     Label(L10n.t("Add Tag"), systemImage: "plus")
                 }
@@ -614,11 +594,169 @@ struct TagManagementSheet: View {
             }
             .padding(16)
         }
-        .frame(width: 480, height: 360)
+        .frame(width: 560, height: 480)
         .onReceive(NotificationCenter.default.publisher(for: LanguageManager.languageDidChange)) { _ in
             l10nVersion &+= 1
         }
     }
+
+    // MARK: 分组区
+
+    private func groupSection(_ group: TagGroup) -> some View {
+        let groupTags = store.tags.filter { $0.groupID == group.id }
+        return VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 8) {
+                ColorPicker("", selection: Binding(
+                    get: { Color(hex: group.colorHex) ?? .gray },
+                    set: { store.setGroupColor(id: group.id, colorHex: hexString(from: $0)) }
+                ))
+                .labelsHidden()
+                .frame(width: 28)
+                if editingGroupID == group.id {
+                    TextField("分组名称", text: $editingGroupName)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 180)
+                        .onSubmit { saveGroupRename(id: group.id) }
+                    Button("保存") { saveGroupRename(id: group.id) }
+                        .controlSize(.small)
+                } else {
+                    Text(group.name).font(.system(size: 12, weight: .semibold))
+                }
+                Text("\(groupTags.count) 个标签")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+                Spacer()
+                if editingGroupID != group.id {
+                    Button { editingGroupID = group.id; editingGroupName = group.name } label: {
+                        Image(systemName: "pencil")
+                    }
+                    .buttonStyle(.plain).help("重命名分组")
+                }
+                Button { moveGroup(group.id, by: -1) } label: { Image(systemName: "arrow.up") }
+                    .buttonStyle(.plain).help("上移分组")
+                Button { moveGroup(group.id, by: 1) } label: { Image(systemName: "arrow.down") }
+                    .buttonStyle(.plain).help("下移分组")
+                Button {
+                    // 删组只把标签移回未分组；剪贴板记录与标签本身都保留
+                    store.deleteGroup(id: group.id)
+                    Toast.show("已解散分组：标签移回未分组，剪贴板记录保留", icon: "folder", isWarning: false)
+                } label: {
+                    Image(systemName: "trash").foregroundStyle(.red)
+                }
+                .buttonStyle(.plain).help("解散分组（不删除标签与记录）")
+            }
+            .padding(.vertical, 2)
+
+            if groupTags.isEmpty {
+                Text("组内还没有标签")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+                    .padding(.leading, 36)
+            } else {
+                ForEach(groupTags) { tag in
+                    tagRow(tag, indented: true)
+                }
+            }
+        }
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+            .fill(Color.primary.opacity(0.03)))
+    }
+
+    private var ungroupedSection: some View {
+        let ungrouped = store.tags.filter { $0.groupID == nil }
+        return VStack(alignment: .leading, spacing: 2) {
+            HStack(spacing: 8) {
+                Image(systemName: "tray")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 28)
+                Text("未分组").font(.system(size: 12, weight: .semibold))
+                Text("\(ungrouped.count) 个标签")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+                Spacer()
+            }
+            if ungrouped.isEmpty && !isAdding {
+                Text(L10n.t("No tags yet"))
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+                    .padding(.leading, 36)
+            }
+            ForEach(ungrouped) { tag in
+                tagRow(tag, indented: true)
+            }
+            if isAdding {
+                HStack(spacing: 8) {
+                    TextField(L10n.t("New Tag"), text: $newTagName)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 200)
+                        .onSubmit(createTag)
+                    Button(L10n.t("Add Tag")) { createTag() }
+                        .controlSize(.small)
+                        .disabled(newTagName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    Button("取消") { isAdding = false; newTagName = "" }
+                        .controlSize(.small)
+                }
+                .padding(.leading, 36)
+            }
+        }
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+            .fill(Color.primary.opacity(0.03)))
+    }
+
+    private func tagRow(_ tag: Tag, indented: Bool) -> some View {
+        HStack(spacing: 8) {
+            ColorPicker("", selection: Binding(
+                get: { Color(hex: tag.colorHex) ?? .gray },
+                set: { store.setColor(id: tag.id, colorHex: hexString(from: $0)) }
+            ))
+            .labelsHidden()
+            .frame(width: 24)
+            if editingTagID == tag.id {
+                TextField("标签名称", text: $editingTagName)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 180)
+                    .onSubmit { saveRename(id: tag.id) }
+                Button("保存") { saveRename(id: tag.id) }
+                    .controlSize(.small)
+            } else {
+                Text(tag.name).font(.system(size: 11))
+            }
+            Spacer()
+            // 移动到分组（含移出）
+            Menu {
+                Button("未分组") { store.setGroup(tagID: tag.id, groupID: nil) }
+                ForEach(store.groups) { g in
+                    Button(g.name) { store.setGroup(tagID: tag.id, groupID: g.id) }
+                }
+            } label: {
+                Image(systemName: "folder")
+            }
+            .menuStyle(.borderlessButton)
+            .frame(width: 26)
+            .help("移动到分组")
+            if editingTagID != tag.id {
+                Button { editingTagID = tag.id; editingTagName = tag.name } label: {
+                    Image(systemName: "pencil")
+                }
+                .buttonStyle(.plain).help("重命名标签")
+            }
+            Button { moveTag(tag, by: -1) } label: { Image(systemName: "arrow.up") }
+                .buttonStyle(.plain).help("上移")
+            Button { moveTag(tag, by: 1) } label: { Image(systemName: "arrow.down") }
+                .buttonStyle(.plain).help("下移")
+            Button { store.delete(id: tag.id) } label: {
+                Image(systemName: "trash").foregroundStyle(.red)
+            }
+            .buttonStyle(.plain).help("删除标签（不影响剪贴板条目）")
+        }
+        .padding(.leading, indented ? 34 : 0)
+        .padding(.vertical, 1)
+    }
+
+    // MARK: 动作
 
     private func createTag() {
         let name = newTagName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -636,8 +774,50 @@ struct TagManagementSheet: View {
         editingTagID = nil
         editingTagName = ""
     }
-}
 
+    private func createGroup() {
+        let name = newGroupName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !name.isEmpty else { return }
+        store.createGroup(name: name)
+        newGroupName = ""
+        isAddingGroup = false
+    }
+
+    private func saveGroupRename(id: String) {
+        guard store.renameGroup(id: id, name: editingGroupName) else {
+            Toast.show("分组名称无效或已存在", icon: "exclamationmark.triangle", isWarning: true)
+            return
+        }
+        editingGroupID = nil
+        editingGroupName = ""
+    }
+
+    private func moveGroup(_ id: String, by delta: Int) {
+        var ids = store.groups.map(\.id)
+        guard let index = ids.firstIndex(of: id) else { return }
+        let target = index + delta
+        guard ids.indices.contains(target) else { return }
+        ids.swapAt(index, target)
+        store.reorderGroups(ids)
+    }
+
+    private func moveTag(_ tag: Tag, by delta: Int) {
+        var ids = store.tags.filter { $0.groupID == tag.groupID }.map(\.id)
+        guard let index = ids.firstIndex(of: tag.id) else { return }
+        let target = index + delta
+        guard ids.indices.contains(target) else { return }
+        ids.swapAt(index, target)
+        store.reorderTags(ids)
+    }
+
+    private func hexString(from color: Color) -> String {
+        guard let rgb = NSColor(color).usingColorSpace(.sRGB) else { return "#8E8E93" }
+        return String(format: "#%02X%02X%02X",
+                      Int(round(rgb.redComponent * 255)),
+                      Int(round(rgb.greenComponent * 255)),
+                      Int(round(rgb.blueComponent * 255)))
+    }
+}
 
 // MARK: - 忽略应用（隐私名单）编辑器（原版缺失功能 §3-2）
 

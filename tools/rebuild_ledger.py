@@ -3101,5 +3101,95 @@ EVIDENCE.update({
         "存储清理提示复用索引快照，递归前4层后按大小取12个目录；snapshot变化时由属性观察清除缓存",
 })
 
+EVIDENCE.update({
+    # v287 剪贴板三栏工作台 / 分级收藏 / 海豚精灵（2026-11-23）
+    ("Core/UI/Support.swift", "readingBase"):
+        "预览/阅读面用不透明底（与窗口同源色），切断玻璃透射；壁纸不会再从正文底下透出，小字号对比度稳定",
+    ("Core/UI/Support.swift", "sidebarFill"):
+        "第五类表面「侧栏」的微暗底衬：浅色压暗、深色提亮，与中间卡片区做出层次；跟随个性化强调色与暗色主题",
+    ("Core/UI/Support.swift", "sidebarFrost"):
+        "侧栏霜感薄雾（强度为窗口级 glassFrost 的一半，跟随磨砂滑块）；不另加模糊，避免采样层叠加掉帧",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "clearHover"):
+        "hover 预览结束/键盘移动时清掉悬停项并恢复预览到主动选中项，避免悬停反复夺走选中状态",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "currentFilterState"):
+        "把当前筛选（类型/收藏等级/最近/已存/分组/标签/搜索词/选中项）打成快照，供返回栈记录",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "pushFilterSnapshot"):
+        "侧栏切分类前压栈（上限 30），实现「点击返回恢复上一级筛选与搜索词」；只在用户主动切分类时调用",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "goBackFilter"):
+        "弹栈恢复上一级筛选与选中项；Esc/返回按钮共用，栈空返回 false 交给逐维退让与窗口收起",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "refreshCounts"):
+        "侧栏各入口条目数走后台 COUNT 聚合并合并 200ms 重复请求，避免切筛选时主线程查库",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "closeDrawerIfNeeded"):
+        "窄窗分类抽屉在选中分类后自动收起，避免遮住卡片区",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "iconRailButton"):
+        "窄窗图标列按钮（图标+悬停名称+选中底），保持分类在 52pt 列内可用",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "sidebarSectionHeader"):
+        "侧栏分区标题（记录/收藏/项目/标签分组），统一字号与缩进",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "sidebarRow"):
+        "侧栏分类行（图标/名称/条目数/选中底），并承载「拖卡到分类」落点：收藏等级行设等级、已存行存项目",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "sidebarTagGroup"):
+        "侧栏标签分组行：展开折叠、显示归属条目数、双击按分组筛选；删组不删标签与记录由 TagStore 保证",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "sidebarTagRow"):
+        "侧栏标签行：单击按标签筛选、拖卡片到标签即打标签（走自定义 dedupeKey 表示）",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "handle"):
+        "统一解析卡片拖拽载荷（com.sxyq.frsetnext.dedupekey），侧栏各落点共用一份实现",
+    ("Features/Clipboard/Store/ClipboardRepository.swift", "sidebarCounts"):
+        "侧栏计数：6 条 COUNT/GROUP BY 一次取齐（总数/24h/收藏分级/已存/每标签/每分组），不把历史载入内存",
+    ("Features/Clipboard/Store/FavoritesStore.swift", "level"):
+        "读取某资源的收藏等级（0 未收藏/1 普通/2 重要/3 置顶），供菜单打勾与侧栏判定",
+    ("Features/Clipboard/Store/TagStore.swift", "setColor"):
+        "只改标签颜色不动归属与排序；写入后按分组顺序重排内存数组",
+    ("Features/Clipboard/Store/TagStore.swift", "createGroup"):
+        "新建标签分组（排序取当前最大值+1），写入后 refresh 让侧栏立即看到新组",
+    ("Features/Clipboard/Store/TagStore.swift", "renameGroup"):
+        "重命名分组；同名/空名拒绝，成功后 refresh 同步",
+    ("Features/Clipboard/Store/TagStore.swift", "setGroupColor"):
+        "分组颜色持久化（侧栏组图标与颜色选择器共用），refresh 保证另一入口同步",
+    ("Features/Clipboard/Store/TagStore.swift", "deleteGroup"):
+        "删组事务内先把成员标签 group_id 置空再删组行：标签与剪贴板记录全部保留",
+    ("Features/Clipboard/Store/TagStore.swift", "setGroup"):
+        "标签移入/移出分组；不动标签名与关联记录，移动后按分组顺序重排内存数组",
+    ("Features/Clipboard/Store/TagStore.swift", "reorderTags"):
+        "按给定 id 顺序重写 sort_order（组内上下移与拖拽排序共用），成功后就地重排",
+    ("Features/Clipboard/Store/TagStore.swift", "reorderGroups"):
+        "分组排序落库（上下移/拖拽共用），refresh 后侧栏顺序稳定",
+    ("Features/Clipboard/Store/TagStore.swift", "sortInPlace"):
+        "内存标签数组的统一排序：分组序号 → 组内 sort_order → 更新时间；避免改名/移动后顺序跳变",
+    ("Features/Clipboard/UI/ClipboardSectionView.swift", "favoriteLevelRow"):
+        "右键菜单单个收藏等级项：当前等级打勾，点击写入等级（不改正文与标签）",
+    ("Features/FloatingBall/DesktopPetView.swift", "petContent"):
+        "海豚单帧内容：自定义 PNG 优先、否则内置矢量；静态模式与拖动中传 t=0 不跑时钟",
+    ("Features/FloatingBall/DesktopPetView.swift", "dolphinBody"):
+        "矢量海豚合成（尾鳍/背鳍/身体/腹部/胸鳍/眼睛/嘴线），支持眨眼状态",
+    ("Features/FloatingBall/DesktopPetView.swift", "path"):
+        "海豚各部件 Shape 的路径定义；尾/背/胸鳍/腹/嘴分别成形，保证纯代码绘制零图片资源",
+    ("Features/FloatingBall/FloatingBallController.swift", "petDoubleTap"):
+        "海豚双击动作：默认展开面板，也可执行用户配置的快捷动作",
+    ("Features/FloatingBall/FloatingBallController.swift", "hidePet"):
+        "隐藏精灵（收起并 orderOut），可从右键菜单触发，保留再次启用入口",
+    ("Features/FloatingBall/FloatingBallController.swift", "quitPet"):
+        "退出精灵：关闭 desktopPet.enabled 并刷新配置，恢复为普通悬浮球形态",
+    ("Features/FloatingBall/FloatingBallController.swift", "body"):
+        "ConditionalGlassPlate：普通球/展开面板走玻璃，海豚本体不套玻璃（保持清晰不整图模糊）",
+    ("Features/Settings/Panes/FloatingBallSettingsPane.swift", "pickCustomPetImage"):
+        "选择自定义海豚 PNG：复制到应用支持目录后存路径，避免原文件移动导致形象失效",
+    ("Features/Settings/Shell/SettingsPanes.swift", "groupSection"):
+        "标签管理里的分组区：颜色/重命名/上下移/解散 + 组内标签列表；解散只解绑不删记录",
+    ("Features/Settings/Shell/SettingsPanes.swift", "tagRow"):
+        "标签行：颜色、重命名、移动到分组菜单、上下移、删除；删除标签不影响剪贴板条目",
+    ("Features/Settings/Shell/SettingsPanes.swift", "createGroup"):
+        "从设置页新建分组，空名拒绝",
+    ("Features/Settings/Shell/SettingsPanes.swift", "saveGroupRename"):
+        "分组重命名提交；名称无效或重复时提示并保留编辑态",
+    ("Features/Settings/Shell/SettingsPanes.swift", "moveGroup"):
+        "分组上移/下移：交换后整体重写 sort_order，保证顺序稳定",
+    ("Features/Settings/Shell/SettingsPanes.swift", "moveTag"):
+        "标签在所属分组内上移/下移：只重写同组 id 顺序，不跨组移动",
+    ("Features/Settings/Shell/SettingsPanes.swift", "hexString"):
+        "Color→#RRGGBB 转换，供分组/标签颜色选择器落库（sRGB 取整避免偏色）",
+    ("Models/Models.swift", "init"):
+        "TagGroup 初始化（id/名称/颜色/排序/时间戳），侧栏与设置页共用同一模型",
+})
+
 if __name__ == "__main__":
     sys.exit(main())

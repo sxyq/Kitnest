@@ -344,6 +344,24 @@ public final class DatabaseManager {
                 try db.exec("ALTER TABLE resource_favorites ADD COLUMN level INTEGER NOT NULL DEFAULT 1")
             }
         }
+        // v287 分级收藏迁移（幂等）：
+        // ① 历史收藏只有 clipboard_items.is_favorite=1、没有关系行 → 补成普通收藏(level=1)，
+        //    否则侧栏「全部收藏」计数与卡片星标会对不上；
+        // ② 反向：有关系行但兼容字段还是 0 → 补 1，保证两个口径一致。
+        try clipboard.exec("""
+        INSERT INTO resource_favorites(resource_type, resource_id, added_at, level)
+        SELECT 'clipboard', ci.dedupe_key, ci.timestamp, 1
+          FROM clipboard_items ci
+         WHERE ci.is_favorite = 1
+           AND NOT EXISTS (SELECT 1 FROM resource_favorites rf
+                            WHERE rf.resource_type = 'clipboard' AND rf.resource_id = ci.dedupe_key)
+        """)
+        try clipboard.exec("""
+        UPDATE clipboard_items SET is_favorite = 1
+         WHERE is_favorite = 0
+           AND dedupe_key IN (SELECT resource_id FROM resource_favorites
+                               WHERE resource_type = 'clipboard' AND level > 0)
+        """)
         try clipboard.exec("""
         CREATE TABLE IF NOT EXISTS tag_groups (
             id TEXT PRIMARY KEY,

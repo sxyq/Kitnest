@@ -127,7 +127,7 @@ public final class TagStore: ObservableObject {
                 guard let index = tags.firstIndex(where: { $0.id == id }) else { return }
                 tags[index].name = trimmed
                 tags[index].updatedAt = updatedAt
-                tags.sort { $0.updatedAt > $1.updatedAt }
+                self.sortInPlace(&tags)
             }
             return true
         } catch {
@@ -136,6 +136,20 @@ public final class TagStore: ObservableObject {
         }
     }
 
+
+    /// 改标签颜色（只动 color_hex，不影响归属与排序）
+    public func setColor(id: String, colorHex: String) {
+        do {
+            try db.run("UPDATE tags SET color_hex = ?, updated_at = ? WHERE id = ?",
+                       [.text(colorHex), .real(Date().timeIntervalSince1970), .text(id)])
+            publishTags { tags in
+                guard let index = tags.firstIndex(where: { $0.id == id }) else { return }
+                tags[index].colorHex = colorHex
+            }
+        } catch {
+            Log.error("clipboard", "标签颜色保存失败: \(error)")
+        }
+    }
 
     public func delete(id: String) {
         do {
@@ -292,6 +306,7 @@ public final class TagStore: ObservableObject {
             publishTags(["tagsChanged": true, "tagID": tagID]) { tags in
                 guard let index = tags.firstIndex(where: { $0.id == tagID }) else { return }
                 tags[index].groupID = groupID
+                self.sortInPlace(&tags)
             }
         } catch {
             Log.error("clipboard", "标签分组移动失败: \(error)")
@@ -311,6 +326,7 @@ public final class TagStore: ObservableObject {
                 for index in tags.indices where rank[tags[index].id] != nil {
                     tags[index].sortOrder = rank[tags[index].id]!
                 }
+                self.sortInPlace(&tags)
             }
         } catch {
             Log.error("clipboard", "标签排序失败: \(error)")
@@ -329,6 +345,18 @@ public final class TagStore: ObservableObject {
             refresh()
         } catch {
             Log.error("clipboard", "分组排序失败: \(error)")
+        }
+    }
+
+    /// 分组顺序 + 组内 sortOrder（refresh 的口径），供就地变更后复用
+    private func sortInPlace(_ list: inout [Tag]) {
+        let rank = Dictionary(uniqueKeysWithValues: groups.enumerated().map { ($1.id, $0) })
+        list.sort {
+            let l = $0.groupID.map { rank[$0] ?? Int.max } ?? Int.max
+            let r = $1.groupID.map { rank[$0] ?? Int.max } ?? Int.max
+            if l != r { return l < r }
+            if $0.groupID != nil, $0.sortOrder != $1.sortOrder { return $0.sortOrder < $1.sortOrder }
+            return $0.updatedAt > $1.updatedAt
         }
     }
 

@@ -23,20 +23,15 @@ struct DesktopPetView: View {
     private static let clockInterval: TimeInterval = 0.3
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: Self.clockInterval)) { context in
-            // 拖动时冻结装饰动画时钟
-            let t = isDragging ? 0 : context.date.timeIntervalSinceReferenceDate
-
-            // 呼吸：±1.5 % 缩放，周期 3.5 s
-            let breathe = sin(t * 2 * .pi / 3.5) * 0.015
-            // 漂浮：±1 pt 垂直偏移，周期 5.2 s（与呼吸异频，更自然）
-            let floatY = sin(t * 2 * .pi / 5.2) * 1.0
-            // 眨眼：每 5.5 s 眨一次，持续 0.12 s
-            let isBlinking = t.truncatingRemainder(dividingBy: 5.5) < 0.12
-
-            dolphinBody(isBlinking: isBlinking)
-                .scaleEffect(1.0 + breathe)
-                .offset(y: floatY)
+        Group {
+            // v287：静态模式 / 拖动中不跑动画时钟——角色静止时零重绘开销。
+            if appearance.motionMode == .staticMode || isDragging {
+                petContent(t: 0)
+            } else {
+                TimelineView(.animation(minimumInterval: Self.clockInterval)) { context in
+                    petContent(t: context.date.timeIntervalSinceReferenceDate)
+                }
+            }
         }
         // 悬停：一次性弹簧过渡（抬头 / 轻摇尾），不持续追踪
         .scaleEffect(isHovered ? 1.04 : 1.0)
@@ -53,6 +48,29 @@ struct DesktopPetView: View {
         }
         .accessibilityLabel("海豚桌面精灵")
         .accessibilityHint("单击展开面板，双击自定义动作，右键打开菜单")
+    }
+
+    /// 单帧内容：自定义 PNG 优先（用户替换形象），否则用内置矢量海豚。
+    @ViewBuilder
+    private func petContent(t: TimeInterval) -> some View {
+        // 呼吸：±1.5 % 缩放，周期 3.5 s
+        let breathe = sin(t * 2 * .pi / 3.5) * 0.015
+        // 漂浮：±1 pt 垂直偏移，周期 5.2 s（与呼吸异频，更自然）
+        let floatY = sin(t * 2 * .pi / 5.2) * 1.0
+        // 眨眼：每 5.5 s 眨一次，持续 0.12 s
+        let isBlinking = t > 0 && t.truncatingRemainder(dividingBy: 5.5) < 0.12
+        Group {
+            if let path = appearance.customImagePath,
+               let image = NSImage(contentsOfFile: path) {
+                Image(nsImage: image)
+                    .resizable()
+                    .scaledToFit()
+            } else {
+                dolphinBody(isBlinking: isBlinking)
+            }
+        }
+        .scaleEffect(1.0 + breathe)
+        .offset(y: floatY)
     }
 
     // MARK: - 海豚绘制

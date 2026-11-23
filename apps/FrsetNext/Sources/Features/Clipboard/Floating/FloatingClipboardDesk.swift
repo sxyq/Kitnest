@@ -96,6 +96,7 @@ public final class FloatingClipDeskStore: ObservableObject {
     private var loadedFavoriteOnly: Bool = false
     private var loadedRecentOnly: Bool = false
     private var loadedTagGroupID: String?
+    private var loadedNoteOnly = false
     private let queryStateLock = NSLock()
     private var queryGeneration = 0
 
@@ -175,6 +176,11 @@ public final class FloatingClipDeskStore: ObservableObject {
     @Published public var recentOnly: Bool = false {
         didSet { if oldValue != recentOnly { reload(debounce: false) } }
     }
+    /// 已存项目（is_note=1）。与「类型」正交：文本+已存也能组合，
+    /// 不再用 kind=.note 独占类型维度。
+    @Published public var noteOnly: Bool = false {
+        didSet { if oldValue != noteOnly { reload(debounce: false) } }
+    }
     /// 标签分组筛选（nil=不限；按 tags.group_id 匹配）
     @Published public var tagGroupID: String? = nil {
         didSet { if oldValue != tagGroupID { reload(debounce: false) } }
@@ -191,6 +197,71 @@ public final class FloatingClipDeskStore: ObservableObject {
     }
     /// 右侧预览栏的内容模型（选中项的完整预览）
     @Published public private(set) var previewModel: PreviewPopoverContentModel?
+
+    // MARK: v287 三栏工作台：筛选返回栈
+    //
+    // 用户需求「点击返回：恢复上一级筛选、搜索词和滚动位置」。
+    // 每次从侧栏切分类前把当前筛选（含搜索词与选中项）压栈，Esc/返回按钮弹栈恢复。
+    // 只存内存，不落盘（与 prompt-helper 的会话级返回语义一致）。
+
+    /// 一套筛选快照
+    public struct DeskFilterState: Equatable {
+        public var kind: ClipboardFilterKind = .all
+        public var favoriteOnly = false
+        public var favoriteLevel: Int?
+        public var recentOnly = false
+        public var noteOnly = false
+        public var tagGroupID: String?
+        public var tagFilterID: String?
+        public var search = ""
+        public var selectedID: String?
+    }
+
+    private var filterHistory: [DeskFilterState] = []
+    /// 是否有可返回的上一级（驱动侧栏「返回」按钮的显隐）
+    @Published public private(set) var canGoBack = false
+
+    public func currentFilterState() -> DeskFilterState {
+        DeskFilterState(kind: kind, favoriteOnly: favoriteOnly, favoriteLevel: favoriteLevel,
+                        recentOnly: recentOnly, noteOnly: noteOnly,
+                        tagGroupID: tagGroupID, tagFilterID: tagFilterID,
+                        search: search, selectedID: selectedItemID)
+    }
+
+    /// 切分类前调用：记录当前筛选，供返回时恢复。
+    public func pushFilterSnapshot() {
+        guard !settingsPreview else { return }
+        filterHistory.append(currentFilterState())
+        if filterHistory.count > 30 { filterHistory.removeFirst() }
+        if !canGoBack { canGoBack = true }
+    }
+
+    /// 返回上一级筛选（Esc / 返回按钮）。返回 false 表示已经到底。
+    @discardableResult
+    public func goBackFilter() -> Bool {
+        guard !settingsPreview, let prev = filterHistory.popLast() else { return false }
+        canGoBack = !filterHistory.isEmpty
+        // 顺序：先恢复搜索词再恢复分类，避免中间态触发多余查询
+        search = prev.search
+        kind = prev.kind
+        favoriteOnly = prev.favoriteOnly
+        favoriteLevel = prev.favoriteLevel
+        recentOnly = prev.recentOnly
+        noteOnly = prev.noteOnly
+        tagGroupID = prev.tagGroupID
+        tagFilterID = prev.tagFilterID
+        // 选中项：查询回来后按 id 复原
+        if let id = prev.selectedID {
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.selectedItemID != id,
+                      let index = self.items.firstIndex(where: { $0.id == id }) else { return }
+                self.selectedIndex = index
+                self.rebuildPreviewModel()
+                self.scrollRequest += 1
+            }
+        }
+        return true
+    }
 
     /// 粘贴后回调（由窗口控制器挂上"收起面板"）
     public var onPaste: ((@escaping () -> Void) -> Void)?
@@ -212,8 +283,28 @@ public final class FloatingClipDeskStore: ObservableObject {
     private let queue = DispatchQueue(label: "frset.clipdesk.query", qos: .userInitiated)
     private var observer: NSObjectProtocol?
     private var tagObserver: NSObjectProtocol?
+    private var favoriteObserver: NSObjectProtocol?
+    private var countsWork: DispatchWorkItem?
     private var previewSource: [ClipboardItem] = []
     private var previewContents: [String: PreviewPopoverContentModel] = [:]
+
+    /// v287 三栏工作台：侧栏各入口条目数（COUNT 聚合，主线程发布）
+    @Published public private(set) var counts: ClipboardRepository.SidebarCounts = .empty
+
+    /// 重新统计侧栏计数（后台 COUNT，合并 200ms 内的重复请求）
+    public func refreshCounts() {
+        guard !settingsPreview else { return }
+        countsWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self else { return }
+            let next = ClipboardRepository.shared.sidebarCounts()
+            DispatchQueue.main.async {
+                if self.counts != next { self.counts = next }
+            }
+        }
+        countsWork = work
+        queue.asyncAfter(deadline: .now() + 0.2, execute: work)
+    }
 
     public func setPreviewItems(_ source: [ClipboardItem]) {
         guard settingsPreview, previewSource != source else { return }
@@ -233,10 +324,36 @@ public final class FloatingClipDeskStore: ObservableObject {
             object: nil, queue: .main) { [weak self] _ in
                 guard FloatingClipboardPinState.shared.isVisible else { return }
                 self?.reload(debounce: true)
+                self?.refreshCounts()
             }
         tagObserver = NotificationCenter.default.addObserver(
             forName: TagStore.didChangeNotification, object: nil, queue: .main
-        ) { [weak self] note in self?.applyTagChange(note) }
+        ) { [weak self] note in
+            self?.applyTagChange(note)
+            self?.refreshCounts()
+        }
+        // v287：收藏等级变化（右键菜单 / 卡片星标 / 拖卡到等级行）→ 侧栏计数 + 列表同步
+        favoriteObserver = NotificationCenter.default.addObserver(
+            forName: FavoritesStore.didChangeNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            self.refreshCounts()
+            guard FloatingClipboardPinState.shared.isVisible else { return }
+            // 当前正在按收藏维度筛选时重查；否则只刷新可见条目的星标
+            if self.favoriteOnly || self.favoriteLevel != nil {
+                self.reload(debounce: true)
+            } else {
+                let levels = FavoritesStore.shared.levels
+                var updated = self.items
+                for index in updated.indices {
+                    let key = "clipboard:" + updated[index].dedupeKey
+                    let fav = levels[key].map { $0 > 0 } ?? false
+                    if updated[index].isFavorite != fav { updated[index].isFavorite = fav }
+                }
+                if updated != self.items { self.items = updated }
+            }
+        }
+        refreshCounts()
     }
 
     deinit {
@@ -245,6 +362,7 @@ public final class FloatingClipDeskStore: ObservableObject {
         previewTask?.cancel()
         if let observer { NotificationCenter.default.removeObserver(observer) }
         if let tagObserver { NotificationCenter.default.removeObserver(tagObserver) }
+        if let favoriteObserver { NotificationCenter.default.removeObserver(favoriteObserver) }
     }
 
     // MARK: 查询
@@ -287,6 +405,7 @@ public final class FloatingClipDeskStore: ObservableObject {
                                    favoriteOnly: favoriteOnly,
                                    favoriteLevel: favoriteLevel, tagGroupID: tagGroupID,
                                    recentOnly: recentOnly,
+                                   noteOnlyOverride: noteOnly ? true : nil,
                                    limit: append ? 120 : max(120, items.count),
                                    offset: append ? items.count : 0)
         queryStateLock.lock()
@@ -308,7 +427,8 @@ public final class FloatingClipDeskStore: ObservableObject {
                       query.favoriteOnly == self.favoriteOnly,
                       query.favoriteLevel == self.favoriteLevel,
                       query.recentOnly == self.recentOnly,
-                      query.tagGroupID == self.tagGroupID else { return }
+                      query.tagGroupID == self.tagGroupID,
+                      query.noteOnly == self.noteOnly else { return }
                 self.queryWork = nil
                 let selectedID = self.selectedItemID
                 let queryChanged = kind != self.loadedKind || search != self.loadedSearch
@@ -317,6 +437,7 @@ public final class FloatingClipDeskStore: ObservableObject {
                     || query.favoriteLevel != self.loadedFavoriteLevel
                     || query.recentOnly != self.loadedRecentOnly
                     || query.tagGroupID != self.loadedTagGroupID
+                    || query.noteOnly != self.loadedNoteOnly
                 let updated: [ClipboardItem]
                 if append {
                     let existingIDs = Set(self.items.map(\.id))
@@ -333,6 +454,7 @@ public final class FloatingClipDeskStore: ObservableObject {
                 self.loadedFavoriteLevel = query.favoriteLevel
                 self.loadedRecentOnly = query.recentOnly
                 self.loadedTagGroupID = query.tagGroupID
+                self.loadedNoteOnly = query.noteOnly
                 self.isLoading = false
                 // v286 分类切换保位置：新列表里还有原选中项就落到它现在的
                 // index，只有找不到时才回 0（原实现 queryChanged 一律回顶）。
@@ -585,6 +707,10 @@ public struct FloatingClipboardDeskView: View {
     @Stored private var expandedTagGroups: Set<String> = []
     /// v287 三栏工作台：侧栏宽度（拖拽可调，落盘记忆）
     @Stored private var sidebarWidth: CGFloat = FloatingClipPrefs.sidebarWidth
+    /// v287：窄窗时分类侧栏临时展开成抽屉（显式按钮触发）
+    @Stored private var sidebarDrawerOpen = false
+    /// v287：窄窗时右侧预览显式切换到整列显示
+    @Stored private var narrowPreviewVisible = false
 
     public init(store: FloatingClipDeskStore = .shared,
                 personalization: Personalization = .shared) {
@@ -612,8 +738,9 @@ public struct FloatingClipboardDeskView: View {
         }
         // 根视图必须填满窗口而不是给出 fitting 尺寸：
         // 否则 NSHostingView 会把「一整列卡片的总高」当成窗口高度请求，窗口被撑到屏幕外。
-        // v287：三栏工作台加宽到 720（侧栏 190 + 卡片/预览 530）
-        .frame(minWidth: 720, maxWidth: .infinity, minHeight: 380, maxHeight: .infinity)
+        // v287：最小宽度保持 520（不抬高下限，避免升级时把用户已有的窄窗强行拉大；
+        // 窄于 760 走图标列 + 卡片/预览切换的窄窗形态）
+        .frame(minWidth: 520, maxWidth: .infinity, minHeight: 380, maxHeight: .infinity)
         .background(panelBackground)
         .clipShape(RoundedRectangle(cornerRadius: appearance.cornerRadius, style: .continuous))
         .overlay(
@@ -648,6 +775,9 @@ public struct FloatingClipboardDeskView: View {
         }
         .onChange(of: previewItems) { if isSettingsPreview { store.setPreviewItems($0) } }
         .onMoveCommand { direction in
+            // v287（统一交互）：文本输入时方向键交给输入框（光标移动），
+            // 只有浏览列表时才按键盘选择语义移动选中项。
+            guard !searchFocused else { return }
             switch direction {
             case .left: store.moveSelection(-1, 0, columns: store.cardSize.columns)
             case .right: store.moveSelection(1, 0, columns: store.cardSize.columns)
@@ -658,6 +788,9 @@ public struct FloatingClipboardDeskView: View {
         }
         // v287 三栏工作台：Esc 逐级退回（标签 → 分组 → 收藏等级 → 最近 → 类型 → 全部）
         .onExitCommand {
+            // v287：优先按访问路径返回（恢复上一级筛选+搜索词+选中项）；
+            // 没有历史时逐维退让；都到底了交给窗口控制器收起。
+            if store.goBackFilter() { return }
             if store.tagFilterID != nil {
                 store.tagFilterID = nil
             } else if store.tagGroupID != nil {
@@ -668,6 +801,8 @@ public struct FloatingClipboardDeskView: View {
                 store.favoriteOnly = false
             } else if store.recentOnly {
                 store.recentOnly = false
+            } else if store.noteOnly {
+                store.noteOnly = false
             } else if store.kind != .all {
                 store.kind = .all
             }
@@ -675,6 +810,17 @@ public struct FloatingClipboardDeskView: View {
         }
         // v287：回车粘贴由搜索框 onSubmit 提供（自动聚焦 → 输入筛选 → 方向键选中 → 回车粘贴），
         // 不另加全局 NSEvent 监听（会和搜索框输入冲突，且 macOS 13 无 onKeyPress）
+        // v287：窄窗抽屉里点完分类自动收起
+        .onChange(of: store.kind) { _ in closeDrawerIfNeeded() }
+        .onChange(of: store.favoriteLevel) { _ in closeDrawerIfNeeded() }
+        .onChange(of: store.favoriteOnly) { _ in closeDrawerIfNeeded() }
+        .onChange(of: store.recentOnly) { _ in closeDrawerIfNeeded() }
+        .onChange(of: store.tagGroupID) { _ in closeDrawerIfNeeded() }
+        .onChange(of: store.tagFilterID) { _ in closeDrawerIfNeeded() }
+    }
+
+    private func closeDrawerIfNeeded() {
+        if sidebarDrawerOpen { sidebarDrawerOpen = false }
     }
 
     // MARK: 顶部搜索
@@ -855,34 +1001,151 @@ public struct FloatingClipboardDeskView: View {
     /// 左侧「分类导航栏」= 固定分类 + 收藏等级 + 标签分组 + 已存项目 + 分类管理；
     /// 中间「卡片栏」= 原有卡片网格/列表（复用 FloatingClipCard / FloatingClipListRow）；
     /// 右侧「预览栏」= 原有选中项预览（复用 FloatingClipPreview）。
-    /// 宽窄自适应：窗口宽度 < 820 时收起预览栏（卡片占满右区），< 620 时侧栏收窄到 140。
+    /// 宽窄自适应（v287 三栏工作台）：
+    /// · 宽窗（> 900）：完整三栏（分类侧栏 + 卡片 + 预览）；
+    /// · 中窗（760–900）：三栏但侧栏收到下限，预览保持可读宽度；
+    /// · 窄窗（< 760）：侧栏折叠成图标列，点「展开分类」按显式按钮滑出抽屉；
+    ///   预览不删除——卡片/预览用底部按钮显式切换，不硬压缩到不可读。
     private var content: some View {
         GeometryReader { outerGeo in
-            let isWide = outerGeo.size.width > 820
-            let effectiveSidebarWidth: CGFloat = outerGeo.size.width < 620 ? 140 : sidebarWidth
-            HStack(spacing: 0) {
-                sidebarPane
-                    .frame(width: effectiveSidebarWidth)
-                SplitSidebarDivider(width: $sidebarWidth)
-                if isWide {
-                    GeometryReader { geo in
-                        HStack(spacing: 0) {
-                            cardsPane
-                                .frame(width: geo.size.width * store.splitRatio)
-                            SplitDivider(ratio: $store.splitRatio,
-                                         totalWidth: geo.size.width,
-                                         onCommit: { store.persistSplitRatio() })
+            let width = outerGeo.size.width
+            let isNarrow = width < 760
+            let effectiveSidebarWidth: CGFloat = width < 900 ? 160 : sidebarWidth
+            ZStack(alignment: .topLeading) {
+                HStack(spacing: 0) {
+                    if isNarrow {
+                        sidebarIconRail
+                            .frame(width: 52)
+                        Divider().opacity(0.25)
+                        if narrowPreviewVisible {
                             previewPane
                                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .overlay(alignment: .topLeading) {
+                                    // 显式返回卡片列表（预览不删除，只是切换显示）
+                                    Button {
+                                        narrowPreviewVisible = false
+                                    } label: {
+                                        Image(systemName: "chevron.left")
+                                            .font(.scaledSystem(size: 11, weight: .medium, scale: appearance.fontScale))
+                                            .frame(width: 26, height: 26)
+                                            .background(.thinMaterial, in: Circle())
+                                    }
+                                    .buttonStyle(.plain)
+                                    .help("返回卡片列表")
+                                    .padding(10)
+                                }
+                        } else {
+                            cardsPane
+                                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                .overlay(alignment: .bottomTrailing) {
+                                    // 显式切到预览（窄窗不硬压缩，避免压到不可读）
+                                    Button {
+                                        narrowPreviewVisible = true
+                                    } label: {
+                                        Image(systemName: "sidebar.right")
+                                            .font(.scaledSystem(size: 11, weight: .medium, scale: appearance.fontScale))
+                                            .frame(width: 26, height: 26)
+                                            .background(.thinMaterial, in: Circle())
+                                    }
+                                    .buttonStyle(.plain)
+                                    .help("显示预览")
+                                    .padding(10)
+                                }
                         }
-                        .coordinateSpace(name: Self.splitSpace)
+                    } else {
+                        sidebarPane
+                            .frame(width: effectiveSidebarWidth)
+                        SplitSidebarDivider(width: $sidebarWidth)
+                        GeometryReader { geo in
+                            HStack(spacing: 0) {
+                                cardsPane
+                                    .frame(width: geo.size.width * store.splitRatio)
+                                SplitDivider(ratio: $store.splitRatio,
+                                             totalWidth: geo.size.width,
+                                             onCommit: { store.persistSplitRatio() })
+                                previewPane
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            }
+                            .coordinateSpace(name: Self.splitSpace)
+                        }
                     }
-                } else {
-                    cardsPane
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                }
+                // 窄窗分类抽屉：显式按钮打开，点任意分类或遮罩关闭
+                if isNarrow && sidebarDrawerOpen {
+                    Color.black.opacity(0.18)
+                        .contentShape(Rectangle())
+                        .onTapGesture { sidebarDrawerOpen = false }
+                    sidebarPane
+                        .frame(width: 200)
+                        .frame(maxHeight: .infinity)
+                        .background(appearance.windowSurface)
+                        .transition(.move(edge: .leading).combined(with: .opacity))
                 }
             }
+            .animation(.easeOut(duration: 0.18), value: sidebarDrawerOpen)
         }
+    }
+
+    /// 窄窗图标列：只留图标，悬停出名称，底部按钮展开完整侧栏
+    private var sidebarIconRail: some View {
+        VStack(spacing: 2) {
+            iconRailButton("tray.full", help: "全部记录",
+                           active: store.kind == .all && store.favoriteLevel == nil
+                               && !store.favoriteOnly && !store.recentOnly && !store.noteOnly
+                               && store.tagGroupID == nil && store.tagFilterID == nil) {
+                store.pushFilterSnapshot()
+                store.kind = .all; store.favoriteLevel = nil; store.favoriteOnly = false
+                store.recentOnly = false; store.tagGroupID = nil; store.tagFilterID = nil
+            }
+            iconRailButton("clock", help: "最近使用", active: store.recentOnly) {
+                store.pushFilterSnapshot()
+                store.recentOnly = true; store.favoriteLevel = nil; store.favoriteOnly = false
+                store.tagGroupID = nil; store.tagFilterID = nil
+            }
+            iconRailButton("star", help: "全部收藏",
+                           active: store.favoriteOnly && store.favoriteLevel == nil) {
+                store.pushFilterSnapshot()
+                store.favoriteOnly = true; store.favoriteLevel = nil; store.recentOnly = false
+            }
+            iconRailButton("star.fill", help: "重要收藏", active: store.favoriteLevel == 2) {
+                store.pushFilterSnapshot()
+                store.favoriteOnly = true; store.favoriteLevel = 2; store.recentOnly = false
+            }
+            iconRailButton("pin.fill", help: "置顶收藏", active: store.favoriteLevel == 3) {
+                store.pushFilterSnapshot()
+                store.favoriteOnly = true; store.favoriteLevel = 3; store.recentOnly = false
+            }
+            iconRailButton("bookmark", help: "已存项目", active: store.noteOnly) {
+                store.pushFilterSnapshot()
+                store.noteOnly.toggle()
+            }
+            Spacer(minLength: 4)
+            iconRailButton("sidebar.left", help: "展开分类") {
+                sidebarDrawerOpen.toggle()
+            }
+        }
+        .padding(.vertical, 8)
+        .frame(maxHeight: .infinity, alignment: .top)
+    }
+
+    private func iconRailButton(_ symbol: String, help: String, active: Bool = false,
+                                action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.scaledSystem(size: 12, weight: active ? .semibold : .regular, scale: appearance.fontScale))
+                .foregroundStyle(active ? appearance.accent : Color.primary.opacity(0.7))
+                .frame(width: 34, height: 28)
+                .background {
+                    if active {
+                        RoundedRectangle(cornerRadius: Theme.Radius.micro, style: .continuous)
+                            .fill(appearance.accent.opacity(0.14))
+                    }
+                }
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(help)
+        .accessibilityLabel(help)
     }
 
     /// 分隔条用的命名坐标系（拖动起点要换算成整宽比例）
@@ -943,21 +1206,45 @@ public struct FloatingClipboardDeskView: View {
 
     private var sidebarPane: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // v287：返回上一级（恢复筛选/搜索词/位置），只在有历史时出现
+            if store.canGoBack {
+                Button {
+                    store.goBackFilter()
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: "chevron.left")
+                            .font(.scaledSystem(size: 9, weight: .semibold, scale: appearance.fontScale))
+                        Text("返回")
+                            .font(.scaledSystem(size: 10, scale: appearance.fontScale))
+                        Spacer(minLength: 0)
+                    }
+                    .foregroundStyle(.secondary)
+                    .padding(.horizontal, 14)
+                    .frame(height: 26)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help("返回上一级筛选")
+                Divider().opacity(0.2).padding(.horizontal, 10)
+            }
             ScrollView {
                 // v287 性能：LazyVStack 按需渲染，大量标签不卡顿
                 LazyVStack(alignment: .leading, spacing: 1) {
                     // 固定分类（v287：三个筛选维度正交——类型 kind / 收藏等级 / 标签分组，
                     // 侧栏切等级不清空顶部类型，切类型不清空等级）
                     sidebarSectionHeader("记录")
-                    sidebarRow(icon: "tray.full", label: "全部记录", count: store.totalInKind,
+                    sidebarRow(icon: "tray.full", label: "全部记录", count: store.counts.total,
                                isActive: store.kind == .all && store.favoriteLevel == nil
-                                   && !store.favoriteOnly && !store.recentOnly
+                                   && !store.favoriteOnly && !store.recentOnly && !store.noteOnly
                                    && store.tagGroupID == nil && store.tagFilterID == nil) {
+                        store.pushFilterSnapshot()
                         store.kind = .all; store.favoriteLevel = nil; store.favoriteOnly = false
-                        store.recentOnly = false; store.tagGroupID = nil; store.tagFilterID = nil
+                        store.recentOnly = false; store.noteOnly = false
+                        store.tagGroupID = nil; store.tagFilterID = nil
                     }
-                    sidebarRow(icon: "clock", label: "最近使用",
+                    sidebarRow(icon: "clock", label: "最近使用", count: store.counts.recent,
                                isActive: store.recentOnly) {
+                        store.pushFilterSnapshot()
                         store.recentOnly = true
                         store.favoriteLevel = nil; store.favoriteOnly = false
                         store.tagGroupID = nil; store.tagFilterID = nil
@@ -965,30 +1252,52 @@ public struct FloatingClipboardDeskView: View {
 
                     // 收藏等级
                     sidebarSectionHeader("收藏")
-                    sidebarRow(icon: "star", label: "全部收藏",
-                               isActive: store.favoriteOnly && store.favoriteLevel == nil) {
+                    sidebarRow(icon: "star", label: "全部收藏", count: store.counts.favoriteAll,
+                               isActive: store.favoriteOnly && store.favoriteLevel == nil,
+                               drop: { key in
+                                   FavoritesStore.shared.setClipboard(dedupeKey: key, level: .normal)
+                               }) {
+                        store.pushFilterSnapshot()
                         store.favoriteOnly = true; store.favoriteLevel = nil
                         store.recentOnly = false
                     }
-                    sidebarRow(icon: "star", label: "普通", indent: 1,
-                               isActive: store.favoriteLevel == 1) {
+                    sidebarRow(icon: "star", label: "普通", count: store.counts.levels[1] ?? 0, indent: 1,
+                               isActive: store.favoriteLevel == 1,
+                               drop: { key in
+                                   FavoritesStore.shared.setClipboard(dedupeKey: key, level: .normal)
+                               }) {
+                        store.pushFilterSnapshot()
                         store.favoriteOnly = true; store.favoriteLevel = 1; store.recentOnly = false
                     }
-                    sidebarRow(icon: "star.fill", label: "重要", indent: 1,
-                               isActive: store.favoriteLevel == 2) {
+                    sidebarRow(icon: "star.fill", label: "重要", count: store.counts.levels[2] ?? 0, indent: 1,
+                               isActive: store.favoriteLevel == 2,
+                               drop: { key in
+                                   FavoritesStore.shared.setClipboard(dedupeKey: key, level: .important)
+                               }) {
+                        store.pushFilterSnapshot()
                         store.favoriteOnly = true; store.favoriteLevel = 2; store.recentOnly = false
                     }
-                    sidebarRow(icon: "pin.fill", label: "置顶", indent: 1,
-                               isActive: store.favoriteLevel == 3) {
+                    sidebarRow(icon: "pin.fill", label: "置顶", count: store.counts.levels[3] ?? 0, indent: 1,
+                               isActive: store.favoriteLevel == 3,
+                               drop: { key in
+                                   FavoritesStore.shared.setClipboard(dedupeKey: key, level: .pinned)
+                               }) {
+                        store.pushFilterSnapshot()
                         store.favoriteOnly = true; store.favoriteLevel = 3; store.recentOnly = false
                     }
 
                     // 已存项目
                     sidebarSectionHeader("项目")
-                    sidebarRow(icon: "bookmark", label: "已存项目",
-                               isActive: store.kind == .note) {
-                        store.kind = .note; store.favoriteLevel = nil; store.favoriteOnly = false
-                        store.recentOnly = false; store.tagGroupID = nil; store.tagFilterID = nil
+                    sidebarRow(icon: "bookmark", label: "已存项目", count: store.counts.notes,
+                               isActive: store.noteOnly,
+                               drop: { key in
+                                   _ = ClipboardRepository.shared.updateNote(dedupeKey: key, isNote: true)
+                                   NotificationCenter.default.post(name: ClipboardManager.itemsDidChangeNotification,
+                                                                   object: nil)
+                               }) {
+                        store.pushFilterSnapshot()
+                        // 只切「已存」这一维，保留类型/收藏/分组，三个维度可组合
+                        store.noteOnly.toggle()
                     }
 
                     // 标签分组
@@ -1047,6 +1356,7 @@ public struct FloatingClipboardDeskView: View {
 
     private func sidebarRow(icon: String, label: String, count: Int? = nil,
                             indent: Int = 0, isActive: Bool,
+                            drop: ((String) -> Void)? = nil,
                             action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 6) {
@@ -1077,6 +1387,13 @@ public struct FloatingClipboardDeskView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // v287「拖动卡片到分类」：拖到收藏等级行 = 直接设等级；拖到「已存」= 存为项目。
+        // 只改元数据，不动正文与删除（不会误删原始数据）。
+        .onDrop(of: [.text], isTargeted: nil) { providers in
+            guard let drop else { return false }
+            SidebarDropSupport.handle(providers, drop)
+            return true
+        }
     }
 
     @ViewBuilder
@@ -1099,7 +1416,8 @@ public struct FloatingClipboardDeskView: View {
                         .font(.scaledSystem(size: 11, weight: isGroupActive ? .semibold : .regular, scale: appearance.fontScale))
                         .lineLimit(1)
                     Spacer(minLength: 2)
-                    Text("\(groupTags.count)")
+                    // v287：显示归属条目数（组内标签去重后按条目计），不是标签个数
+                    Text("\(store.counts.perGroup[group.id] ?? 0)")
                         .font(.scaledSystem(size: 9, scale: appearance.fontScale).monospacedDigit())
                         .foregroundStyle(.tertiary)
                 }
@@ -1117,6 +1435,7 @@ public struct FloatingClipboardDeskView: View {
             }
             .buttonStyle(.plain)
             .simultaneousGesture(TapGesture(count: 2).onEnded {
+                store.pushFilterSnapshot()
                 store.tagGroupID = group.id; store.tagFilterID = nil
             })
             if isExpanded {
@@ -1129,8 +1448,10 @@ public struct FloatingClipboardDeskView: View {
 
     private func sidebarTagRow(_ tag: Tag, indent: Int) -> some View {
         SidebarTagRow(tag: tag, indent: indent,
+                      count: store.counts.perTag[tag.id] ?? 0,
                       isActive: store.tagFilterID == tag.id,
                       appearance: appearance) {
+            store.pushFilterSnapshot()
             store.tagGroupID = tag.groupID
             store.tagFilterID = (store.tagFilterID == tag.id) ? nil : tag.id
         }
@@ -1798,11 +2119,28 @@ private struct SplitSidebarDivider: View {
     }
 }
 
+// MARK: - v287 侧栏拖放载荷解析
+
+/// 卡片拖拽时注册的自定义表示（com.sxyq.frsetnext.dedupekey）。
+/// 侧栏所有落点共用这一份解析，避免各写一套。
+enum SidebarDropSupport {
+    static func handle(_ providers: [NSItemProvider], _ perform: @escaping (String) -> Void) {
+        for provider in providers {
+            _ = provider.loadDataRepresentation(forTypeIdentifier: "com.sxyq.frsetnext.dedupekey") { data, _ in
+                guard let data, let key = String(data: data, encoding: .utf8), !key.isEmpty else { return }
+                DispatchQueue.main.async { perform(key) }
+            }
+        }
+    }
+}
+
 // MARK: - v287 三栏工作台：侧栏标签行（支持拖放打标签）
 
 private struct SidebarTagRow: View {
     let tag: Tag
     let indent: Int
+    /// v287：该标签归属的条目数（COUNT 聚合，不是标签自身计数）
+    let count: Int
     let isActive: Bool
     let appearance: ThemeAppearance
     let action: () -> Void
@@ -1818,6 +2156,11 @@ private struct SidebarTagRow: View {
                     .font(.scaledSystem(size: 10, weight: isActive ? .semibold : .regular, scale: appearance.fontScale))
                     .lineLimit(1)
                 Spacer(minLength: 2)
+                if count > 0 {
+                    Text("\(count)")
+                        .font(.scaledSystem(size: 9, scale: appearance.fontScale).monospacedDigit())
+                        .foregroundStyle(.tertiary)
+                }
             }
             .foregroundStyle(isActive ? appearance.accent : Color.primary.opacity(0.65))
             .padding(.horizontal, 14)
@@ -1838,16 +2181,10 @@ private struct SidebarTagRow: View {
         }
         .buttonStyle(.plain)
         .onDrop(of: [.text], isTargeted: $isDropTarget) { providers in
-            for provider in providers {
-                // 优先读 dedupeKey 自定义表示（内部拖放）
-                _ = provider.loadDataRepresentation(forTypeIdentifier: "com.sxyq.frsetnext.dedupekey") { data, _ in
-                    guard let data, let key = String(data: data, encoding: .utf8), !key.isEmpty else { return }
-                    DispatchQueue.main.async {
-                        TagStore.shared.assign(tagID: tag.id, toDedupeKey: key)
-                        NotificationCenter.default.post(name: TagStore.didChangeNotification, object: nil,
-                                                        userInfo: ["keys": [key]])
-                    }
-                }
+            SidebarDropSupport.handle(providers) { key in
+                TagStore.shared.assign(tagID: tag.id, toDedupeKey: key)
+                NotificationCenter.default.post(name: TagStore.didChangeNotification, object: nil,
+                                                userInfo: ["keys": [key]])
             }
             return true
         }

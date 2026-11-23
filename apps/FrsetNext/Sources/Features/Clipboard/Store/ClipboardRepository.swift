@@ -68,10 +68,11 @@ public struct ClipboardQuery {
                 favoriteOnly: Bool = false,
                 favoriteLevel: Int? = nil, tagGroupID: String? = nil,
                 recentOnly: Bool = false,
+                noteOnlyOverride: Bool? = nil,
                 limit: Int = ClipboardRepository.defaultPageSize, offset: Int = 0) {
         let mapping = filter.queryMapping
         self.init(search: search.trimmingCharacters(in: .whitespacesAndNewlines),
-                  type: mapping.type, noteOnly: mapping.noteOnly,
+                  type: mapping.type, noteOnly: noteOnlyOverride ?? mapping.noteOnly,
                   favoriteOnly: favoriteOnly || filter == .favorite,
                   toolGeneratedOnly: mapping.toolGeneratedOnly,
                   generatedSourceKeyword: mapping.generatedSourceKeyword,
@@ -212,6 +213,70 @@ public final class ClipboardRepository: @unchecked Sendable {
         Self.appendClauses(query, clauses: &clauses, values: &values)
         if !clauses.isEmpty { sql += " WHERE " + clauses.joined(separator: " AND ") }
         return Int((try? db.scalarInt(sql, values)) ?? 0)
+    }
+
+    // MARK: 侧栏计数（v287 三栏工作台：「显示条目数量」）
+
+    /// 侧栏各入口的条目数。全部走 COUNT/GROUP BY，不把历史记录载入内存。
+    public struct SidebarCounts: Equatable, Sendable {
+        public var total = 0
+        public var recent = 0
+        public var favoriteAll = 0
+        public var levels: [Int: Int] = [1: 0, 2: 0, 3: 0]
+        public var notes = 0
+        public var perTag: [String: Int] = [:]
+        public var perGroup: [String: Int] = [:]
+        public init() {}
+        public static let empty = SidebarCounts()
+    }
+
+    /// 一次取齐侧栏全部计数（单次加锁，6 条聚合查询）。
+    public func sidebarCounts() -> SidebarCounts {
+        db.accessLock.lock(); defer { db.accessLock.unlock() }
+        var result = SidebarCounts()
+        result.total = Int((try? db.scalarInt("SELECT COUNT(*) FROM clipboard_items")) ?? 0)
+        result.recent = Int((try? db.scalarInt(
+            "SELECT COUNT(*) FROM clipboard_items WHERE timestamp >= ?",
+            [.real(Date().timeIntervalSince1970 - 86_400)])) ?? 0)
+        result.notes = Int((try? db.scalarInt(
+            "SELECT COUNT(*) FROM clipboard_items WHERE is_note = 1")) ?? 0)
+        // 收藏：JOIN 剪贴板表，孤儿收藏行（条目已删）不计入
+        if let rows = try? db.query("""
+            SELECT rf.level AS level, COUNT(*) AS n
+              FROM resource_favorites rf
+              JOIN clipboard_items ci ON ci.dedupe_key = rf.resource_id
+             WHERE rf.resource_type = 'clipboard'
+             GROUP BY rf.level
+            """) {
+            for row in rows {
+                let level = Int(row.int("level"))
+                let n = Int(row.int("n"))
+                result.levels[level] = n
+                result.favoriteAll += n
+            }
+        }
+        // 每个标签的条目数
+        if let rows = try? db.query("""
+            SELECT t.id AS tag_id, COUNT(DISTINCT cit.item_dedupe_key) AS n
+              FROM clipboard_item_tags cit JOIN tags t ON cit.tag_id = t.id
+             GROUP BY t.id
+            """) {
+            for row in rows {
+                if let id = row.string("tag_id") { result.perTag[id] = Int(row.int("n")) }
+            }
+        }
+        // 每个分组的条目数（组内标签去重后按条目计）
+        if let rows = try? db.query("""
+            SELECT t.group_id AS group_id, COUNT(DISTINCT cit.item_dedupe_key) AS n
+              FROM clipboard_item_tags cit JOIN tags t ON cit.tag_id = t.id
+             WHERE t.group_id IS NOT NULL
+             GROUP BY t.group_id
+            """) {
+            for row in rows {
+                if let id = row.string("group_id") { result.perGroup[id] = Int(row.int("n")) }
+            }
+        }
+        return result
     }
 
     /// 按去重键取条目（去重命中 / 编辑前刷新用）
