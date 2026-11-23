@@ -334,13 +334,8 @@ public struct CalendarSectionView: View {
            cachedDays.contains(where: { calendar.isDate($0.date, inSameDayAs: end) }) { return }
         let sampleEvents = isSettingsPreview ? (previewEvents ?? []) : nil
         let today = previewDate ?? Date()
-        var days = service.monthDays(for: start, firstWeekday: firstWeekday,
-                                     previewEvents: sampleEvents, showLunar: showLunar, today: today)
-        if !days.contains(where: { calendar.isDate($0.date, inSameDayAs: end) }) {
-            days.append(contentsOf: service.monthDays(for: end, firstWeekday: firstWeekday,
-                                                       previewEvents: sampleEvents, showLunar: showLunar, today: today))
-        }
-        cachedDays = days
+        cachedDays = service.monthDays(for: start, through: end, firstWeekday: firstWeekday,
+                                       previewEvents: sampleEvents, showLunar: showLunar, today: today)
     }
 }
 

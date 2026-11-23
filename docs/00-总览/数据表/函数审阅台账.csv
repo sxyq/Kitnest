@@ -2732,12 +2732,12 @@ Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,candidates,func,
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,largestDirectories,func,889,KEEP,存储清理提示复用索引快照，递归前4层后按大小取12个目录；snapshot变化时由属性观察清除缓存
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,trash,func,909,KEEP,2026-11-20：窗口performTrash只移动索引中的真实路径至废纸篓；同串行队列在文件移动后取最新快照，统一裁剪内存与home/fullDisk缓存，缺失折叠明细则失效；发布核对revision，连续删除不恢复旧节点
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,removing,func,975,KEEP,2026-11-20：trash更新内存与两个范围缓存共用；按路径分隔判断交集，无交集沿用，根被移走或折叠导致目标节点缺失时失效该范围，其余仅裁剪已删除路径并重算总量与分类
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,findNode,func,995,KEEP,2026-11-20：窗口查找和trash确认对象及计数调用，按实际路径和disk-folded前缀沿相关子树递归，不搜索无关路径
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,independentPaths,func,1007,KEEP,2026-11-20：窗口选择、提示词及trash操作共用，Set去重后沿父路径排除已选父目录所含子项；分类无用directories已删除，不再调用它
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,pruned,func,1021,KEEP,2026-11-20：trash裁剪已删除路径时先按完整目录前缀判断交集，无关子树直接复用原值；仅目标祖先分支重建、排序并汇总大小，不复制整树
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,bytes,func,1044,KEEP,2026-11-20：存储窗口与堆块尺寸说明调用，系统十进制ByteCountFormatter格式；负值仅呈现0
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,shortBytes,func,1047,KEEP,2026-11-20：存储窗口和堆块紧凑标签调用，沿Finder十进制1000换算GB/MB/KB，显示一位小数或整数KB
-Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,date,func,1054,KEEP,2026-11-20：存储扫描日期与清理记录标签调用；按MM-dd HH:mm格式呈现本地时间，不改变索引状态
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,findNode,func,1005,KEEP,2026-11-20：窗口查找和trash确认对象及计数调用，按实际路径和disk-folded前缀沿相关子树递归，不搜索无关路径
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,independentPaths,func,1017,KEEP,2026-11-20：窗口选择、提示词及trash操作共用，Set去重后沿父路径排除已选父目录所含子项；分类无用directories已删除，不再调用它
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,pruned,func,1031,KEEP,2026-11-20：trash裁剪已删除路径时先按完整目录前缀判断交集，无关子树直接复用原值；仅目标祖先分支重建、排序并汇总大小，不复制整树
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,bytes,func,1057,KEEP,2026-11-20：存储窗口与堆块尺寸说明调用，系统十进制ByteCountFormatter格式；负值仅呈现0
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,shortBytes,func,1060,KEEP,2026-11-20：存储窗口和堆块紧凑标签调用，沿Finder十进制1000换算GB/MB/KB，显示一位小数或整数KB
+Monitor,Features/Monitor/Storage/DiskIndex.swift,StorageFormat,date,func,1067,KEEP,2026-11-20：存储扫描日期与清理记录标签调用；按MM-dd HH:mm格式呈现本地时间，不改变索引状态
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,27,KEEP,2026-11-20：shared唯一程序化构造1080×720窗口、最小860×560，关闭保留窗口；原生所需coder入口拒绝归档构造，正式入口为私有init
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,init,init,49,KEEP,2026-11-20：shared唯一程序化构造1080×720窗口、最小860×560，关闭保留窗口；原生所需coder入口拒绝归档构造，正式入口为私有init
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,show,func,51,KEEP,2026-11-20：监测详情按钮与storage深链共用已有窗口；按参数扫描或延迟发下钻/提示词通知，下钻消费端统一退出分类显示
@@ -3697,7 +3697,7 @@ Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,
 Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,isFestivalDay,func,315,KEEP,dayCell:181 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,shift,func,323,KEEP,header 按钮:92/118 与滚动闭包:243 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,reload,func,329,KEEP,onAppear:61、header:106、shift:301 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarDay,shortName,func,352,KEEP,扩展方法，lunarDisplay:328/331/332 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarDay,shortName,func,347,KEEP,扩展方法，lunarDisplay:328/331/332 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,init,init,24,KEEP,单例 shared:9（private init）；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,requestAccessIfNeeded,func,33,KEEP,ToolboxModule.swift:39 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,refreshAuthorization,func,41,KEEP,读取 EventKit 完整日历访问状态并同步未授权说明；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
@@ -3705,8 +3705,8 @@ Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,requestA
 Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,update,func,64,KEEP,授权回调:31/36/39/45 与 refresh:66 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,events,func,73,KEEP,同名重载错挂：此行为仍在使用的实现（values(into:)/recommend 3 参/events(from:to:)），非死代码；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,calendar,func,88,KEEP,monthDays与CalendarSectionView共用Gregorian Calendar，指定zh_CN、用户firstWeekday和当前时区，月历周排列沿同一口径；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,monthDays,func,98,KEEP,CalendarSectionView.swift:309/311 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,monthTitle,func,157,KEEP,CalendarSectionView.swift:286 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,monthDays,func,97,KEEP,CalendarSectionView.reload调用；2026-11-19人工复核；2026-11-23首尾月网格合并为连续日期区间，EventKit仅查一次，重叠日期只生成一次；显示范围和农历文案优先级保持
+Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,monthTitle,func,174,KEEP,CalendarSectionView.swift:286 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Calendar/HolidayManager.swift,HolidayManager,holiday,func,48,KEEP,CalendarService.swift:140 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Calendar/HolidayManager.swift,HolidayManager,festival,func,56,KEEP,CalendarService.swift:154 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Calendar/HolidayManager.swift,HolidayManager,components,func,70,KEEP,holiday:49、festival:57 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
