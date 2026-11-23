@@ -3237,5 +3237,22 @@ EVIDENCE.update({
         "没有缩略图时按扩展名选 SF Symbol（图片/视频/音频/表格/文档/应用），只在检查器预览画布用",
 })
 
+
+EVIDENCE.update({
+    # 2026-11-24 玻璃材质分层收口（底衬+霜感预合成 / 岛取样面解耦）
+    ("Core/UI/Support.swift", "glassTint"):
+        "结构面单层着色：把「通透度底衬」与「磨砂霜感」按 alpha 合成公式离线算成一层，四个滑块仍全部生效；旧实现两个全尺寸 fill/subview 叠着铺，每窗每帧多一次整窗合成",
+    ("Core/UI/Support.swift", "cachedDynamicColor"):
+        "带自定义 alpha 的动态色缓存：预合成结果的 alpha 由公式给出，不能再走「基色 + 常量 alpha」的 cachedSurface；按 (通透度,磨砂,midnight) 键复用同一个 Color 实例，面板每秒重算时不新建 NSColor 观察者",
+    ("Core/UI/Support.swift", "composite"):
+        "纯色叠合：A=a1+a2(1-a1)、C=(C1·a1+C2·a2(1-a1))/A；两色都是纯色 + 常量 alpha，所以结果可缓存，运行期零计算",
+    ("Features/Island/IslandSurface.swift", "targetSize"):
+        "玻璃取样面只认展开/收起两个最终尺寸：形变途中 SwiftUI 每帧都会 updateNSView，取样面若跟插值走，NSGlassEffectView 每帧重算背景采样",
+    ("Features/Island/IslandSurface.swift", "applyGeometry"):
+        "岛材质唯一几何入口：插值尺寸只喂 CAShapeLayer 遮罩，取样面在展开开始时放大一次、收起收尾时缩回一次；实测玻璃重建 12–16 次/次开合 → 2 次（展开）/0 次（收起）",
+    ("Features/Island/IslandSurface.swift", "flushStats"):
+        "形变收尾结算：几何更新次数、玻璃重建次数、遮罩重算次数与 layout p50/p95/max 一行日志（只记毫秒与次数，不记画面）",
+})
+
 if __name__ == "__main__":
     sys.exit(main())

@@ -106,21 +106,21 @@ Core,Core/Runtime/LogArchive.swift,LogArchive,footprintMB,func,281,KEEP,2026-11-
 Core,Core/Runtime/LogArchive.swift,LogArchive,threadCount,func,293,KEEP,2026-11-20：周期状态通过proc_pidinfo读取当前进程线程数，读取失败沿原返回0
 Core,Core/Runtime/LogArchive.swift,LogArchive,appendRaw,func,321,KEEP,2026-11-20：全部日志共用缓存日期格式及文件锁；按天切句柄，一次seek取末尾大小后写入，超过4MiB丢DEBUG；删除第二次seek
 Core,Core/Runtime/LogArchive.swift,LogArchive,cleanupOldLogs,func,354,KEEP,2026-11-20：初始化及6小时定时清理超过3天的log文件；只有实际取得修改日期后才比较，删除日期读取失败即视为最早时间的路径
-Core,Core/Runtime/Personalization.swift,Personalization,init,init,150,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；private init；shared:87 唯一构造
-Core,Core/Runtime/Personalization.swift,Personalization,makeDraft,func,155,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；AppearanceSettingsDraft 初始化与 discard 调用：创建 persistsChanges=false 的 Personalization，再经 copyValues 复制当前外观；草稿属性变更只发布到预览，不写偏好
-Core,Core/Runtime/Personalization.swift,DraftField,init,init,167,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；Personalization.init 仅在 persistsChanges=true 时装载偏好；DraftField.init 将可写键路径与偏好键配成 copy/matches 闭包，供模块草稿只应用并比较自己拥有的字段
-Core,Core/Runtime/Personalization.swift,Personalization,makeDefaultDraft,func,174,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；AppearanceSettingsDraft.restoreDefaults 调用：创建不装载偏好、不会持久写入的 Personalization，按模块 DraftField 取其出厂值
-Core,Core/Runtime/Personalization.swift,Personalization,applyDraft,func,176,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；模块保存传入明确的DraftField列表，在isLoading期间只复制该模块字段，随后flushPersist(keys:)只写这些偏好并发外观变化通知，避免覆盖其他页已保存值
-Core,Core/Runtime/Personalization.swift,Personalization,reloadFromDefaults,func,184,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；配置导入后从已有偏好重载全局外观并通知正式窗口，沿用同一单例
-Core,Core/Runtime/Personalization.swift,Personalization,copyValues,func,194,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；makeDraft共用完整外观复制入口，同步强调色、字号、密度、圆角、动画、悬停预览、材质、徽章、缩略图、通知、分隔线、Midnight、背景和玻璃参数共20项
-Core,Core/Runtime/Personalization.swift,Personalization,persist,func,231,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；全部 @Published didSet 调用
-Core,Core/Runtime/Personalization.swift,Personalization,flushPendingPersist,func,240,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；FrsetNextApp.swift:99 退出兜底
-Core,Core/Runtime/Personalization.swift,Personalization,flushPersist,func,272,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；persist:164 / flushPendingPersist:173
-Core,Core/Runtime/Personalization.swift,Personalization,migratedPreviewScale,func,290,KEEP,2026-11-21：v266 预览字号四档上移；读取 ui.clipboard.previewScale 与版本键，旧 0.9/1.0/1.1/1.25 一次性映射到 1.0/1.25/1.5/1.5 并写回版本 2；调用点 load:323
-Core,Core/Runtime/Personalization.swift,Personalization,load,func,310,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；init:146 调用
-Core,Core/Runtime/Personalization.swift,Personalization,color,func,411,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；load:209 / PersonalizationSettingsPane:786
-Core,Core/Runtime/Personalization.swift,Personalization,hex,func,421,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；accentColorHex:269 / Pane:203
-Core,Core/Runtime/Personalization.swift,Personalization,resetAll,func,443,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；PersonalizationSettingsPane.swift:765
+Core,Core/Runtime/Personalization.swift,Personalization,init,init,156,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；private init；shared:87 唯一构造
+Core,Core/Runtime/Personalization.swift,Personalization,makeDraft,func,161,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；AppearanceSettingsDraft 初始化与 discard 调用：创建 persistsChanges=false 的 Personalization，再经 copyValues 复制当前外观；草稿属性变更只发布到预览，不写偏好
+Core,Core/Runtime/Personalization.swift,DraftField,init,init,173,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；Personalization.init 仅在 persistsChanges=true 时装载偏好；DraftField.init 将可写键路径与偏好键配成 copy/matches 闭包，供模块草稿只应用并比较自己拥有的字段
+Core,Core/Runtime/Personalization.swift,Personalization,makeDefaultDraft,func,180,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；AppearanceSettingsDraft.restoreDefaults 调用：创建不装载偏好、不会持久写入的 Personalization，按模块 DraftField 取其出厂值
+Core,Core/Runtime/Personalization.swift,Personalization,applyDraft,func,182,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；模块保存传入明确的DraftField列表，在isLoading期间只复制该模块字段，随后flushPersist(keys:)只写这些偏好并发外观变化通知，避免覆盖其他页已保存值
+Core,Core/Runtime/Personalization.swift,Personalization,reloadFromDefaults,func,190,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；配置导入后从已有偏好重载全局外观并通知正式窗口，沿用同一单例
+Core,Core/Runtime/Personalization.swift,Personalization,copyValues,func,200,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；makeDraft共用完整外观复制入口，同步强调色、字号、密度、圆角、动画、悬停预览、材质、徽章、缩略图、通知、分隔线、Midnight、背景和玻璃参数共20项
+Core,Core/Runtime/Personalization.swift,Personalization,persist,func,237,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；全部 @Published didSet 调用
+Core,Core/Runtime/Personalization.swift,Personalization,flushPendingPersist,func,246,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；FrsetNextApp.swift:99 退出兜底
+Core,Core/Runtime/Personalization.swift,Personalization,flushPersist,func,278,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；persist:164 / flushPendingPersist:173
+Core,Core/Runtime/Personalization.swift,Personalization,migratedPreviewScale,func,296,KEEP,2026-11-21：v266 预览字号四档上移；读取 ui.clipboard.previewScale 与版本键，旧 0.9/1.0/1.1/1.25 一次性映射到 1.0/1.25/1.5/1.5 并写回版本 2；调用点 load:323
+Core,Core/Runtime/Personalization.swift,Personalization,load,func,316,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；init:146 调用
+Core,Core/Runtime/Personalization.swift,Personalization,color,func,428,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；load:209 / PersonalizationSettingsPane:786
+Core,Core/Runtime/Personalization.swift,Personalization,hex,func,438,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；accentColorHex:269 / Pane:203
+Core,Core/Runtime/Personalization.swift,Personalization,resetAll,func,460,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；PersonalizationSettingsPane.swift:765
 Core,Core/Runtime/Preferences.swift,Preferences,init,init,10,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；static shared:6 构造
 Core,Core/Runtime/Preferences.swift,Preferences,value,func,16,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；binding:107 / 计算属性:91
 Core,Core/Runtime/Preferences.swift,Preferences,set,func,20,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；binding:108 / 计算属性 setter:92
@@ -189,26 +189,25 @@ Core,Core/UI/LiquidGlass.swift,LiquidGlassBackground,makeCoordinator,func,117,KE
 Core,Core/UI/LiquidGlass.swift,LiquidGlassBackground,makeNSView,func,119,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSViewRepresentable 协议，SwiftUI 派发
 Core,Core/UI/LiquidGlass.swift,LiquidGlassBackground,updateNSView,func,138,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSViewRepresentable 协议，SwiftUI 派发
 Core,Core/UI/LiquidGlass.swift,LiquidGlassBackground,applyPreviewStyle,func,162,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；LiquidGlassBackground.makeNSView/updateNSView 的设置预览分支共用：按预览 colorScheme 设置 aqua/darkAqua，按草稿材质选择 hudWindow/windowBackground，并固定 withinWindow 混合
-Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,init,init,239,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；UnifiedGlassBackingView:256 / adoptGlassSurface:544
-Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,init,init,254,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSView required init，子类定义必需
-Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,deinit,deinit,256,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；注销通知观察者（:212 注册）
-Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,layout,func,260,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSView layout 回调，铺满两层底衬
-Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,viewDidChangeEffectiveAppearance,func,266,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；AppKit 明暗外观变化回调
-Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,viewDidMoveToWindow,func,271,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；AppKit 上窗回调，取 window.effectiveAppearance
-Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,refreshColors,func,276,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；init:211 / 通知:214 / 回调:231,236"
-Core,Core/UI/LiquidGlass.swift,UnifiedGlassBackingView,init,init,292,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；installUnifiedGlassBackground:296 构造
-Core,Core/UI/LiquidGlass.swift,UnifiedGlassBackingView,init,init,305,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSView required init，子类定义必需
-Core,Core/UI/LiquidGlass.swift,UnifiedGlassBackingView,setContent,func,307,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；替换统一玻璃容器的内容视图并按 topInset 重排内部区域
-Core,Core/UI/LiquidGlass.swift,UnifiedGlassBackingView,layout,func,315,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSView layout 回调，铺满玻璃+底衬
-Core,Core/UI/LiquidGlass.swift,NSWindow,installUnifiedGlassBackground,func,335,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；applyOfficialChrome:51 + 5 个窗口调用
-Core,Core/UI/LiquidGlass.swift,WhiteGlassCard,body,func,384,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；WhiteGlassCard 经 whiteGlassCard:409 使用
-Core,Core/UI/LiquidGlass.swift,View,whiteGlassCard,func,423,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；CalendarSectionView.swift:57 调用
-Core,Core/UI/LiquidGlass.swift,SpringyIconButtonStyle,makeBody,func,435,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ButtonStyle 协议；PanelRootView:290,654"
-Core,Core/UI/LiquidGlass.swift,GlassPlate,body,func,462,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ViewModifier 协议；glassPlate 4 文件 7 处
-Core,Core/UI/LiquidGlass.swift,View,glassPlate,func,486,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；CommandPalette:295 / MonitorPopoutWindow 等
-Core,Core/UI/LiquidGlass.swift,View,glassCard,func,495,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；27 文件 40+ 处 .glassCard 调用
-Core,Core/UI/LiquidGlass.swift,GlassCard,body,func,514,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ViewModifier 协议；glassCard:496 派发
-Core,Core/UI/LiquidGlass.swift,NSWindow,adoptGlassSurface,func,531,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ArchiveFileBox.swift:394 调用
+Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,init,init,241,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；UnifiedGlassBackingView:256 / adoptGlassSurface:544
+Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,init,init,251,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSView required init，子类定义必需
+Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,deinit,deinit,253,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；注销通知观察者（:212 注册）
+Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,viewDidChangeEffectiveAppearance,func,257,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；AppKit 明暗外观变化回调
+Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,viewDidMoveToWindow,func,262,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；AppKit 上窗回调，取 window.effectiveAppearance
+Core,Core/UI/LiquidGlass.swift,GlassTintOverlayView,refreshColors,func,267,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；init:211 / 通知:214 / 回调:231,236"
+Core,Core/UI/LiquidGlass.swift,UnifiedGlassBackingView,init,init,282,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；installUnifiedGlassBackground:296 构造
+Core,Core/UI/LiquidGlass.swift,UnifiedGlassBackingView,init,init,295,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSView required init，子类定义必需
+Core,Core/UI/LiquidGlass.swift,UnifiedGlassBackingView,setContent,func,297,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；替换统一玻璃容器的内容视图并按 topInset 重排内部区域
+Core,Core/UI/LiquidGlass.swift,UnifiedGlassBackingView,layout,func,305,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；NSView layout 回调，铺满玻璃+底衬
+Core,Core/UI/LiquidGlass.swift,NSWindow,installUnifiedGlassBackground,func,325,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；applyOfficialChrome:51 + 5 个窗口调用
+Core,Core/UI/LiquidGlass.swift,WhiteGlassCard,body,func,376,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；WhiteGlassCard 经 whiteGlassCard:409 使用
+Core,Core/UI/LiquidGlass.swift,View,whiteGlassCard,func,408,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；CalendarSectionView.swift:57 调用
+Core,Core/UI/LiquidGlass.swift,SpringyIconButtonStyle,makeBody,func,420,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ButtonStyle 协议；PanelRootView:290,654"
+Core,Core/UI/LiquidGlass.swift,GlassPlate,body,func,447,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ViewModifier 协议；glassPlate 4 文件 7 处
+Core,Core/UI/LiquidGlass.swift,View,glassPlate,func,471,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；CommandPalette:295 / MonitorPopoutWindow 等
+Core,Core/UI/LiquidGlass.swift,View,glassCard,func,480,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；27 文件 40+ 处 .glassCard 调用
+Core,Core/UI/LiquidGlass.swift,GlassCard,body,func,499,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ViewModifier 协议；glassCard:496 派发
+Core,Core/UI/LiquidGlass.swift,NSWindow,adoptGlassSurface,func,521,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ArchiveFileBox.swift:394 调用
 Core,Core/UI/LiquidGlassMaterial.swift,LiquidGlass,makeView,func,19,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；正式玻璃背景和刘海共用工厂，26+且非纯色、随焦点及系统玻璃开关允许时建NSGlassEffectView，其余建固定inactive的NSVisualEffectView；降低透明度走不透明材质
 Core,Core/UI/LiquidGlassMaterial.swift,LiquidGlass,reapplyStyle,func,86,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；LiquidGlassBackground更新共用已建容器重设圆角，真玻璃改tint，毛玻璃按solid与降低透明度更新材质/混合并固定inactive
 Core,Core/UI/LiquidGlassMaterial.swift,LiquidGlass,setCornerRadius,func,114,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；工厂、重套样式与刘海layout共用几何更新，真玻璃设cornerRadius，其余CALayer设连续圆角，不重设材质
@@ -246,18 +245,21 @@ Core,Core/UI/Support.swift,OCRServiceProtocol,recognizeObservations,func,71,KEEP
 Core,Core/UI/Support.swift,OCRTextObservation,init,init,77,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；OCRService.swift:138,225 构造"
 Core,Core/UI/Support.swift,Font,scaledSystem,func,112,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v260 全局字号缩放入口：.system(size:) × Personalization.fontScale，「界面字号」三项从此真正生效；Theme 字号统一走它
 Core,Core/UI/Support.swift,ThemeAppearance,init,init,123,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ThemeAppearance.init 保存传入的 Personalization 与 isMidnight；AppearancePreviewBlock、PanelRootView、剪贴板、Toast、GlassSurface/GlassCard 共用其颜色和尺寸属性，预览传草稿、正式视图传应用值
-Core,Core/UI/Support.swift,Theme,dynamicSurface,func,201,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；cachedSurface:222 唯一调用点
-Core,Core/UI/Support.swift,Theme,cachedSurface,func,214,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；windowSurface:234 等 5 个表面令牌
-Core,Core/UI/Support.swift,Theme,windowSurface,func,234,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ThemeAppearance.windowSurface 与 Theme 静态属性调用：读取指定 Personalization.glassOpacity；Midnight 使用同对象基色，普通主题经 cachedSurface 按系统明暗生成窗口底色与透明度
-Core,Core/UI/Support.swift,Theme,readingBase,func,256,KEEP,预览/阅读面用不透明底（与窗口同源色），切断玻璃透射；壁纸不会再从正文底下透出，小字号对比度稳定
-Core,Core/UI/Support.swift,Theme,sidebarFill,func,279,KEEP,第五类表面「侧栏」的微暗底衬：浅色压暗、深色提亮，与中间卡片区做出层次；跟随个性化强调色与暗色主题
-Core,Core/UI/Support.swift,Theme,sidebarFrost,func,292,KEEP,侧栏霜感薄雾（强度为窗口级 glassFrost 的一半，跟随磨砂滑块）；不另加模糊，避免采样层叠加掉帧
-Core,Core/UI/Support.swift,Theme,glassFrost,func,308,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；GlassSurface → ThemeAppearance.glassFrost → Theme.glassFrost(for:)：读取指定草稿 glassBlur，经 cachedSurface 生成白色霜感层，深浅色透明度分别为 0.11×blur 与 0.20×blur
-Core,Core/UI/Support.swift,Theme,cardFill,func,320,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；GlassCard、剪贴板卡片与缩略图 → ThemeAppearance.cardFill：Midnight 传同对象给 cardBackground，普通主题读取 glassCardLift，深浅色透明度分别为 0.035+0.065×lift 与 0.55+0.43×lift
-Core,Core/UI/Support.swift,Theme,insetFill,func,335,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；FloatingClipboardDeskView.previewPane → ThemeAppearance.insetFill：从指定草稿 glassOpacity 求 k=0.6+0.4×opacity，生成深浅色透明度为 0.22×k/0.045×k 的黑色内嵌区底色
-Core,Core/UI/Support.swift,Theme,cardStroke,func,348,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；GlassCard、剪贴板行和 AppearancePreviewBlock 外框 → ThemeAppearance.cardStroke：读取指定草稿 glassStroke，深色白边/浅色黑边透明度分别为 0.02+0.16×stroke 与 0.02+0.14×stroke
-Core,Core/UI/Support.swift,Theme,sectionHeader,func,363,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardSectionView:51 等 9 处
-Core,Core/UI/Support.swift,AppDirectories,sub,func,461,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；LogArchive:54 / ScreenshotManager:373 等
+Core,Core/UI/Support.swift,Theme,dynamicSurface,func,203,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；cachedSurface:222 唯一调用点
+Core,Core/UI/Support.swift,Theme,cachedSurface,func,216,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；windowSurface:234 等 5 个表面令牌
+Core,Core/UI/Support.swift,Theme,cachedDynamicColor,func,235,KEEP,"带自定义 alpha 的动态色缓存：预合成结果的 alpha 由公式给出，不能再走「基色 + 常量 alpha」的 cachedSurface；按 (通透度,磨砂,midnight) 键复用同一个 Color 实例，面板每秒重算时不新建 NSColor 观察者"
+Core,Core/UI/Support.swift,Theme,composite,func,254,KEEP,纯色叠合：A=a1+a2(1-a1)、C=(C1·a1+C2·a2(1-a1))/A；两色都是纯色 + 常量 alpha，所以结果可缓存，运行期零计算
+Core,Core/UI/Support.swift,Theme,windowSurface,func,271,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ThemeAppearance.windowSurface 与 Theme 静态属性调用：读取指定 Personalization.glassOpacity；Midnight 使用同对象基色，普通主题经 cachedSurface 按系统明暗生成窗口底色与透明度
+Core,Core/UI/Support.swift,Theme,readingBase,func,293,KEEP,预览/阅读面用不透明底（与窗口同源色），切断玻璃透射；壁纸不会再从正文底下透出，小字号对比度稳定
+Core,Core/UI/Support.swift,Theme,sidebarFill,func,316,KEEP,第五类表面「侧栏」的微暗底衬：浅色压暗、深色提亮，与中间卡片区做出层次；跟随个性化强调色与暗色主题
+Core,Core/UI/Support.swift,Theme,sidebarFrost,func,329,KEEP,侧栏霜感薄雾（强度为窗口级 glassFrost 的一半，跟随磨砂滑块）；不另加模糊，避免采样层叠加掉帧
+Core,Core/UI/Support.swift,Theme,glassTint,func,350,KEEP,结构面单层着色：把「通透度底衬」与「磨砂霜感」按 alpha 合成公式离线算成一层，四个滑块仍全部生效；旧实现两个全尺寸 fill/subview 叠着铺，每窗每帧多一次整窗合成
+Core,Core/UI/Support.swift,Theme,glassFrost,func,379,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；GlassSurface → ThemeAppearance.glassFrost → Theme.glassFrost(for:)：读取指定草稿 glassBlur，经 cachedSurface 生成白色霜感层，深浅色透明度分别为 0.11×blur 与 0.20×blur
+Core,Core/UI/Support.swift,Theme,cardFill,func,391,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；GlassCard、剪贴板卡片与缩略图 → ThemeAppearance.cardFill：Midnight 传同对象给 cardBackground，普通主题读取 glassCardLift，深浅色透明度分别为 0.035+0.065×lift 与 0.55+0.43×lift
+Core,Core/UI/Support.swift,Theme,insetFill,func,406,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；FloatingClipboardDeskView.previewPane → ThemeAppearance.insetFill：从指定草稿 glassOpacity 求 k=0.6+0.4×opacity，生成深浅色透明度为 0.22×k/0.045×k 的黑色内嵌区底色
+Core,Core/UI/Support.swift,Theme,cardStroke,func,419,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；GlassCard、剪贴板行和 AppearancePreviewBlock 外框 → ThemeAppearance.cardStroke：读取指定草稿 glassStroke，深色白边/浅色黑边透明度分别为 0.02+0.16×stroke 与 0.02+0.14×stroke
+Core,Core/UI/Support.swift,Theme,sectionHeader,func,434,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；ClipboardSectionView:51 等 9 处
+Core,Core/UI/Support.swift,AppDirectories,sub,func,532,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；LogArchive:54 / ScreenshotManager:373 等
 Core,Core/UI/SurfaceStyle.swift,SurfaceStyle,body,func,48,KEEP,2026-11-23：四类表面路由器（contentBase 不加层/card=glassCard/floatingGlass=glassPlate+浮动阴影/transient=glassPlate+柔投影），只路由到既有实现，不新建主题系统
 Core,Core/UI/SurfaceStyle.swift,SidebarFrostModifier,body,func,85,KEEP,2026-11-23：四类表面路由器（contentBase 不加层/card=glassCard/floatingGlass=glassPlate+浮动阴影/transient=glassPlate+柔投影），只路由到既有实现，不新建主题系统
 Core,Core/UI/SurfaceStyle.swift,View,surface,func,98,KEEP,2026-11-23：四类表面统一入口 .surface(_:)，卡片/浮层从这里取样式，替代散落的背景手写
@@ -2566,20 +2568,23 @@ Island,Features/Island/IslandSettings.swift,IslandConfiguration,load,func,261,KE
 Island,Features/Island/IslandSettings.swift,IslandConfiguration,persist,func,275,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；正式IslandController.apply把当前Codable配置编码存入唯一island.configuration键，编码错误传回设置保存
 Island,Features/Island/IslandSettings.swift,IslandMetric,format,func,445,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；图表、指标卡和统计共用单位格式，百分比/KB/s取0小数，GiB/W取1小数并带unit
 Island,Features/Island/IslandSettings.swift,Array,islandMove,func,451,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；设置顺序按钮、键盘和指标拖放从既有数组移除item后插到目标索引，不创建第二份排序状态
-Island,Features/Island/IslandSurface.swift,IslandMorph,body,func,175,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandMorph以同一size/progress补间驱动圆角、材质遮罩、内容透明度和命中；IslandGlow按共享鼠标位置只在卡片内绘制径向背景及边框亮光
-Island,Features/Island/IslandSurface.swift,IslandOutline,path,func,240,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandOutline在连续圆角矩形顶端补矩形，使可见上沿贴顶，材质mask与controller命中轮廓共用
-Island,Features/Island/IslandSurface.swift,IslandMaterialHost,makeNSView,func,269,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandMaterial用当前solid创建唯一原生材质视图，不在每帧重建玻璃
-Island,Features/Island/IslandSurface.swift,IslandMaterialHost,updateNSView,func,272,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；动画几何更新仅在radius变化时请求layout，并把当前size/radius回报controller.surfaceDidChange
-Island,Features/Island/IslandSurface.swift,IslandMaterialView,init,init,301,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandMaterialView创建固定darkAqua、followsWindowFocus=false的正式LiquidGlass并加轮廓mask；coder初始化明确不可用
-Island,Features/Island/IslandSurface.swift,IslandMaterialView,init,init,319,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandMaterialView创建固定darkAqua、followsWindowFocus=false的正式LiquidGlass并加轮廓mask；coder初始化明确不可用
-Island,Features/Island/IslandSurface.swift,IslandMaterialView,tint,func,322,KEEP,按外壳通透度生成黑色NSColor，供系统玻璃结构面使用单层着色
-Island,Features/Island/IslandSurface.swift,IslandMaterialView,applyMaterial,func,327,KEEP,外壳材质变化时切换已创建玻璃视图的显隐与纯色底，保留同一采样视图和轮廓状态
-Island,Features/Island/IslandSurface.swift,IslandMaterialView,applyTint,func,337,KEEP,外壳通透度变化时只更新现有玻璃的tint，不重建采样视图或轮廓遮罩
-Island,Features/Island/IslandSurface.swift,IslandMaterialView,layout,func,343,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；仅bounds或radius变化时更新玻璃frame和mask，关闭CALayer隐式动画，上角移出屏幕保持顶边贴合及底部曲率
-Island,Features/Island/IslandSurface.swift,IslandButtonStyle,makeBody,func,366,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandButtonStyle把label、按压态、help及提示对齐交IslandButtonBody，所有刘海按钮复用悬停与焦点绘制
-Island,Features/Island/IslandSurface.swift,IslandCollapsedView,button,func,428,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；收起态按peekOrder与可见集合生成图标，点击交activatePeek，配置决定是否带72pt数值或38pt纯图标，功耗订阅正式采样
-Island,Features/Island/IslandSurface.swift,IslandCollapsedView,value,func,448,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；收起态标签返回复制、播放/暂停和当天日期，功耗读已有sample.powerWatts，设置预览显示8.6W
-Island,Features/Island/IslandSurface.swift,IslandPeekMediaValue,updateVisibility,func,479,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；收起态媒体使用独立消费者复用系统播放器，展开或移除时释放读取任务，模拟不采集
+Island,Features/Island/IslandSurface.swift,IslandMorph,body,func,178,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandMorph以同一size/progress补间驱动圆角、材质遮罩、内容透明度和命中；IslandGlow按共享鼠标位置只在卡片内绘制径向背景及边框亮光
+Island,Features/Island/IslandSurface.swift,IslandOutline,path,func,254,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandOutline在连续圆角矩形顶端补矩形，使可见上沿贴顶，材质mask与controller命中轮廓共用
+Island,Features/Island/IslandSurface.swift,IslandMaterialHost,makeNSView,func,288,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandMaterial用当前solid创建唯一原生材质视图，不在每帧重建玻璃
+Island,Features/Island/IslandSurface.swift,IslandMaterialHost,updateNSView,func,294,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；动画几何更新仅在radius变化时请求layout，并把当前size/radius回报controller.surfaceDidChange
+Island,Features/Island/IslandSurface.swift,IslandMaterialHost,targetSize,func,311,KEEP,玻璃取样面只认展开/收起两个最终尺寸：形变途中 SwiftUI 每帧都会 updateNSView，取样面若跟插值走，NSGlassEffectView 每帧重算背景采样
+Island,Features/Island/IslandSurface.swift,IslandMaterialView,init,init,350,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandMaterialView创建固定darkAqua、followsWindowFocus=false的正式LiquidGlass并加轮廓mask；coder初始化明确不可用
+Island,Features/Island/IslandSurface.swift,IslandMaterialView,init,init,375,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandMaterialView创建固定darkAqua、followsWindowFocus=false的正式LiquidGlass并加轮廓mask；coder初始化明确不可用
+Island,Features/Island/IslandSurface.swift,IslandMaterialView,tint,func,378,KEEP,按外壳通透度生成黑色NSColor，供系统玻璃结构面使用单层着色
+Island,Features/Island/IslandSurface.swift,IslandMaterialView,applyMaterial,func,383,KEEP,外壳材质变化时切换已创建玻璃视图的显隐与纯色底，保留同一采样视图和轮廓状态
+Island,Features/Island/IslandSurface.swift,IslandMaterialView,applyTint,func,393,KEEP,外壳通透度变化时只更新现有玻璃的tint，不重建采样视图或轮廓遮罩
+Island,Features/Island/IslandSurface.swift,IslandMaterialView,applyGeometry,func,400,KEEP,岛材质唯一几何入口：插值尺寸只喂 CAShapeLayer 遮罩，取样面在展开开始时放大一次、收起收尾时缩回一次；实测玻璃重建 12–16 次/次开合 → 2 次（展开）/0 次（收起）
+Island,Features/Island/IslandSurface.swift,IslandMaterialView,flushStats,func,422,KEEP,形变收尾结算：几何更新次数、玻璃重建次数、遮罩重算次数与 layout p50/p95/max 一行日志（只记毫秒与次数，不记画面）
+Island,Features/Island/IslandSurface.swift,IslandMaterialView,layout,func,441,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；仅bounds或radius变化时更新玻璃frame和mask，关闭CALayer隐式动画，上角移出屏幕保持顶边贴合及底部曲率
+Island,Features/Island/IslandSurface.swift,IslandButtonStyle,makeBody,func,482,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandButtonStyle把label、按压态、help及提示对齐交IslandButtonBody，所有刘海按钮复用悬停与焦点绘制
+Island,Features/Island/IslandSurface.swift,IslandCollapsedView,button,func,544,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；收起态按peekOrder与可见集合生成图标，点击交activatePeek，配置决定是否带72pt数值或38pt纯图标，功耗订阅正式采样
+Island,Features/Island/IslandSurface.swift,IslandCollapsedView,value,func,564,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；收起态标签返回复制、播放/暂停和当天日期，功耗读已有sample.powerWatts，设置预览显示8.6W
+Island,Features/Island/IslandSurface.swift,IslandPeekMediaValue,updateVisibility,func,595,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；收起态媒体使用独立消费者复用系统播放器，展开或移除时释放读取任务，模拟不采集
 Island,Features/Island/IslandToolboxContent.swift,IslandToolboxShortcuts,shortcut,func,38,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；首页五档快捷目录只选择正式已启用工具并打开同一详情，小卡片保留主要入口
 Island,Features/Island/IslandToolboxContent.swift,IslandToolboxContent,init,init,66,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；Root传唯一controller、预览标志和selectedTool绑定，保留onFileDialog回调让系统文件面板期间不卸输入页
 Island,Features/Island/IslandToolboxContent.swift,IslandToolboxContent,directory,func,115,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；全部功能目录按query匹配页面标题及已启用工具名称/关键字/描述，category筛工具；回车选首项、按钮更新page或selectedTool
@@ -3141,7 +3146,7 @@ Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,isColumnFil
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,filterPopover,func,1118,KEEP,2026-11-17：header的popover闭包传入同轮列和未筛选行；选项复用distinctValues，切换及清空写原状态而不重新读取文档
 Panel,Features/Panel/Presentation/FloatingPanel.swift,FloatingPanel,init,init,12,KEEP,PanelController.swift:47 创建面板窗口
 Panel,Features/Panel/Presentation/FloatingPanel.swift,FloatingPanel,init,init,80,KEEP,NSWindow/NSCoding 必需 init（编译器强制）；fatalError 防 nib
-Panel,Features/Panel/Presentation/FloatingPanel.swift,FloatingPanel,applyPersonalizedMaterial,func,107,KEEP,PanelController.swift:87 个性化变更时重套材质
+Panel,Features/Panel/Presentation/FloatingPanel.swift,FloatingPanel,applyPersonalizedMaterial,func,112,KEEP,PanelController.swift:87 个性化变更时重套材质
 Panel,Features/Panel/Presentation/PanelChildWindow.swift,TagView,viewDidMoveToWindow,func,18,KEEP,AppKit NSView 生命周期 override 回调
 Panel,Features/Panel/Presentation/PanelChildWindow.swift,PanelChildWindowTag,makeNSView,func,26,KEEP,NSViewRepresentable 协议要求
 Panel,Features/Panel/Presentation/PanelChildWindow.swift,PanelChildWindowTag,updateNSView,func,27,KEEP,NSViewRepresentable 协议要求

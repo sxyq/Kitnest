@@ -36,7 +36,8 @@ struct IslandSurface<Content: View>: View {
         .frame(width: width, height: height, alignment: .top)
         .modifier(IslandMorph(controller: controller, size: target,
                               progress: controller.expanded ? 1 : 0,
-                              reduceMotion: reduceMotion, reduceTransparency: reduceTransparency))
+                              reduceMotion: reduceMotion, reduceTransparency: reduceTransparency,
+                              expandedSize: CGSize(width: width, height: height)))
         .animation(controller.surfaceAnimation(reduceMotion: reduceMotion),
                    value: [target.width, target.height, controller.expanded ? 1 : 0])
         .foregroundStyle(.primary)
@@ -167,6 +168,8 @@ private struct IslandMorph: AnimatableModifier {
     var progress: CGFloat
     let reduceMotion: Bool
     let reduceTransparency: Bool
+    /// 展开态最终尺寸（玻璃取样面用，不参与插值）
+    let expandedSize: CGSize
     var animatableData: AnimatablePair<CGFloat, AnimatablePair<CGFloat, CGFloat>> {
         get { .init(size.width, .init(size.height, progress)) }
         set { size = .init(width: newValue.first, height: newValue.second.first); progress = newValue.second.second }
@@ -189,6 +192,8 @@ private struct IslandMorph: AnimatableModifier {
             .frame(width: size.width, height: size.height, alignment: .top)
             .background {
                 IslandMaterialHost(controller: controller, size: size, radius: radius,
+                                   expandedSize: expandedSize,
+                                   collapsedSize: CGSize(width: controller.collapsedWidth, height: controller.notchHeight),
                                    material: reduceTransparency ? .solid : controller.configuration.effectiveMaterial,
                                    shellOpacity: controller.configuration.opacity)
                     .id(reduceTransparency ? IslandMaterial.solid : controller.configuration.effectiveMaterial)
@@ -197,7 +202,16 @@ private struct IslandMorph: AnimatableModifier {
                     //   展开态恒 0（深色程度交给玻璃自身的 tint，= 用户「外壳通透度」）。
                     // 旧实现把 tint(0.32) 与这层黑幕(0.32) 叠在一起，展开态实际不透明度
                     // 有 0.54，滑块写着 68% 通透却糊成一块灰毛玻璃（设置与执行不一致）。
-                    .overlay(Color.black.opacity(controller.usesGlass && !reduceTransparency ? 1 - phase : 1))
+                    // 2026-11-24：静止态不再挂这块整窗黑幕。
+                    // 展开完成（phase=1）时它的不透明度本来就是 0，却仍作为一层全尺寸
+                    // 视图参与每帧合成；只在形变途中需要它做「黑 → 玻璃」的过渡。
+                    .overlay {
+                        if controller.usesGlass && !reduceTransparency {
+                            if phase < 0.999 { Color.black.opacity(1 - phase) }
+                        } else {
+                            Color.black
+                        }
+                    }
                     .overlay(alignment: .top) {
                         if controller.previewOnly && controller.displayScreen.safeAreaInsets.top > 0 {
                             Color.black.frame(width: controller.notchWidth, height: controller.notchHeight)
@@ -261,16 +275,31 @@ struct IslandOutline: Shape {
 
 private struct IslandMaterialHost: NSViewRepresentable {
     let controller: IslandController
+    /// 当前插值尺寸（形变途中每帧变）
     let size: CGSize
     let radius: CGFloat
+    /// 展开态 / 收起态的最终尺寸：玻璃**取样面**只在这两个值之间切换
+    let expandedSize: CGSize
+    let collapsedSize: CGSize
     let material: IslandMaterial
     /// 展开态外壳深色程度（= 设置里「外壳通透度」的补数）。收起态由外层黑幕负责，与它无关。
     let shellOpacity: Double
+
     func makeNSView(context: Context) -> IslandMaterialView {
-        IslandMaterialView(material: material, shellOpacity: shellOpacity)
+        IslandMaterialView(material: material, shellOpacity: shellOpacity,
+                           sampling: targetSize(expanded: controller.expanded),
+                           samplingInset: controller.expanded ? IslandLayout.corner : Theme.Radius.chip)
     }
+
     func updateNSView(_ view: IslandMaterialView, context: Context) {
-        if view.radius != radius { view.radius = radius; view.needsLayout = true }
+        // 2026-11-24（用户：「检查 NSGlassEffectView 的尺寸变更及 CAShapeLayer 遮罩重绘成本」
+        // 「避免非几何状态更新导致材质重复创建」）：
+        // 形变途中 SwiftUI 每帧都会走到这里。旧实现每帧给玻璃重新设 frame + 圆角，
+        // 等于每帧让 NSGlassEffectView 重算一次背景采样；现在只更新遮罩路径，
+        // 取样面仅在「展开开始时放大一次 / 收起结束时缩回一次」。
+        view.applyGeometry(interpolated: size, radius: radius,
+                           sampling: targetSize(expanded: controller.expanded),
+                           samplingInset: controller.expanded ? IslandLayout.corner : Theme.Radius.chip)
         // 材质/深色程度都可以事后变：`.id()` 契约下同 id 复用视图时，
         // 只有这里能把状态补齐（否则切材质后玻璃不会出现/不会消失）。
         if view.material != material { view.applyMaterial(material) }
@@ -278,6 +307,8 @@ private struct IslandMaterialHost: NSViewRepresentable {
         if view.shellOpacity != shellOpacity { view.shellOpacity = shellOpacity }
         controller.surfaceDidChange(size: size, radius: radius)
     }
+
+    private func targetSize(expanded: Bool) -> CGSize { expanded ? expandedSize : collapsedSize }
 }
 
 private final class IslandMaterialView: NSView {
@@ -293,16 +324,37 @@ private final class IslandMaterialView: NSView {
     private let mask = CAShapeLayer()
     private var renderedBounds = CGRect.zero
     private var renderedRadius: CGFloat = -1
+    /// 玻璃取样面尺寸（只在这两个值之间切换，不跟逐帧插值）
+    private var sampling: CGSize = .zero
+    /// 取样面自己的圆角/上移量：取该档的**最终**圆角，不跟逐帧插值，
+    /// 否则玻璃 frame 每帧都变（= 每帧重采样，正是要消掉的那笔开销）。
+    private var samplingInset: CGFloat = Theme.Radius.chip
+    private var renderedSampling: CGSize = .zero
+    private var renderedSamplingInset: CGFloat = -1
     /// 玻璃采样层。**始终创建**：纯色/降低透明度时只 `isHidden`，不移除——
     /// 隐藏的视图不参与渲染（不采样、不模糊），但材质切回玻璃时不需要补建。
     private var glassView: NSView?
     override var isFlipped: Bool { true }
 
-    init(material: IslandMaterial, shellOpacity: CGFloat) {
+    // MARK: 实测（2026-11-24）
+    //
+    // 逐帧记 layout 耗时与玻璃重建次数，形变收尾时打一行日志。
+    // 只记毫秒/次数，不记画面内容；默认开，不影响观感。
+    private var layoutCount = 0
+    private var glassRebuilds = 0
+    private var maskPathCount = 0
+    private var frameCosts: [Double] = []      // layout 总耗时
+    private var maskCosts: [Double] = []       // 遮罩路径重算
+    private var lastInterpolated: CGSize = .zero
+
+    init(material: IslandMaterial, shellOpacity: CGFloat,
+         sampling: CGSize, samplingInset: CGFloat) {
         super.init(frame: .zero)
         wantsLayer = true
         layer?.mask = mask
         self.shellOpacity = shellOpacity
+        self.sampling = sampling
+        self.samplingInset = samplingInset
         // 玻璃自角从 .zero 起：外壳圆角由 IslandMorph 逐帧经 setCornerRadius 注入，
         // 形状交给 CAShapeLayer 遮罩（2026-11-23：0 字面量收编为 .zero）。
         let glass = LiquidGlass.makeView(cornerRadius: .zero,
@@ -311,9 +363,13 @@ private final class IslandMaterialView: NSView {
                                          followsWindowFocus: material == .liquidGlass,
                                          systemGlass: material == .liquidGlass)
         glass.appearance = NSAppearance(named: .darkAqua)
-        glass.autoresizingMask = [.width, .height]
+        // 关掉 autoresizing：取样面比宿主大（上角移到屏幕外），宿主每帧插值时
+        // AppKit 会照旧把子视图拉回 bounds —— 那正好把「只重设一次」变成「每帧一次」。
+        glass.autoresizingMask = []
         addSubview(glass)
         glassView = glass
+        // 排障口径：一眼看出这一版外壳走的是真玻璃还是毛玻璃回退。
+        Log.info("Island", "外壳材质：\(type(of: glass)) 通透度=\(Int((1 - shellOpacity) * 100))% 降透明=\(LiquidGlass.reduceTransparency)")
         applyMaterial(material)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
@@ -340,21 +396,81 @@ private final class IslandMaterialView: NSView {
                                  tint: Self.tint(shellOpacity), solid: false)
     }
 
+    /// 唯一几何入口：插值尺寸只喂遮罩，取样面只在两档之间整块切换。
+    func applyGeometry(interpolated: CGSize, radius newRadius: CGFloat,
+                       sampling target: CGSize, samplingInset inset: CGFloat) {
+        layoutCount += 1
+        if radius != newRadius { radius = newRadius; needsLayout = true }
+        // 放大：展开一开始就按最终尺寸铺玻璃（本帧一次）；
+        // 缩小：等遮罩真的收到收起态（插值 == 目标）再缩——提前缩会让收起途中透出桌面。
+        let grow = target.width > sampling.width + 0.5 || target.height > sampling.height + 0.5
+        let settled = abs(interpolated.width - target.width) < 0.5
+            && abs(interpolated.height - target.height) < 0.5
+        if sampling != target, grow || settled {
+            sampling = target
+            samplingInset = inset
+            needsLayout = true
+        }
+        let samePlace = abs(lastInterpolated.width - interpolated.width) <= 0.5
+            && abs(lastInterpolated.height - interpolated.height) <= 0.5
+        if settled, !samePlace {
+            flushStats(settledAt: interpolated)
+        }
+        lastInterpolated = interpolated
+    }
+
+    private func flushStats(settledAt size: CGSize) {
+        guard !frameCosts.isEmpty else { return }
+        func pct(_ values: [Double], _ p: Double) -> Double {
+            let sorted = values.sorted()
+            let index = min(sorted.count - 1, max(0, Int(Double(sorted.count - 1) * p)))
+            return sorted[index]
+        }
+        let p50 = pct(frameCosts, 0.50), p95 = pct(frameCosts, 0.95)
+        let maximum = frameCosts.max() ?? 0
+        let maskP95 = maskCosts.isEmpty ? 0 : pct(maskCosts, 0.95)
+        Log.info("Island", String(format:
+            "岛材质：几何更新 %d 次 · 玻璃重建 %d 次 · 遮罩重算 %d 次 · layout p50 %.3fms p95 %.3fms max %.3fms · 遮罩 p95 %.3fms · 落位 %.0f×%.0f",
+            layoutCount, glassRebuilds, maskPathCount, p50, p95, maximum, maskP95,
+            size.width, size.height))
+        layoutCount = 0; glassRebuilds = 0; maskPathCount = 0
+        frameCosts.removeAll(keepingCapacity: true)
+        maskCosts.removeAll(keepingCapacity: true)
+    }
+
     override func layout() {
         super.layout()
-        guard bounds != renderedBounds || radius != renderedRadius else { return }
-        renderedBounds = bounds; renderedRadius = radius
+        guard bounds != renderedBounds || radius != renderedRadius || sampling != renderedSampling else { return }
+        let started = CFAbsoluteTimeGetCurrent()
+        renderedBounds = bounds
+        renderedRadius = radius
+        renderedSampling = sampling
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         // 将玻璃上角移至屏幕外：可见上沿贴顶，下角保持原生折射曲率。
         // 纯色时玻璃隐藏，不参与布局绘制（不采样、不模糊）。
+        // 取样面用 sampling（两档之一），与逐帧插值的 bounds 解耦。
         if let glass = glassView, !glass.isHidden {
-            glass.frame = CGRect(x: 0, y: -radius, width: bounds.width, height: bounds.height + radius)
-            LiquidGlass.setCornerRadius(radius, on: glass)
+            let target = CGRect(x: 0, y: -samplingInset,
+                                width: sampling.width, height: sampling.height + samplingInset)
+            if glass.frame != target {
+                glass.frame = target
+                glassRebuilds += 1
+            }
+            if samplingInset != renderedSamplingInset {
+                renderedSamplingInset = samplingInset
+                LiquidGlass.setCornerRadius(samplingInset, on: glass)
+            }
         }
+        let maskStart = CFAbsoluteTimeGetCurrent()
         mask.frame = bounds
         mask.path = IslandOutline(radius: radius).path(in: bounds).cgPath
+        maskPathCount += 1
+        let maskMs = (CFAbsoluteTimeGetCurrent() - maskStart) * 1000
         CATransaction.commit()
+        maskCosts.append(maskMs)
+        frameCosts.append((CFAbsoluteTimeGetCurrent() - started) * 1000)
+        if frameCosts.count > 300 { frameCosts.removeFirst(150); maskCosts.removeFirst(min(150, maskCosts.count)) }
     }
 }
 

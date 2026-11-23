@@ -102,7 +102,13 @@ public final class Personalization: ObservableObject {
 
     // MARK: P1
 
-    @Published public var material: PersonalizationMaterial = .solid { didSet { persist() } }
+    /// 背景材质（只作用于**内容卡片**表面；窗口/浮层的结构面恒为真玻璃采样）。
+    ///
+    /// 2026-11-24（用户：「Personalization 默认 .solid，与用户认为开启了系统玻璃的预期
+    /// 可能不一致」）：默认改为 .vibrancy —— 出厂即「毛玻璃」，与设置页里写着的观感一致。
+    /// 旧版本存下来的 .solid 是当年的出厂默认（那时它只影响卡片、且实际没有分支消费），
+    /// 由 load() 里的一次性迁移改到 .vibrancy；用户主动再选「纯色卡片」则保留。
+    @Published public var material: PersonalizationMaterial = .vibrancy { didSet { persist() } }
     @Published public var showSourceBadge: Bool = true { didSet { persist() } }
     @Published public var thumbOverride: CGFloat? { didSet { persist() } }    // 44/56/72，nil=随密度
     @Published public var clipboardPreviewScale: CGFloat = 1.6 { didSet { persist() } } // 1.0/1.25/1.6/2.0
@@ -323,7 +329,7 @@ public final class Personalization: ObservableObject {
         openAnimation = PersonalizationOpenAnimation(rawValue: d.string(forKey: Preferences.Keys.uiOpenAnimation) ?? "") ?? .standard
         hoverPreviewEnabled = d.object(forKey: "ui.hoverPreviewEnabled") == nil
             ? true : d.bool(forKey: "ui.hoverPreviewEnabled")
-        material = PersonalizationMaterial(rawValue: d.string(forKey: Preferences.Keys.uiPanelMaterial) ?? "") ?? .solid
+        material = PersonalizationMaterial(rawValue: d.string(forKey: Preferences.Keys.uiPanelMaterial) ?? "") ?? .vibrancy
         showSourceBadge = d.object(forKey: Preferences.Keys.uiSourceBadge) == nil
             ? true : d.bool(forKey: Preferences.Keys.uiSourceBadge)
         thumbOverride = d.object(forKey: Preferences.Keys.uiThumbSize) == nil
@@ -348,6 +354,17 @@ public final class Personalization: ObservableObject {
         backgroundImagePath = d.string(forKey: Preferences.Keys.uiBackgroundImage) ?? ""
         backgroundImageDim = d.object(forKey: Preferences.Keys.uiBackgroundDim) == nil
             ? 0.35 : d.double(forKey: Preferences.Keys.uiBackgroundDim)
+        // 背景材质迁移：旧出厂默认 .solid（历史版本里该值没有消费分支，观感等同 vibrancy）
+        // → 一次性改成 .vibrancy；用户手动选过 .solid 的保留，绝不覆盖。
+        let materialVersionKey = "ui.materialLookVersion"
+        if d.integer(forKey: materialVersionKey) < 1 {
+            if d.string(forKey: Preferences.Keys.uiPanelMaterial) == PersonalizationMaterial.solid.rawValue {
+                material = .vibrancy
+                d.set(PersonalizationMaterial.vibrancy.rawValue, forKey: Preferences.Keys.uiPanelMaterial)
+            }
+            d.set(1, forKey: materialVersionKey)
+            Log.info("personalization", "背景材质迁移：旧默认 solid → vibrancy（显式选择保留）")
+        }
         // 玻璃四参数：没有落盘值时用出厂口径（不覆盖默认值）
         if d.object(forKey: Preferences.Keys.uiGlassOpacity) != nil {
             glassOpacity = min(1, max(0.55, d.double(forKey: Preferences.Keys.uiGlassOpacity)))
@@ -447,7 +464,7 @@ public final class Personalization: ObservableObject {
         cornerRadius = 10
         openAnimation = .standard
         hoverPreviewEnabled = true
-        material = .solid
+        material = .vibrancy
         showSourceBadge = true
         thumbOverride = nil
         clipboardPreviewScale = 1.6
