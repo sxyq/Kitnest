@@ -983,9 +983,19 @@ final class DiskIndexStore: ObservableObject {
         guard !affected.contains(where: { root == $0 || root.hasPrefix($0 == "/" ? "/" : $0 + "/") }) else {
             return (true, nil)
         }
+        let rootPrefix = root == "/" ? "/" : root + "/"
+        var affectedParents = Set<String>()
+        for path in affected {
+            var parent = (path as NSString).deletingLastPathComponent
+            while parent == root || parent.hasPrefix(rootPrefix) {
+                affectedParents.insert(parent)
+                if parent == root { break }
+                parent = (parent as NSString).deletingLastPathComponent
+            }
+        }
         var updated = snapshot
         var removed = Set<String>()
-        updated.root = pruned(updated.root, removing: affected, removed: &removed)
+        updated.root = pruned(updated.root, removing: affected, under: affectedParents, removed: &removed)
         guard removed == affected else { return (true, nil) }
         updated.totalBytes = updated.root.size
         updated.recomputeDataCategories()
@@ -1018,10 +1028,13 @@ final class DiskIndexStore: ObservableObject {
     }
 
     /// 从树里删掉指定路径并重算父节点大小
-    static func pruned(_ node: DiskNode, removing paths: Set<String>, removed: inout Set<String>) -> DiskNode {
-        guard paths.contains(where: { $0.hasPrefix(node.path == "/" ? "/" : node.path + "/") }) else {
-            return node
-        }
+    static func pruned(
+        _ node: DiskNode,
+        removing paths: Set<String>,
+        under affectedParents: Set<String>,
+        removed: inout Set<String>
+    ) -> DiskNode {
+        guard affectedParents.contains(node.path) else { return node }
         var n = node
         var kept: [DiskNode] = []
         kept.reserveCapacity(n.children.count)
@@ -1029,7 +1042,7 @@ final class DiskIndexStore: ObservableObject {
             if paths.contains(child.path) {
                 removed.insert(child.path)
             } else {
-                kept.append(pruned(child, removing: paths, removed: &removed))
+                kept.append(pruned(child, removing: paths, under: affectedParents, removed: &removed))
             }
         }
         n.children = kept.sorted { $0.size > $1.size }
