@@ -14,3 +14,8 @@ Features/Onboarding/WelcomeWindowController.swift	R3	1
 Features/Onboarding/WhatsNew.swift	R3	1
 Features/Settings/Shell/SettingsBlockProbeWindow.swift	R3	1
 Features/Toolbox/Tools/ToolRunnerWindow.swift	R3	1
+# 2026-11-24（v286 存储曲面重整）：StorageVoronoi 兜底轮廓的圆角是**单位正方形**里
+#   的路径比例（0.045 与 StorageMapShape.blob 顶/底圆角同一口径），不是控件圆角；
+#   旧兜底 `StorageMapShape().path(in: unit)` 里的 0.045 自 v26x 起就存在，只是
+#   换成字面量后被规则首次扫到。仅当调用方漏传轮廓时才走该兜底。
+Features/Monitor/Storage/StorageVoronoi.swift	R1	1
