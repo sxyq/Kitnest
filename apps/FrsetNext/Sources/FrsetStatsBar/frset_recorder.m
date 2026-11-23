@@ -833,7 +833,7 @@ void FSScreenRecCloseSettings(void) {
     if (!CMSampleBufferDataIsReady(sb)) return;
     if (type == SCStreamOutputTypeScreen) {
         // 帧状态检查（丢弃 idle/dropped 帧；26 SDK 无 ValidValue 常量，用字符串键）
-        CFArrayRef atts = CMSampleBufferGetSampleAttachmentsArray(sb, YES);
+        CFArrayRef atts = CMSampleBufferGetSampleAttachmentsArray(sb, NO);
         if (atts && CFArrayGetCount(atts) > 0) {
             CFDictionaryRef a0 = CFArrayGetValueAtIndex(atts, 0);
             if (a0) {
