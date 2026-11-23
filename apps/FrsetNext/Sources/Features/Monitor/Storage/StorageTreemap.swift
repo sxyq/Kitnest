@@ -373,7 +373,10 @@ struct StorageTreemap: View {
                         .onTapGesture { onBack?() }
                     // 所有图块共用一块绘制层；压力场与曲线参数沿用 54402adc 原值。
                     LiquidTileDrawing(tiles: tiles, pressurePoint: hover.point,
-                        pressure: hover.active && !reduceMotion ? 1 : 0,
+                        // 指针跟随是「直接操作」，不是自动播放的装饰动画：
+                        // 系统开了「减弱动态效果」时只把弹簧换成无过冲直跟（见下方 animation），
+                        // 压力场本身仍然跟随鼠标，否则整块悬停手感会被系统开关一键抹掉。
+                        pressure: hover.active ? 1 : 0,
                         reach: max(140, min(260, min(geo.size.width, geo.size.height) * 0.42)),
                         pressedID: pressedID,
                         selectedID: selectedID, hoveredID: hover.id,
@@ -413,9 +416,10 @@ struct StorageTreemap: View {
                     case .active(let location):
                         let inside = StorageMapShape().path(in: CGRect(origin: .zero, size: geo.size))
                             .contains(location)
-                        let nextPoint = inside && !reduceMotion ? location : hover.point
+                        // 同上：位置与活跃态始终跟随真实指针，减弱动态只影响过渡曲线。
+                        let nextPoint = inside ? location : hover.point
                         let nextID = inside ? tiles.first { $0.frame.contains(location) && $0.hitPath.contains(location) }?.id : nil
-                        let active = inside && !reduceMotion
+                        let active = inside
                         if hover.point != nextPoint || hover.id != nextID || hover.active != active {
                             hover = (nextPoint, nextID, active)
                         }
@@ -434,9 +438,13 @@ struct StorageTreemap: View {
                 .onDisappear { StorageHoverScript.shared.stop() }
                 // v268：压力中心与强度用 0.26/0.86 弹簧跟随——移动平滑、
                 // 离开自然回弹、快速反向不跳变。
-                .animation(reduceMotion ? nil : .spring(response: 0.26, dampingFraction: 0.86),
+                // 减弱动态：不取消跟随，只把「回弹」换成临界阻尼的 0.12s 直跟，
+                // 去掉过冲但保留连续感（否则整块液态悬停会被系统开关一键抹掉）。
+                .animation(reduceMotion ? .spring(response: 0.12, dampingFraction: 1)
+                                        : .spring(response: 0.26, dampingFraction: 0.86),
                            value: hover.point)
-                .animation(reduceMotion ? nil : .spring(response: 0.26, dampingFraction: 0.86),
+                .animation(reduceMotion ? .spring(response: 0.12, dampingFraction: 1)
+                                        : .spring(response: 0.26, dampingFraction: 0.86),
                            value: hover.active)
             }
         }
