@@ -58,6 +58,13 @@ public final class ArchiveBrowserModel: ObservableObject {
     public var canGoBack: Bool { !backStack.isEmpty || !currentPath.isEmpty }
     public var canGoForward: Bool { !forwardStack.isEmpty }
 
+    /// v290（ArcZip preliminary* 对齐）：渐进式索引。false = 全量索引仍在后台跑：
+    /// 浏览与全部解压照常，搜索/预览/拖出/解压所选/重命名/删除先禁用
+    /// （文案证据 `archive.browsing.preliminary_help` / `archive.browsing.action_wait`）。
+    @Published public private(set) var indexingComplete = true
+    @Published public private(set) var preliminaryCount = 0
+    public var isPreliminary: Bool { !indexingComplete }
+
     public let url: URL
     public var editable: Bool { ArchiveCore.isEditable(url) }
     /// v127（ArcZip P0）：撤销/重做栈
@@ -218,23 +225,52 @@ public final class ArchiveBrowserModel: ObservableObject {
         return result
     }
 
-    /// 分栏视图：从根到当前层级的每一列（每列 = 该目录的直接子项）
-    public struct ColumnTrailItem {
-        public let path: String
-        public let entries: [ArchiveEntry]
+    /// v290（2026-11-24，ArcZip 分栏语义对齐）：Finder 式无限列。
+    ///
+    /// 旧实现按「根 → 当前层」横向铺列，列数永远等于层级深度——点击中间列的
+    /// 目录只能改 currentPath 重建整条轨迹，无法像 Finder 一样展开右侧列。
+    /// 现在分栏 = currentPath 的祖先轨迹（`applyPath` 统一重建，后退/前进/
+    /// 面包屑在分栏下语义不变）+ 两个记忆：
+    ///   · `columnFocusedEntry`：每列聚焦条目（key = 列目录路径），ArcZip
+    ///     `columnFocusedEntry` 同款；点击目录 = 聚焦 + 展开，点击文件 = 聚焦 + 预览；
+    ///   · `columnPositionsByPath`：每列滚动位置（key = 列目录路径，ArcZip 同名字段），
+    ///     列被裁掉再回来时恢复原滚动位置。
+    @Published public private(set) var columnPaths: [String] = [""]
+    @Published public private(set) var columnFocusedEntry: [String: String] = [:]
+    /// 非发布：滚动时不应触发整窗 objectWillChange（万条包滚动会掉帧）。
+    public var columnPositionsByPath: [String: CGFloat] = [:]
+
+    /// v290：分栏取某目录直接子项（childIndex O(1) 查表；隐式中间目录已合成）。
+    public func entries(inDirectory dirPath: String) -> [ArchiveEntry] {
+        rebuildChildIndexIfNeeded()
+        return childIndex[dirPath] ?? []
     }
 
-    public var columnTrail: [ColumnTrailItem] {
-        rebuildChildIndexIfNeeded()
+    /// 分栏点击目录：第 N 列聚焦并展开第 N+1 列（后续列丢弃，等价于轨迹重建）。
+    /// ArcZip `enterColumn` 同名语义。
+    public func enterColumn(_ entry: ArchiveEntry, inColumn dirPath: String) {
+        guard entry.isDirectory else { return }
+        columnFocusedEntry[dirPath] = entry.path
+        navigateTo(entry.path, recordHistory: true)
+    }
+
+    /// 分栏点击文件：聚焦该列 + 单选 + 预览（ArcZip：单击选中，检查器切文件详情）。
+    public func focusColumnEntry(_ entry: ArchiveEntry, inColumn dirPath: String) {
+        columnFocusedEntry[dirPath] = entry.path
+        selection = [entry.path]
+        selectionAnchor = entry.path
+        if !entry.isDirectory { loadPreview(for: entry) }
+    }
+
+    /// 由 currentPath 重建列轨迹（root + 每级祖先）。
+    private func rebuildColumns() {
         var paths: [String] = [""]
-        if !currentPath.isEmpty {
-            var acc = ""
-            for comp in currentPath.split(separator: "/") {
-                acc = acc.isEmpty ? String(comp) : acc + "/" + comp
-                paths.append(acc)
-            }
+        var acc = ""
+        for comp in currentPath.split(separator: "/") {
+            acc = acc.isEmpty ? String(comp) : acc + "/" + comp
+            paths.append(acc)
         }
-        return paths.map { ColumnTrailItem(path: $0, entries: childIndex[$0] ?? []) }
+        columnPaths = paths
     }
 
     /// 切层级：默认记进历史（ArcZip 的 ‹ › 走访问历史，不是简单上一层）
@@ -253,6 +289,9 @@ public final class ArchiveBrowserModel: ObservableObject {
         selection = []
         selectionAnchor = nil
         clearPreview()
+        // v290：分栏视图下层级变化（点击目录/后退/前进/↑/面包屑）统一重建列轨迹，
+        // 使任意导航入口在分栏下都得到同一组列。
+        rebuildColumns()
     }
 
     /// v127（ArcZip P1）：双击目录 → 进入
@@ -336,15 +375,37 @@ public final class ArchiveBrowserModel: ObservableObject {
 
     // MARK: 载入
 
+    /// v290：渐进索引期的统一拦截（ArcZip `archive.browsing.action_wait` 同款文案）。
+    /// 返回 true = 已拦截（动作被吃掉）。
+    private func gateIfPreliminary(_ verb: String) -> Bool {
+        guard isPreliminary else { return false }
+        Toast.show("请等待文件列表读取完成，再\(verb)。", icon: "hourglass", isWarning: true)
+        return true
+    }
+
     public func reload() {
         loading = true
         errorText = nil
+        // v290：渐进式索引——7zz 边流边解析，部分条目先上屏（根目录先可浏览、
+        // 可全部解压），全量索引完成后开放搜索/预览/拖出/解压所选。
         // 全量载入（含辅助文件），由 visibleEntries 决定显隐——这样开关能即时生效
-        ArchiveCore.list(url: url, includeAuxiliary: true) { [weak self] list, err in
+        ArchiveCore.listStreaming(url: url, includeAuxiliary: true,
+                                  onPreliminary: { [weak self] partial in
+            guard let self, !partial.isEmpty else { return }
+            self.loading = false                 // 首批条目到位即可交互
+            self.indexingComplete = false
+            self.preliminaryCount = partial.count
+            self.entries = partial
+            self.invalidateChildIndex()
+            self.rebuildColumns()                // 分栏渐进期也要刷新
+        }, completion: { [weak self] list, err in
             guard let self else { return }
             self.loading = false
+            self.indexingComplete = true
+            self.preliminaryCount = list.count
             self.entries = list
             self.invalidateChildIndex()   // v288：目录索引随重载失效（惰性重建）
+            self.rebuildColumns()
             if let err {
                 // v124：像是缺密码就弹输入框，输对自动重载
                 if ArchiveCore.ArchivePasswords.looksLikePasswordError(err) {
@@ -363,7 +424,7 @@ public final class ArchiveBrowserModel: ObservableObject {
                !list.contains(where: { $0.path == preview.path }) {
                 self.clearPreview()
             }
-        }
+        })
     }
 
     public func clearPreview() {
@@ -397,6 +458,7 @@ public final class ArchiveBrowserModel: ObservableObject {
     // MARK: 预览
 
     public func loadPreview(for entry: ArchiveEntry) {
+        if gateIfPreliminary("预览") { return }
         // 保留尚未写回的编辑；重复选择同一条目不重新读取并清空草稿。
         guard !dirty, previewEntry?.path != entry.path else { return }
         previewGeneration += 1
@@ -661,6 +723,8 @@ public final class ArchiveBrowserModel: ObservableObject {
 
     /// 工具栏/右键「添加文件」入口
     public func pickAndAddFiles() {
+        // 渐进索引期条目集合未定，添加条目要等索引完成（写入基线也还没建立）
+        if gateIfPreliminary("添加文件") { return }
         let panel = NSOpenPanel()
         panel.allowsMultipleSelection = true
         panel.canChooseDirectories = true
@@ -669,6 +733,7 @@ public final class ArchiveBrowserModel: ObservableObject {
 
     /// v127（ArcZip P1）：删除所有选中项（removeEntries 对目录路径是子树级删除，实测）
     public func deleteSelected() {
+        if gateIfPreliminary("删除") { return }
         let targets = selectedEntries
         guard !targets.isEmpty else { return }
         guard confirmOverwriteIfSourceChanged() else { return }
@@ -702,6 +767,7 @@ public final class ArchiveBrowserModel: ObservableObject {
     /// 重命名选中条目（v123；7zz rn 原地改包内路径）
     /// v127（ArcZip P1）：多选时只重命名第一个（ArcZip 也是单个重命名）
     public func renameSelected() {
+        if gateIfPreliminary("重命名") { return }
         guard let entry = selectedEntries.first else { return }
         guard confirmOverwriteIfSourceChanged() else { return }
         let alert = NSAlert()
@@ -806,6 +872,7 @@ public final class ArchiveBrowserModel: ObservableObject {
 
     /// v127（ArcZip P1）：解压所有选中项（逐个解到同一目录；目录路径子树级提取，实测）
     public func extractSelected() {
+        if gateIfPreliminary("解压所选文件") { return }
         let targets = selectedEntries
         guard !targets.isEmpty else { return }
         guard let dir = pickExtractDirectory() else { return }
@@ -861,6 +928,26 @@ public final class ArchiveBrowserModel: ObservableObject {
                 Toast.show("无法打开 \(entry.name)", icon: "exclamationmark.triangle", isWarning: true)
             }
         }
+    }
+
+    // MARK: 右键菜单（v290：ArcZip item.menu.* 对齐）
+
+    /// 拷贝路径（ArcZip `item.menu.copy_path`）：多选时逐行，包内路径按行连接。
+    public func copyEntryPathsToPasteboard() {
+        let paths = selectedEntries.isEmpty
+            ? Array(selection).sorted()
+            : selectedEntries.map(\.path).sorted()
+        guard !paths.isEmpty else { return }
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(paths.joined(separator: "\n"), forType: .string)
+        Toast.show("已拷贝 \(paths.count) 条路径", icon: "doc.on.doc")
+    }
+
+    /// 在访达中显示源文件（ArcZip `item.menu.reveal_source`）：包内条目不在磁盘上，
+    /// 揭示的是**源压缩包本身**（Finder 选中并前置该归档文件）。
+    public func revealSourceInFinder() {
+        NSWorkspace.shared.activateFileViewerSelecting([url])
     }
 
     /// 另存为加密归档（v124；ArcZip「保存为加密归档」）
@@ -973,6 +1060,27 @@ public final class ArchiveBrowserWindowController: NSWindowController, NSWindowD
         NSApp.activate(ignoringOtherApps: true)
         if let selectPath { controller.selectEntry(path: selectPath) }
         else if selectFirst { controller.selectFirstEntry() }
+    }
+
+    /// v290（ArcZip mini.switch.*）：查指定压缩包的主工作区窗，供 Mini 切换保护读取脏态
+    static func mainWorkspace(for url: URL) -> ArchiveBrowserWindowController? {
+        open[url.standardizedFileURL.path]
+    }
+
+    // v290：Mini 切换保护的窄接口（model 本身 private，不整体暴露）
+
+    /// 主工作区是否有未保存修改
+    var hasUnsavedChanges: Bool { model.dirty }
+
+    /// 保存未保存修改（保存并切换）
+    func saveForMiniSwitch(completion: @escaping (Bool) -> Void) {
+        model.saveDraft(completion: completion)
+    }
+
+    /// 放弃未保存修改（放弃更改并切换）
+    func discardForMiniSwitch() {
+        model.dirty = false
+        model.clearPreview()
     }
 
     /// 排障用（v181）：按路径/文件名选中某一条并加载预览。
@@ -1104,6 +1212,7 @@ struct ArchiveBrowserView: View {
                 dirty: model.dirty,
                 searchText: $model.searchText,
                 mode: $model.viewMode,
+                searchDisabled: model.isPreliminary,
                 onSave: { model.saveDraft() },
                 onDelete: { model.deleteSelected() },
                 canDelete: !model.selection.isEmpty && model.editable,
@@ -1266,6 +1375,8 @@ struct ArchiveBrowserView: View {
         if !model.selection.isEmpty { text += " · 已选 \(model.selection.count) 项" }
         if !model.editable { text += " · 只读" }
         if model.loading { text += " · 正在读取…" }
+        // v290：渐进索引状态行（ArcZip「可浏览预览 · 正在完成文件索引 / 后台已索引 N」）
+        if model.isPreliminary { text += " · 可浏览预览 · 后台已索引 \(model.preliminaryCount)" }
         return text
     }
 
@@ -1309,8 +1420,17 @@ struct ArchiveBrowserView: View {
     private var emptyState: some View {
         Group {
             if model.searchText.isEmpty && model.currentPath.isEmpty {
-                ArchiveEmptyDropCard { model.pickAndAddFiles() }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                VStack(spacing: 10) {
+                    ArchiveEmptyDropCard { model.pickAndAddFiles() }
+                    // v290：渐进索引提示（ArcZip archive.browsing.preliminary_help 原文）
+                    if model.isPreliminary {
+                        Text("可以浏览和全部解压。文件列表读取完成后可搜索、预览、拖出或解压所选文件。")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 VStack(spacing: 6) {
                     Image(systemName: model.searchText.isEmpty ? "folder" : "magnifyingglass")
@@ -1329,60 +1449,27 @@ struct ArchiveBrowserView: View {
         }
     }
 
-    // MARK: 分栏视图（ArcZip 第三档：按层级横向排列）
+    // MARK: 分栏视图（v290：Finder 式无限列，ArcZip 第三档 1:1）
 
-    private var columnBrowser: some View {
-        ScrollView(.horizontal, showsIndicators: true) {
-            HStack(alignment: .top, spacing: 0) {
-                ForEach(Array(model.columnTrail.enumerated()), id: \.offset) { _, column in
-                    VStack(spacing: 0) {
-                        ScrollView {
-                            LazyVStack(spacing: 0) {
-                                ForEach(column.entries) { entry in
-                                    Button {
-                                        if entry.isDirectory {
-                                            model.navigateTo(entry.path, recordHistory: true)
-                                        } else {
-                                            model.selection = [entry.path]
-                                            model.loadPreview(for: entry)
-                                        }
-                                    } label: {
-                                        HStack(spacing: 6) {
-                                            Image(systemName: ArchiveFormat.symbol(entry.name,
-                                                                                   isDirectory: entry.isDirectory))
-                                                .font(.system(size: 12))
-                                                .foregroundStyle(entry.isDirectory ? Theme.accent : .secondary)
-                                                .frame(width: 16)
-                                            Text(entry.name)
-                                                .font(.system(size: 12))
-                                                .lineLimit(1)
-                                                .truncationMode(.middle)
-                                            Spacer(minLength: 0)
-                                            if entry.isDirectory {
-                                                Image(systemName: "chevron.right")
-                                                    .font(.system(size: 8, weight: .semibold))
-                                                    .foregroundStyle(Theme.tertiaryText)
-                                            }
-                                        }
-                                        .padding(.horizontal, 10)
-                                        .frame(height: 26)
-                                        .background(model.selection.contains(entry.path)
-                                                    ? Theme.State.selected(isDark: colorScheme == .dark)
-                                                    : Color.clear)
-                                        .contentShape(Rectangle())
-                                    }
-                                    .buttonStyle(.plain)
-                                }
+    @ViewBuilder private var columnBrowser: some View {
+        // 搜索是全量的：分栏模式下直接落回列表表格（ArcZip 搜索结果同为扁平列表）
+        if !model.searchText.isEmpty {
+            entryHeader
+            Divider()
+            ArchiveEntryTableRepresentable(model: model)
+        } else {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: 0) {
+                    ForEach(model.columnPaths, id: \.self) { dirPath in
+                        ArchiveColumnView(model: model, dirPath: dirPath,
+                                          isDark: colorScheme == .dark)
+                            .frame(width: 220)
+                            .overlay(alignment: .trailing) {
+                                Rectangle().fill(Theme.hairlineColor).frame(width: 1)
                             }
-                            .padding(.vertical, 4)
-                        }
                     }
-                    .frame(width: 220)
-                    .overlay(alignment: .trailing) {
-                        Rectangle().fill(Theme.hairlineColor).frame(width: 1)
-                    }
+                    Spacer(minLength: 0)
                 }
-                Spacer(minLength: 0)
             }
         }
     }
@@ -1503,6 +1590,195 @@ struct ArchiveBrowserView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .padding()
             }
+        }
+    }
+}
+
+// MARK: - 分栏单列（v290：Finder 式；点击目录展开右列 / 文件聚焦预览 / 滚动记忆）
+
+/// 单列视图。语义逐条对齐 ArcZip：
+///   · 单击目录 = 聚焦 + 右侧展开一列（`enterColumn`）；单击文件 = 聚焦 + 预览；
+///   · 双击文件 = 解压到临时目录交给默认应用（`openExternally`）；
+///   · 悬停 1s 预览与其他浏览档共用 `ArchiveHoverPreview`；
+///   · 每列滚动位置独立记忆（`columnPositionsByPath`），列被裁掉再回来时恢复。
+struct ArchiveColumnView: View {
+    @ObservedObject var model: ArchiveBrowserModel
+    let dirPath: String
+    let isDark: Bool
+
+    /// 列聚焦条目（有焦点才有「展开 chevron / 选中底色」语义）
+    private var focusedPath: String? { model.columnFocusedEntry[dirPath] }
+
+    var body: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(model.entries(inDirectory: dirPath)) { entry in
+                        row(entry)
+                            .id(entry.path)
+                    }
+                }
+                .padding(.vertical, 4)
+                .background(ColumnScrollMemory(model: model, dirPath: dirPath))
+            }
+            .onAppear {
+                // 新列出现：优先恢复滚动位置；没有位置记忆时把聚焦条目滚进视野
+                // （Finder 行为：新列自动露出被点中的那行）
+                if model.columnPositionsByPath[dirPath] == nil, let focused = focusedPath {
+                    proxy.scrollTo(focused, anchor: .center)
+                }
+            }
+        }
+        .clipped()
+    }
+
+    @ViewBuilder private func row(_ entry: ArchiveEntry) -> some View {
+        let focused = focusedPath == entry.path
+        HStack(spacing: 6) {
+            Image(systemName: ArchiveFormat.symbol(entry.name, isDirectory: entry.isDirectory))
+                .font(.system(size: 12))
+                .foregroundStyle(entry.isDirectory ? Theme.accent : .secondary)
+                .frame(width: 16)
+            Text(entry.name)
+                .font(.system(size: 12))
+                .lineLimit(1)
+                .truncationMode(.middle)
+            Spacer(minLength: 0)
+            if entry.isDirectory {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 8, weight: .semibold))
+                    .foregroundStyle(focused ? Theme.accent : Theme.tertiaryText)
+            }
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 26)
+        .background(focused ? Theme.State.selected(isDark: isDark) : Color.clear)
+        .contentShape(Rectangle())
+        // 双击优先声明：SwiftUI 多重 tap 手势高次数胜出，单双击互不误触
+        .onTapGesture(count: 2) {
+            if !entry.isDirectory { model.openExternally(entry) }
+        }
+        .onTapGesture {
+            if entry.isDirectory {
+                model.enterColumn(entry, inColumn: dirPath)
+            } else {
+                model.focusColumnEntry(entry, inColumn: dirPath)
+            }
+        }
+        .onHover { hovering in
+            if hovering {
+                ArchiveHoverPreview.shared.schedule(archive: model.url, entry: entry)
+            } else {
+                ArchiveHoverPreview.shared.cancel()
+            }
+        }
+        .contextMenu {
+            Button("预览") { model.focusColumnEntry(entry, inColumn: dirPath) }
+            if entry.isDirectory {
+                Button("进入文件夹") { model.enterColumn(entry, inColumn: dirPath) }
+            }
+            Button("重命名…") {
+                model.selection = [entry.path]
+                model.renameSelected()
+            }
+            Button("解压所选…") {
+                model.selection = [entry.path]
+                model.extractSelected()
+            }
+            Button("用默认应用打开") { model.openExternally(entry) }
+            Button("拷贝路径") { model.copyEntryPathsToPasteboard() }
+            Button("在访达中显示源文件") { model.revealSourceInFinder() }
+            Divider()
+            Button("删除", role: .destructive) {
+                model.selection = [entry.path]
+                model.deleteSelected()
+            }
+        }
+        .help(entry.path)
+    }
+}
+
+/// 列滚动位置记忆（ArcZip `columnPositionsByPath` 同名语义）。
+///
+/// SwiftUI 的 ScrollView 在 macOS 上是 NSScrollView：放一个零尺寸探针向上找到
+/// 宿主，监听 clipView bounds 变化把 offset 写回模型（非发布，滚动不触发刷新）；
+/// 列重建（identity 换新探针）时恢复一次。只在挂载后恢复一次，避免与实时滚动互拉。
+struct ColumnScrollMemory: NSViewRepresentable {
+    let model: ArchiveBrowserModel
+    let dirPath: String
+
+    func makeNSView(context: Context) -> ProbeView {
+        let view = ProbeView()
+        view.model = model
+        view.dirPath = dirPath
+        return view
+    }
+
+    func updateNSView(_ nsView: ProbeView, context: Context) {
+        nsView.model = model
+        nsView.dirPath = dirPath
+        nsView.restoreOnce()
+    }
+
+    final class ProbeView: NSView {
+        weak var model: ArchiveBrowserModel?
+        var dirPath: String = ""
+        private weak var scrollView: NSScrollView?
+        private var observing = false
+        private var restored = false
+        private var restoreAttempts = 0
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            guard window != nil else { return }
+            DispatchQueue.main.async { [weak self] in self?.locateScrollView() }
+        }
+
+        /// 向上找 SwiftUI ScrollView 的 AppKit 宿主 NSScrollView
+        private func locateScrollView() {
+            guard scrollView == nil else { return }
+            var current = superview
+            while let node = current {
+                if let found = node as? NSScrollView {
+                    scrollView = found
+                    if !observing {
+                        NotificationCenter.default.addObserver(
+                            self, selector: #selector(scrolled),
+                            name: NSView.boundsDidChangeNotification,
+                            object: found.contentView)
+                        observing = true
+                    }
+                    return
+                }
+                current = node.superview
+            }
+        }
+
+        @objc private func scrolled() {
+            guard let model,
+                  let content = scrollView?.contentView else { return }
+            model.columnPositionsByPath[dirPath] = content.bounds.origin.y
+        }
+
+        /// 挂载后恢复一次（SwiftUI 宿主 NSScrollView 要等布局，找不就重试几帧）
+        func restoreOnce() {
+            guard !restored, restoreAttempts < 12 else { return }
+            restoreAttempts += 1
+            if scrollView == nil { locateScrollView() }
+            guard let model,
+                  let content = scrollView?.contentView else {
+                DispatchQueue.main.async { [weak self] in self?.restoreOnce() }
+                return
+            }
+            restored = true
+            let target = model.columnPositionsByPath[dirPath] ?? 0
+            if abs(content.bounds.origin.y - target) > 1 {
+                content.bounds.origin.y = target
+            }
+        }
+
+        deinit {
+            if observing { NotificationCenter.default.removeObserver(self) }
         }
     }
 }

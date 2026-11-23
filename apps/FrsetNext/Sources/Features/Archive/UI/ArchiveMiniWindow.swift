@@ -295,10 +295,62 @@ public final class ArchiveMiniWindowController: NSWindowController, NSWindowDele
             NSApp.activate(ignoringOtherApps: true)
             return
         }
+        // v290（ArcZip mini.switch.*）：切 Mini 前的主工作区保护
+        guard guardForMiniSwitch(url) else { return }
+        openUnprotected(url)
+    }
+
+    /// v290：实际开窗（保护通过 / 保存完成后走这里）
+    private static func openUnprotected(_ url: URL) {
+        let key = url.standardizedFileURL.path
+        if let existing = open[key] {
+            existing.window?.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            return
+        }
         let controller = ArchiveMiniWindowController(url: url)
         open[key] = controller
         controller.showWindow(nil)
         NSApp.activate(ignoringOtherApps: true)
+    }
+
+    /// v290（ArcZip mini.switch.busy/save.*）：切 Mini 前检查同压缩包的主工作区——
+    /// 仍有进行中任务（busy 文案）或未保存修改（保存并切换 / 放弃更改并切换 / 取消）。
+    /// Mini 仅用于浏览，编辑语义必须留在主工作区。返回 false = 已拦截，不开 Mini。
+    private static func guardForMiniSwitch(_ url: URL) -> Bool {
+        let archiveURL = url.standardizedFileURL
+        // 忙：该压缩包仍有进行中的任务（解压/压缩/回写都在任务队列记账）
+        if ArchiveTaskQueue.shared.tasks.contains(where: {
+            !$0.isFinished && $0.title.contains(archiveURL.lastPathComponent)
+        }) {
+            let alert = NSAlert()
+            alert.messageText = "切换到 Mini"
+            alert.informativeText = "此压缩包的 Mini 窗口仍有任务或待处理的操作，请完成后再切换。"
+            NSApp.activate(ignoringOtherApps: true)
+            alert.runModal()
+            return false
+        }
+        // 脏：主工作区有未保存修改
+        guard let main = ArchiveBrowserWindowController.mainWorkspace(for: archiveURL),
+              main.hasUnsavedChanges else { return true }
+        let alert = NSAlert()
+        alert.messageText = "切换到 Mini 前，是否保存对“\(archiveURL.lastPathComponent)”的更改？"
+        alert.informativeText = "Mini 仅用于浏览。保存更改或放弃更改后即可切换。"
+        alert.addButton(withTitle: "保存并切换")
+        alert.addButton(withTitle: "放弃更改并切换")
+        alert.addButton(withTitle: "取消")
+        NSApp.activate(ignoringOtherApps: true)
+        switch alert.runModal() {
+        case .alertFirstButtonReturn:
+            // 保存完成后切（失败时主窗已有错误提示，Mini 不强开）
+            main.saveForMiniSwitch { _ in openUnprotected(url) }
+            return false
+        case .alertSecondButtonReturn:
+            main.discardForMiniSwitch()
+            return true
+        default:
+            return false
+        }
     }
 
     private let model: ArchiveMiniModel

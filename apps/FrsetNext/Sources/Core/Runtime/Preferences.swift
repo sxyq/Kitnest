@@ -31,6 +31,11 @@ public final class Preferences: ObservableObject {
         public static let archiveOpenTrashOriginal = "archive.open.trashOriginal"
         public static let archiveHoverEnabled = "archive.hover.enabled"
         public static let archiveHoverSizeLimitMB = "archive.hover.sizeLimitMB"
+        /// v290（ArcZip settings.browsing.hover.video / settings.hover.video.muted /
+        /// settings.hover.audio.autoplay）：悬浮预览媒体三开关
+        public static let archiveHoverVideoEnabled = "archive.hover.videoEnabled"
+        public static let archiveHoverVideoMuted = "archive.hover.videoMuted"
+        public static let archiveHoverAudioAutoplay = "archive.hover.audioAutoplay"
         public static let archiveProgressKeepOnTop = "archive.progress.keepOnTop"
         /// 深度释放时顺带暂停闲置应用（v259 第二档；默认开，内存卡上可临时关掉）
         public static let memoryFreezeIdle = "memory.freezeIdleOnRelease"

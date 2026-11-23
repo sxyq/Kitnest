@@ -141,6 +141,8 @@ struct ArchiveTitleBar: View {
     @Binding var searchText: String
     @Binding var mode: ArchiveViewMode
     var searchPlaceholder: String = "搜索"
+    /// v290：渐进索引未完成时禁用搜索（ArcZip preliminary_help 口径）
+    var searchDisabled: Bool = false
     var onSave: () -> Void
     var onDelete: () -> Void
     var canDelete: Bool
@@ -169,6 +171,8 @@ struct ArchiveTitleBar: View {
                     .textFieldStyle(.plain)
                     .font(.system(size: 12))
                     .focused($searchFocused)
+                    .disabled(searchDisabled)
+                    .help(searchDisabled ? "请等待文件列表读取完成，再搜索。" : "")
                     .frame(width: 150)
                     .padding(.horizontal, 10)
                     .frame(height: 28)

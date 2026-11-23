@@ -97,6 +97,10 @@ struct ArchiveOpenBehaviorOptions: View {
 struct ArchiveHoverPreviewOptions: View {
     @AppStorage(Preferences.Keys.archiveHoverEnabled) private var hoverEnabled = true
     @AppStorage(Preferences.Keys.archiveHoverSizeLimitMB) private var sizeLimitMB = 100
+    // v290（ArcZip settings.browsing.hover.video / settings.hover.*）：媒体三开关
+    @AppStorage(Preferences.Keys.archiveHoverVideoEnabled) private var videoEnabled = true
+    @AppStorage(Preferences.Keys.archiveHoverVideoMuted) private var videoMuted = true
+    @AppStorage(Preferences.Keys.archiveHoverAudioAutoplay) private var audioAutoplay = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -117,6 +121,24 @@ struct ArchiveHoverPreviewOptions: View {
                 }
                 .labelsHidden().frame(width: 130)
                 .disabled(!hoverEnabled)
+            }
+            SettingsRow(title: "在悬浮预览中播放视频",
+                        subtitle: "支持 MP4、MOV、M4V 等格式，部分编码或文件无法预览。") {
+                Toggle("在悬浮预览中播放视频", isOn: $videoEnabled)
+                    .labelsHidden().toggleStyle(.switch)
+                    .disabled(!hoverEnabled)
+            }
+            SettingsRow(title: "视频默认静音",
+                        subtitle: "默认静音，关闭后播放视频声音。") {
+                Toggle("视频默认静音", isOn: $videoMuted)
+                    .labelsHidden().toggleStyle(.switch)
+                    .disabled(!hoverEnabled || !videoEnabled)
+            }
+            SettingsRow(title: "自动播放音频",
+                        subtitle: "悬停后自动播放音频，关闭后点击播放按钮开始试听。") {
+                Toggle("自动播放音频", isOn: $audioAutoplay)
+                    .labelsHidden().toggleStyle(.switch)
+                    .disabled(!hoverEnabled)
             }
         }
     }

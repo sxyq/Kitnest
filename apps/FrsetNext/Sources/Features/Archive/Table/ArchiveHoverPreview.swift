@@ -55,7 +55,15 @@ final class ArchiveHoverPreview {
         guard !entry.isDirectory else { return }
         guard entry.size > 0, entry.size <= Self.sizeCap else { return }
         // 只解「有内容可看」的类型；未知二进制解出来也只有图标，白花一次 7zz
-        guard ArchiveEntryThumbnail.canRender(entry.name) else { return }
+        // v290：媒体（视频/音频）同样可悬浮播放/试听；视频被设置关闭时不预解
+        let ext = (entry.name as NSString).pathExtension.lowercased()
+        let isVideo = PreviewMediaSupport.isVideoExtension(ext)
+        let isAudio = PreviewMediaSupport.isAudioExtension(ext)
+        if isVideo {
+            guard PreviewMediaSupport.videoEnabled else { return }
+        } else if !isAudio {
+            guard ArchiveEntryThumbnail.canRender(entry.name) else { return }
+        }
         MainPanelPreviewPopoverCoordinator.shared.cancelHoverClose()
 
         let key = Self.key(archive: archive, entry: entry)

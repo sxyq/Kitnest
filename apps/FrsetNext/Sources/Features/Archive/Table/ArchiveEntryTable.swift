@@ -214,6 +214,8 @@ extension ArchiveEntryTableHost: NSTableViewDataSource, NSTableViewDelegate {
     // v127（ArcZip P0）：每行一个文件承诺；拖选中行 → 系统自动带上全部选中行 = 多选拖出
     func tableView(_ tableView: NSTableView, pasteboardWriterForRow row: Int) -> NSPasteboardWriting? {
         guard let model, row < entries.count else { return nil }
+        // v290：渐进索引未完成时禁用拖出（ArcZip preliminary_help 口径）
+        guard !model.isPreliminary else { return nil }
         return ArchiveFilePromiseDelegate.makeProvider(archiveURL: model.url,
                                                        entry: entries[row])
     }

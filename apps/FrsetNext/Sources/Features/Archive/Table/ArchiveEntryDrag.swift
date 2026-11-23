@@ -134,6 +134,17 @@ final class ArchiveMenuActions: NSObject {
         model?.deleteSelected()
     }
 
+    /// v290（ArcZip `item.menu.copy_path`）：拷贝包内路径（多选逐行）
+    @objc func menuCopyPath(_ sender: Any?) {
+        model?.copyEntryPathsToPasteboard()
+    }
+
+    /// v290（ArcZip `item.menu.reveal_source`）：包内条目不在磁盘上，
+    /// 揭示的是源压缩包本身。
+    @objc func menuRevealSource(_ sender: Any?) {
+        model?.revealSourceInFinder()
+    }
+
     /// 右键菜单（多选时项数语义与工具栏一致）
     func buildMenu(hasDirectory: Bool) -> NSMenu {
         let menu = NSMenu()
@@ -144,10 +155,14 @@ final class ArchiveMenuActions: NSObject {
         menu.addItem(make("重命名…", #selector(menuRename(_:))))
         menu.addItem(make("解压所选…", #selector(menuExtract(_:))))
         menu.addItem(make("用默认应用打开", #selector(menuOpenExternal(_:))))
+        menu.addItem(.separator())
+        // v290：ArcZip item.menu.* 对齐——拷贝路径 / 在访达中显示源文件
+        menu.addItem(make("拷贝路径", #selector(menuCopyPath(_:))))
+        menu.addItem(make("在访达中显示源文件", #selector(menuRevealSource(_:))))
+        menu.addItem(.separator())
         if hasDirectory {
             menu.addItem(make("添加文件到此文件夹…", #selector(menuAddHere(_:))))
         }
-        menu.addItem(.separator())
         let del = make("删除", #selector(menuDelete(_:)))
         del.tag = 1
         menu.addItem(del)
@@ -199,6 +214,11 @@ final class ArchiveTileInteractionView: NSView {
         let dx = event.locationInWindow.x - dragStart.x
         let dy = event.locationInWindow.y - dragStart.y
         guard hypot(dx, dy) > 4 else { return }        // 阈值：区分点选与拖拽
+        // v290：渐进索引未完成时禁用拖出（ArcZip preliminary_help 口径）
+        guard !model.isPreliminary else {
+            Toast.show("请等待文件列表读取完成，再拖出。", icon: "hourglass", isWarning: true)
+            return
+        }
 
         // 拖中选中项 → 整组拖出；拖未选中项 → 只拖它
         let targets = (model.selection.contains(entry.path) && model.selection.count > 1)

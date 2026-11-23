@@ -18,10 +18,13 @@ public struct ArchiveProgressPanel: View {
     private let compact: Bool
     /// v127：项目内 @State 宏不可用（SwiftUIMacros 插件缺失），用 @Stored 兼容层
     @Stored private var expanded: Bool
+    /// v290（ArcZip progress.queue.*）：分组级收起记忆（key = 组 id）
+    @Stored private var collapsedGroups: Set<String>
 
     public init(compact: Bool = false, expanded: Bool = true) {
         self.compact = compact
         self._expanded = Stored(wrappedValue: expanded)
+        self._collapsedGroups = Stored(wrappedValue: [])
     }
 
     public var body: some View {
@@ -54,7 +57,22 @@ public struct ArchiveProgressPanel: View {
                     // v182：独立窗里任务会越攒越多，之前没有滚动容器 —— 超出的行直接被窗口裁掉。
                     ScrollView(.vertical, showsIndicators: true) {
                         VStack(spacing: 0) {
-                            ForEach(queue.tasks) { task in
+                            // v290（ArcZip progress.queue.*）：运行中 / 等待 / 失败 分组；
+                            // 每组首行常显，折叠后显示「另有 N 项…」摘要，可展开收起。
+                            let groups = TaskGroups(queue.tasks)
+                            groupSection(id: "running", label: "运行中",
+                                         tasks: groups.running,
+                                         summary: groups.running.count > 1
+                                            ? "另有 \(groups.running.count - 1) 项进行中" : nil)
+                            groupSection(id: "waiting", label: "等待",
+                                         tasks: groups.waiting,
+                                         summary: waitingSummary(groups.waiting))
+                            groupSection(id: "failed", label: "失败",
+                                         tasks: groups.failed,
+                                         summary: groups.failed.count > 1
+                                            ? "\(groups.failed.count - 1) 项失败" : nil)
+                            // 已完成的行平铺在分组之后（沿用「清除已完成」语义）
+                            ForEach(groups.finished) { task in
                                 ArchiveTaskRow(task: task)
                             }
                         }
@@ -65,6 +83,83 @@ public struct ArchiveProgressPanel: View {
             }
         }
         .padding(compact ? 8 : 10)
+    }
+
+    /// 等待组摘要：解压任务用「还有 N 项等待解压」，其余「还有 N 项等待处理」
+    private func waitingSummary(_ tasks: [ArchiveTaskQueue.ArchiveTask]) -> String? {
+        guard tasks.count > 1 else { return nil }
+        let rest = tasks.dropFirst()
+        let restExtract = rest.filter { $0.kind == .extract }.count
+        return restExtract == rest.count
+            ? "还有 \(rest.count) 项等待解压"
+            : "还有 \(rest.count) 项等待处理"
+    }
+
+    /// 单个分组：标题行（chevron + 标签 + 计数）→ 展开显示全部行；折叠显示首行 + 摘要行
+    @ViewBuilder private func groupSection(id: String, label: String,
+                                           tasks: [ArchiveTaskQueue.ArchiveTask],
+                                           summary: String?) -> some View {
+        if !tasks.isEmpty {
+            let collapsed = collapsedGroups.contains(id)
+            HStack(spacing: 6) {
+                Button {
+                    withAnimation(Theme.Motion.fast) {
+                        if collapsed { collapsedGroups.remove(id) } else { collapsedGroups.insert(id) }
+                    }
+                } label: {
+                    Image(systemName: collapsed ? "chevron.right" : "chevron.down")
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 12)
+                }
+                .buttonStyle(.plain)
+                .help(collapsed ? "展开" : "收起")
+                Text("\(label) · \(tasks.count)")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.secondary)
+            }
+            .padding(.top, 4)
+            // 首行常显（ArcZip 折叠语义：摘要里的「另有」= 首行之外的部分）
+            ArchiveTaskRow(task: tasks[0])
+            if collapsed, let summary {
+                Text(summary)
+                    .font(.system(size: 10))
+                    .foregroundStyle(Theme.tertiaryText)
+                    .padding(.leading, 24)
+                    .padding(.bottom, 2)
+            } else if !collapsed {
+                ForEach(tasks.dropFirst()) { task in
+                    ArchiveTaskRow(task: task)
+                }
+            }
+        }
+    }
+
+    /// 任务按状态分组（队列内已是 waiting/running/done/failed/cancelled 五态）
+    private struct TaskGroups {
+        let running: [ArchiveTaskQueue.ArchiveTask]
+        let waiting: [ArchiveTaskQueue.ArchiveTask]
+        let failed: [ArchiveTaskQueue.ArchiveTask]
+        let finished: [ArchiveTaskQueue.ArchiveTask]
+
+        init(_ tasks: [ArchiveTaskQueue.ArchiveTask]) {
+            var running: [ArchiveTaskQueue.ArchiveTask] = []
+            var waiting: [ArchiveTaskQueue.ArchiveTask] = []
+            var failed: [ArchiveTaskQueue.ArchiveTask] = []
+            var finished: [ArchiveTaskQueue.ArchiveTask] = []
+            for task in tasks {
+                switch task.state {
+                case .running: running.append(task)
+                case .waiting: waiting.append(task)
+                case .failed: failed.append(task)
+                case .done, .cancelled: finished.append(task)
+                }
+            }
+            self.running = running
+            self.waiting = waiting
+            self.failed = failed
+            self.finished = finished
+        }
     }
 
     private var header: some View {
