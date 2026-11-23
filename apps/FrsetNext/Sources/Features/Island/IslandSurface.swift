@@ -291,6 +291,17 @@ private struct IslandMaterialHost: NSViewRepresentable {
                            samplingInset: controller.expanded ? IslandLayout.corner : Theme.Radius.chip)
     }
 
+    /// v286：几何回调去重。SwiftUI 对**任意**岛状态变化（翻页、透明度动画帧、
+    /// 剪贴板刷新）都会走 updateNSView；不带去重时 `surfaceDidChange` 每次都被调，
+    /// 内部虽有 size/radius 守卫，但几何没变时这些调用纯属噪音——
+    /// 在 Representable 层就拦掉，几何回调与鼠标移动彻底解耦（命中语义不变）。
+    final class GeometryCoordinator {
+        var lastSize: CGSize = .zero
+        var lastRadius: CGFloat = -1
+    }
+
+    func makeCoordinator() -> GeometryCoordinator { GeometryCoordinator() }
+
     func updateNSView(_ view: IslandMaterialView, context: Context) {
         // 2026-11-24（用户：「检查 NSGlassEffectView 的尺寸变更及 CAShapeLayer 遮罩重绘成本」
         // 「避免非几何状态更新导致材质重复创建」）：
@@ -305,7 +316,12 @@ private struct IslandMaterialHost: NSViewRepresentable {
         if view.material != material { view.applyMaterial(material) }
         // 深色程度只改着色，不重建玻璃、不重算遮罩
         if view.shellOpacity != shellOpacity { view.shellOpacity = shellOpacity }
-        controller.surfaceDidChange(size: size, radius: radius)
+        // v286：几何真实变化才通知控制器（去重后回调次数 = 形变帧数，不再是全部状态帧）。
+        if size != context.coordinator.lastSize || radius != context.coordinator.lastRadius {
+            context.coordinator.lastSize = size
+            context.coordinator.lastRadius = radius
+            controller.surfaceDidChange(size: size, radius: radius)
+        }
     }
 
     private func targetSize(expanded: Bool) -> CGSize { expanded ? expandedSize : collapsedSize }
@@ -357,11 +373,14 @@ private final class IslandMaterialView: NSView {
         self.samplingInset = samplingInset
         // 玻璃自角从 .zero 起：外壳圆角由 IslandMorph 逐帧经 setCornerRadius 注入，
         // 形状交给 CAShapeLayer 遮罩（2026-11-23：0 字面量收编为 .zero）。
+        // v286：`systemGlass` 不再写死 true——那会绕过用户偏好，让刘海永远走
+        // 焦点自适应的 NSGlassEffectView（点击前后观感跳变的来源之一）。
+        // 现在 material == .liquidGlass 只表达「愿意接受动态玻璃」，
+        // 最终是否启用由 uiUseSystemGlass 显式偏好决定（默认稳定 .inactive）。
         let glass = LiquidGlass.makeView(cornerRadius: .zero,
                                          tint: Self.tint(shellOpacity),
                                          solid: false,
-                                         followsWindowFocus: material == .liquidGlass,
-                                         systemGlass: material == .liquidGlass)
+                                         followsWindowFocus: material == .liquidGlass)
         glass.appearance = NSAppearance(named: .darkAqua)
         // 关掉 autoresizing：取样面比宿主大（上角移到屏幕外），宿主每帧插值时
         // AppKit 会照旧把子视图拉回 bounds —— 那正好把「只重设一次」变成「每帧一次」。

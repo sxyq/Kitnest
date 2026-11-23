@@ -16,6 +16,14 @@ enum LiquidGlass {
 
     /// 玻璃容器。返回 NSGlassEffectView（26+）或 NSVisualEffectView（回退）。
     /// 内容由 `embed(_:in:)` 装入。`Personalization.material == .solid` 时退化为不透明底。
+    ///
+    /// v286（2026-11-24 审计包 02，用户「玻璃点击前后一致」）：
+    /// **默认走稳定玻璃**——NSVisualEffectView + 硬钉 `.inactive`（v202 口径），
+    /// 点击/聚焦/失焦时背景明度、模糊与 tint 不跳跃。macOS 26 的
+    /// NSGlassEffectView 没有公开的状态固定口子（失焦观感由系统管，SDK 头文件
+    /// 无 state/isActive），无法做到点击前后一致——它降级为**显式可选模式**：
+    /// `defaults write com.sxyq.frsetnext uiUseSystemGlass -bool true` 才启用，
+    /// 且仅当调用方同时传 `followsWindowFocus: true`。降透明度口径不变。
     static func makeView(frame: NSRect = .zero,
                          cornerRadius: CGFloat,
                          material: NSVisualEffectView.Material = .hudWindow,
@@ -57,15 +65,18 @@ enum LiquidGlass {
         return effect
     }
 
-    /// 是否使用 macOS 26 真玻璃（v205）。
+    /// 是否使用 macOS 26 真玻璃（v205 引入；**v286 默认改为关**）。
     ///
-    /// 用户：「玻璃质感需要跟 MacOS 自带的天气它这种玻璃质感一致，初始默认的」。
-    /// 天气 App 用的是系统 Liquid Glass（NSGlassEffectView）；默认改为开启，
-    /// 保持系统原生的折射/霜感。需要退回旧毛玻璃时：
-    ///   `defaults write com.sxyq.frsetnext uiUseSystemGlass -bool NO`
+    /// 历史：v205 用户要「玻璃质感跟 macOS 天气一致」默认开 NSGlassEffectView；
+    /// 但它会随窗口 key/inactive 改变观感且无公开固定口子（v202 的「焦点两套
+    /// 观感」问题被重新引入）。2026-11-24 审计包 02 定案：**稳定玻璃为默认策略**，
+    /// 真·液态玻璃改为显式可选：
+    ///   `defaults write com.sxyq.frsetnext uiUseSystemGlass -bool true`
+    /// 显式写 true 才启用；未写或写 false 都走稳定 `.inactive` 毛玻璃。
+    /// 「降低透明度」始终优先于本开关（solid 路径不受影响）。
     private static var prefersSystemGlass: Bool {
         let d = UserDefaults.standard
-        guard d.object(forKey: "uiUseSystemGlass") != nil else { return true }
+        guard d.object(forKey: "uiUseSystemGlass") != nil else { return false }
         return d.bool(forKey: "uiUseSystemGlass")
     }
 

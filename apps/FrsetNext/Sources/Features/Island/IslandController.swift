@@ -67,7 +67,15 @@ final class IslandController: NSObject, ObservableObject {
     private var hoverWork: DispatchWorkItem?
     private var inside = false
     private var hoverArmed = true
+    /// 「明确固定打开」：用户点了入口/深链/搜索聚焦这类**明确意图**才置位，
+    /// 只有 collapse() 解除。
     private var openedExplicitly = false
+    /// v286（审计包 02）：「点击期间保护」——在岛面板里按下鼠标时临时置位，
+    /// `endInteraction()`（抬起/菜单/编辑结束）即解除。旧实现把普通点击也写成
+    /// `openedExplicitly = true` 且抬起不清除，点一下组件后鼠标移开会一直展开。
+    private var clickPinned = false
+    /// 收起调度统一看的「是否被意图钉住」。
+    private var pinnedOpen: Bool { openedExplicitly || clickPinned }
     private var screenObserver: NSObjectProtocol?
     private var menuObservers: [NSObjectProtocol] = []
     private var menuTracking = false
@@ -236,10 +244,17 @@ final class IslandController: NSObject, ObservableObject {
     func endInteraction() {
         if editingLayout { return }
         interacting = false
+        // v286：点击保护到抬起为止。清除后按当前位置重新判定是否该收，
+        // 普通组件点击不再把展开状态永久锁住。
+        clickPinned = false
         if previewOnly { return } // 模拟场景没有真实指针，不进入移开收回计时。
         if menuTracking || editingText { return }
         updatePointer()
-        if !inside, expanded, !openedExplicitly, entryHoverWork == nil {
+        if !inside, expanded, !pinnedOpen, entryHoverWork == nil {
+            // v286：先清掉可能过期的旧延时（比如悬停展开腿），再排收起，
+            // 避免同一时刻既有 expand 又有 collapse 两个 work 竞争。
+            hoverWork?.cancel()
+            hoverWork = nil
             let work = DispatchWorkItem { [weak self] in self?.collapse() }
             hoverWork = work
             DispatchQueue.main.asyncAfter(deadline: .now() + configuration.collapseDelay, execute: work)
@@ -657,6 +672,9 @@ final class IslandController: NSObject, ObservableObject {
         if !expanded {
             // 2026-11-23 阶段计时：展开同步段到底花在哪（与主面板 布局=XXms 同口径）。
             // 只记毫秒，不动动画曲线（弹簧 0.42s/0.80 保持原值）。
+            // v286：显示时钟探针在**同步段之前**起表——旧位置在首次布局之后，
+            // 会漏掉「入口事件 → 首帧可见」那一段（审计包 02 指出的口径缺口）。
+            if !previewOnly { MotionPacingProbe.shared.run("岛展开", duration: 0.75) }
             let t0 = CFAbsoluteTimeGetCurrent()
             if useOpeningPage { applyOpeningPage() }
             if !previewOnly { selection = AppBootstrap.readSelection() }
@@ -670,9 +688,6 @@ final class IslandController: NSObject, ObservableObject {
             revealContent(after: 0.08)
             if !previewOnly {
                 Log.info("Island", String(format: "岛展开：首次布局 %.0fms", (CFAbsoluteTimeGetCurrent() - t0) * 1000))
-                // 2026-11-24：展开腿的帧节奏（与神灯「播放节奏」同口径）。
-                // 0.75s ≈ 弹簧 0.42s 的收敛时间，够覆盖整段形变。
-                MotionPacingProbe.shared.run("岛展开", duration: 0.75)
             }
         }
         hoverArmed = false
@@ -690,8 +705,10 @@ final class IslandController: NSObject, ObservableObject {
 
     func collapse() {
         // 2026-11-23 阶段计时：同 expand()，只记同步段毫秒。
+        // v286：显示时钟探针在同步段之前起表（同 expand 口径修正）。
         let t0 = CFAbsoluteTimeGetCurrent()
         let wasExpanded = expanded
+        if wasExpanded, !previewOnly { MotionPacingProbe.shared.run("岛收起", duration: 0.45) }
         if editingLayout { cancelLayoutEditing() }
         if let panel, MainPanelPreviewPopoverCoordinator.shared.hasPreview(from: panel) {
             MainPanelPreviewPopoverCoordinator.shared.dismiss(reason: .panelCollapse)
@@ -699,6 +716,7 @@ final class IslandController: NSObject, ObservableObject {
         hoverWork?.cancel()
         hoverWork = nil
         openedExplicitly = false
+        clickPinned = false
         // 正文先退场（120ms），外壳再收（surfaceAnimation 300ms）。
         if !previewOnly { withAnimation(.easeOut(duration: 0.12)) { contentOpacity = 0 } }
         expanded = false
@@ -710,7 +728,6 @@ final class IslandController: NSObject, ObservableObject {
         panel?.makeFirstResponder(nil)
         if wasExpanded, !previewOnly {
             Log.info("Island", String(format: "岛收起：首次布局 %.0fms", (CFAbsoluteTimeGetCurrent() - t0) * 1000))
-            MotionPacingProbe.shared.run("岛收起", duration: 0.45)
         }
     }
 
@@ -782,7 +799,9 @@ final class IslandController: NSObject, ObservableObject {
             if event.type == .leftMouseUp { self.endInteraction() }
             self.updatePointer(at: event.window?.convertPoint(toScreen: event.locationInWindow), pointerMoved: true)
             if event.type == .leftMouseDown, event.window === self.panel {
-                self.openedExplicitly = true
+                // v286：普通点击只挂「点击期间保护」，抬起（endInteraction）即解除；
+                // 不再冒充 openedExplicitly 把展开状态钉死。
+                self.clickPinned = true
                 self.beginInteraction()
             }
             if event.type == .scrollWheel {
@@ -857,9 +876,9 @@ final class IslandController: NSObject, ObservableObject {
                       // 2026-11-23（需求 B）：跨屏迁移按用户设置门控——与非刘海入口同口径，
                       // 「仅点击」的屏幕不再被悬停带走（原来只有 hoverEnabled 一档，漏了 entryTriggers）。
                       configuration.entryTriggers[target.id] != .clickOnly,
-               !openedExplicitly, !interacting, !menuTracking, !editingText {
+               !pinnedOpen, !interacting, !menuTracking, !editingText {
                 let work = DispatchWorkItem { [weak self] in
-                    guard let self, self.entryHoverID == target.id, !self.openedExplicitly,
+                    guard let self, self.entryHoverID == target.id, !self.pinnedOpen,
                           !self.interacting, !self.menuTracking, !self.editingText else { return }
                     self.move(to: target)
                     self.expand()
@@ -884,7 +903,7 @@ final class IslandController: NSObject, ObservableObject {
             let work = DispatchWorkItem { [weak self] in self?.expand() }
             hoverWork = work
             DispatchQueue.main.asyncAfter(deadline: .now() + configuration.hoverDelay, execute: work)
-        } else if pointerMoved, !hoverInside, expanded, !openedExplicitly, !interacting, !menuTracking,
+        } else if pointerMoved, !hoverInside, expanded, !pinnedOpen, !interacting, !menuTracking,
                   entryHoverWork == nil || target?.hasNotch == false,
                   !editingText {
             let work = DispatchWorkItem { [weak self] in self?.collapse() }
