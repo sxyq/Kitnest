@@ -60,7 +60,7 @@ struct MonitorNetworkThroughputCard: View {
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
                 .overlay(
                     RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                        .strokeBorder(Theme.hairlineColor, lineWidth: Theme.Stroke.hairline)
+                        .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline)
                 )
 
                 HStack {

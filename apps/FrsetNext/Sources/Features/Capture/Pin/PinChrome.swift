@@ -33,9 +33,9 @@ final class PinBubbleView: NSView {
         super.init(frame: NSRect(origin: .zero, size: size))
         wantsLayer = true
         layer?.shadowColor = NSColor.black.cgColor
-        layer?.shadowOpacity = 0.20
-        layer?.shadowRadius = 9
-        layer?.shadowOffset = CGSize(width: 0, height: -2)
+        layer?.shadowOpacity = Float(Theme.Shadow.floating.opacity)
+        layer?.shadowRadius = Theme.Shadow.floating.radius
+        layer?.shadowOffset = CGSize(width: 0, height: -Theme.Shadow.floating.y)
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) 不支持") }
@@ -199,15 +199,15 @@ final class PinMenuView: NSView {
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
-        layer?.cornerRadius = 10
+        layer?.cornerRadius = Theme.Radius.card
         layer?.cornerCurve = .continuous
         layer?.backgroundColor = NSColor(white: 1, alpha: 0.98).cgColor
         layer?.borderWidth = 0.5
         layer?.borderColor = NSColor(white: 0, alpha: 0.12).cgColor
         layer?.shadowColor = NSColor.black.cgColor
-        layer?.shadowOpacity = 0.22
-        layer?.shadowRadius = 16
-        layer?.shadowOffset = CGSize(width: 0, height: -5)
+        layer?.shadowOpacity = Float(Theme.Shadow.transient.opacity)
+        layer?.shadowRadius = Theme.Shadow.transient.radius
+        layer?.shadowOffset = CGSize(width: 0, height: -Theme.Shadow.transient.y)
     }
 
     required init?(coder: NSCoder) { fatalError("init(coder:) 不支持") }

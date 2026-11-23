@@ -16,6 +16,7 @@ extension EnvironmentValues {
 
 /// 通用设置行：左侧可选图标 + 标题/副标题，右侧任意控件
 struct SettingsRow<Trailing: View>: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.settingsTargetField) private var targetField
     let icon: String?
     let title: String
@@ -36,7 +37,7 @@ struct SettingsRow<Trailing: View>: View {
                     .foregroundStyle(Theme.accent)
                     .frame(width: 26, height: 26)
                     .background(Theme.accent.opacity(0.12))
-                    .cornerRadius(Theme.smallRadius)
+                    .cornerRadius(Theme.Radius.chip)
             }
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
@@ -52,7 +53,7 @@ struct SettingsRow<Trailing: View>: View {
             trailing
         }
         .padding(.vertical, 6)
-        .background(targetField == title ? Theme.accent.opacity(0.08) : Color.clear)
+        .background(targetField == title ? Theme.State.selected(isDark: colorScheme == .dark) : Color.clear)
         .id(title)
     }
 }
@@ -182,7 +183,7 @@ struct SettingsGroupBox<Content: View>: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassCard(radius: Theme.cornerRadius)
+        .glassCard(radius: Theme.Radius.card)
     }
 }
 
@@ -205,7 +206,7 @@ struct SettingsPreviewColumns<Preview: View, Controls: View>: View {
         SettingsPreviewColumnsLayout(controlsWidth: controlsWidth) {
             preview
             controls
-            Rectangle().fill(Color.primary.opacity(0.08))
+            Rectangle().fill(Theme.separator)
         }
     }
 }
@@ -273,6 +274,7 @@ struct SettingsDivider: View {
 // 比下拉框贵一点地方，但外观类设置（钉图描边、主题、布局）用户必须"看见"才能选。
 
 struct VisualOptionCard<Preview: View>: View {
+    @Environment(\.colorScheme) private var colorScheme
     let title: String
     /// 预览尺寸：默认 104×66；四张卡片并排放进「标签列 + 内容」的行里时需要收窄
     let previewSize: CGSize
@@ -300,8 +302,8 @@ struct VisualOptionCard<Preview: View>: View {
                     .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
                     .overlay(
                         RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                            .strokeBorder(selected ? Theme.accent : Color.primary.opacity(0.12),
-                                          lineWidth: selected ? 2 : 0.8)
+                            .strokeBorder(selected ? Theme.accent : Theme.cardStroke,
+                                          lineWidth: selected ? 2 : Theme.Stroke.hairline)
                     )
                 Text(title)
                     .font(.system(size: 11.5, weight: selected ? .semibold : .regular))
@@ -310,7 +312,7 @@ struct VisualOptionCard<Preview: View>: View {
             .padding(7)
             .background {
                 RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
-                    .fill(selected ? Theme.accent.opacity(0.10) : Color.clear)
+                    .fill(selected ? Theme.State.selected(isDark: colorScheme == .dark) : Color.clear)
             }
             .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
         }

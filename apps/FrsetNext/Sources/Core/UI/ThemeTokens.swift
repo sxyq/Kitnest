@@ -93,4 +93,45 @@ public enum Theme {
     public static func cardStrokeAlpha(strength: Double, isDark: Bool) -> CGFloat {
         isDark ? 0.02 + 0.16 * strength : 0.02 + 0.14 * strength
     }
+
+    // MARK: 控件高度（v285 设计令牌补齐：从散落字面量收编）
+
+    public enum Control {
+        /// 工具条图标按钮（存储工具条、面板工具条）
+        public static let toolbar: CGFloat = 30
+        /// 普通按钮 / 小控件
+        public static let button: CGFloat = 26
+        /// 输入框 / 下拉
+        public static let input: CGFloat = 28
+        /// 列表行（清理候选、剪贴板行）
+        public static let row: CGFloat = 44
+    }
+
+    // MARK: 交互状态（v285：选中/悬停/按下/禁用统一口径）
+
+    public enum State {
+        public static var hover: Color { rowHoverFill }
+        public static var press: Color { Color.primary.opacity(0.10) }
+        /// 选中底（列表行、图块强调）：品牌强调色低强度铺底，深浅主题各配。
+        /// 默认取 `Theme.accent`（个性化自定义强调色优先），调用方可显式传入
+        /// 观察中的强调色以获得即时重绘。
+        public static func selected(isDark: Bool, accent: Color? = nil) -> Color {
+            (accent ?? Theme.accent).opacity(isDark ? 0.18 : 0.12)
+        }
+        /// 禁用态统一透明度（文本/图标/控件同口径）
+        public static let disabledOpacity: Double = 0.38
+        /// 键盘焦点环统一强度（不随窗口失焦消失）
+        public static let focusRing: Color = Color.accentColor.opacity(0.55)
+    }
+
+    // MARK: 阴影（v285：只用于区分浮动层级，不给每个小组件配阴影）
+
+    public enum Shadow {
+        /// 浮动玻璃控制层（工具条胶囊、悬浮小窗）
+        public static let floating = (radius: 12.0, y: 4.0, opacity: 0.18)
+        /// 临时浮层（Popover / HUD / 详情卡）
+        public static let transient = (radius: 18.0, y: 8.0, opacity: 0.24)
+        /// 窗口级（只给真正悬浮的窗口，不给内容窗）
+        public static let window = (radius: 28.0, y: 12.0, opacity: 0.30)
+    }
 }

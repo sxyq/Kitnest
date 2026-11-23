@@ -1219,7 +1219,8 @@ private struct PreviewFileThumb: View {
             }
         }
         .frame(width: size, height: size)
-        .glassCard(radius: 6)
+        // 2026-11-23：缩略图容器圆角收编 Theme.Radius.control（6 → 8，令牌档位）
+        .glassCard(radius: Theme.Radius.control)
         .onAppear { if !isSettingsPreview && !inlineDocument { load() } }
     }
 

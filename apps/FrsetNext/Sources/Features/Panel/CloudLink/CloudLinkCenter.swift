@@ -421,7 +421,8 @@ struct CloudLinkCenterView: View {
                     if check.id != tester.checks.last?.id { Divider().opacity(0.4) }
                 }
             }
-            .glassCard(radius: 8)
+            // 2026-11-23：内容卡统一默认卡档 Theme.Radius.card（8 → 10，glassCard 默认）
+            .glassCard()
 
             if !tester.summary.isEmpty {
                 Text(tester.summary)

@@ -66,7 +66,7 @@ final class RecordingHUDController {
         let host = NSView(frame: NSRect(origin: .zero, size: size))
         host.wantsLayer = true
         host.layer?.backgroundColor = NSColor(calibratedWhite: 0.09, alpha: 0.92).cgColor
-        host.layer?.cornerRadius = 20
+        host.layer?.cornerRadius = Theme.Radius.pill
         host.layer?.cornerCurve = .continuous
         host.layer?.borderWidth = 0.5
         host.layer?.borderColor = NSColor.white.withAlphaComponent(0.18).cgColor

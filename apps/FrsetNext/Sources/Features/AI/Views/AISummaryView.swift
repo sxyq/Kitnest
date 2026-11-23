@@ -275,11 +275,11 @@ public struct AISummaryView: View {
                 .frame(minHeight: 70, maxHeight: 140)
                 .padding(8)
                 .background {
-                    RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
+                    RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                         .fill(Color(NSColor.textBackgroundColor))
                 }
                 .overlay {
-                    RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
+                    RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                         .strokeBorder(Theme.separator, lineWidth: 1)
                 }
                 .overlay(alignment: .topLeading) {

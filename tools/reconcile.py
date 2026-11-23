@@ -33,8 +33,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import func_table  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-CSV = os.path.join(ROOT, "docs", "40-审计与核对", "数据表", "FrsetNext-函数清单.csv")
-LEDGER = os.path.join(ROOT, "docs", "40-审计与核对", "数据表", "函数审阅台账.csv")
+CSV = os.path.join(ROOT, "docs", "00-总览", "数据表", "FrsetNext-函数清单.csv")
+LEDGER = os.path.join(ROOT, "docs", "00-总览", "数据表", "函数审阅台账.csv")
 SYMBOL_MD = os.path.join(ROOT, "docs", "00-总览", "符号索引.md")
 DEP_MD = os.path.join(ROOT, "docs", "00-总览", "模块依赖图.md")
 FUNC_KINDS = ("func", "init", "deinit", "subscript")
@@ -157,7 +157,7 @@ def main() -> int:
         print("  1) python3 tools/func_table.py")
         print("  2) python3 tools/rebuild_ledger.py --strict    # 行号重锚 + 补新函数证据")
         print("  3) python3 tools/symbol_index_md.py apps/FrsetNext/Sources "
-              "docs/40-审计与核对/数据表/FrsetNext-函数清单.csv docs/00-总览/符号索引.md")
+              "docs/00-总览/数据表/FrsetNext-函数清单.csv docs/00-总览/符号索引.md")
         print("  4) python3 tools/swift_catalog.py")
         return 1
 

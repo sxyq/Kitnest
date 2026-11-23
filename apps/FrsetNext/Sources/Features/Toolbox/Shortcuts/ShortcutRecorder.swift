@@ -74,7 +74,7 @@ public struct ShortcutRecorderButton: View {
             }
             .buttonStyle(.plain)
             .background(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous).fill(Color.primary.opacity(0.025)))
-            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous).stroke(Color.primary.opacity(0.09), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous).stroke(Theme.cardStroke, lineWidth: Theme.Stroke.emphasis))
             .help(capture.isRecording ? "按下含 ⌘/⌥/⌃ 的组合键，Esc 取消" : "点击录入全局快捷键")
 
         }

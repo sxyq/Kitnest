@@ -366,49 +366,6 @@ public extension NSWindow {
     }
 }
 
-// MARK: - 卡片「玻璃镀边」样式
-//
-// 不叠真玻璃：只加斜向高光 + 细亮边 + 内阴影。玻璃感来自分层与高光，
-// 而不是再糊一层背景（列表/网格里逐卡模糊会明显掉帧）。
-
-struct GlassCardBackground: View {
-    var cornerRadius: CGFloat = Theme.cornerRadius
-    @Environment(\.colorScheme) private var colorScheme
-
-    private var highlight: Color {
-        colorScheme == .dark ? Color.white.opacity(0.10) : Color.white.opacity(0.55)
-    }
-
-    private var base: Color {
-        colorScheme == .dark ? Color.white.opacity(0.045) : Color.white.opacity(0.38)
-    }
-
-    var body: some View {
-        let shape = RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-        ZStack {
-            shape.fill(base)
-            shape.fill(
-                LinearGradient(
-                    colors: [highlight, Color.clear],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            shape.strokeBorder(
-                LinearGradient(
-                    colors: [Color.white.opacity(colorScheme == .dark ? 0.18 : 0.75),
-                             Color.white.opacity(0.02)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                ),
-                lineWidth: 0.6
-            )
-        }
-        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.25 : 0.06),
-                radius: 6, x: 0, y: 2)
-    }
-}
-
 // MARK: - 白色玻璃卡（v110 三级玻璃之「内容卡」层）
 //
 // 三级玻璃口径（2026-10-21 用户）：

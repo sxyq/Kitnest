@@ -285,7 +285,9 @@ private final class RecentClipboardCell: NSTableCellView {
         super.draw(dirtyRect)
         if keyboardFocused {
             NSColor.controlAccentColor.setStroke()
-            let outline = NSBezierPath(roundedRect: bounds.insetBy(dx: 5, dy: 2), xRadius: 7, yRadius: 7)
+            // 2026-11-23：焦点环圆角 7 → Theme.Radius.control（控件档）
+            let outline = NSBezierPath(roundedRect: bounds.insetBy(dx: 5, dy: 2),
+                                       xRadius: Theme.Radius.control, yRadius: Theme.Radius.control)
             outline.lineWidth = 1; outline.stroke()
         }
     }

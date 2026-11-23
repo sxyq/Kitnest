@@ -209,6 +209,7 @@ private struct SearchSettingsContent: View {
     @Stored private var previewQuery = "设计"
     @Stored private var notice: String?
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.colorScheme) private var colorScheme
     @Stored private var translationPreference = AISettings.translationProviderPreference
 
     init(draft: SearchDisplayDraft) {
@@ -246,7 +247,7 @@ private struct SearchSettingsContent: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassCard(radius: Theme.cornerRadius)
+        .glassCard(radius: Theme.Radius.card)
     }
 
     var body: some View {
@@ -278,7 +279,7 @@ private struct SearchSettingsContent: View {
                 }
             }
             .padding(12)
-            .glassCard(radius: Theme.cornerRadius,
+            .glassCard(radius: Theme.Radius.card,
                        fill: reduceTransparency ? Color(nsColor: .controlBackgroundColor) : nil)
             if let notice { Text(notice).font(.system(size: 11)).foregroundStyle(.secondary) }
             HStack(alignment: .top, spacing: 20) {
@@ -310,7 +311,7 @@ private struct SearchSettingsContent: View {
             .frame(minWidth: 380, maxWidth: .infinity)
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .glassCard(radius: Theme.cornerRadius)
+            .glassCard(radius: Theme.Radius.card)
             Divider()
             VStack(spacing: 10) {
                 Text(L10n.t("Search Bar")).foregroundStyle(.secondary).frame(height: 26)
@@ -324,7 +325,7 @@ private struct SearchSettingsContent: View {
             // 先加内边距再取剩余宽度：否则 maxWidth 先占满、padding 再外扩 24pt 会溢出窗口
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .glassCard(radius: Theme.cornerRadius)
+            .glassCard(radius: Theme.Radius.card)
             .frame(width: 210)
             }
         }
@@ -402,8 +403,8 @@ private struct SearchSettingsContent: View {
         .frame(height: 34)
         .padding(.horizontal, 0)
         .background(
-            RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
-                .fill(isDropTarget ? Theme.accent.opacity(0.14) : Color.clear)
+            RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
+                .fill(isDropTarget ? Theme.State.selected(isDark: colorScheme == .dark) : Color.clear)
         )
         .contentShape(Rectangle())
         // 拖拽源：整行可拖，排序只作用于草稿
@@ -416,7 +417,7 @@ private struct SearchSettingsContent: View {
                 Text(engine.name).font(.system(size: 13))
             }
             .padding(.horizontal, 10).padding(.vertical, 5)
-            .glassCard(radius: Theme.smallRadius)
+            .glassCard(radius: Theme.Radius.chip)
         }
         // 落位目标：非编辑模式传入空类型列表，等价于关闭本行的接收
         .onDrop(of: isEditingSearchBar ? [UTType.text] : [], delegate: searchBarDropDelegate(targetID: engine.id))

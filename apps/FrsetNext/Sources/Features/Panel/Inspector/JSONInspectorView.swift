@@ -521,14 +521,9 @@ private struct JSONCardsView: View {
             }
         }
         .padding(10)
-        .background(
-            RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                .fill(Color.primary.opacity(0.045))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.08), lineWidth: 0.5)
-        )
+        // 2026-11-23：旧口径「primary 4.5% 灰底 + 8% 描边」→ 统一 card 表面
+        // （cardFill + cardStroke 发丝边，与全 App 内容卡同一配方）
+        .surface(.card, radius: Theme.Radius.control)
     }
 }
 

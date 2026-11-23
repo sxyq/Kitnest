@@ -77,7 +77,7 @@ public struct CalendarSectionView: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 10)
         // v111：同走 WhiteGlassCard（三级玻璃 L2 内容卡层，与剪贴板行卡同族）
-        .whiteGlassCard(14)
+        .whiteGlassCard(Theme.Radius.card)
         .onHover { hovering in
             isHovered = hovering
             if !hovering { scrollAccum = 0 }
@@ -334,13 +334,8 @@ public struct CalendarSectionView: View {
            cachedDays.contains(where: { calendar.isDate($0.date, inSameDayAs: end) }) { return }
         let sampleEvents = isSettingsPreview ? (previewEvents ?? []) : nil
         let today = previewDate ?? Date()
-        var days = service.monthDays(for: start, firstWeekday: firstWeekday,
-                                     previewEvents: sampleEvents, showLunar: showLunar, today: today)
-        if !days.contains(where: { calendar.isDate($0.date, inSameDayAs: end) }) {
-            days.append(contentsOf: service.monthDays(for: end, firstWeekday: firstWeekday,
-                                                       previewEvents: sampleEvents, showLunar: showLunar, today: today))
-        }
-        cachedDays = days
+        cachedDays = service.monthDays(for: start, through: end, firstWeekday: firstWeekday,
+                                       previewEvents: sampleEvents, showLunar: showLunar, today: today)
     }
 }
 

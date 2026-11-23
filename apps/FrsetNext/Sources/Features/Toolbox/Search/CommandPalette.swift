@@ -456,6 +456,7 @@ final class CommandPaletteState: ObservableObject {
 // MARK: - 视图
 
 struct CommandPaletteView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var state: CommandPaletteState
     @ObservedObject private var favorites = FavoritesStore.shared
     @FocusState private var focused: Bool
@@ -492,12 +493,12 @@ struct CommandPaletteView: View {
                         .background(
                             RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
                                 .fill(state.isSlashMode
-                                      ? Theme.accent.opacity(0.18)
-                                      : Color.primary.opacity(0.06))
+                                      ? Theme.State.selected(isDark: colorScheme == .dark)
+                                      : Theme.State.hover)
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
-                                .strokeBorder(state.isSlashMode ? Theme.accent.opacity(0.45)
+                                .strokeBorder(state.isSlashMode ? Theme.State.focusRing
                                                                 : Color.clear, lineWidth: 1)
                         )
                         .contentShape(Rectangle())
@@ -587,6 +588,7 @@ struct CommandPaletteView: View {
 }
 
 private struct CommandRowView: View {
+    @Environment(\.colorScheme) private var colorScheme
     let item: CommandItem
     let selected: Bool
     let isFavorite: Bool
@@ -638,7 +640,7 @@ private struct CommandRowView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 6)
-        .background(selected ? Theme.accent.opacity(0.12) : Color.clear)
+        .background(selected ? Theme.State.selected(isDark: colorScheme == .dark) : Color.clear)
         .contentShape(Rectangle())
     }
 }

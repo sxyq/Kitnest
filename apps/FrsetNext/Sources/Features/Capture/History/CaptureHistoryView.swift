@@ -167,9 +167,9 @@ struct CaptureHistoryView: View {
                                     cachedImage: thumbCache[item.id]) { image in
                 thumbCache[item.id] = image
             }
-                .clipShape(RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
                 .overlay(
-                    RoundedRectangle(cornerRadius: Theme.smallRadius, style: .continuous)
+                    RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
                         .stroke(Theme.separator, lineWidth: 0.5)
                 )
 

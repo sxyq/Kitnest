@@ -260,32 +260,35 @@ private struct TilePressStyle: ButtonStyle {
 }
 
 struct StorageMapShape: Shape {
-    /// v274（用户：「整个方块按照我的曲线去占用」「右侧曲线连完整」「边切更清晰」）：
-    /// 液面外轮廓抬到按钮下方——顶边从 0.50W 起平直向右，左上先近垂直下落一小段，
-    /// 再按手绘曲线扫到左边缘 0.88H；右上/右下圆角从 0.09 收到 0.045，
-    /// 让「箭头」状的转折和边切更清楚。
+    /// v285（2026-11-23 存储布局重整）：外轮廓只描述地图列自己的矩形。
     ///
-    /// 顶边以上是按钮行（不再有独立卡片缝），顶边就是按钮区与内容区之间那条横线；
-    /// 深色图块仍从搜索/面包屑条下方开始（见 StorageTileShape 的 top 裁切）。
+    /// 旧轮廓从 0.50W 起顶边、左缘一路咬进清单区（清单行被逐行截断成锯齿），
+    /// 是「异形轮廓侵入控件区域」的根源。现在四个边都活在自己的 rect 里：
+    /// 保留手绘液面手感（左缘中段微鼓 + 底边轻弧 + 0.045 圆角），
+    /// 图块裁切 / 鼠标命中 / 手势区域与它共享同一局部坐标（见 StorageBodyLayout）。
     func path(in rect: CGRect) -> Path {
         var path = Path()
         let point: (CGFloat, CGFloat) -> CGPoint = {
             CGPoint(x: rect.minX + $0 * rect.width, y: rect.minY + $1 * rect.height)
         }
-        path.move(to: point(0.50, 0))
-        path.addLine(to: point(0.94, 0))
-        path.addCurve(to: point(1, 0.045), control1: point(0.975, 0), control2: point(1, 0.020))
-        path.addLine(to: point(1, 0.955))
-        path.addCurve(to: point(0.94, 1), control1: point(1, 0.980), control2: point(0.975, 1))
-        path.addLine(to: point(0.03, 1))
-        path.addCurve(to: point(0, 0.965), control1: point(0.008, 1), control2: point(0, 0.985))
-        path.addLine(to: point(0, 0.88))
-        // 左边界：先向右鼓出，再在搜索条左侧收成近垂直，最后直上顶边。
-        path.addCurve(to: point(0.46, 0.30),
-                      control1: point(0.30, 0.84), control2: point(0.43, 0.50))
-        path.addCurve(to: point(0.50, 0.14),
-                      control1: point(0.480, 0.25), control2: point(0.50, 0.19))
-        path.addLine(to: point(0.50, 0))
+        let r: CGFloat = 0.045
+        // 顶边
+        path.move(to: point(r, 0))
+        path.addLine(to: point(1 - r, 0))
+        path.addCurve(to: point(1, r), control1: point(1 - r * 0.45, 0), control2: point(1, r * 0.45))
+        // 右边
+        path.addLine(to: point(1, 1 - r))
+        path.addCurve(to: point(1 - r, 1), control1: point(1, 1 - r * 0.45), control2: point(1 - r * 0.45, 1))
+        // 底边：轻弧（液面下沿微微上提，不平板）
+        path.addLine(to: point(0.35, 1))
+        path.addCurve(to: point(0.10, 0.985), control1: point(0.24, 1.005), control2: point(0.15, 1.00))
+        path.addCurve(to: point(0, 0.92), control1: point(0.045, 0.975), control2: point(0, 0.958))
+        // 左边：中段向左微鼓（保留「液面」手感，幅度约 3%W），上下收进圆角
+        path.addLine(to: point(0, 0.72))
+        path.addCurve(to: point(0.032, 0.50), control1: point(0, 0.62), control2: point(0.032, 0.58))
+        path.addCurve(to: point(0, 0.22), control1: point(0.032, 0.40), control2: point(0, 0.34))
+        path.addLine(to: point(0, r))
+        path.addCurve(to: point(r, 0), control1: point(0, r * 0.45), control2: point(r * 0.45, 0))
         path.closeSubpath()
         return path
     }

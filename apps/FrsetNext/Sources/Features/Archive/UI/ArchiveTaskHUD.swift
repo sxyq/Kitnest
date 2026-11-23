@@ -309,7 +309,8 @@ struct ArchiveTaskHUDView: View {
         }
         .padding(12)
         .frame(width: 336)
-        .glassPlate()
+        // 任务 HUD 属临时浮层：统一 .surface(.transient)（玻璃 + 柔投影）
+        .surface(.transient, radius: Theme.Radius.window)
         .contentShape(RoundedRectangle(cornerRadius: Theme.Radius.window, style: .continuous))
         .onTapGesture(perform: onExpand)
     }

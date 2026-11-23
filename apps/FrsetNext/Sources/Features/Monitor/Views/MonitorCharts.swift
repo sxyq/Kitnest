@@ -288,7 +288,9 @@ struct MonitorTrendChart: View {
                     if fixed != nil { unpin() } else { pin(reading) }
                 }.focusable(false)
                     .font(.system(size: Theme.TextSize.caption)).buttonStyle(.plain)
-                    .padding(5).background(.regularMaterial, in: Capsule())
+                    .padding(5)
+                    // 工具条胶囊统一走 floatingGlass（真玻璃 + 浮动阴影），不再各写 .regularMaterial
+                    .surface(.floatingGlass, radius: Theme.Radius.pill)
             }
         }
         .accessibilityElement(children: .contain)

@@ -61,7 +61,7 @@ def main():
                  '（v259 修，旧表 470 条误记）；')
     lines.append('> ③ 多行字符串与块注释按跨行状态剥离，SQL 里的 `{` 不再污染括号深度'
                  '（v259 修，旧表漏了 ClipboardRepository 16 条）。')
-    lines.append('> 逐行级细节以 `docs/40-审计与核对/深度阅读/` 的 11 份测绘报告为准。')
+    lines.append('> 逐行级细节以 `docs/20-源码实现/` 的模块说明（2026-11-23 起；历史测绘快照见 `docs/90-历史归档/深度阅读/`）为准。')
     lines.append('')
     lines.append('## 总量分布')
     lines.append('')

@@ -83,7 +83,7 @@ final class RecordingEditorController {
         preview.autoresizingMask = [.width, .height]
         preview.wantsLayer = true
         preview.layer?.backgroundColor = NSColor.black.cgColor
-        preview.layer?.cornerRadius = 10
+        preview.layer?.cornerRadius = Theme.Radius.card
         preview.layer?.masksToBounds = true
         let layer = AVPlayerLayer()
         layer.videoGravity = .resizeAspect

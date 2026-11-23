@@ -48,7 +48,7 @@ final class PinPreviewScene: NSView {
         imageView = PinImageView(image: CapturePreviewImage.image, frame: .zero, appearance: .defaults)
         super.init(frame: .zero)
         wantsLayer = true
-        layer?.cornerRadius = 8
+        layer?.cornerRadius = Theme.Radius.control
         setAccessibilityElement(interactive)
         setAccessibilityRole(.group)
         setAccessibilityLabel("钉图预览：方向键移动，加减缩放，0 复位，回车显示控制条")
@@ -122,9 +122,9 @@ final class PinPreviewScene: NSView {
         imageView.pinAppearance = appearance
         imageView.needsDisplay = true
         imageView.layer?.shadowColor = NSColor.black.cgColor
-        imageView.layer?.shadowOpacity = appearance.shadow ? 0.3 : 0
-        imageView.layer?.shadowRadius = 10
-        imageView.layer?.shadowOffset = CGSize(width: 0, height: -4)
+        imageView.layer?.shadowOpacity = appearance.shadow ? Float(Theme.Shadow.floating.opacity) : 0
+        imageView.layer?.shadowRadius = Theme.Shadow.floating.radius
+        imageView.layer?.shadowOffset = CGSize(width: 0, height: -Theme.Shadow.floating.y)
         layer?.backgroundColor = NSColor.windowBackgroundColor.cgColor
         // 只改变演示的合成透明度，不改草稿数值。
         imageView.alphaValue = 1

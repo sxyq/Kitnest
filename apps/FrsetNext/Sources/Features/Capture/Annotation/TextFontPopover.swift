@@ -97,10 +97,10 @@ struct TextFontPopoverView: View {
                             Circle()
                                 .fill(color)
                                 .frame(width: 16, height: 16)
-                                .overlay(Circle().strokeBorder(Color.black.opacity(0.15), lineWidth: 0.5))
+                                .overlay(Circle().strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline))
                                 .overlay {
                                     if model.colorHex.uppercased() == hex.uppercased() {
-                                        Circle().strokeBorder(Color.accentColor, lineWidth: 2)
+                                        Circle().strokeBorder(Theme.accent, lineWidth: 2)
                                     }
                                 }
                                 .frame(width: 22, height: 22)

@@ -112,7 +112,7 @@ struct MemoryOptimizeSection: View {
         }
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassCard(radius: 6)
+        .glassCard(radius: Theme.Radius.chip)
     }
 
     @ViewBuilder
@@ -175,7 +175,7 @@ struct MemoryOptimizeSection: View {
         }
         .padding(8)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .glassCard(radius: 6)
+        .glassCard(radius: Theme.Radius.chip)
     }
 
     private func deltaRow(_ title: String, _ delta: Int64) -> some View {

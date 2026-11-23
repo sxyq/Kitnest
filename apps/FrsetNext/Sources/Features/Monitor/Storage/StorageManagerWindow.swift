@@ -74,53 +74,34 @@ public final class StorageManagerWindowController: NSWindowController, NSWindowD
     }
 }
 
-/// 目录浏览区保留同一滚动监听器，切层动画不重建一次手势的状态。
-/// v268：存储正文几何的唯一口径。
+/// v285（2026-11-23 存储布局重整）：正文几何的唯一口径。
 ///
-/// 背景：遮罩用「轮廓左移 12pt」，行宽却用未偏移轮廓再手减 12，
-/// 卡片宽又单独按 0.50W 算——三处比例一旦有人改一处就会互相错位。
-/// 现在全部由这里推导：改 tuck / seam / blobTopAnchor 一处，全局一致。
+/// 旧版问题（用户截图确认）：液面轮廓抬到 y=-34pt 藏进 header 背后、工具条
+/// `.offset(y: -20)` 凑红绿灯基线、清单行按轮廓逐行截断成「锯齿」、
+/// 导航条悬在大片空白光带里——窗口一缩放/文字一变长就错位。
+/// 现在按七个真实区域划分（全部父子布局驱动，无负 offset、无逐行截断）：
+///   ① 系统标题栏安全区（padding 顶让红绿灯）② 顶栏容量概况 ③ 右上工具条
+///   ④ 左清理清单（稳定列宽）⑤ 右地图画布 ⑥ 导航/面包屑条（真实行）
+///   ⑦ 底部详情（地图列底部浮层）
+/// StorageMapShape / 图块裁切 / 鼠标命中 / 手势区域共享 mapCanvasSize 同一坐标系；
+/// 有机轮廓只活在地图列自己的矩形里，不再侵入清单控件区。
 struct StorageBodyLayout {
+    /// 主体区尺寸（顶栏以下、窗口内边距以内）。
     let region: CGSize
-    var controlsHeight: CGFloat = 68
-    /// 液面顶边在图框内的横向起点（与目录卡左缘对齐）。
-    var blobTopAnchor: CGFloat = 0.50
-    /// 图顶咬合深度：图上沿藏进目录卡背后多少 pt。
-    var tuck: CGFloat = 6
-    /// 清单与液面之间的呼吸缝（同时是清单 leading 内边距）。
+    /// 清单列与地图列之间的呼吸缝（原 seam 语义）。
     var seam: CGFloat = 12
-    /// v274（用户：「整个方块按照我的曲线去占用」）：液面外轮廓整体向上抬，
-    /// 顶边落在三个按钮下方、搜索/面包屑条上方；深色图块仍从搜索条下方开始。
-    /// 96 = 顶边落在窗口 y≈112（按钮行底 ≈45，搜索卡顶 ≈128，中间留 16pt 横线）。
-    var mapLift: CGFloat = 96
-    /// 外轮廓顶边 → 深色图块画布顶边的浅色光条高度（搜索/面包屑卡所在）。
-    /// 81 = 搜索卡下沿（窗口 y≈193）相对轮廓顶边 112 的距离。
-    var tileInset: CGFloat = 81
+    /// 清单列宽占比（真实列宽；列表文字不再被轮廓截断）。
+    var listRatio: CGFloat = 0.40
+    /// 导航条（查看/手势提示/容量 + 返回前进/面包屑）真实高度。
+    var navHeight: CGFloat = 66
 
-    var mapTop: CGFloat { controlsHeight - tuck - mapLift }
-    var mapSize: CGSize {
-        CGSize(width: region.width, height: max(140, region.height - mapTop))
-    }
-    var listWidth: CGFloat { region.width * 0.48 }
-    var listHeight: CGFloat {
-        controlsHeight + max(0, region.height - controlsHeight) * 0.84
-    }
-    /// 目录卡宽 = 液面顶边左缘 → 卡与图天然连成一整块。
-    var cardWidth: CGFloat { max(220, region.width * blobTopAnchor - 12) }
-
-    var mapOutline: Path {
-        StorageMapShape().path(in: CGRect(x: 0, y: mapTop,
-                                          width: region.width,
-                                          height: max(0, mapSize.height)))
-    }
-    /// 遮罩与行宽共用的轮廓：整体轮廓左移 seam。
-    var seamOutline: Path { mapOutline.offsetBy(dx: -seam, dy: 0) }
-
-    func listMask() -> Path {
-        let bounds = CGPath(rect: CGRect(x: 0, y: 0,
-                                         width: listWidth, height: listHeight),
-                            transform: nil)
-        return Path(bounds.subtracting(seamOutline.cgPath))
+    var listWidth: CGFloat { max(250, min(430, region.width * listRatio)) }
+    var mapWidth: CGFloat { max(320, region.width - listWidth - seam) }
+    var mapHeight: CGFloat { region.height }
+    /// 地图画布（液态图块所在）尺寸 = 地图列去掉导航条后的剩余。
+    /// StorageTreemap 的内容顶边从 0 起（导航条是真实行，不再有内嵌光带）。
+    var mapCanvasSize: CGSize {
+        CGSize(width: mapWidth, height: max(150, region.height - navHeight))
     }
 }
 
@@ -396,55 +377,64 @@ struct StorageManagerRootView: View {
         if let url { NSWorkspace.shared.open(url) }
     }
 
+    /// 索引换代后的状态收拢（v285 抽出独立函数，打断 body 修饰链的类型检查压力）。
+    private func handleIndexRevisionChange() {
+        refreshDiskSpace()
+        directoryHistory = directoryHistory.map { path in
+            path.compactMap { refreshedNavigationNode($0) }
+        }
+        selectedPaths = Set(selectedPaths.filter {
+            DiskIndexStore.findNode(store.snapshot?.root, path: $0)?.isAggregate == false
+        })
+        if let d = detailNode {
+            detailNode = store.snapshot?.dataCategories.first(where: { $0.id == d.id })?.node
+                ?? refreshedNavigationNode(d)
+        }
+        if let name = pendingDrill,
+           let root = store.snapshot?.root,
+           let target = root.children.first(where: { $0.name == name }) {
+            navigate(to: [target])
+            pendingDrill = nil
+        }
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 0) {
+            // 区①②③：标题栏安全区 + 容量概况 + 右上工具条（真实 HStack，无 offset）
             header
                 .fixedSize(horizontal: false, vertical: true)
-                // v274：液面外轮廓抬进 header 区域，按钮与左侧标题必须压在它上面。
-                .zIndex(1)
             GeometryReader { region in
-                // v268：正文几何的唯一口径。卡片宽、图框、清单宽、遮罩与行宽
-                // 全部从同一个 layout 取值，遮罩和行右界用同一条 seam 轮廓，
-                // 窗口缩放时不会再各算各的。
                 let layout = StorageBodyLayout(region: region.size)
-                let seamSampled = VoronoiTreemap.sampledPoints(layout.seamOutline, spacing: 12)
-                ZStack(alignment: .topLeading) {
-                    rightPane(contentTop: layout.tileInset)
-                        .frame(width: layout.mapSize.width, height: layout.mapSize.height)
-                        .overlay {
-                            StorageSwipeRegion(enabled: !showDataCategories,
-                                               hitTop: layout.tileInset,
-                                               onNavigate: navigateHistory(by:))
-                                .allowsHitTesting(false)
-                        }
-                        // v274：外轮廓顶边抬到按钮下方。用 offset 而不是 padding——
-                        // 负 padding 会改变兄弟视图的排版基准。
-                        .offset(y: layout.mapTop)
+                HStack(alignment: .top, spacing: layout.seam) {
+                    // 区④：清理清单（稳定列宽；行宽不再按轮廓截断）
                     VStack(alignment: .leading, spacing: 8) {
                         candidateControls
-                            .frame(width: layout.listWidth - layout.seam)
-                            .glassCard(radius: Theme.Radius.card)
-                        leftPane(sampledOutline: seamSampled)
-                            .glassCard(radius: Theme.Radius.card)
+                        leftPane()
                     }
-                    .frame(width: layout.listWidth, height: layout.listHeight)
-                    .mask(layout.listMask())
-                    .contentShape(layout.listMask())
-                    .padding(.leading, layout.seam)
-                    mapControls
-                        .frame(width: layout.cardWidth, height: layout.controlsHeight)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
-                        .padding(.trailing, 12)
+                    .frame(width: layout.listWidth, height: region.size.height)
+                    .glassCard(radius: Theme.Radius.card)
+
+                    // 区⑤⑥：导航条（真实行）+ 地图画布（有机轮廓只在自己的矩形里）
+                    VStack(alignment: .leading, spacing: 0) {
+                        mapControls
+                            .frame(height: layout.navHeight)
+                        rightPane()
+                            .frame(width: layout.mapWidth,
+                                   height: layout.mapCanvasSize.height)
+                            .overlay {
+                                // 手势区 = 整块图布（导航条已独立成行，不再吃手势）
+                                StorageSwipeRegion(enabled: !showDataCategories,
+                                                   hitTop: 0,
+                                                   onNavigate: navigateHistory(by:))
+                                    .allowsHitTesting(false)
+                            }
+                    }
                 }
                 .frame(width: region.size.width, height: region.size.height)
                 .coordinateSpace(name: "storageCanvas")
-                // v274：不再 clipped——液面要越过 GeometryReader 上沿伸进 header；
-                // 窗口级裁剪仍由最外层 .clipped() 负责。
             }
-            .zIndex(0)
+            .frame(maxHeight: .infinity)
         }
-        // v268：fullSizeContentView 后内容从窗口最上沿开始；
-        // 左列由 header 自身的 padding.top 24 让出红绿灯净空，这里只留一点边。
         .padding(.top, 8)
         .clipped()
         .onAppear {
@@ -468,23 +458,7 @@ struct StorageManagerRootView: View {
             }
         }
         .onChange(of: store.indexRevision) { _ in
-            refreshDiskSpace()
-            directoryHistory = directoryHistory.map { path in
-                path.compactMap { refreshedNavigationNode($0) }
-            }
-            selectedPaths = Set(selectedPaths.filter {
-                DiskIndexStore.findNode(store.snapshot?.root, path: $0)?.isAggregate == false
-            })
-            if let d = detailNode {
-                detailNode = store.snapshot?.dataCategories.first(where: { $0.id == d.id })?.node
-                    ?? refreshedNavigationNode(d)
-            }
-            if let name = pendingDrill,
-               let root = store.snapshot?.root,
-               let target = root.children.first(where: { $0.name == name }) {
-                navigate(to: [target])
-                pendingDrill = nil
-            }
+            handleIndexRevisionChange()
         }
         .onReceive(NotificationCenter.default.publisher(for: .storageOpenAgent)) { _ in
             showAgentSheet = true
@@ -522,11 +496,15 @@ struct StorageManagerRootView: View {
     // MARK: 顶部（大数字 + 说明 + 工具条）
 
     private var header: some View {
-        ZStack(alignment: .top) {
+        // 区①②③：padding.top 28 让出红绿灯安全区；左容量概况、右工具条
+        // 同一 HStack 真对齐（工具条与大数字行共基线），不再用 offset(y:-20) 凑。
+        // 未授权提示只占左侧纵列，右侧工具条不受挤压。
+        HStack(alignment: .top, spacing: 16) {
             VStack(alignment: .leading, spacing: 3) {
-                // 第一视觉层：能腾多少 + 三个占用口径并排。
-                // padding.top 24 是给左上角红绿灯让位的净空（fullSizeContentView 后内容顶到 0）。
-                HStack(alignment: .center, spacing: 16) {
+                // 第一视觉层：能腾多少（主指标）+ 三个占用口径并排（辅助层级）。
+                // 三个口径语义严格区分：已索引=本次索引字节；整盘已用=数据卷实际占用；
+                // 磁盘可用=APFS 可用。不混为一谈（各有 help 说明）。
+                HStack(alignment: .firstTextBaseline, spacing: 18) {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         Text(StorageFormat.shortBytes(cleanableBytes))
                             .font(.system(size: 38, weight: .light).monospacedDigit())
@@ -542,7 +520,6 @@ struct StorageManagerRootView: View {
                              help: "APFS 可用空间")
                     Spacer(minLength: 8)
                 }
-                .padding(.top, 24)
                 if let snap = store.snapshot {
                     Text(statusLine(snap))
                         .font(.system(size: 11))
@@ -569,9 +546,8 @@ struct StorageManagerRootView: View {
                     }
                 }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            // v274（用户顶部箭头）：工具条再上移到与红绿灯同一行，
-            // 给液面外轮廓让出按钮下方那条横线；-20pt 取自截图里按钮行与窗口顶的距离。
+            Spacer(minLength: 12)
+            // 区③：右上工具条。三个按钮共基线；与大数字行对齐（.top 对齐 + 首行视觉居中）。
             HStack(spacing: 6) {
                 toolbarButton("arrow.clockwise", store.snapshot == nil ? "建立索引" : "重新扫描") { store.rescan() }
                     .disabled(store.isScanning)
@@ -579,12 +555,12 @@ struct StorageManagerRootView: View {
                 toolbarButton("gearshape", "设置") { showSettings = true }
             }
             .fixedSize()
-            .frame(maxWidth: .infinity, alignment: .trailing)
-            .offset(y: -20)
+            .padding(.top, 6)   // 与 38pt 大数字行视觉居中的真实内边距
         }
+        .padding(.top, 28)      // 区①：红黄绿系统安全区（fullSizeContentView）
         .padding(.leading, 20)
-        .padding(.trailing, 12)
-        .padding(.bottom, 2)
+        .padding(.trailing, 16)
+        .padding(.bottom, 6)
     }
 
     /// 顶部第一层的并排小指标（标签在上、数值在下，等宽数字对齐）。
@@ -701,7 +677,10 @@ struct StorageManagerRootView: View {
     }
 
     /// v268：outline 直接传「seam 轮廓」的采样点，行右界与遮罩同源。
-    private func leftPane(sampledOutline outline: [CGPoint]) -> some View {
+    private func leftPane() -> some View {
+        // v285：行宽 = 列宽（稳定）。旧版按液面轮廓逐行截断（candidateWidth），
+        // 文字被「锯齿」边缘切碎（ew-api/web/node_modules 这类截断），
+        // 有机轮廓不再侵入清单控件区——只活在地图列自己的坐标里。
         VStack(alignment: .leading, spacing: 0) {
             if candidates.isEmpty {
                 VStack(spacing: 8) {
@@ -717,16 +696,10 @@ struct StorageManagerRootView: View {
                 ScrollView {
                     LazyVStack(spacing: 2) {
                         ForEach(candidates) { c in
-                            GeometryReader { row in
-                                let frame = row.frame(in: .named("storageCanvas"))
-                                let width = max(0, candidateWidth(at: frame.midY, outline: outline) - frame.minX)
-                                StorageCandidateRow(candidate: c, compact: width < 180,
-                                                    isSelected: selectedPaths.contains(c.id)) {
-                                    if selectedPaths.contains(c.id) { selectedPaths.remove(c.id) }
-                                    else { selectedPaths.insert(c.id) }
-                                }
-                                    .frame(width: width, alignment: .leading)
-                                    .clipped()
+                            StorageCandidateRow(candidate: c, compact: false,
+                                                isSelected: selectedPaths.contains(c.id)) {
+                                if selectedPaths.contains(c.id) { selectedPaths.remove(c.id) }
+                                else { selectedPaths.insert(c.id) }
                             }
                             .frame(height: 44)
                         }
@@ -736,19 +709,6 @@ struct StorageManagerRootView: View {
                 }
             }
         }
-    }
-
-    private func candidateWidth(at y: CGFloat, outline: [CGPoint]) -> CGFloat {
-        var minX: CGFloat?
-        for index in outline.indices {
-            let a = outline[index]
-            let b = outline[index + 1 == outline.count ? 0 : index + 1]
-            if (a.y <= y && b.y > y) || (b.y <= y && a.y > y) {
-                let x = a.x + (y - a.y) * (b.x - a.x) / (b.y - a.y)
-                minX = min(minX ?? x, x)
-            }
-        }
-        return minX ?? 0
     }
 
     // MARK: 正文上方的目录操作区
@@ -854,7 +814,7 @@ struct StorageManagerRootView: View {
 
     // MARK: 正文画布（图形、清单遮罩和手势共用局部坐标）
 
-    private func rightPane(contentTop: CGFloat) -> some View {
+    private func rightPane() -> some View {
         GeometryReader { pane in
             ZStack(alignment: .topLeading) {
                 if showDataCategories, let issue = store.snapshot?.categorySummaryIssue {
@@ -890,7 +850,7 @@ struct StorageManagerRootView: View {
                                    },
                                    freeSpace: !showDataCategories && stack.isEmpty ? diskFreeBytes : nil,
                                    indexRevision: store.indexRevision,
-                                   contentTop: contentTop)
+                                   contentTop: 0)
                         .id(node.id)
                         // v266：Q 弹。旧版 0.82→1 的 springBouncy 太短，像淡入；
                         // 现在从被点块的中心涨开（0.55），回弹更慢更明显，
@@ -926,7 +886,7 @@ struct StorageManagerRootView: View {
             if let d = detailNode {
                 if let category = store.snapshot?.dataCategories.first(where: { $0.id == d.id }) {
                     categoryDetail(category)
-                        .padding(.leading, pane.size.width * 0.32 + 12)
+                        .padding(.leading, 12)
                         .padding(.trailing, 12)
                         .padding(.bottom, 12)
                 } else {
@@ -979,7 +939,7 @@ struct StorageManagerRootView: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 8)
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: Theme.Radius.control))
-                .padding(.leading, pane.size.width * 0.32 + 12)
+                .padding(.leading, 12)
                 .padding(.trailing, 12)
                 .padding(.bottom, 12)
                 }

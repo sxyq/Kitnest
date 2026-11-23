@@ -278,6 +278,10 @@ final class GenieWarp {
         // 总开关：默认开。缺省也当开。
         if !Self.isEnabled { return false }
         guard let screen = window.screen ?? NSScreen.main else { return false }
+        // 2026-11-23 阶段计时：神灯同步段到底花在哪（快照/缩放/帧构建/上屏），
+        // 以及主线程一共被占多久、帧序列持有多大内存。只记毫秒与 MB，不记画面内容。
+        let tEnter = CFAbsoluteTimeGetCurrent()
+        let memBefore = Self.footprintMB()
 
         // v244（用户：「随点随停，可以打断」）：动画在跑、而且是同一个窗口，
         // 就直接复用上一腿的帧序列反向播——不重抓快照、不重渲染、不动真窗 alpha。
@@ -304,6 +308,7 @@ final class GenieWarp {
             window.displayIfNeeded()
         }
         CATransaction.flush()
+        let tPrepared = CFAbsoluteTimeGetCurrent()
 
         var shot = Self.snapshot(of: window)
         if shot == nil {
@@ -321,6 +326,7 @@ final class GenieWarp {
             Log.warn("Motion", "genie：快照为单色空白帧，跳过动画直接落位")
             return false
         }
+        let tSnapshot = CFAbsoluteTimeGetCurrent()
 
         if running { cancel(restoreWindow: false) }
 
@@ -363,6 +369,7 @@ final class GenieWarp {
         let targetSourceWidth = viewWindow.width * Self.pixelScale(bbox: bbox.size, frames: 1)
         let ratio = shot.width > 0 ? targetSourceWidth / CGFloat(shot.width) : 1
         let renderShot = ratio < 0.95 ? (Self.downscale(shot, ratio: ratio) ?? shot) : shot
+        let tDownscale = CFAbsoluteTimeGetCurrent()
 
         let showsMesh = UserDefaults.standard.bool(forKey: "probe.genieMesh")
         let showsGuides = UserDefaults.standard.bool(forKey: "probe.genieDebug")
@@ -452,6 +459,7 @@ final class GenieWarp {
         host.layer?.addSublayer(frameLayer)
 
         panel.orderFrontRegardless()
+        let tOverlay = CFAbsoluteTimeGetCurrent()
         overlay = panel
 
         // 真窗退到幕后：动画期间由覆盖窗上的帧序列代替。
@@ -468,6 +476,16 @@ final class GenieWarp {
         Log.info("Motion", String(format: "genie 预渲染 %d 帧 %.0f×%.0f@%.1fx 耗时 %.0fms（刷新 %dHz，缓动 %.1f）",
                                   frames.count, bbox.width, bbox.height, pixelScale, buildMs,
                                   refresh, Double(Self.easeExponent())))
+        let memAfter = Self.footprintMB()
+        Log.info("Motion", String(format: "genie 阶段：显示准备 %.0fms · 快照 %.0fms · 降采样 %.0fms · 帧构建 %.0fms · 上屏 %.0fms · 主线程总计 %.0fms · 动画 %.0fms · 内存 %.0f→%.0fMB",
+                                  (tPrepared - tEnter) * 1000,
+                                  (tSnapshot - tPrepared) * 1000,
+                                  (tDownscale - tSnapshot) * 1000,
+                                  buildMs,
+                                  max(0, (tOverlay - tDownscale) * 1000 - buildMs),
+                                  (tOverlay - tEnter) * 1000,
+                                  self.duration * 1000,
+                                  memBefore, memAfter))
 
         // 排障：定格模式停在第一张，交给截图核对
         if hold != nil { return true }
@@ -602,6 +620,20 @@ final class GenieWarp {
     }
 
     // MARK: 工具
+
+    /// 进程当前物理内存占用（MB）。排障用：看神灯帧序列把内存推高了多少。
+    private static func footprintMB() -> Double {
+        var info = task_vm_info_data_t()
+        var count = mach_msg_type_number_t(
+            MemoryLayout<task_vm_info_data_t>.size / MemoryLayout<integer_t>.size)
+        let kr = withUnsafeMutablePointer(to: &info) { infoPtr in
+            infoPtr.withMemoryRebound(to: integer_t.self, capacity: Int(count)) { intPtr in
+                task_info(mach_task_self_, task_flavor_t(TASK_VM_INFO), intPtr, &count)
+            }
+        }
+        guard kr == KERN_SUCCESS else { return 0 }
+        return Double(info.phys_footprint) / (1024 * 1024)
+    }
 
     /// 快照是不是「整张单色」（空白帧）。抽 24×24 个点看颜色种类，>1 即认为有内容。
     private static func isBlank(_ image: CGImage) -> Bool {

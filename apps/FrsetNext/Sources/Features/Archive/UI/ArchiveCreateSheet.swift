@@ -157,6 +157,7 @@ public final class ArchiveCreateModel: ObservableObject {
 // MARK: 视图
 
 public struct ArchiveCreateView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @ObservedObject public var model: ArchiveCreateModel
@@ -246,8 +247,8 @@ public struct ArchiveCreateView: View {
             LazyVGrid(columns: columns, spacing: 7) {
                 ForEach(Array(ArchiveCore.presets.enumerated()), id: \.element.id) { idx, preset in
                     let selected = model.presetIndex == idx
-                    let selectedFill = selected ? Theme.accent.opacity(0.09) : Color.primary.opacity(0.035)
-                    let selectedStroke = selected ? Theme.accent.opacity(0.62) : Color.primary.opacity(0.08)
+                    let selectedFill = selected ? Theme.State.selected(isDark: colorScheme == .dark) : Color.primary.opacity(0.035)
+                    let selectedStroke = selected ? Theme.accent : Theme.cardStroke
                     let selectionSymbol = selected ? "checkmark.circle.fill" : "circle"
                     Button {
                         withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.16)) { model.applyPreset(idx) }
@@ -276,10 +277,10 @@ public struct ArchiveCreateView: View {
                         }
                         .padding(.horizontal, 7)
                         .frame(maxWidth: .infinity, minHeight: 39, alignment: .leading)
-                        .background(RoundedRectangle(cornerRadius: 6)
+                        .background(RoundedRectangle(cornerRadius: Theme.Radius.chip)
                             .fill(selectedFill))
-                        .overlay(RoundedRectangle(cornerRadius: 6)
-                            .strokeBorder(selectedStroke, lineWidth: selected ? 1 : 0.5))
+                        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.chip)
+                            .strokeBorder(selectedStroke, lineWidth: selected ? Theme.Stroke.emphasis : Theme.Stroke.hairline))
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)

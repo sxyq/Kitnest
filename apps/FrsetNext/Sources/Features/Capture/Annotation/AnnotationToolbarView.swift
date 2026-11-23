@@ -210,11 +210,8 @@ struct AnnotationToolRailView: View {
         }
         .padding(.horizontal, 9)
         .padding(.vertical, 6)
-        .background(GlassSurface(cornerRadius: Theme.Radius.chip))
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.10), lineWidth: 0.5)
-        )
+        // 工具条胶囊统一走 floatingGlass（glassPlate + 浮动阴影）
+        .surface(.floatingGlass, radius: Theme.Radius.chip)
         .fixedSize()
     }
 
@@ -298,10 +295,8 @@ struct AnnotationToolRailView: View {
         .padding(.horizontal, ToolRailMetrics.hPadding)
         .padding(.vertical, ToolRailMetrics.vPadding)
         .frame(width: ToolRailMetrics.width)
-        // v181：统一玻璃面（glassPlate）——原「material + 0.88 窗口色 + 自绘描边」
-        // 与命令面板/云链接弹窗是同一种结构面，视觉配方不再各写一份
-        .glassPlate()
-        .shadow(color: .black.opacity(0.22), radius: 10, x: 0, y: 3)
+        // v285：工具条胶囊统一 .surface(.floatingGlass)（glassPlate + Theme.Shadow.floating）
+        .surface(.floatingGlass, radius: Theme.Radius.window)
         .fixedSize()
     }
 }
@@ -322,6 +317,7 @@ private struct RailButtonFrameKey: PreferenceKey {
 // - 常用参数（颜色、粗细、圆角）就地可调，低频参数（马赛克块）走紧凑弹层；
 // - 主操作只有一个（复制），保存/更多/关闭降级为图标，避免一排同权重按钮。
 struct AnnotationToolbarView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @ObservedObject var model: EditorToolbarModel
     var onColor: (Color) -> Void
     var onSize: (Double) -> Void
@@ -353,8 +349,7 @@ struct AnnotationToolbarView: View {
         }
         .padding(.horizontal, 10)
         .frame(height: 44)
-        .glassPlate()
-        .shadow(color: .black.opacity(0.22), radius: 10, x: 0, y: 3)
+        .surface(.floatingGlass, radius: Theme.Radius.window)
         .fixedSize()
     }
 
@@ -441,8 +436,8 @@ struct AnnotationToolbarView: View {
                             .padding(.vertical, 3)
                             .background(
                                 RoundedRectangle(cornerRadius: Theme.Radius.chip, style: .continuous)
-                                    .fill(selected ? Theme.accent.opacity(0.20)
-                                                   : Color.primary.opacity(0.06))
+                                    .fill(selected ? Theme.State.selected(isDark: colorScheme == .dark)
+                                                   : Theme.State.hover)
                             )
                             .foregroundStyle(selected ? Theme.accent : Color.primary)
                     }
@@ -467,7 +462,7 @@ struct AnnotationToolbarView: View {
                 .fill(model.color)
                 .frame(width: 16, height: 16)
                 .overlay(Circle().strokeBorder(Color.white.opacity(0.9), lineWidth: 1))
-                .overlay(Circle().strokeBorder(Color.black.opacity(0.16), lineWidth: 0.5))
+                .overlay(Circle().strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline))
                 .frame(width: 26, height: 26)
                 .background(
                     RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
@@ -503,7 +498,7 @@ struct AnnotationToolbarView: View {
                         Circle()
                             .fill(color)
                             .frame(width: 24, height: 24)
-                            .overlay(Circle().strokeBorder(Color.black.opacity(0.16), lineWidth: 0.5))
+                            .overlay(Circle().strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline))
                             .overlay {
                                 if isSameColor(model.color, color) {
                                     Circle().strokeBorder(Theme.accent, lineWidth: 2)
@@ -742,6 +737,7 @@ struct ToolIconButton: View {
     let help: String
     let action: () -> Void
 
+    @Environment(\.colorScheme) private var colorScheme
     @Stored private var hovering = false
 
     var body: some View {
@@ -750,11 +746,11 @@ struct ToolIconButton: View {
                 .font(.system(size: 12.5, weight: .medium))
                 .frame(width: dimension, height: dimension)
                 .foregroundStyle(selected ? Theme.accent
-                                 : Color.primary.opacity(enabled ? 0.82 : 0.30))
+                                 : Color.primary.opacity(enabled ? 0.82 : Theme.State.disabledOpacity))
                 .background(
                     RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                        .fill(selected ? Theme.accent.opacity(0.14)
-                              : (hovering && enabled ? Color.primary.opacity(0.06) : Color.clear))
+                        .fill(selected ? Theme.State.selected(isDark: colorScheme == .dark)
+                              : (hovering && enabled ? Theme.State.hover : Color.clear))
                 )
                 .contentShape(Rectangle())
         }
