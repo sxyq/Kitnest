@@ -3210,5 +3210,13 @@ EVIDENCE.update({
         "停表并置 nil；到时自动停、onDisappear 也停，不留下常驻定时器",
 })
 
+EVIDENCE.update({
+    # 2026-11-23 触觉遗留项补验：外接板选择逻辑 / 符号缺失回落
+    ("Features/Haptics/TrackpadActuator.swift", "selectDeviceID"):
+        "纯选择逻辑（不碰 IOKit）：ActuationSupported 且有 Multitouch ID 才是候选，内建优先、外接 Magic Trackpad 兜底；抽成纯函数后可用合成字典验证「仅内建/内建+外接/仅外接/不支持/缺 ID/空表」六种情况，真实枚举仍只读设备属性",
+    ("Features/Haptics/TrackpadActuator.swift", "frameworkPath"):
+        "私有框架路径，默认永远是系统真实路径；只有排障参数 --haptic-framework=<path> 才指向别处，用于在真实进程里走到「系统移除 MTActuator 符号」分支，业务调用不带该参数",
+})
+
 if __name__ == "__main__":
     sys.exit(main())

@@ -124,14 +124,28 @@ final class TrackpadActuator {
         if !forceDiscovery, now - lastDiscoveryAt < Self.rediscoveryInterval { return false }
         lastDiscoveryAt = now
 
-        if symbols == nil { symbols = Self.loadSymbols() }
-        guard let symbols else { state = .frameworkUnavailable; return false }
-        guard let id = Self.actuationDeviceID() else { state = .noDevice; return false }
-        guard let fresh = symbols.create(id) else { state = .noDevice; return false }
+        if symbols == nil { symbols = Self.loadSymbols(at: Self.frameworkPath) }
+        guard let symbols else {
+            state = .frameworkUnavailable
+            // 每次真正发现尝试才记一行（重发现限频 20s，不会刷屏）：设置页的说明与日志同源
+            Log.info("Haptics", "马达直连不可用：\(describeLocked())，回落公开接口")
+            return false
+        }
+        guard let id = Self.actuationDeviceID() else {
+            state = .noDevice
+            Log.info("Haptics", "马达直连不可用：\(describeLocked())，回落公开接口")
+            return false
+        }
+        guard let fresh = symbols.create(id) else {
+            state = .noDevice
+            Log.info("Haptics", "马达直连不可用：\(describeLocked())，回落公开接口")
+            return false
+        }
         let opened = symbols.open(fresh)
         guard opened == KERN_SUCCESS else {
             symbols.close(fresh)
             state = .openFailed(opened)
+            Log.info("Haptics", "马达直连不可用：\(describeLocked())，回落公开接口")
             return false
         }
         actuator = fresh
@@ -155,11 +169,20 @@ final class TrackpadActuator {
     }
 
     /// 只 dlopen 一次，四个符号缺一即视为不可用。
-    private static func loadSymbols() -> Symbols? {
-        guard let handle = dlopen(
-            "/System/Library/PrivateFrameworks/MultitouchSupport.framework/MultitouchSupport",
-            RTLD_NOW
-        ),
+    ///
+    /// `--haptic-framework=<path>` 是验证钩子：把路径指向一个**存在但没有 MTActuator 符号**的
+    /// 框架，就能在真实进程里走到「系统移除符号」那条分支（`frameworkUnavailable`）。
+    /// 不传参数时行为与以前完全一致；业务路径永不带这个参数。
+    private static var frameworkPath: String {
+        let prefix = "--haptic-framework="
+        if let argument = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix(prefix) }) {
+            return String(argument.dropFirst(prefix.count))
+        }
+        return "/System/Library/PrivateFrameworks/MultitouchSupport.framework/MultitouchSupport"
+    }
+
+    private static func loadSymbols(at path: String) -> Symbols? {
+        guard let handle = dlopen(path, RTLD_NOW),
         let create = dlsym(handle, "MTActuatorCreateFromDeviceID"),
         let open = dlsym(handle, "MTActuatorOpen"),
         let actuate = dlsym(handle, "MTActuatorActuate"),
@@ -175,7 +198,6 @@ final class TrackpadActuator {
     ///
     /// 外接设备的 ID 与内建不同，旧实现只认 `MT Built-In`，等于把外接板完全排除。
     /// 这里放宽到「ActuationSupported + 有 Multitouch ID」，仍只调用既有的四个符号。
-    /// 注意：外接 Magic Trackpad 的具体行为未在本机验证。
     private static func actuationDeviceID() -> UInt64? {
         var iterator: io_iterator_t = 0
         guard IOServiceGetMatchingServices(kIOMainPortDefault,
@@ -183,7 +205,7 @@ final class TrackpadActuator {
                                            &iterator) == KERN_SUCCESS else { return nil }
         defer { IOObjectRelease(iterator) }
 
-        var fallback: UInt64?
+        var devices: [NSDictionary] = []
         while true {
             let service = IOIteratorNext(iterator)
             guard service != 0 else { break }
@@ -193,7 +215,16 @@ final class TrackpadActuator {
             guard IORegistryEntryCreateCFProperties(service, &properties,
                                                     kCFAllocatorDefault, 0) == KERN_SUCCESS,
                   let dictionary = properties?.takeRetainedValue() as NSDictionary? else { continue }
+            devices.append(dictionary)
+        }
+        return selectDeviceID(from: devices)
+    }
 
+    /// 纯选择逻辑，不碰 IOKit（便于用合成字典验证「内建优先 / 外接兜底 / 不支持则排除」）。
+    /// 判据只有两条：`ActuationSupported == true` 且带 `Multitouch ID`。
+    static func selectDeviceID(from devices: [NSDictionary]) -> UInt64? {
+        var fallback: UInt64?
+        for dictionary in devices {
             let supported = (dictionary["ActuationSupported"] as? NSNumber)?.boolValue ?? false
             let builtIn = (dictionary["MT Built-In"] as? NSNumber)?.boolValue ?? false
             guard supported, let id = dictionary["Multitouch ID"] as? NSNumber else { continue }
