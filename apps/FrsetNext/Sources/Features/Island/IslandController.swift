@@ -670,6 +670,9 @@ final class IslandController: NSObject, ObservableObject {
             revealContent(after: 0.08)
             if !previewOnly {
                 Log.info("Island", String(format: "岛展开：首次布局 %.0fms", (CFAbsoluteTimeGetCurrent() - t0) * 1000))
+                // 2026-11-24：展开腿的帧节奏（与神灯「播放节奏」同口径）。
+                // 0.75s ≈ 弹簧 0.42s 的收敛时间，够覆盖整段形变。
+                MotionPacingProbe.shared.run("岛展开", duration: 0.75)
             }
         }
         hoverArmed = false
@@ -707,6 +710,7 @@ final class IslandController: NSObject, ObservableObject {
         panel?.makeFirstResponder(nil)
         if wasExpanded, !previewOnly {
             Log.info("Island", String(format: "岛收起：首次布局 %.0fms", (CFAbsoluteTimeGetCurrent() - t0) * 1000))
+            MotionPacingProbe.shared.run("岛收起", duration: 0.45)
         }
     }
 

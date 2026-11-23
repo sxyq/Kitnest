@@ -3254,5 +3254,26 @@ EVIDENCE.update({
         "形变收尾结算：几何更新次数、玻璃重建次数、遮罩重算次数与 layout p50/p95/max 一行日志（只记毫秒与次数，不记画面）",
 })
 
+
+EVIDENCE.update({
+    # 2026-11-24 开合帧节奏探针
+    ("Core/Motion/MotionPacingProbe.swift", "run"):
+        "起一腿并按 duration 预约收尾；只在展开/收起那一腿存在，到点自动 finish，不常驻轮询（不为测量本身制造开销）",
+    ("Core/Motion/MotionPacingProbe.swift", "start"):
+        "新建 CVDisplayLink 抓显示链路回调；先 stop 旧的，避免两腿动画叠出两条链路",
+    ("Core/Motion/MotionPacingProbe.swift", "record"):
+        "回调线程只做「加锁 append 时间戳」，不碰主线程、不分配图像（复刻神灯播放节奏探针的口径）",
+    ("Core/Motion/MotionPacingProbe.swift", "stop"):
+        "停表并释放 link；finish/cancel 路径都走它，保证不留下常驻 display link",
+    ("Core/Motion/MotionPacingProbe.swift", "finish"):
+        "结算 p50/p95/max 与缺失回调并打一行日志：量的是合成链路回调节奏，不是主线程每帧耗时",
+    ("Core/Motion/MotionPacingProbe.swift", "displayRefresh"):
+        "刷新率取当前主屏 maximumFramesPerSecond（60–120Hz），用于算「应有回调数」与缺失数",
+    ("Core/Motion/MotionPacingProbe.swift", "init"):
+        "单例私有初始化：探针只有一份，避免多腿动画各起一条 display link",
+    ("Core/Motion/MotionPacingProbe.swift", "deinit"):
+        "析构兜底停表（单例不会走到，但保留以防将来改成实例持有）",
+})
+
 if __name__ == "__main__":
     sys.exit(main())
