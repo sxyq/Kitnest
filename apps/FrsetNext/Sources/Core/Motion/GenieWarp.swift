@@ -804,6 +804,7 @@ private final class GenieFramePacer {
 
     func start(refresh: Int, frames: Int, duration: TimeInterval) {
         cancel()
+        guard UserDefaults.standard.bool(forKey: "probe.genieFramePacing") else { return }
         expectedRefresh = max(30, refresh)
         declaredFrames = frames
         declaredDuration = max(0.001, duration)

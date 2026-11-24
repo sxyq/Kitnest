@@ -153,9 +153,9 @@ Core,Core/Motion/GenieWarp.swift,GenieFramePacer,var,expectedRefresh,795,0,1,COR
 Core,Core/Motion/GenieWarp.swift,GenieFramePacer,var,declaredFrames,796,0,1,CORE-MOTION,docs/20-源码实现/Core/Motion/模块说明.md
 Core,Core/Motion/GenieWarp.swift,GenieFramePacer,var,declaredDuration,797,0,1,CORE-MOTION,docs/20-源码实现/Core/Motion/模块说明.md
 Core,Core/Motion/GenieWarp.swift,GenieFramePacer,func,record,799,5,1,CORE-MOTION,docs/20-源码实现/Core/Motion/模块说明.md
-Core,Core/Motion/GenieWarp.swift,GenieFramePacer,func,start,805,21,4,CORE-MOTION,docs/20-源码实现/Core/Motion/模块说明.md
-Core,Core/Motion/GenieWarp.swift,GenieFramePacer,func,finish,827,25,3,CORE-MOTION,docs/20-源码实现/Core/Motion/模块说明.md
-Core,Core/Motion/GenieWarp.swift,GenieFramePacer,func,cancel,853,6,2,CORE-MOTION,docs/20-源码实现/Core/Motion/模块说明.md
+Core,Core/Motion/GenieWarp.swift,GenieFramePacer,func,start,805,22,5,CORE-MOTION,docs/20-源码实现/Core/Motion/模块说明.md
+Core,Core/Motion/GenieWarp.swift,GenieFramePacer,func,finish,828,25,3,CORE-MOTION,docs/20-源码实现/Core/Motion/模块说明.md
+Core,Core/Motion/GenieWarp.swift,GenieFramePacer,func,cancel,854,6,2,CORE-MOTION,docs/20-源码实现/Core/Motion/模块说明.md
 Core,Core/Motion/MotionPacingProbe.swift,MotionPacingProbe,let,shared,21,0,1,CORE-MOTION,docs/20-源码实现/Core/Motion/模块说明.md
 Core,Core/Motion/MotionPacingProbe.swift,MotionPacingProbe,var,link,23,0,1,CORE-MOTION,docs/20-源码实现/Core/Motion/模块说明.md
 Core,Core/Motion/MotionPacingProbe.swift,MotionPacingProbe,var,stamps,24,0,1,CORE-MOTION,docs/20-源码实现/Core/Motion/模块说明.md

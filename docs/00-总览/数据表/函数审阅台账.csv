@@ -69,9 +69,9 @@ Core,Core/Motion/GenieWarp.swift,GenieWarp,heldProgress,func,740,KEEP,2026-11-19
 Core,Core/Motion/GenieWarp.swift,GenieWarp,snapshot,func,746,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:246,251 抓窗口快照"
 Core,Core/Motion/GenieWarp.swift,GenieWarp,local,func,772,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:273,274 坐标换算"
 Core,Core/Motion/GenieWarp.swift,GenieFramePacer,record,func,799,KEEP,显示链路回调打点：只把 CACurrentMediaTime 追加进数组（加锁），不做任何计算/绘制，回调里零分配
-Core,Core/Motion/GenieWarp.swift,GenieFramePacer,start,func,805,KEEP,一腿动画开始时建 CVDisplayLink 并每帧记时；refresh 取实际刷新率、declaredFrames 用于反推「帧序列需要多少 fps」
-Core,Core/Motion/GenieWarp.swift,GenieFramePacer,finish,func,827,KEEP,收尾停表并结算：实测 fps、p50/p95/max 回调间隔、按刷新率推算的缺失回调数，一条日志说明「合成链路有没有被抢占」
-Core,Core/Motion/GenieWarp.swift,GenieFramePacer,cancel,func,853,KEEP,停 CVDisplayLink 并释放；finish/cancel/teardown 都会走到，保证探针不常驻、不制造持续开销
+Core,Core/Motion/GenieWarp.swift,GenieFramePacer,start,func,805,KEEP,2026-11-24：仅 probe.genieFramePacing=true 时启动 CVDisplayLink 并记录回调；默认不创建链路或追加时间戳，动画帧序列不变
+Core,Core/Motion/GenieWarp.swift,GenieFramePacer,finish,func,828,KEEP,开关启用且 link 存在时停表并结算回调间隔与缺失回调；默认未启动时直接返回
+Core,Core/Motion/GenieWarp.swift,GenieFramePacer,cancel,func,854,KEEP,停止并释放已有 CVDisplayLink；关闭诊断时不启动、不常驻
 Core,Core/Motion/MotionPacingProbe.swift,MotionPacingProbe,init,init,30,KEEP,单例私有初始化：探针只有一份，避免多腿动画各起一条 display link
 Core,Core/Motion/MotionPacingProbe.swift,MotionPacingProbe,run,func,39,KEEP,起一腿并按 duration 预约收尾；只在展开/收起那一腿存在，到点自动 finish，不常驻轮询（不为测量本身制造开销）
 Core,Core/Motion/MotionPacingProbe.swift,MotionPacingProbe,start,func,50,KEEP,新建 CVDisplayLink 抓显示链路回调；先 stop 旧的，避免两腿动画叠出两条链路
