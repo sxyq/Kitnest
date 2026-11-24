@@ -139,11 +139,11 @@ public final class ArchiveBrowserModel: ObservableObject {
     /// 当前层级的直接子项（+ 为「无显式目录条目」的中间目录合成虚拟文件夹）；
     /// 搜索时跳过层级过滤，全量匹配
     public var visibleEntries: [ArchiveEntry] {
-        rebuildChildIndexIfNeeded()
-        let list = showAuxiliary ? entries : entries.filter { !ArchiveCore.isAuxiliary($0.path) }
-        guard searchText.isEmpty else {
+        if !searchText.isEmpty {
+            let list = showAuxiliary ? entries : entries.filter { !ArchiveCore.isAuxiliary($0.path) }
             return list.filter { $0.path.localizedCaseInsensitiveContains(searchText) }
         }
+        rebuildChildIndexIfNeeded()
         return childIndex[currentPath] ?? []
     }
 
