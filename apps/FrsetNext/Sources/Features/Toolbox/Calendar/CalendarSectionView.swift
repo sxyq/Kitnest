@@ -207,12 +207,12 @@ public struct CalendarSectionView: View {
         let index = row * 7 + column
         let day = index < days.count ? days[index] : nil
         let isToday = day?.isToday ?? false
-        let lunar = day.flatMap { LunarCalendar.lunarDate($0.date) }
-        let solarTerm = day.flatMap { LunarCalendar.solarTerm($0.date) }
+        let hasHoliday = day?.holidayText?.isEmpty == false
+        let solarTerm = showLunar || !hasHoliday ? day.flatMap { LunarCalendar.solarTerm($0.date) } : nil
+        let lunar = showLunar || (!hasHoliday && solarTerm == nil) ? day.flatMap { LunarCalendar.lunarDate($0.date) } : nil
         let lunarFestival = lunar.flatMap { LunarCalendar.lunarFestival($0) }
-        let isFestival = day.map { $0.holidayText?.isEmpty == false } == true
-            || solarTerm != nil || lunarFestival != nil
-        let lunarDisplay = day?.lunarDisplay(lunar, solarTerm: solarTerm, festival: lunarFestival)
+        let isFestival = hasHoliday || solarTerm != nil || lunarFestival != nil
+        let lunarDisplay = showLunar ? day?.lunarDisplay(lunar, solarTerm: solarTerm, festival: lunarFestival) : nil
         // v132：点选态（今天有蓝底胶囊，其余选中日用描边环）
         let isSelected: Bool = {
             guard let date = day?.date, let selected = selectedDay else { return false }
