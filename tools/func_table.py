@@ -67,7 +67,9 @@ PERF_HOTSPOTS = {
         "P0 每次 body 求值入口：v292 已消除空搜索白算 O(N)（1万 7.7ms→<0.001ms，10万 77ms→<0.001ms），保持",
     # ---- P1：有实测证据的次热点/待优化 ----
     ("Features/Monitor/Storage/DiskIndex.swift", "DiskIndexStore", "reloadFromCache"):
-        "P1 存储窗打开只读缓存：磁盘索引 JSON 解码，实测 1.4s 内 footprint +121~170MB，落定 229MB（本机最大单窗）",
+        "P1 存储窗打开只读缓存：磁盘索引 JSON/plist 解码，实测 1.4s 内 footprint +121~170MB，"
+        "落定 229MB；**关窗后仍常驻约 120MB**（单例快照）。释放方案实测受阻：关窗本身会把"
+        "主线程卡在 Path.contains（见 StorageTreemap.contentShape/onContinuousHover），待专项",
     ("Features/Island/IslandController.swift", "IslandController", "position"):
         "P2 岛展开定位（实测降级）：冷 36-45ms / 热 15-20ms；setFrame display on/off 实测差 <8ms，"
         "首帧 didUpdate 双峰 30-50/140-170ms 与模式无关；历史 163ms 为部署后首次冷进程一次性值",

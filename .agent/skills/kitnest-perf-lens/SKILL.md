@@ -64,7 +64,8 @@ description: Kitnest 全链路性能/交互/渲染热点诊断；先独立读函
 ### 已实测结论（2026-11-24 授权时段，v292 同版本）
 
 - **CPU 基线**（`proc_pid_rusage` 差分，20s 中位）：干净空闲 **0.3%**；岛展开态 0.3%；主面板 0.3%；剪贴板工作台 0.2%；十万条归档静置 0.2%；存储窗 2.4%；传输坞 0.3%；投屏页 0.4%；桌面精灵（静态）0.3%。
-- **内存基线**（footprint）：冷启动 90–128MB；主面板 141MB；存储窗落定 **229MB**（打开 1.4s 内 +121~170MB，磁盘索引 JSON 解码）；剪贴板工作台 97MB；十万条归档峰值 **293MB** / 落定 190MB。
+- **内存基线**（footprint）：冷启动 90–128MB；主面板 141MB；存储窗落定 **229MB**（打开 1.4s 内 +121~170MB，磁盘索引 plist 解码；关窗后仍常驻 **~120MB**，`DiskIndexStore.shared.snapshot` 是单例）；剪贴板工作台 97MB；十万条归档峰值 **293MB** / 落定 190MB。
+- **已知缺陷（未修，v292 实测确认）**：关闭存储窗会把主线程卡死 **20s+**。对照实验（不含任何关窗钩子的版本）同样复现，属既有问题。卡死栈：`SwiftUI ViewGraph → DynamicPreferenceCombiner → GeometryReader → Path.contains(_:eoFill:)`（302/577 样本在 `Path.contains`）。可疑来源：`StorageTreemap` 的 `.contentShape(StorageMapShape(geometry:))` 与 `onContinuousHover` 里每次 `StorageMapShape(...).path(in:).contains(location)`——**每次命中测试都重建整张地图路径**。修法方向：按 geometry+rect 缓存 Path，或改逐 tile `frame + 多边形` 判定；修好之前**不要**做「关窗释放快照」——关窗本身不返回，释放执行不到。
 - **文件索引是当前最大单点（已优化）**：144.7 万条 / 177MB 池。原实现每个命中都构造 `path` 串 + `URL` + `lastPathComponent`，短词 `deck`（47 万命中）实测 **19.0s**；改为「字节取 name → 先跑 name 模糊 → path 串惰性构造 → `.all` 不建 URL」+ `FuzzyMatcher` 纯 ASCII 字节快路径后：`deck` **683ms**、多词 `workbuddy skill` 395ms / `kitnest perf` 319ms，命中集不变（22 万例随机对拍 0 不一致、144.7 万条 name 取法与 URL 0 不一致）。改匹配语义（分词 `strcasestr`）会快到 173-204ms 但命中从 3371 掉到 161，**不能**未经产品确认就换。
 - `FuzzyMatcher.match` 的慢在 `Array<Character>`（每字符 16B）：127B 路径≈2KB/次。ASCII 快路径实测 **6.3-6.5×**（10 万条 91ms→14ms），非 ASCII 原样回退。
 - 搜索是 **250ms 防抖 + detached 任务**：detached 不继承取消，必须 `withTaskCancellationHandler` 显式 `job.cancel()`，`FileNameIndex.search` 里每 8192 条的 `Task.isCancelled` 才会生效。

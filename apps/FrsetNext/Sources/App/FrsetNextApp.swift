@@ -568,9 +568,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let autoScan = comps?.queryItems?.first(where: { $0.name == "scan" })?.value == "1"
                 let drill = comps?.queryItems?.first(where: { $0.name == "drill" })?.value
                 let openAgent = comps?.queryItems?.first(where: { $0.name == "agent" })?.value == "1"
-                StorageManagerWindowController.shared.show(autoScan: autoScan,
-                                                           drill: drill,
-                                                           openAgent: openAgent)
+                // v292 排障：?action=close 延到下一轮 runloop 再关窗——用于无人值守验证
+                // 「关窗」路径本身（正常关闭走 Esc/红灯，需要键盘或鼠标）。
+                if comps?.queryItems?.first(where: { $0.name == "action" })?.value == "close" {
+                    DispatchQueue.main.async { StorageManagerWindowController.shared.close() }
+                } else {
+                    StorageManagerWindowController.shared.show(autoScan: autoScan,
+                                                               drill: drill,
+                                                               openAgent: openAgent)
+                }
                 // 排障/录屏：?hover=1 让液态地图的悬停巡航重放一次
                 // （只在 probe.storageHover 打开时生效，正常使用没有任何影响）
                 if comps?.queryItems?.first(where: { $0.name == "hover" })?.value == "1" {
