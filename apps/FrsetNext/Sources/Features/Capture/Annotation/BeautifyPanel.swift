@@ -155,6 +155,8 @@ public final class BeautifyController: NSObject, NSWindowDelegate {
 /// 美化窗口：左预览右控件（AppKit + SwiftUI 控件混排）
 final class BeautifyWindow: NSWindow, NSWindowDelegate {
 
+    private static let renderQueue = DispatchQueue(label: "com.kitnest.beautify.render", qos: .userInitiated)
+
     private let imageView = NSImageView(frame: .zero)
     private var image: CGImage
     private var options = BeautifyOptions() {
@@ -168,6 +170,7 @@ final class BeautifyWindow: NSWindow, NSWindowDelegate {
     private var rendered: CGImage?
     /// 防抖渲染（slider 连续变化）
     private var renderWork: DispatchWorkItem?
+    private var renderGeneration = 0
 
     init(image: CGImage) {
         self.image = image
@@ -226,16 +229,23 @@ final class BeautifyWindow: NSWindow, NSWindowDelegate {
     }
 
     private func rerender() {
+        renderGeneration += 1
+        let generation = renderGeneration
+        let image = self.image
+        let options = self.options
         renderWork?.cancel()
         let work = DispatchWorkItem { [weak self] in
-            guard let self, let out = BeautifyRenderer.render(image: self.image, options: self.options) else { return }
+            guard let self,
+                  DispatchQueue.main.sync(execute: { self.renderGeneration == generation }),
+                  let out = BeautifyRenderer.render(image: image, options: options) else { return }
             DispatchQueue.main.async {
+                guard self.renderGeneration == generation else { return }
                 self.rendered = out
                 self.imageView.image = ImageProcessor.nsImage(out)
             }
         }
         renderWork = work
-        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + 0.02, execute: work)
+        Self.renderQueue.asyncAfter(deadline: .now() + 0.02, execute: work)
     }
 
     @objc private func copyTapped() { if let r = rendered { onCopy?(r) } }
