@@ -354,8 +354,8 @@ private final class IslandMaterialView: NSView {
 
     // MARK: 实测（2026-11-24）
     //
-    // 逐帧记 layout 耗时与玻璃重建次数，形变收尾时打一行日志。
-    // 只记毫秒/次数，不记画面内容；默认开，不影响观感。
+    // 仅在启动前设置 probe.islandMaterial=true 才记录逐帧耗时。
+    private static let diagnosticsEnabled = UserDefaults.standard.bool(forKey: "probe.islandMaterial")
     private var layoutCount = 0
     private var glassRebuilds = 0
     private var maskPathCount = 0
@@ -418,7 +418,8 @@ private final class IslandMaterialView: NSView {
     /// 唯一几何入口：插值尺寸只喂遮罩，取样面只在两档之间整块切换。
     func applyGeometry(interpolated: CGSize, radius newRadius: CGFloat,
                        sampling target: CGSize, samplingInset inset: CGFloat) {
-        layoutCount += 1
+        let measure = Self.diagnosticsEnabled
+        if measure { layoutCount += 1 }
         if radius != newRadius { radius = newRadius; needsLayout = true }
         // 放大：展开一开始就按最终尺寸铺玻璃（本帧一次）；
         // 缩小：等遮罩真的收到收起态（插值 == 目标）再缩——提前缩会让收起途中透出桌面。
@@ -430,12 +431,12 @@ private final class IslandMaterialView: NSView {
             samplingInset = inset
             needsLayout = true
         }
-        let samePlace = abs(lastInterpolated.width - interpolated.width) <= 0.5
-            && abs(lastInterpolated.height - interpolated.height) <= 0.5
-        if settled, !samePlace {
-            flushStats(settledAt: interpolated)
+        if measure {
+            let samePlace = abs(lastInterpolated.width - interpolated.width) <= 0.5
+                && abs(lastInterpolated.height - interpolated.height) <= 0.5
+            if settled, !samePlace { flushStats(settledAt: interpolated) }
+            lastInterpolated = interpolated
         }
-        lastInterpolated = interpolated
     }
 
     private func flushStats(settledAt size: CGSize) {
@@ -460,7 +461,8 @@ private final class IslandMaterialView: NSView {
     override func layout() {
         super.layout()
         guard bounds != renderedBounds || radius != renderedRadius || sampling != renderedSampling else { return }
-        let started = CFAbsoluteTimeGetCurrent()
+        let measure = Self.diagnosticsEnabled
+        let started = measure ? CFAbsoluteTimeGetCurrent() : 0
         renderedBounds = bounds
         renderedRadius = radius
         renderedSampling = sampling
@@ -474,22 +476,23 @@ private final class IslandMaterialView: NSView {
                                 width: sampling.width, height: sampling.height + samplingInset)
             if glass.frame != target {
                 glass.frame = target
-                glassRebuilds += 1
+                if measure { glassRebuilds += 1 }
             }
             if samplingInset != renderedSamplingInset {
                 renderedSamplingInset = samplingInset
                 LiquidGlass.setCornerRadius(samplingInset, on: glass)
             }
         }
-        let maskStart = CFAbsoluteTimeGetCurrent()
+        let maskStart = measure ? CFAbsoluteTimeGetCurrent() : 0
         mask.frame = bounds
         mask.path = IslandOutline(radius: radius).path(in: bounds).cgPath
-        maskPathCount += 1
-        let maskMs = (CFAbsoluteTimeGetCurrent() - maskStart) * 1000
+        if measure { maskPathCount += 1 }
         CATransaction.commit()
-        maskCosts.append(maskMs)
-        frameCosts.append((CFAbsoluteTimeGetCurrent() - started) * 1000)
-        if frameCosts.count > 300 { frameCosts.removeFirst(150); maskCosts.removeFirst(min(150, maskCosts.count)) }
+        if measure {
+            maskCosts.append((CFAbsoluteTimeGetCurrent() - maskStart) * 1000)
+            frameCosts.append((CFAbsoluteTimeGetCurrent() - started) * 1000)
+            if frameCosts.count > 300 { frameCosts.removeFirst(150); maskCosts.removeFirst(min(150, maskCosts.count)) }
+        }
     }
 }
 
