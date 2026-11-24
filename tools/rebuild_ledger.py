@@ -2707,10 +2707,17 @@ def main() -> int:
         key = (r["file"], r["owner"], r["kind"], name)
         # v263：文件 / 类型改名后，旧台账行要按新键归组，否则整段被当成
         # 「源码已无此函数」丢掉，再以占位证据重新加入。
-        key = (_PATH_ALIASES.get(key[0], key[0]), key[1], key[2],
-               _NAME_ALIASES[0][1] if False else key[3])
-        key = (key[0], key[1], key[2],
-               key[3].replace("ScreenshotShelfController", "ImageCurtainController").replace("Shelf", "Curtain"))
+        # 2026-11-25（函数审查 NEEDS_FIX 落实）：两处修复——
+        #   ① `_NAME_ALIASES[0][1] if False else key[3]` 是恒取 key[3] 的死表达式，删掉；
+        #   ② Shelf→Curtain 改名只作用于**旧台账里的迁移期残留**（名字仍含 Shelf 或
+        #      文件在旧 Shelf 路径下）。v263 之后源码早已没有 Shelf 前缀，对现在新增的
+        #      台账行无条件 replace 会静默改写无关函数名（如未来出现的 MyShelfBar）。
+        key = (_PATH_ALIASES.get(key[0], key[0]), key[1], key[2], key[3])
+        legacy_shelf = "Shelf" in key[3] or "Shelf" in key[0]
+        if legacy_shelf:
+            key = (key[0], key[1], key[2],
+                   key[3].replace("ScreenshotShelfController", "ImageCurtainController")
+                         .replace("Shelf", "Curtain"))
         if (r["file"], r["owner"], name) in RENAMES:
             name = RENAMES[(r["file"], r["owner"], name)]
             key = (r["file"], r["owner"], r["kind"], name)
@@ -2735,7 +2742,9 @@ def main() -> int:
             new_line = cand[slot]
             if new_line != old_line:
                 reanchored += 1
-            r["name"] = name.replace("ScreenshotShelfController", "ImageCurtainController").replace("Shelf", "Curtain")
+            if legacy_shelf:
+                name = name.replace("ScreenshotShelfController", "ImageCurtainController").replace("Shelf", "Curtain")
+            r["name"] = name
             r["file"] = _PATH_ALIASES.get(r["file"], r["file"])
             r["line"] = str(new_line)
             out.append(r)
@@ -3375,6 +3384,36 @@ EVIDENCE.update({
     ("Features/Panel/Presentation/FloatingPanel.swift", "glassHost"):
         "在视图树里定位玻璃宿主（面板被 WindowReveal 容器再包一层）；"
         "替代旧实现「取 contentView.subviews.first」的脆弱假设",
+})
+
+# ── v293 续（2026-11-25 剩余缺陷逐条修复新增函数）────────────────────
+EVIDENCE.update({
+    ("Features/TransferDock/Android/AndroidWebDAVServer.swift", "streamDownload"):
+        "WebDAV 下载流式化①：先 adb stat 取大小拿 Content-Length，发响应头后进入分块泵送；"
+        "旧实现 readDataToEndOfFile 整文件进内存（GB 级视频峰值≈文件大小）",
+    ("Features/TransferDock/Android/AndroidWebDAVServer.swift", "pumpDownload"):
+        "WebDAV 下载流式化②：后台线程阻塞读 256KB → 连接队列发送 → 完成回调驱动下一块；"
+        "连接消失/设备断开时 terminate cat 并关闭，连接关闭路径会清理 spills 与临时文件",
+    ("Features/TransferDock/Transfer/LanTransferServer.swift", "pumpDownload"):
+        "手机扫码下载流式化②：后台读 256KB → 连接队列发送 → 回调驱动下一块；"
+        "长度不符/文件提前读到头按失败收尾（触觉 + 关连接）",
+    ("Features/TransferDock/Transfer/LanTransferServer.swift", "finishDownload"):
+        "下载收尾唯一出口：防重（done2）、触觉、GET 完成通知、cancel 连接；"
+        "与 send() 的成功口径一致（method==GET 且 2xx）",
+    ("Features/Capture/History/CaptureHistoryStore.swift", "itemsAsync"):
+        "历史查询异步入口：同一串行队列查询、结果回主线程（串行队列保证完成顺序与调用顺序）；"
+        "主线程不再 queue.sync 等缩略图生成所在队列",
+    ("Features/Capture/History/CaptureHistoryStore.swift", "itemsLocked"):
+        "必须在 queue 上调用的查询体（同步版 items 与异步版 itemsAsync 共用），逻辑与原实现一致",
+    ("Features/Panel/Preview/PreviewImageLoader.swift", "cachedDecode"):
+        "同步解码缓存（NSCache，上限 8 张）：悬停预览模型构造走不了 loadImage 异步缓存/在途去重，"
+        "同一文件每次 hover 重新解码；sync- 路径独立 key，不影响 loadImage 的缓存语义",
+    ("Features/Toolbox/Search/SearchSectionView.swift", "performFetch"):
+        "搜索页抓取体（原 fetchResults 主体）：按引擎 URL 加载→8s 超时→渲染余量→JS 提取；"
+        "外层 fetchResults 以任务链串行化后，单槽位 continuation 竞争消失，本体语义不变",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "scheduleScrollResizeEnd"):
+        "⌘滚轮缩放收尾去抖（350ms）：旧实现每 tick 都 resizeEnd → 写 UserDefaults+rebuild+Toast+"
+        "缩略图重扫；拖拽路径的 mouseUp end 不经过这里。CurtainCardView / CurtainCanvasView 两个视图各持一份",
 })
 
 # ── v291（2026-11-24 投屏线 v2 立项落地）────────────────────────────

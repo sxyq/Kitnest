@@ -278,6 +278,8 @@ public final class LanTransferServer: ObservableObject {
         var bodyHandle: FileHandle?
         var bodyReceived = 0
         var done = false
+        /// 下载流式收尾防重（done 只挡超时/新请求，流式路径另用）
+        var done2 = false
         var transferFailed = false
         var isFileTransfer: Bool {
             let route = path.split(separator: "?", maxSplits: 1).first ?? ""
@@ -584,27 +586,99 @@ public final class LanTransferServer: ObservableObject {
         }
     }
 
+    /// 下载响应块大小
+    private static let downloadChunkBytes = 256 << 10
+
+    /// 手机下载暂存文件（2026-11-25 函数审查 NEEDS_FIX 落实）：
+    /// 旧实现 mappedIfSafe 读整文件后 `payload.append(data)` 又复制一份、一次 send——
+    /// GB 级视频内存峰值 ≈ 2×文件大小。改为发响应头后按 256KB 分块泵送。
     private func handleDownload(_ context: ConnectionContext, id: String) {
         let item = Self.onMain { LocalTransferStore.shared.items.first(where: { $0.id == id }) }
         guard let item else {
             respond(context, status: 404, text: "文件不存在")
             return
         }
-        guard let data = try? Data(contentsOf: item.stagedURL, options: .mappedIfSafe) else {
+        let path = item.stagedURL.path
+        let fileSize = ((try? FileManager.default.attributesOfItem(atPath: path))?[.size] as? NSNumber)?.uint64Value ?? 0
+        guard fileSize > 0, let handle = try? FileHandle(forReadingFrom: item.stagedURL) else {
             respond(context, status: 404, text: "文件不可读")
             return
         }
         let encoded = item.name.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? "file"
         var head = "HTTP/1.1 200 OK\r\n"
         head += "Content-Type: application/octet-stream\r\n"
-        head += "Content-Length: \(data.count)\r\n"
+        head += "Content-Length: \(fileSize)\r\n"
         head += "Content-Disposition: attachment; filename*=UTF-8''\(encoded)\r\n"
         head += "Cache-Control: no-store\r\n"
         head += "Connection: close\r\n\r\n"
-        var payload = Data(head.utf8)
-        payload.append(data)
+        context.done = true
+        queue.async { [weak self] in
+            guard let self else { try? handle.close(); return }
+            context.connection.send(content: Data(head.utf8), completion: .contentProcessed { error in
+                if error != nil {
+                    try? handle.close()
+                    self.finishDownload(context, ok: false)
+                    return
+                }
+                self.pumpDownload(context, handle: handle, remaining: fileSize)
+            })
+        }
+    }
 
-        send(context, payload, transferSucceeded: true)
+    /// 后台线程阻塞读一块 → 连接队列发送 → 完成回调驱动下一块
+    private func pumpDownload(_ context: ConnectionContext, handle: FileHandle, remaining: UInt64) {
+        queue.async { [weak self] in
+            guard let self else { try? handle.close(); return }
+            guard remaining > 0 else {
+                try? handle.close()
+                self.finishDownload(context, ok: true)
+                return
+            }
+            DispatchQueue.global(qos: .utility).async {
+                let chunk = (try? handle.read(upToCount: min(Self.downloadChunkBytes, Int(remaining)))) ?? Data()
+                self.queue.async {
+                    guard context.connection.state == .ready else {
+                        try? handle.close()
+                        self.finishDownload(context, ok: false)
+                        return
+                    }
+                    if chunk.isEmpty {
+                        // 文件提前读到头（长度不符/被删）：关闭连接让客户端重试
+                        try? handle.close()
+                        self.finishDownload(context, ok: false)
+                        return
+                    }
+                    context.connection.send(content: chunk, completion: .contentProcessed { error in
+                        if error != nil {
+                            try? handle.close()
+                            self.finishDownload(context, ok: false)
+                            return
+                        }
+                        self.pumpDownload(context, handle: handle,
+                                          remaining: remaining - UInt64(chunk.count))
+                    })
+                }
+            }
+        }
+    }
+
+    /// 下载收尾：触觉 + 完成通知（与 send() 的成功口径一致）
+    private func finishDownload(_ context: ConnectionContext, ok: Bool) {
+        guard !context.done2 else { return }
+        context.done2 = true
+        HapticService.shared.perform(ok ? .transferCompleted : .transferFailed)
+        if ok, context.method == "GET" {
+            DispatchQueue.main.async { [weak self] in
+                self?.sentCount += 1
+                let route = context.path.split(separator: "?", maxSplits: 1).first.map(String.init) ?? context.path
+                let fileID = route.components(separatedBy: "/dl/").last ?? ""
+                if let item = LocalTransferStore.shared.items.first(where: { $0.id == fileID }) {
+                    NotificationCenter.default.post(name: .tutorialFileTransferCompleted, object: nil,
+                                                    userInfo: ["paths": [item.stagedURL.path]])
+                }
+            }
+        }
+        context.connection.cancel()
     }
 
     private func handleDelete(_ context: ConnectionContext, id: String?) {

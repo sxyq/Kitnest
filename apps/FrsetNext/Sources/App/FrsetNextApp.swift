@@ -743,7 +743,17 @@ final class InstanceLock {
         guard age > 3 else { return false }
 
         Log.warn("App", "接管实例锁：持有者 pid=\(holder) \(reason)")
-        if holder > 0 { kill(holder, SIGKILL) }
+        // 2026-11-25（函数审查 NEEDS_FIX 落实）：SIGKILL 只能发给「确认是本应用实例」的
+        // 持有者。锁文件里的 pid 可能被内核复用给无关进程（判据 (a) 正是这种情况）——
+        // 对无辜进程发 SIGKILL 是系统级破坏。此时走既有的无锁接管兜底。
+        if !isLegitimateHolder(holder) || holder <= 0 {
+            Log.warn("App", "持有者 pid=\(holder) 不是本应用实例 → 不发送 SIGKILL，改无锁运行")
+            runningWithoutLock = true
+            try? "\(getpid())\nbuild=\(buildStamp)\n".write(to: url, atomically: true, encoding: .utf8)
+            startHeartbeat()
+            return true
+        }
+        kill(holder, SIGKILL)
         usleep(400_000)
         if let handle = tryAcquire() { fd = handle; startHeartbeat(); return true }
 

@@ -1045,25 +1045,31 @@ public final class ArchiveBrowserModel: ObservableObject {
     }
 
     /// 添加后备份新增内容（复制源文件到临时目录，路径 = 包内相对路径）
+    ///
+    /// 2026-11-25（函数审查 NEEDS_FIX 落实）：本函数被 `ArchiveCore.addFiles` 的完成回调
+    /// 调用，而该回调经 `both()` 落在主线程——createDirectory+copyItem 是磁盘重活，
+    /// GB 级新增会同步冻结 UI 数秒。拷贝循环挪后台队列，快照回主线程再 push 撤销栈。
     private func captureAddeds(_ files: [URL], into dir: String,
                                completion: @escaping ([ArchiveChange.Snapshot]) -> Void) {
-        var snaps: [ArchiveChange.Snapshot] = []
-        for f in files {
-            let rel = dir.isEmpty ? f.lastPathComponent : dir + "/" + f.lastPathComponent
-            let directory = FileManager.default.temporaryDirectory
-                .appendingPathComponent("frset-addsnap-\(UUID().uuidString)", isDirectory: true)
-            let tmp = directory.appendingPathComponent(f.lastPathComponent)
-            do {
-                try FileManager.default.createDirectory(at: tmp.deletingLastPathComponent(),
-                                                        withIntermediateDirectories: true)
-                try FileManager.default.copyItem(at: f, to: tmp)
-                snaps.append(.init(path: rel, tempURL: tmp))
-            } catch {
-                // 备份失败 → 该项不可撤销，跳过
-                try? FileManager.default.removeItem(at: directory)
+        DispatchQueue.global(qos: .utility).async {
+            var snaps: [ArchiveChange.Snapshot] = []
+            for f in files {
+                let rel = dir.isEmpty ? f.lastPathComponent : dir + "/" + f.lastPathComponent
+                let directory = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("frset-addsnap-\(UUID().uuidString)", isDirectory: true)
+                let tmp = directory.appendingPathComponent(f.lastPathComponent)
+                do {
+                    try FileManager.default.createDirectory(at: tmp.deletingLastPathComponent(),
+                                                            withIntermediateDirectories: true)
+                    try FileManager.default.copyItem(at: f, to: tmp)
+                    snaps.append(.init(path: rel, tempURL: tmp))
+                } catch {
+                    // 备份失败 → 该项不可撤销，跳过
+                    try? FileManager.default.removeItem(at: directory)
+                }
             }
+            DispatchQueue.main.async { completion(snaps) }
         }
-        completion(snaps)
     }
 }
 

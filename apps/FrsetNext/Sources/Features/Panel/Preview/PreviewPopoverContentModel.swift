@@ -122,8 +122,10 @@ public struct PreviewPopoverContentModel: Identifiable {
                 fileText = !loadFileContents && !fileIsDirectory
                     && FilePreviewBuilder.imageExtensions.contains(ext) ? .loading : .idle
             }
+            // 2026-11-25（函数审查 NEEDS_FIX 落实）：走带缓存的同步解码，
+            // 不再绕过 PreviewImageLoader 的缓存——同一文件反复 hover 反复解码。
             fileImage = loadFileContents && !fileIsDirectory && FilePreviewBuilder.imageExtensions.contains(ext)
-                ? PreviewImageLoader.decode(url, maxPixel: 1600) : nil
+                ? PreviewImageLoader.shared.cachedDecode(url, maxPixel: 1600) : nil
         } else {
             fileText = .idle
             fileImage = nil

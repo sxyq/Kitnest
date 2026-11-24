@@ -100,6 +100,10 @@ public final class AndroidWebDAVServer {
 
     private func close(_ conn: NWConnection) {
         connections.removeValue(forKey: ObjectIdentifier(conn))
+        if let spill = spills.removeValue(forKey: ObjectIdentifier(conn)) {
+            try? spill.handle.closeFile()
+            try? FileManager.default.removeItem(at: spill.url)
+        }
         conn.stateUpdateHandler = nil
         conn.cancel()
     }
@@ -129,11 +133,55 @@ public final class AndroidWebDAVServer {
         }
     }
 
+    /// 上传体落盘阈值（2026-11-25 函数审查 NEEDS_FIX）：超过它不再内存累积，
+    /// 边收边写临时文件——PUT 本来就要临时文件再 adb push。
+    static let bodySpillThreshold = 16 << 20
+    /// 上传体绝对上限：防恶意/异常 Content-Length 无限占盘
+    static let bodyMaxBytes = 2 << 30
+
     private func readBody(_ conn: NWConnection, header: String, body: Data, need: Int) {
+        guard need <= Self.bodyMaxBytes else {
+            send(conn, status: "413 Payload Too Large", headers: [:], body: Data())
+            return
+        }
         conn.receive(minimumIncompleteLength: 1, maximumLength: 4 << 20) { [weak self] data, _, isComplete, err in
             guard let self, self.connections[ObjectIdentifier(conn)] != nil else { return }
             var buf = body
             if let data { buf.append(data) }
+            // 大 body：落盘续收。spills 记录每条连接的临时文件句柄。
+            if need > Self.bodySpillThreshold {
+                let key = ObjectIdentifier(conn)
+                if self.spills[key] == nil {
+                    let url = URL(fileURLWithPath: NSTemporaryDirectory()
+                        + "frset-webdav-body-\(UUID().uuidString)")
+                    FileManager.default.createFile(atPath: url.path, contents: nil)
+                    guard let handle = try? FileHandle(forWritingTo: url) else {
+                        self.send(conn, status: "500 Internal Server Error", headers: [:], body: Data())
+                        return
+                    }
+                    self.spills[key] = (url, handle)
+                }
+                if let spill = self.spills[key] {
+                    let start = spill.handle.offsetInFile
+                    try? spill.handle.write(contentsOf: buf)
+                    _ = start
+                }
+                let received = self.spills[ObjectIdentifier(conn)]?.handle.offsetInFile ?? UInt64(buf.count)
+                if received >= need {
+                    self.spills[ObjectIdentifier(conn)]?.handle.closeFile()
+                    if let spill = self.spills.removeValue(forKey: ObjectIdentifier(conn)) {
+                        self.dispatch(conn, header: header, body: Data(), bodyFile: spill.url)
+                    } else {
+                        self.close(conn)
+                    }
+                } else if isComplete || err != nil {
+                    self.spills.removeValue(forKey: ObjectIdentifier(conn))?.handle.closeFile()
+                    self.close(conn)
+                } else {
+                    self.readBody(conn, header: header, body: Data(), need: need)
+                }
+                return
+            }
             if buf.count >= need {
                 self.dispatch(conn, header: header, body: Data(buf.prefix(need)))
             } else if isComplete || err != nil {
@@ -144,6 +192,9 @@ public final class AndroidWebDAVServer {
         }
     }
 
+    /// 连接 → 大 body 临时文件（收完在 dispatch 后删除）
+    private var spills: [ObjectIdentifier: (url: URL, handle: FileHandle)] = [:]
+
     private static func headerValue(_ headers: String, _ name: String) -> String? {
         for line in headers.components(separatedBy: "\r\n") where line.lowercased().hasPrefix(name + ":") {
             return String(line.dropFirst(name.count + 1)).trimmingCharacters(in: .whitespaces)
@@ -151,7 +202,8 @@ public final class AndroidWebDAVServer {
         return nil
     }
 
-    private func dispatch(_ conn: NWConnection, header: String, body: Data) {
+    private func dispatch(_ conn: NWConnection, header: String, body: Data, bodyFile: URL? = nil) {
+        defer { if let f = bodyFile { try? FileManager.default.removeItem(at: f) } }
         let lines = header.components(separatedBy: "\r\n")
         let parts = (lines.first ?? "").components(separatedBy: " ")
         guard parts.count >= 2 else { close(conn); return }
@@ -171,7 +223,11 @@ public final class AndroidWebDAVServer {
         case "GET", "HEAD":
             download(conn, path: path, headOnly: method == "HEAD")
         case "PUT":
-            upload(conn, path: path, data: body)
+            if let bodyFile {
+                upload(conn, path: path, data: Data(), stagedFile: bodyFile)
+            } else {
+                upload(conn, path: path, data: body)
+            }
         case "MKCOL":
             ADBExtrasEngine.run(["shell", "mkdir", "-p", "'" + path.replacingOccurrences(of: "'", with: "'\\''") + "'"]) { _, status in
                 let ok = status == 0
@@ -299,42 +355,95 @@ public final class AndroidWebDAVServer {
             }
             return
         }
+        // 2026-11-25（函数审查 NEEDS_FIX 落实）：旧实现 `readDataToEndOfFile` 把整个
+        // 文件读进内存再一次 send——数 GB 视频内存峰值≈文件大小。改为：
+        // ① 先 stat 拿大小（给 Content-Length）；② cat 输出按 256KB 分块边读边发。
         DispatchQueue.global(qos: .userInitiated).async {
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: adb)
-            var catArgs: [String] = []
-            if let serial = ADBExtrasEngine.resolveSerialSync(adb) { catArgs += ["-s", serial] }
-            catArgs += ["exec-out", "cat", "'" + path.replacingOccurrences(of: "'", with: "'\\''") + "'"]
-            task.arguments = catArgs
-            let pipe = Pipe()
-            task.standardOutput = pipe
-            task.standardError = FileHandle.nullDevice
-            do { try task.run() } catch {
-                self.send(conn, status: "500 Internal Server Error", headers: [:], body: Data())
-                return
+            let quoted = "'" + path.replacingOccurrences(of: "'", with: "'\\''") + "'"
+            ADBExtrasEngine.run(["shell", "[ -f \(quoted) ] && stat -L -c %s \(quoted)"]) { out, status in
+                guard status == 0, let out,
+                      let size = UInt64(out.trimmingCharacters(in: .whitespacesAndNewlines)) else {
+                    self.send(conn, status: "404 Not Found", headers: [:], body: Data())
+                    return
+                }
+                let task = Process()
+                task.executableURL = URL(fileURLWithPath: adb)
+                var catArgs: [String] = []
+                if let serial = ADBExtrasEngine.resolveSerialSync(adb) { catArgs += ["-s", serial] }
+                catArgs += ["exec-out", "cat", quoted]
+                task.arguments = catArgs
+                let pipe = Pipe()
+                task.standardOutput = pipe
+                task.standardError = FileHandle.nullDevice
+                do { try task.run() } catch {
+                    self.send(conn, status: "500 Internal Server Error", headers: [:], body: Data())
+                    return
+                }
+                self.streamDownload(conn, handle: pipe.fileHandleForReading, task: task, size: size)
             }
-            let data = pipe.fileHandleForReading.readDataToEndOfFile()
-            task.waitUntilExit()
-            if task.terminationStatus != 0 {
-                self.send(conn, status: "404 Not Found", headers: [:], body: Data())
-                return
-            }
-            self.send(conn, status: "200 OK", headers: [
-                "Content-Length": "\(data.count)", "Content-Type": "application/octet-stream"
-            ], body: data)
         }
     }
 
-    private func upload(_ conn: NWConnection, path: String, data: Data) {
-        let tmp = NSTemporaryDirectory() + "frset-webdav-\(UUID().uuidString)"
-        do {
-            try data.write(to: URL(fileURLWithPath: tmp))
-        } catch {
-            send(conn, status: "500 Internal Server Error", headers: [:], body: Data())
-            return
+    /// 发响应头后按块泵送 cat 输出（后台线程阻塞读，发送完成回调驱动下一块）
+    private func streamDownload(_ conn: NWConnection, handle: FileHandle, task: Process, size: UInt64) {
+        var head = "HTTP/1.1 200 OK\r\nServer: Kitnest-WebDAV\r\nConnection: close\r\n"
+        head += "Content-Type: application/octet-stream\r\n"
+        head += "Content-Length: \(size)\r\n\r\n"
+        queue.async { [weak self] in
+            guard let self, self.connections[ObjectIdentifier(conn)] != nil else {
+                task.terminate(); return
+            }
+            conn.send(content: Data(head.utf8), completion: .contentProcessed { _ in
+                self.pumpDownload(conn, handle: handle, task: task, remaining: size)
+            })
         }
-        ADBExtrasEngine.run(["push", tmp, path], timeout: 120) { _, status in
-            try? FileManager.default.removeItem(atPath: tmp)
+    }
+
+    private func pumpDownload(_ conn: NWConnection, handle: FileHandle, task: Process, remaining: UInt64) {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self else { return }
+            guard remaining > 0 else {
+                try? task.waitUntilExit()
+                self.queue.async { self.close(conn) }
+                return
+            }
+            let chunk = (try? handle.read(upToCount: min(256 << 10, Int(remaining)))) ?? Data()
+            if chunk.isEmpty {
+                // cat 提前退出（设备断开等）：已声明的长度发不满，只能关闭连接让客户端重试
+                try? task.waitUntilExit()
+                self.queue.async { self.close(conn) }
+                return
+            }
+            self.queue.async {
+                guard self.connections[ObjectIdentifier(conn)] != nil else {
+                    task.terminate(); return
+                }
+                conn.send(content: chunk, completion: .contentProcessed { _ in
+                    self.pumpDownload(conn, handle: handle, task: task,
+                                      remaining: remaining - UInt64(chunk.count))
+                })
+            }
+        }
+    }
+
+    /// 上传：`data` 走旧路径（写临时文件再 push）；`stagedFile` 是大 body 已落盘的
+    /// 临时文件，直接 push，省一次「内存 → 磁盘」往返（2026-11-25 函数审查 NEEDS_FIX）。
+    private func upload(_ conn: NWConnection, path: String, data: Data, stagedFile: URL? = nil) {
+        let tmp: String
+        if let stagedFile {
+            tmp = stagedFile.path
+        } else {
+            let fresh = NSTemporaryDirectory() + "frset-webdav-\(UUID().uuidString)"
+            do {
+                try data.write(to: URL(fileURLWithPath: fresh))
+                tmp = fresh
+            } catch {
+                send(conn, status: "500 Internal Server Error", headers: [:], body: Data())
+                return
+            }
+        }
+        ADBExtrasEngine.run(["push", tmp, path], timeout: 600) { _, status in
+            if stagedFile == nil { try? FileManager.default.removeItem(atPath: tmp) }
             let ok = status == 0
             self.send(conn, status: ok ? "201 Created" : "500 Internal Server Error", headers: [:], body: Data())
         }

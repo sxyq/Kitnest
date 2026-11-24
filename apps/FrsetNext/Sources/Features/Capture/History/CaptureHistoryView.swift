@@ -35,7 +35,11 @@ final class CaptureHistoryVM: ObservableObject {
     }
 
     func reload() {
-        items = CaptureHistoryStore.shared.items(query: query, mode: modeFilter)
+        // 2026-11-25（函数审查 NEEDS_FIX 落实）：改走异步查询，不再在主线程
+        // `queue.sync` 等缩略图生成所在串行队列（刚截完图会卡数百 ms）。
+        CaptureHistoryStore.shared.itemsAsync(query: query, mode: modeFilter) { [weak self] result in
+            self?.items = result
+        }
     }
 
     /// v130.2：点外部收起时重置搜索/过滤，下次打开是干净状态

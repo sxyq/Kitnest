@@ -30,14 +30,14 @@ App,App/FrsetNextApp.swift,AppDelegate,applicationShouldHandleReopen,func,193,KE
 App,App/FrsetNextApp.swift,AppDelegate,updateDockPresence,func,203,KEEP,applicationDidFinishLaunching 注册 NSWindow 键状态/关闭通知；函数统计可见标题窗后在 regular 与 accessory 策略间切换
 App,App/FrsetNextApp.swift,AppDelegate,application,func,220,KEEP,NSApplicationDelegate回调；文件URL与kitnest://深链分流，入站URL日志只保留scheme和host，不记录路径、参数或文件名
 App,App/FrsetNextApp.swift,InstanceLock,acquire,func,717,KEEP,2026-11-23：单实例锁唯一入口；先 flock(O_CLOEXEC)，失败再按「持有者非活实例/旧构建/心跳超 12s」三条判据接管，只回收放满 3s 的锁，杀不掉就无锁启动不自杀
-App,App/FrsetNextApp.swift,InstanceLock,startHeartbeat,func,762,KEEP,2026-11-23：acquire L… 抢到锁后启动；DispatchSource 2s 一次写 instance.heartbeat，纯后台队列不碰主线程
-App,App/FrsetNextApp.swift,InstanceLock,touchHeartbeat,func,771,KEEP,2026-11-23：startHeartbeat 的定时器回调写入 pid 心跳文件，供 heartbeatStale 判断卡死
-App,App/FrsetNextApp.swift,InstanceLock,heartbeatStale,func,776,KEEP,2026-11-23：acquire L… 接管判定用；心跳 mtime 超过 12s 即认为持有者卡死
-App,App/FrsetNextApp.swift,InstanceLock,isOutdatedBuild,func,783,KEEP,2026-11-23：acquire L… 接管判定用；锁文件 build= 构建戳与本进程不一致即旧实例
-App,App/FrsetNextApp.swift,InstanceLock,isLegitimateHolder,func,796,KEEP,2026-11-23：acquire L… 接管判定用；持有者 pid 不存在或是僵尸（SZOMB）都不算合法持有
-App,App/FrsetNextApp.swift,InstanceLock,isZombie,func,804,KEEP,"单实例检查过滤用；proc_pidinfo取pbi_status==SZOMB(5)判定僵尸，NSRunningApplication与kill(pid,0)都会把僵尸当成活进程"
-App,App/FrsetNextApp.swift,InstanceLock,tryAcquire,func,812,KEEP,2026-11-23：acquire L… 调用；open(O_CREAT|O_CLOEXEC)+flock 非阻塞抢锁，成功写入 pid 与 build 戳
-App,App/FrsetNextApp.swift,InstanceLock,readHolderPid,func,828,KEEP,2026-11-23：acquire L… 调用；解析锁文件首行 pid，供接管判据与日志使用
+App,App/FrsetNextApp.swift,InstanceLock,startHeartbeat,func,772,KEEP,2026-11-23：acquire L… 抢到锁后启动；DispatchSource 2s 一次写 instance.heartbeat，纯后台队列不碰主线程
+App,App/FrsetNextApp.swift,InstanceLock,touchHeartbeat,func,781,KEEP,2026-11-23：startHeartbeat 的定时器回调写入 pid 心跳文件，供 heartbeatStale 判断卡死
+App,App/FrsetNextApp.swift,InstanceLock,heartbeatStale,func,786,KEEP,2026-11-23：acquire L… 接管判定用；心跳 mtime 超过 12s 即认为持有者卡死
+App,App/FrsetNextApp.swift,InstanceLock,isOutdatedBuild,func,793,KEEP,2026-11-23：acquire L… 接管判定用；锁文件 build= 构建戳与本进程不一致即旧实例
+App,App/FrsetNextApp.swift,InstanceLock,isLegitimateHolder,func,806,KEEP,2026-11-23：acquire L… 接管判定用；持有者 pid 不存在或是僵尸（SZOMB）都不算合法持有
+App,App/FrsetNextApp.swift,InstanceLock,isZombie,func,814,KEEP,"单实例检查过滤用；proc_pidinfo取pbi_status==SZOMB(5)判定僵尸，NSRunningApplication与kill(pid,0)都会把僵尸当成活进程"
+App,App/FrsetNextApp.swift,InstanceLock,tryAcquire,func,822,KEEP,2026-11-23：acquire L… 调用；open(O_CREAT|O_CLOEXEC)+flock 非阻塞抢锁，成功写入 pid 与 build 戳
+App,App/FrsetNextApp.swift,InstanceLock,readHolderPid,func,838,KEEP,2026-11-23：acquire L… 调用；解析锁文件首行 pid，供接管判据与日志使用
 Core,Core/Motion/GenieMesh.swift,GenieRect,offsetBy,func,33,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；GenieWarp.swift:283-284 调用
 Core,Core/Motion/GenieMesh.swift,GenieMesh,localY,func,49,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；GenieWarp.swift:87,88 调用"
 Core,Core/Motion/GenieMesh.swift,GenieMesh,screenY,func,51,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；GenieWarp.swift:70,83,84 调用"
@@ -788,34 +788,34 @@ Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,copyE
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,revealSourceInFinder,func,977,KEEP,待补证据：新增函数，尚未逐个读源码填写
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,saveEncryptedCopy,func,982,KEEP,2026-11-17：解压菜单另存加密调用；现有弹窗读取目标名及非空密码；同目录目标交ArchiveCore.saveEncryptedCopy并显示结果；输入目标名的路径及格式约束待继续处理
 Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,captureSnapshots,func,1016,KEEP,2026-11-17：deleteSelected删除前唯一调用；展开选中目录下文件并按路径去重；只提取不超48MB项到独立临时目录；解压失败跳过；快照用于恢复原包内路径
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,captureAddeds,func,1048,KEEP,2026-11-17：performAddFiles成功后调用；原始源文件复制到独立frset-addsnap目录并保存目标相对路径；成功目录交引用型Snapshot持有；本批复制失败删除该次目录后沿原规则跳过
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,show,func,1076,KEEP,2026-11-17：App打开归档和深链及Finder与文件中转调用；标准绝对路径去重控制器；已开窗口前置否则创建；可按既有参数选条目或首项
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,mainWorkspace,func,1094,KEEP,待补证据：新增函数，尚未逐个读源码填写
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,saveForMiniSwitch,func,1104,KEEP,待补证据：新增函数，尚未逐个读源码填写
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,discardForMiniSwitch,func,1109,KEEP,待补证据：新增函数，尚未逐个读源码填写
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,selectEntry,func,1116,KEEP,2026-11-17：show接深链entry参数调用；延迟等待异步列表再按visibleEntries路径或名称单选并loadPreview；仅在当前可见层查找，嵌套路径不会自动导航
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,selectFirstEntry,func,1136,KEEP,2026-11-17：show接selectFirst调用；延迟取得可见首文件或首项并单选预览；同一控制器弱引用重试既有六次；空列表记录原日志
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,init,init,1154,KEEP,2026-11-17：show唯一构造路径；创建唯一模型及NSHostingController；关自动sizing后按860x560逻辑点设置窗口和最小尺寸；原统一外观及delegate后异步reload
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,init,init,1183,KEEP,2026-11-17：NSWindowController要求的coder初始化；项目仅按URL构造且无storyboard或nib创建该控制器；此required入口沿现有fatalError保留
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,windowShouldClose,func,1188,KEEP,2026-11-17：实际NSWindowDelegate关窗回调；无dirty允许；保存先异步saveDraft且仅成功及无新输入才关；不保存直接关；取消留窗
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,windowWillClose,func,1211,KEEP,2026-11-18：AppKit关闭回调；清本窗网页目录并从open移除；通知悬停服务本归档关闭及是否最后一窗
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,undo,func,1218,KEEP,2026-11-17：@objc暴露系统编辑菜单undo动作；只交模型原undoStack.undo；与工具栏使用同一栈和异步完成链
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,redo,func,1219,KEEP,2026-11-17：@objc暴露系统编辑菜单redo动作；只交模型原undoStack.redo；不另建NSUndoManager或第二份历史
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveColumnView,row,func,1663,KEEP,待补证据：新增函数，尚未逐个读源码填写
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ColumnScrollMemory,makeNSView,func,1738,KEEP,待补证据：新增函数，尚未逐个读源码填写
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ColumnScrollMemory,updateNSView,func,1745,KEEP,待补证据：新增函数，尚未逐个读源码填写
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ProbeView,viewDidMoveToWindow,func,1759,KEEP,待补证据：新增函数，尚未逐个读源码填写
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ProbeView,locateScrollView,func,1766,KEEP,待补证据：新增函数，尚未逐个读源码填写
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ProbeView,scrolled,func,1785,KEEP,待补证据：新增函数，尚未逐个读源码填写
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ProbeView,restoreOnce,func,1792,KEEP,待补证据：新增函数，尚未逐个读源码填写
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ProbeView,deinit,deinit,1808,KEEP,待补证据：新增函数，尚未逐个读源码填写
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveEntryTableRepresentable,makeNSView,func,1819,KEEP,2026-11-17：browserPane列表模式构造NSViewRepresentable；新ArchiveEntryTableHost持同一ObservedObject模型；表格及图标视图共用原选择状态
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveEntryTableRepresentable,updateNSView,func,1825,KEEP,2026-11-17：SwiftUI代表更新时向host及menuActions同步同一模型并syncFromModel；保留既有NSTableView实例
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,PDFViewRepresentable,makeNSView,func,1836,KEEP,2026-11-17：previewPane的PDF分支构造；启用自动缩放及单页连续显示并绑定已读取PDFDocument；不额外重复读磁盘
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,PDFViewRepresentable,updateNSView,func,1843,KEEP,2026-11-17：SwiftUI更新PDF正文时只在document实例变化后替换；原PDFView和用户滚动继续复用
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveInspectorBar,sizeText,func,1867,KEEP,2026-11-17：详情原始大小及压缩大小行调用；复用系统ByteCountFormatter文件口径；目录折叠仍由正文body控制
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveInspectorBar,row,func,1871,KEEP,2026-11-17：详情展开时名称路径大小方法和时间行调用；52pt标签列配单行截断值；按mono选择等宽字体；不执行IO
-Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveInspectorContent,init,init,1949,KEEP,待补证据：新增函数，尚未逐个读源码填写
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserModel,captureAddeds,func,1052,KEEP,2026-11-17：performAddFiles成功后调用；原始源文件复制到独立frset-addsnap目录并保存目标相对路径；成功目录交引用型Snapshot持有；本批复制失败删除该次目录后沿原规则跳过
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,show,func,1082,KEEP,2026-11-17：App打开归档和深链及Finder与文件中转调用；标准绝对路径去重控制器；已开窗口前置否则创建；可按既有参数选条目或首项
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,mainWorkspace,func,1100,KEEP,待补证据：新增函数，尚未逐个读源码填写
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,saveForMiniSwitch,func,1110,KEEP,待补证据：新增函数，尚未逐个读源码填写
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,discardForMiniSwitch,func,1115,KEEP,待补证据：新增函数，尚未逐个读源码填写
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,selectEntry,func,1122,KEEP,2026-11-17：show接深链entry参数调用；延迟等待异步列表再按visibleEntries路径或名称单选并loadPreview；仅在当前可见层查找，嵌套路径不会自动导航
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,selectFirstEntry,func,1142,KEEP,2026-11-17：show接selectFirst调用；延迟取得可见首文件或首项并单选预览；同一控制器弱引用重试既有六次；空列表记录原日志
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,init,init,1160,KEEP,2026-11-17：show唯一构造路径；创建唯一模型及NSHostingController；关自动sizing后按860x560逻辑点设置窗口和最小尺寸；原统一外观及delegate后异步reload
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,init,init,1189,KEEP,2026-11-17：NSWindowController要求的coder初始化；项目仅按URL构造且无storyboard或nib创建该控制器；此required入口沿现有fatalError保留
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,windowShouldClose,func,1194,KEEP,2026-11-17：实际NSWindowDelegate关窗回调；无dirty允许；保存先异步saveDraft且仅成功及无新输入才关；不保存直接关；取消留窗
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,windowWillClose,func,1217,KEEP,2026-11-18：AppKit关闭回调；清本窗网页目录并从open移除；通知悬停服务本归档关闭及是否最后一窗
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,undo,func,1224,KEEP,2026-11-17：@objc暴露系统编辑菜单undo动作；只交模型原undoStack.undo；与工具栏使用同一栈和异步完成链
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveBrowserWindowController,redo,func,1225,KEEP,2026-11-17：@objc暴露系统编辑菜单redo动作；只交模型原undoStack.redo；不另建NSUndoManager或第二份历史
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveColumnView,row,func,1669,KEEP,待补证据：新增函数，尚未逐个读源码填写
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ColumnScrollMemory,makeNSView,func,1744,KEEP,待补证据：新增函数，尚未逐个读源码填写
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ColumnScrollMemory,updateNSView,func,1751,KEEP,待补证据：新增函数，尚未逐个读源码填写
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ProbeView,viewDidMoveToWindow,func,1765,KEEP,待补证据：新增函数，尚未逐个读源码填写
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ProbeView,locateScrollView,func,1772,KEEP,待补证据：新增函数，尚未逐个读源码填写
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ProbeView,scrolled,func,1791,KEEP,待补证据：新增函数，尚未逐个读源码填写
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ProbeView,restoreOnce,func,1798,KEEP,待补证据：新增函数，尚未逐个读源码填写
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ProbeView,deinit,deinit,1814,KEEP,待补证据：新增函数，尚未逐个读源码填写
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveEntryTableRepresentable,makeNSView,func,1825,KEEP,2026-11-17：browserPane列表模式构造NSViewRepresentable；新ArchiveEntryTableHost持同一ObservedObject模型；表格及图标视图共用原选择状态
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveEntryTableRepresentable,updateNSView,func,1831,KEEP,2026-11-17：SwiftUI代表更新时向host及menuActions同步同一模型并syncFromModel；保留既有NSTableView实例
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,PDFViewRepresentable,makeNSView,func,1842,KEEP,2026-11-17：previewPane的PDF分支构造；启用自动缩放及单页连续显示并绑定已读取PDFDocument；不额外重复读磁盘
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,PDFViewRepresentable,updateNSView,func,1849,KEEP,2026-11-17：SwiftUI更新PDF正文时只在document实例变化后替换；原PDFView和用户滚动继续复用
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveInspectorBar,sizeText,func,1873,KEEP,2026-11-17：详情原始大小及压缩大小行调用；复用系统ByteCountFormatter文件口径；目录折叠仍由正文body控制
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveInspectorBar,row,func,1877,KEEP,2026-11-17：详情展开时名称路径大小方法和时间行调用；52pt标签列配单行截断值；按mono选择等宽字体；不执行IO
+Archive,Features/Archive/UI/ArchiveBrowserWindow.swift,ArchiveInspectorContent,init,init,1955,KEEP,待补证据：新增函数，尚未逐个读源码填写
 Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateModel,init,init,47,KEEP,2026-11-18：创建控制器唯一构造；保存不变源文件及父目录；Windows名称问题按源初始化一次；单源取干名多源取父目录名；套用首预设
 Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateModel,applyPreset,func,62,KEEP,2026-11-18：初始化与五个预设按钮调用；取presets格式及强度后统一syncOutputExtension；格式onChange再次同步须保持同一文件名
 Archive,Features/Archive/UI/ArchiveCreateSheet.swift,ArchiveCreateModel,syncOutputExtension,func,72,KEEP,2026-11-18：预设和格式变化及创建前调用；只替换zip或7z或完整tar.gz后缀；保留普通点号且重复同步不叠加tar；TAR.GZ关闭不支持的分卷
@@ -991,73 +991,73 @@ Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanva
 Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,applyShapeStyleToSelection,func,942,KEEP,2026-11-19：形状样式控件调用；属性变更统一经mutateSelectedShape写撤销项
 Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,applyShapeSizeToSelection,func,946,KEEP,2026-11-19：形状线宽控件调用；无选中形状则不改数据
 Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,mutateSelectedShape,func,950,KEEP,2026-11-19：样式/尺寸控件调用；仅实际值变化记录不可合并修改项并同步选中样式
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,textAnnotation,func,1000,KEEP,2026-11-19：文字工具点击与悬停调用；由顶层起始并按AnnotationCompositor.textBounds计算框的命中文字
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,textSelectionViewRect,func,1008,KEEP,2026-11-19：绘制、命中与弹层定位共用；图像文本框转视图坐标并扩6/5pt边距
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,handleRects,func,1018,KEEP,2026-11-19：draw绘选中框及handleHit命中调用；固定返回四角与四边中点八个可拖动区域
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,handleHit,func,1039,KEEP,2026-11-19：鼠标按下测试选中框控制点；在handle矩形外扩4pt后返回首个命中类型
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,selectText,func,1045,KEEP,2026-11-19：鼠标选择、换工具和删除路径调用；选中ID变化通知窗口更新工具栏并重绘，取消时关闭弹层
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,applyTextSizeToSelection,func,1053,KEEP,2026-11-19：工具条滑杆和拖控制点调用；通过统一文字变更记录撤销并同步弹层模型
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,applyColorToSelection,func,1058,KEEP,2026-11-19：窗口颜色回调与字体弹层回调共用；有选中形状改形状，否则改选中文字
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,applyWeightToSelection,func,1064,KEEP,2026-11-19：字体弹层字重回调调用；更新选中文字后同步撤销和模型
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,deleteSelectedText,func,1069,KEEP,2026-11-19：键盘Delete与字体弹层删除调用；按ID移除并保留原索引撤销，关闭弹层、清选中态
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,mutateSelectedText,func,1078,KEEP,2026-11-19：字号/颜色/字重共用；无效ID或相同值不记操作，变更记合并修改并同步工具条与打开弹层
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,showFontPopover,func,1100,KEEP,2026-11-19：点击/落字后调用；绑定弱引用画布回调，复用应用定义popover并按当前文字框定位
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,makeFontPopover,func,1119,KEEP,2026-11-19：showFontPopover首次构造调用；NSHostingController持有字体模型，applicationDefined避免拖控制点时popover吞事件
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,closeFontPopover,func,1131,KEEP,2026-11-19：换选中、点空白、换工具及编辑新字时调用；关闭当前popover但保留对象供复用
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,roundedRectPath,func,1138,KEEP,2026-11-19：输入框与边框尺寸刷新共用；CoreGraphics直接构造圆角路径，兼容部署macOS 13
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,beginTextEditing,func,1144,KEEP,2026-11-19：备注第二次点击、空白文字工具和探针调用；插入NSTextField与形状层，锚点保持像素坐标并把焦点交给字段
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,textWrapWidth,func,1203,KEEP,2026-11-19：输入框尺寸刷新与文字提交共用；按画布82%和锚点右侧余宽确定图像像素换行宽度
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,updateEditorBoxSize,func,1212,KEEP,2026-11-19：NSTextFieldDelegate逐字变化调用；测文本宽高后只更新必要框尺寸及控件布局，边框路径同步
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,displayFontSize,func,1260,KEEP,2026-11-19：输入框布局计算行高调用；直接返回字体pointSize供最小显示高度
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,textFieldSubmitted,func,1262,KEEP,2026-11-19：NSTextField target/action调用；确认提交交finishTextEditing
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,finishTextEditing,func,1267,KEEP,2026-11-19：回车、失焦、换工具及鼠标点画布调用；先拆输入控件释放临时引用并恢复焦点，空串或取消不产标注
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,record,func,1318,KEEP,2026-11-19：所有标注编辑入口调用；连续同ID修改合并为一项，新操作清空重做栈并刷新状态
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,undo,func,1334,KEEP,2026-11-19：工具栏及Command-Z调用；操作移入重做栈再逆向应用，空栈直接返回
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,redo,func,1342,KEEP,2026-11-19：工具栏及Shift-Command-Z调用；操作移回撤销栈再正向应用，空栈直接返回
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,apply,func,1350,KEEP,2026-11-19：undo/redo复用；按操作类型增删/改写标注或切换底图快照，移除缓存并同步当前选择
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,clear,func,1373,KEEP,2026-11-19：工具栏清空和长截图前调用；清标注、撤销/重做与选择状态，不替换底图
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,composite,func,1385,KEEP,2026-11-19：复制保存闭包调用；合成标注、可选圆角和仅导出水印，合成失败透nil
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,installDemoNewTools,func,1401,KEEP,2026-11-19：debugNewToolsDemo调用；按画布像素缩放预置示例标注并通知重绘，不写文件
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,scrollWheel,func,1437,KEEP,2026-11-19：AppKit滚轮派发；仅纵向主导且幅度足够时向窗口转尺寸增量，否则调用super
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,runAnnotateTextProbe,func,1450,KEEP,2026-11-19：probe.annotate深链开关打开时调用；定时填长文字、改字号并提交，闭包弱引用避免延迟任务持有画布
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,controlTextDidEndEditing,func,1473,KEEP,2026-11-19：输入控件delegate回调；失焦提交当前内容，空值由统一提交路径视作取消
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,controlTextDidChange,func,1478,KEEP,2026-11-19：输入控件delegate回调；每次文本变化调尺寸布局
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,control,func,1483,KEEP,2026-11-19：NSTextField命令路由；Esc取消、回车提交，其它命令交系统处理
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,ToolRailHost,init,init,1511,KEEP,2026-11-19：AnnotationEditorWindow构造创建工具栏宿主；加入子视图并以程序化初始化
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,ToolRailHost,init,init,1517,KEEP,2026-11-19：NSView归档构造未支持且fatalError；本视图仅由程序化init(host:)建造
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,ToolRailHost,resizeSubviews,func,1519,KEEP,2026-11-19：AppKit子视图尺寸变化回调；重新计算轨道贴左位置
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,ToolRailHost,placeRail,func,1529,KEEP,2026-11-19：构造和窗口尺寸变化调用；高度扣底栏后居中并限制窄画布高度
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,ToolRailHost,hitTest,func,1540,KEEP,2026-11-19：AppKit命中派发；标题区域和胶囊外预留气泡区域返回nil让点击穿透，胶囊内继续子视图命中
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,EditorContainerView,hitTest,func,1563,KEEP,2026-11-19：内容区AppKit命中派发；标题栏上方返回nil使系统红绿灯接收点击
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,NSWindow,titleBarHeightIfAny,func,1575,KEEP,2026-11-19：ToolRailHost与EditorContainerView调用；仅titled窗口返回frame与contentLayoutRect之差
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,init,init,1602,KEEP,2026-11-19：AnnotationEditorController.open(image:)真实构造；按图像宽高限初始画布，接线回调、画布和工具条后应用窗口外观
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,buildToolRail,func,1687,KEEP,2026-11-19：窗口init装配竖栏调用；SwiftUI视图通过弱引用闭包把工具选择交窗口
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,buildToolbar,func,1701,KEEP,2026-11-19：窗口init装配底部工具条调用；样式/操作事件桥接窗口和画布，SwiftUI宿主无窗口所有权
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,toolbarDidSelectTool,func,1737,KEEP,2026-11-19：竖栏onTool回调调用；拒绝越界索引后统一走selectTool并恢复画布第一响应者
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,toolbarDidChangeColor,func,1747,KEEP,2026-11-19：底栏颜色闭包调用；更新当前绘制色，且仅选中对象时同步标注属性
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,toolbarDidChangeSize,func,1756,KEEP,2026-11-19：底栏尺寸闭包调用；按选中形状或当前工具更新对象宽度/字号/笔刷并恢复焦点
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,toolbarDidChangeBlock,func,1775,KEEP,2026-11-19：马赛克块尺寸闭包调用；同步画布mosaicBlock后恢复焦点
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,adjustSize,func,1781,KEEP,2026-11-19：滚轮与方括号快捷键调用；更新模型步进值，再同步画布尺寸和重绘
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,refreshActions,func,1787,KEEP,2026-11-19：画布onChange及窗口构造调用；工具栏undo/redo可用态严格来自画布栈非空
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,refocusCanvas,func,1794,KEEP,2026-11-19：各工具条回调调用；仅第一响应者不是画布时夺回焦点以恢复键鼠交互
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,selectTool,func,1802,KEEP,2026-11-19：快捷键和工具栏统一调用；先提交未完成文本，更新工具索引并按类别同步画布宽度参数
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,undoTapped,func,1817,KEEP,2026-11-19：构造工具条onUndo闭包调用；转调画布撤销
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,redoTapped,func,1818,KEEP,2026-11-19：构造工具条onRedo闭包调用；转调画布重做
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,clearTapped,func,1819,KEEP,2026-11-19：构造工具条onClear闭包调用；转调画布清空
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,longScreenshotTapped,func,1822,KEEP,2026-11-19：底栏onLong闭包调用；确认存在标注后清空并关闭编辑器，再进入长截图选区
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,copyTapped,func,1829,KEEP,2026-11-19：底栏onCopy与Command-C调用；合成成功才经onCopy回调，失败不反馈
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,saveTapped,func,1834,KEEP,2026-11-19：底栏onSave与Command-S调用；合成成功才经onSave回调，失败不反馈
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,closeTapped,func,1839,KEEP,2026-11-19：底栏关闭闭包与Esc调用；复用performClose
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,handleKey,func,1843,KEEP,2026-11-19：画布onKey闭包调用；Command组合键及无修饰工具键集中分派，未知组合返回false
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorController,init,init,1893,KEEP,2026-11-19：shared唯一构造；控制器持有当前编辑窗口与原图路径，关闭回调清理
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorController,openLatest,func,1897,KEEP,2026-11-19：App快捷键与深链入口调用；无最近截图返回false，否则转已有url打开路径
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorController,open,func,1903,KEEP,2026-11-19：调用方传截图URL时转带空annotationState重载
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorController,open,func,1909,KEEP,2026-11-19：CaptureHistory继续标注调用；读图失败记录警告不开窗，成功后保存来源路径并恢复解码快照
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorController,debugCornerDemo,func,1924,KEEP,2026-11-19：CaptureModule探针入口调用；程序合成固定图、打开编辑器后异步导出圆角样本到/tmp
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorController,debugNewToolsDemo,func,1952,KEEP,2026-11-19：应用annotate?demo=1动态深链调用；合成多工具样图并延时写合成预览，延迟闭包弱持有控制器
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorController,debugRailProbe,func,1992,KEEP,2026-11-19：CaptureModule probe.annotationRail入口调用；延时查询视图树命中关系写探针文本文件
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorController,open,func,2033,KEEP,2026-11-19：ScreenshotManager、PinWindow、CaptureActionChain及深链入口调用；先关旧编辑器再清来源，配置复制/保存回调并聚焦新画布
-Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorController,windowWillClose,func,2073,KEEP,2026-11-19：NSWindowDelegate由窗口delegate派发；未保存且有关联原图时写入标注快照，随后清空窗口与路径状态
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,textAnnotation,func,1004,KEEP,2026-11-19：文字工具点击与悬停调用；由顶层起始并按AnnotationCompositor.textBounds计算框的命中文字
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,textSelectionViewRect,func,1012,KEEP,2026-11-19：绘制、命中与弹层定位共用；图像文本框转视图坐标并扩6/5pt边距
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,handleRects,func,1022,KEEP,2026-11-19：draw绘选中框及handleHit命中调用；固定返回四角与四边中点八个可拖动区域
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,handleHit,func,1043,KEEP,2026-11-19：鼠标按下测试选中框控制点；在handle矩形外扩4pt后返回首个命中类型
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,selectText,func,1049,KEEP,2026-11-19：鼠标选择、换工具和删除路径调用；选中ID变化通知窗口更新工具栏并重绘，取消时关闭弹层
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,applyTextSizeToSelection,func,1057,KEEP,2026-11-19：工具条滑杆和拖控制点调用；通过统一文字变更记录撤销并同步弹层模型
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,applyColorToSelection,func,1062,KEEP,2026-11-19：窗口颜色回调与字体弹层回调共用；有选中形状改形状，否则改选中文字
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,applyWeightToSelection,func,1068,KEEP,2026-11-19：字体弹层字重回调调用；更新选中文字后同步撤销和模型
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,deleteSelectedText,func,1073,KEEP,2026-11-19：键盘Delete与字体弹层删除调用；按ID移除并保留原索引撤销，关闭弹层、清选中态
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,mutateSelectedText,func,1082,KEEP,2026-11-19：字号/颜色/字重共用；无效ID或相同值不记操作，变更记合并修改并同步工具条与打开弹层
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,showFontPopover,func,1104,KEEP,2026-11-19：点击/落字后调用；绑定弱引用画布回调，复用应用定义popover并按当前文字框定位
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,makeFontPopover,func,1123,KEEP,2026-11-19：showFontPopover首次构造调用；NSHostingController持有字体模型，applicationDefined避免拖控制点时popover吞事件
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,closeFontPopover,func,1135,KEEP,2026-11-19：换选中、点空白、换工具及编辑新字时调用；关闭当前popover但保留对象供复用
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,roundedRectPath,func,1142,KEEP,2026-11-19：输入框与边框尺寸刷新共用；CoreGraphics直接构造圆角路径，兼容部署macOS 13
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,beginTextEditing,func,1148,KEEP,2026-11-19：备注第二次点击、空白文字工具和探针调用；插入NSTextField与形状层，锚点保持像素坐标并把焦点交给字段
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,textWrapWidth,func,1207,KEEP,2026-11-19：输入框尺寸刷新与文字提交共用；按画布82%和锚点右侧余宽确定图像像素换行宽度
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,updateEditorBoxSize,func,1216,KEEP,2026-11-19：NSTextFieldDelegate逐字变化调用；测文本宽高后只更新必要框尺寸及控件布局，边框路径同步
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,displayFontSize,func,1264,KEEP,2026-11-19：输入框布局计算行高调用；直接返回字体pointSize供最小显示高度
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,textFieldSubmitted,func,1266,KEEP,2026-11-19：NSTextField target/action调用；确认提交交finishTextEditing
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,finishTextEditing,func,1271,KEEP,2026-11-19：回车、失焦、换工具及鼠标点画布调用；先拆输入控件释放临时引用并恢复焦点，空串或取消不产标注
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,record,func,1322,KEEP,2026-11-19：所有标注编辑入口调用；连续同ID修改合并为一项，新操作清空重做栈并刷新状态
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,undo,func,1338,KEEP,2026-11-19：工具栏及Command-Z调用；操作移入重做栈再逆向应用，空栈直接返回
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,redo,func,1346,KEEP,2026-11-19：工具栏及Shift-Command-Z调用；操作移回撤销栈再正向应用，空栈直接返回
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,apply,func,1354,KEEP,2026-11-19：undo/redo复用；按操作类型增删/改写标注或切换底图快照，移除缓存并同步当前选择
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,clear,func,1377,KEEP,2026-11-19：工具栏清空和长截图前调用；清标注、撤销/重做与选择状态，不替换底图
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,composite,func,1389,KEEP,2026-11-19：复制保存闭包调用；合成标注、可选圆角和仅导出水印，合成失败透nil
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,installDemoNewTools,func,1405,KEEP,2026-11-19：debugNewToolsDemo调用；按画布像素缩放预置示例标注并通知重绘，不写文件
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,scrollWheel,func,1441,KEEP,2026-11-19：AppKit滚轮派发；仅纵向主导且幅度足够时向窗口转尺寸增量，否则调用super
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,runAnnotateTextProbe,func,1454,KEEP,2026-11-19：probe.annotate深链开关打开时调用；定时填长文字、改字号并提交，闭包弱引用避免延迟任务持有画布
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,controlTextDidEndEditing,func,1477,KEEP,2026-11-19：输入控件delegate回调；失焦提交当前内容，空值由统一提交路径视作取消
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,controlTextDidChange,func,1482,KEEP,2026-11-19：输入控件delegate回调；每次文本变化调尺寸布局
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,control,func,1487,KEEP,2026-11-19：NSTextField命令路由；Esc取消、回车提交，其它命令交系统处理
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,ToolRailHost,init,init,1515,KEEP,2026-11-19：AnnotationEditorWindow构造创建工具栏宿主；加入子视图并以程序化初始化
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,ToolRailHost,init,init,1521,KEEP,2026-11-19：NSView归档构造未支持且fatalError；本视图仅由程序化init(host:)建造
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,ToolRailHost,resizeSubviews,func,1523,KEEP,2026-11-19：AppKit子视图尺寸变化回调；重新计算轨道贴左位置
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,ToolRailHost,placeRail,func,1533,KEEP,2026-11-19：构造和窗口尺寸变化调用；高度扣底栏后居中并限制窄画布高度
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,ToolRailHost,hitTest,func,1544,KEEP,2026-11-19：AppKit命中派发；标题区域和胶囊外预留气泡区域返回nil让点击穿透，胶囊内继续子视图命中
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,EditorContainerView,hitTest,func,1567,KEEP,2026-11-19：内容区AppKit命中派发；标题栏上方返回nil使系统红绿灯接收点击
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,NSWindow,titleBarHeightIfAny,func,1579,KEEP,2026-11-19：ToolRailHost与EditorContainerView调用；仅titled窗口返回frame与contentLayoutRect之差
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,init,init,1606,KEEP,2026-11-19：AnnotationEditorController.open(image:)真实构造；按图像宽高限初始画布，接线回调、画布和工具条后应用窗口外观
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,buildToolRail,func,1691,KEEP,2026-11-19：窗口init装配竖栏调用；SwiftUI视图通过弱引用闭包把工具选择交窗口
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,buildToolbar,func,1705,KEEP,2026-11-19：窗口init装配底部工具条调用；样式/操作事件桥接窗口和画布，SwiftUI宿主无窗口所有权
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,toolbarDidSelectTool,func,1741,KEEP,2026-11-19：竖栏onTool回调调用；拒绝越界索引后统一走selectTool并恢复画布第一响应者
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,toolbarDidChangeColor,func,1751,KEEP,2026-11-19：底栏颜色闭包调用；更新当前绘制色，且仅选中对象时同步标注属性
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,toolbarDidChangeSize,func,1760,KEEP,2026-11-19：底栏尺寸闭包调用；按选中形状或当前工具更新对象宽度/字号/笔刷并恢复焦点
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,toolbarDidChangeBlock,func,1779,KEEP,2026-11-19：马赛克块尺寸闭包调用；同步画布mosaicBlock后恢复焦点
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,adjustSize,func,1785,KEEP,2026-11-19：滚轮与方括号快捷键调用；更新模型步进值，再同步画布尺寸和重绘
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,refreshActions,func,1791,KEEP,2026-11-19：画布onChange及窗口构造调用；工具栏undo/redo可用态严格来自画布栈非空
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,refocusCanvas,func,1798,KEEP,2026-11-19：各工具条回调调用；仅第一响应者不是画布时夺回焦点以恢复键鼠交互
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,selectTool,func,1806,KEEP,2026-11-19：快捷键和工具栏统一调用；先提交未完成文本，更新工具索引并按类别同步画布宽度参数
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,undoTapped,func,1821,KEEP,2026-11-19：构造工具条onUndo闭包调用；转调画布撤销
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,redoTapped,func,1822,KEEP,2026-11-19：构造工具条onRedo闭包调用；转调画布重做
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,clearTapped,func,1823,KEEP,2026-11-19：构造工具条onClear闭包调用；转调画布清空
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,longScreenshotTapped,func,1826,KEEP,2026-11-19：底栏onLong闭包调用；确认存在标注后清空并关闭编辑器，再进入长截图选区
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,copyTapped,func,1833,KEEP,2026-11-19：底栏onCopy与Command-C调用；合成成功才经onCopy回调，失败不反馈
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,saveTapped,func,1838,KEEP,2026-11-19：底栏onSave与Command-S调用；合成成功才经onSave回调，失败不反馈
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,closeTapped,func,1843,KEEP,2026-11-19：底栏关闭闭包与Esc调用；复用performClose
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorWindow,handleKey,func,1847,KEEP,2026-11-19：画布onKey闭包调用；Command组合键及无修饰工具键集中分派，未知组合返回false
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorController,init,init,1897,KEEP,2026-11-19：shared唯一构造；控制器持有当前编辑窗口与原图路径，关闭回调清理
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorController,openLatest,func,1901,KEEP,2026-11-19：App快捷键与深链入口调用；无最近截图返回false，否则转已有url打开路径
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorController,open,func,1907,KEEP,2026-11-19：调用方传截图URL时转带空annotationState重载
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorController,open,func,1913,KEEP,2026-11-19：CaptureHistory继续标注调用；读图失败记录警告不开窗，成功后保存来源路径并恢复解码快照
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorController,debugCornerDemo,func,1928,KEEP,2026-11-19：CaptureModule探针入口调用；程序合成固定图、打开编辑器后异步导出圆角样本到/tmp
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorController,debugNewToolsDemo,func,1956,KEEP,2026-11-19：应用annotate?demo=1动态深链调用；合成多工具样图并延时写合成预览，延迟闭包弱持有控制器
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorController,debugRailProbe,func,1996,KEEP,2026-11-19：CaptureModule probe.annotationRail入口调用；延时查询视图树命中关系写探针文本文件
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorController,open,func,2037,KEEP,2026-11-19：ScreenshotManager、PinWindow、CaptureActionChain及深链入口调用；先关旧编辑器再清来源，配置复制/保存回调并聚焦新画布
+Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationEditorController,windowWillClose,func,2077,KEEP,2026-11-19：NSWindowDelegate由窗口delegate派发；未保存且有关联原图时写入标注快照，随后清空窗口与路径状态
 Capture,Features/Capture/Annotation/AnnotationSelfTest.swift,AnnotationSelfTest,run,func,32,KEEP,调用方 FrsetNextApp.swift:291 annotest 深链
 Capture,Features/Capture/Annotation/AnnotationSelfTest.swift,AnnotationSelfTest,sample,func,66,KEEP,本文件 :40 逐工具取样例
 Capture,Features/Capture/Annotation/AnnotationSelfTest.swift,AnnotationSelfTest,makeBase,func,161,KEEP,本文件 :33 造底图
@@ -1226,70 +1226,74 @@ Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,mouseDown,f
 Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,mouseDragged,func,517,KEEP,2026-11-19：⌘ 拖动按屏幕坐标增量缩放；否则卡片超过 4pt 拖出成文件
 Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,mouseUp,func,532,KEEP,2026-11-19：⌘ 缩放结束回调；普通点击复制图片；画布空白处只结束缩放
 Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,scrollWheel,func,547,KEEP,2026-11-19：⌘ + 滚轮缩放图帘；非 ⌘ 交给系统
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,copyToPasteboard,func,559,KEEP,2026-11-19：卡片复制先交给宿主 onCopy 回调；正式图帘无回调时读取 PNG，同时写入图片数据及文件 URL
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,beginDrag,func,579,KEEP,2026-11-19：卡片拖出先交给宿主 onDrag 回调；正式图帘无回调时以文件 URL 和卡片快照开始复制拖放
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,snapshot,func,587,KEEP,2026-11-19：拖拽缩略图：优先用已解码 CGImage，避免再读原图
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,menu,func,597,KEEP,2026-11-19：右键菜单：复制/保存/在 Finder 显示/钉住/放大缩小图帘/移除
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,zoomIn,func,614,KEEP,2026-11-19：右键放大 40pt（走与 ⌘ 拖动同一条 resizeStep/resizeEnd）
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,zoomOut,func,619,KEEP,2026-11-19：右键缩小 40pt（同 resizeStep/resizeEnd）
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,copyFromMenu,func,624,KEEP,2026-11-19：右键「复制图片」→ copyToPasteboard
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,revealInFinder,func,626,KEEP,2026-11-19：有 onReveal 回调时只反馈预览定位动作；正式卡片使用 NSWorkspace 在 Finder 选中文件
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,draggingSession,func,635,KEEP,2026-11-19：拖出操作固定 .copy，不移动原文件
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,draw,func,676,KEEP,2026-11-19：绘制入口：卡片（倾斜+缩略图+描边+夹子）与帘线（四样式+绳结）；缩放中卡片低插值
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,ropePath,func,731,KEEP,2026-11-19：帘线三次贝塞尔路径，两端留绳结位；inset 随 scale
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,drawKnots,func,744,KEEP,2026-11-19：两端绳结（实心圆 + 暗描边），半径/描边随 scale
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,clearShadow,func,759,KEEP,2026-11-19：清掉 CG 阴影，避免细芯/装饰重复投影
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,stroke,func,763,KEEP,2026-11-19：圆头描边封装（宽度/灰度/透明度）
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,dashed,func,772,KEEP,2026-11-19：圆头虚线描边封装（拐杖糖红条纹）
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,drawLights,func,787,KEEP,2026-11-19：圣诞彩灯：沿帘线等距、四色循环、低透明外圈当光晕
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,drawSnow,func,811,KEEP,2026-11-19：积雪：确定性伪随机球径 1.3–3.2pt，间距 6.5pt，随 scale
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,samplePoints,func,823,KEEP,2026-11-19：按 x 均匀取样再用贝塞尔求 y，间距随 scale
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainLayout,metrics,func,845,KEEP,2026-11-19：正式 ImageCurtainController.layoutMetrics 与 CurtainPreviewScene.render 共用：两轮按可见宽度和卡片数反算卡宽，帘线缩放夹在 0.8…3，并扣除绳高与底边求卡片高度上限
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,init,init,885,KEEP,2026-11-19：图帘各类型初始化：帘线几何 / 卡片（夹子+三按钮）/ 画布 / 面板（非激活浮窗）
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,init,init,892,KEEP,2026-11-19：图帘各类型初始化：帘线几何 / 卡片（夹子+三按钮）/ 画布 / 面板（非激活浮窗）
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,stopAnimations,func,894,KEEP,2026-11-19：为全部画布卡片设置reduceMotion并移除图层动画，供预览收起、禁用及卸载停止摆动，保留卡片内容和视图
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,reload,func,906,KEEP,2026-11-19：重建卡片视图并排版；animate=false 用于缩放后的高质量重绘
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,updateLayout,func,925,KEEP,2026-11-19：⌘ 缩放专用：卡片数与 id 不变时只改尺寸/位置，不 remove/add 子视图
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,layoutCards,func,940,KEEP,2026-11-19：按item.cardSize累计卡片真实宽度并居中定位，创建新卡时传播Canvas.animatesIdleSway，原卡仅更新尺寸和辅助功能；新卡显式落入受减少动态控制，其余摆动交startSway统一判断
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,mouseDown,func,1014,KEEP,2026-11-19：卡片/画布按下：⌘ 进入缩放并记屏幕坐标；普通按下记录起点供拖出/点击判定
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,mouseDragged,func,1023,KEEP,2026-11-19：⌘ 拖动按屏幕坐标增量缩放；否则卡片超过 4pt 拖出成文件
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,mouseUp,func,1034,KEEP,2026-11-19：⌘ 缩放结束回调；普通点击复制图片；画布空白处只结束缩放
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,scrollWheel,func,1044,KEEP,2026-11-19：⌘ + 滚轮缩放图帘；非 ⌘ 交给系统
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,animateDrop,func,1061,KEEP,2026-11-19：新增卡片播放位移、淡入及绕顶部衰减回弹；完成后调用startSway，由animatesIdleSway决定是否接常驻摆动，预览false仍保留显式落入效果
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,topPivot,func,1104,KEEP,2026-11-19：把 CA 旋转中心从图层中心挪到顶部中心
-Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainPanel,init,init,1117,KEEP,2026-11-19：图帘各类型初始化：帘线几何 / 卡片（夹子+三按钮）/ 画布 / 面板（非激活浮窗）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,scheduleScrollResizeEnd,func,563,KEEP,⌘滚轮缩放收尾去抖（350ms）：旧实现每 tick 都 resizeEnd → 写 UserDefaults+rebuild+Toast+缩略图重扫；拖拽路径的 mouseUp end 不经过这里。CurtainCardView / CurtainCanvasView 两个视图各持一份
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,copyToPasteboard,func,571,KEEP,2026-11-19：卡片复制先交给宿主 onCopy 回调；正式图帘无回调时读取 PNG，同时写入图片数据及文件 URL
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,beginDrag,func,591,KEEP,2026-11-19：卡片拖出先交给宿主 onDrag 回调；正式图帘无回调时以文件 URL 和卡片快照开始复制拖放
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,snapshot,func,599,KEEP,2026-11-19：拖拽缩略图：优先用已解码 CGImage，避免再读原图
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,menu,func,609,KEEP,2026-11-19：右键菜单：复制/保存/在 Finder 显示/钉住/放大缩小图帘/移除
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,zoomIn,func,626,KEEP,2026-11-19：右键放大 40pt（走与 ⌘ 拖动同一条 resizeStep/resizeEnd）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,zoomOut,func,631,KEEP,2026-11-19：右键缩小 40pt（同 resizeStep/resizeEnd）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,copyFromMenu,func,636,KEEP,2026-11-19：右键「复制图片」→ copyToPasteboard
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,revealInFinder,func,638,KEEP,2026-11-19：有 onReveal 回调时只反馈预览定位动作；正式卡片使用 NSWorkspace 在 Finder 选中文件
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCardView,draggingSession,func,647,KEEP,2026-11-19：拖出操作固定 .copy，不移动原文件
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,draw,func,688,KEEP,2026-11-19：绘制入口：卡片（倾斜+缩略图+描边+夹子）与帘线（四样式+绳结）；缩放中卡片低插值
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,ropePath,func,743,KEEP,2026-11-19：帘线三次贝塞尔路径，两端留绳结位；inset 随 scale
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,drawKnots,func,756,KEEP,2026-11-19：两端绳结（实心圆 + 暗描边），半径/描边随 scale
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,clearShadow,func,771,KEEP,2026-11-19：清掉 CG 阴影，避免细芯/装饰重复投影
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,stroke,func,775,KEEP,2026-11-19：圆头描边封装（宽度/灰度/透明度）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,dashed,func,784,KEEP,2026-11-19：圆头虚线描边封装（拐杖糖红条纹）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,drawLights,func,799,KEEP,2026-11-19：圣诞彩灯：沿帘线等距、四色循环、低透明外圈当光晕
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,drawSnow,func,823,KEEP,2026-11-19：积雪：确定性伪随机球径 1.3–3.2pt，间距 6.5pt，随 scale
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainRopeView,samplePoints,func,835,KEEP,2026-11-19：按 x 均匀取样再用贝塞尔求 y，间距随 scale
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainLayout,metrics,func,857,KEEP,2026-11-19：正式 ImageCurtainController.layoutMetrics 与 CurtainPreviewScene.render 共用：两轮按可见宽度和卡片数反算卡宽，帘线缩放夹在 0.8…3，并扣除绳高与底边求卡片高度上限
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,init,init,897,KEEP,2026-11-19：图帘各类型初始化：帘线几何 / 卡片（夹子+三按钮）/ 画布 / 面板（非激活浮窗）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,init,init,904,KEEP,2026-11-19：图帘各类型初始化：帘线几何 / 卡片（夹子+三按钮）/ 画布 / 面板（非激活浮窗）
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,stopAnimations,func,906,KEEP,2026-11-19：为全部画布卡片设置reduceMotion并移除图层动画，供预览收起、禁用及卸载停止摆动，保留卡片内容和视图
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,reload,func,918,KEEP,2026-11-19：重建卡片视图并排版；animate=false 用于缩放后的高质量重绘
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,updateLayout,func,937,KEEP,2026-11-19：⌘ 缩放专用：卡片数与 id 不变时只改尺寸/位置，不 remove/add 子视图
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,layoutCards,func,952,KEEP,2026-11-19：按item.cardSize累计卡片真实宽度并居中定位，创建新卡时传播Canvas.animatesIdleSway，原卡仅更新尺寸和辅助功能；新卡显式落入受减少动态控制，其余摆动交startSway统一判断
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,mouseDown,func,1026,KEEP,2026-11-19：卡片/画布按下：⌘ 进入缩放并记屏幕坐标；普通按下记录起点供拖出/点击判定
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,mouseDragged,func,1035,KEEP,2026-11-19：⌘ 拖动按屏幕坐标增量缩放；否则卡片超过 4pt 拖出成文件
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,mouseUp,func,1046,KEEP,2026-11-19：⌘ 缩放结束回调；普通点击复制图片；画布空白处只结束缩放
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,scrollWheel,func,1056,KEEP,2026-11-19：⌘ + 滚轮缩放图帘；非 ⌘ 交给系统
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,scheduleScrollResizeEnd,func,1070,KEEP,⌘滚轮缩放收尾去抖（350ms）：旧实现每 tick 都 resizeEnd → 写 UserDefaults+rebuild+Toast+缩略图重扫；拖拽路径的 mouseUp end 不经过这里。CurtainCardView / CurtainCanvasView 两个视图各持一份
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,animateDrop,func,1083,KEEP,2026-11-19：新增卡片播放位移、淡入及绕顶部衰减回弹；完成后调用startSway，由animatesIdleSway决定是否接常驻摆动，预览false仍保留显式落入效果
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainCanvasView,topPivot,func,1126,KEEP,2026-11-19：把 CA 旋转中心从图层中心挪到顶部中心
+Capture,Features/Capture/Curtain/CurtainWindow.swift,CurtainPanel,init,init,1139,KEEP,2026-11-19：图帘各类型初始化：帘线几何 / 卡片（夹子+三按钮）/ 画布 / 面板（非激活浮窗）
 Capture,Features/Capture/History/CaptureHistoryStore.swift,AnnotationStateSnapshot,encode,func,52,KEEP,2026-11-19：AnnotationEditorWindow关窗未保存状态调用；将Annotation字段转扁平点数组并编码JSON，失败返回空串
 Capture,Features/Capture/History/CaptureHistoryStore.swift,AnnotationStateSnapshot,decode,func,66,KEEP,2026-11-19：AnnotationEditorWindow历史继续标注调用；JSON解码后过滤未知工具，按成对坐标恢复Annotation，坏快照返回nil
 Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,init,init,102,KEEP,2026-11-19：shared单例初始化；独立SQLite路径建表/索引，打开失败沿SQLiteDatabase.fallback继续并记录错误
 Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,record,func,132,KEEP,2026-11-19：ScreenshotManager截图落盘与长截图保存调用；串行队列读尺寸、写缩略图和记录，随后500条淘汰并主线程通知
 Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,updateOCR,func,151,KEEP,2026-11-19：ScreenshotManager OCR完成回填调用；串行按同路径最近记录写非空文本并通知
 Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,updateAnnotationState,func,163,KEEP,2026-11-19：AnnotationEditorWindow关闭回调调用；串行按路径最近记录写非空快照，不主动通知历史窗
-Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,items,func,176,KEEP,2026-11-19：CaptureHistoryVM.reload调用；串行按模式、OCR/路径/模式/本地日期模糊检索并按时间倒序限量映射条目
-Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,delete,func,199,KEEP,2026-11-19：HistoryVM右键删除调用；先取并删除缩略图，再删记录并通知，原截图文件不触碰
-Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,pruneLocked,func,218,KEEP,2026-11-19：record完成后同队列调用；超过500条按最旧顺序删记录与缩略图，再清孤儿缩略图
-Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,cleanOrphanThumbnails,func,238,KEEP,2026-11-19：pruneLocked调用；列capture-history目录中thumb-文件，与数据库引用集合比较后删孤儿
-Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,item,func,253,KEEP,2026-11-19：items查询映射调用；从SQLite行读取9列并构造CaptureHistoryItem，历史旧证据所称item(id:)并不存在
-Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,pixelSize,func,267,KEEP,2026-11-19：record后台调用；CGImageSource只读首帧属性拿像素宽高，不解码整图，失败返回0×0
-Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,makeThumbnail,func,276,KEEP,2026-11-19：record后台调用；ImageProcessor读图、按240最长边缩放、PNG写独立thumb-ID文件，失败返回空路径
-Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,notifyChange,func,289,KEEP,2026-11-19：record/updateOCR/delete调用；主线程发布didChange通知供HistoryVM.reload
+Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,items,func,181,KEEP,2026-11-19：CaptureHistoryVM.reload调用；串行按模式、OCR/路径/模式/本地日期模糊检索并按时间倒序限量映射条目
+Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,itemsAsync,func,186,KEEP,历史查询异步入口：同一串行队列查询、结果回主线程（串行队列保证完成顺序与调用顺序）；主线程不再 queue.sync 等缩略图生成所在队列
+Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,itemsLocked,func,196,KEEP,必须在 queue 上调用的查询体（同步版 items 与异步版 itemsAsync 共用），逻辑与原实现一致
+Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,delete,func,216,KEEP,2026-11-19：HistoryVM右键删除调用；先取并删除缩略图，再删记录并通知，原截图文件不触碰
+Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,pruneLocked,func,235,KEEP,2026-11-19：record完成后同队列调用；超过500条按最旧顺序删记录与缩略图，再清孤儿缩略图
+Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,cleanOrphanThumbnails,func,255,KEEP,2026-11-19：pruneLocked调用；列capture-history目录中thumb-文件，与数据库引用集合比较后删孤儿
+Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,item,func,270,KEEP,2026-11-19：items查询映射调用；从SQLite行读取9列并构造CaptureHistoryItem，历史旧证据所称item(id:)并不存在
+Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,pixelSize,func,284,KEEP,2026-11-19：record后台调用；CGImageSource只读首帧属性拿像素宽高，不解码整图，失败返回0×0
+Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,makeThumbnail,func,293,KEEP,2026-11-19：record后台调用；ImageProcessor读图、按240最长边缩放、PNG写独立thumb-ID文件，失败返回空路径
+Capture,Features/Capture/History/CaptureHistoryStore.swift,CaptureHistoryStore,notifyChange,func,306,KEEP,2026-11-19：record/updateOCR/delete调用；主线程发布didChange通知供HistoryVM.reload
 Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryVM,init,init,30,KEEP,2026-11-19：CaptureHistoryView默认参数与WindowController共享VM构造；立即reload并订阅历史变化通知
 Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryVM,reload,func,37,KEEP,2026-11-19：init、onAppear、搜索提交、模式变化、刷新按钮及通知调用；同步读取CaptureHistoryStore结果赋items
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryVM,clearOnDismiss,func,42,KEEP,2026-11-19：HistoryWindowController.dismiss调用；清搜索、模式和列表内存状态
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryVM,delete,func,48,KEEP,2026-11-19：单元格删除菜单调用；异步交store删除并立即移除本地同ID项
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryVM,continueAnnotate,func,54,KEEP,2026-11-19：单元格双击/菜单调用；把历史URL与annotation_state交标注控制器恢复
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryVM,copy,func,58,KEEP,2026-11-19：单元格复制菜单调用；读原图转CGImage，复用ScreenshotManager剪贴板链，失败给Toast
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryVM,revealInFinder,func,67,KEEP,2026-11-19：单元格Finder菜单调用；存在时激活Finder选中文件，不存在只提示
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryView,init,init,82,KEEP,2026-11-19：HistoryWindowController装配NSHostingView调用；默认构造CaptureHistoryVM并以ObservedObject注入
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryView,cell,func,164,KEEP,2026-11-19：body对items逐项调用；展示缓存缩略、模式/尺寸/时间/OCR，并接双击继续标注及右键操作
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryView,modeTitle,func,218,KEEP,2026-11-19：cell展示模式调用；优先CaptureMode枚举标题，未知空值回截图或原始标签
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryThumbnail,loadThumbnail,func,249,KEEP,CaptureHistoryThumbnail.task调用；后台ImageIO读取并生成最长边240像素图像，任务完成且未取消时在原单元格状态中显示，缺图沿占位图呈现
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryWindowController,init,init,280,KEEP,2026-11-19：shared唯一构造；保留窗口、VM及global/local两类外点监听引用
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryWindowController,show,func,283,KEEP,2026-11-19：历史按钮及CaptureDeepLink调用；已有窗口前置刷新并重装监听，否则构造620×420窗口、装Chrome并激活
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryWindowController,installOutsideMonitors,func,310,KEEP,2026-11-19：show调用；global监听其他App鼠标，local监听本App外点和Esc，回调统一dismiss
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryWindowController,removeOutsideMonitors,func,332,KEEP,2026-11-19：show/dismiss/windowWillClose共用；移除两类NSEvent monitor并清引用
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryWindowController,dismiss,func,340,KEEP,2026-11-19：外点/Esc回调调用；移除监听、orderOut并清窗口引用和搜索状态
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryWindowController,windowWillClose,func,347,KEEP,2026-11-19：NSWindowDelegate关闭回调；仅本窗口关闭时移监听并清控制器引用
-Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureDeepLink,handle,func,361,KEEP,2026-11-19：FrsetNextApp URL分流调用；消费frsetnext/kitnest capture主机的history/region/window/delayed/probe/ocr动作，未知回历史窗
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryVM,clearOnDismiss,func,46,KEEP,2026-11-19：HistoryWindowController.dismiss调用；清搜索、模式和列表内存状态
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryVM,delete,func,52,KEEP,2026-11-19：单元格删除菜单调用；异步交store删除并立即移除本地同ID项
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryVM,continueAnnotate,func,58,KEEP,2026-11-19：单元格双击/菜单调用；把历史URL与annotation_state交标注控制器恢复
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryVM,copy,func,62,KEEP,2026-11-19：单元格复制菜单调用；读原图转CGImage，复用ScreenshotManager剪贴板链，失败给Toast
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryVM,revealInFinder,func,71,KEEP,2026-11-19：单元格Finder菜单调用；存在时激活Finder选中文件，不存在只提示
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryView,init,init,86,KEEP,2026-11-19：HistoryWindowController装配NSHostingView调用；默认构造CaptureHistoryVM并以ObservedObject注入
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryView,cell,func,168,KEEP,2026-11-19：body对items逐项调用；展示缓存缩略、模式/尺寸/时间/OCR，并接双击继续标注及右键操作
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryView,modeTitle,func,222,KEEP,2026-11-19：cell展示模式调用；优先CaptureMode枚举标题，未知空值回截图或原始标签
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryThumbnail,loadThumbnail,func,253,KEEP,CaptureHistoryThumbnail.task调用；后台ImageIO读取并生成最长边240像素图像，任务完成且未取消时在原单元格状态中显示，缺图沿占位图呈现
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryWindowController,init,init,284,KEEP,2026-11-19：shared唯一构造；保留窗口、VM及global/local两类外点监听引用
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryWindowController,show,func,287,KEEP,2026-11-19：历史按钮及CaptureDeepLink调用；已有窗口前置刷新并重装监听，否则构造620×420窗口、装Chrome并激活
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryWindowController,installOutsideMonitors,func,314,KEEP,2026-11-19：show调用；global监听其他App鼠标，local监听本App外点和Esc，回调统一dismiss
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryWindowController,removeOutsideMonitors,func,336,KEEP,2026-11-19：show/dismiss/windowWillClose共用；移除两类NSEvent monitor并清引用
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryWindowController,dismiss,func,344,KEEP,2026-11-19：外点/Esc回调调用；移除监听、orderOut并清窗口引用和搜索状态
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureHistoryWindowController,windowWillClose,func,351,KEEP,2026-11-19：NSWindowDelegate关闭回调；仅本窗口关闭时移监听并清控制器引用
+Capture,Features/Capture/History/CaptureHistoryView.swift,CaptureDeepLink,handle,func,365,KEEP,2026-11-19：FrsetNextApp URL分流调用；消费frsetnext/kitnest capture主机的history/region/window/delayed/probe/ocr动作，未知回历史窗
 Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCaptureStream,start,func,25,KEEP,2026-11-19：startSession建立会话后调用；先stop旧监视器，再注册全局滚轮、Esc与本地Return/Esc监视器，回调弱持有session
 Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCaptureStream,stop,func,62,KEEP,2026-11-19：start重入及Coordinator收尾调用；移除三类NSEvent监视器并清空session引用
 Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,LongScreenshotCaptureStream,deinit,deinit,72,KEEP,2026-11-19：stream为Coordinator单例属性；ARC析构时再移除监视器
@@ -1608,56 +1612,56 @@ Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,layoutC
 Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,showChrome,func,846,KEEP,":891,894,920,1027 调用"
 Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,hideChrome,func,865,KEEP,":779,902,1302,1307 调用"
 Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,scheduleChromeHide,func,882,KEEP,":747,773,982 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,repositionHUD,func,902,KEEP,":705,794 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,showHUD,func,908,KEEP,":880,883,1026,1071 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,makeCursor,func,923,KEEP,:805-806 静态属性初始化调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,updateCursor,func,936,KEEP,PinWindow.swift:893 调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,hitZone,func,946,KEEP,":822,913 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,keyDown,func,967,KEEP,NSView 覆写，键盘事件派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,mouseEntered,func,1006,KEEP,NSView 覆写，进入即显示控制条
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,mouseMoved,func,1007,KEEP,NSView 覆写，moved 事件派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,mouseExited,func,1011,KEEP,NSView 覆写，离开收控制条
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,mouseDown,func,1021,KEEP,NSView 覆写，拖动/双击复位
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,beginWindowDrag,func,1032,KEEP,":604 闭包, :912 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,mouseDragged,func,1038,KEEP,NSView 覆写，拖动事件派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,continueWindowDrag,func,1043,KEEP,":605 闭包, :925 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,mouseUp,func,1093,KEEP,NSView 覆写，结束拖动
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,magnetSnapped,func,1101,KEEP,PinWindow.swift:942 调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,scrollWheel,func,1109,KEEP,NSView 覆写，滚轮缩放派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,magnify,func,1110,KEEP,NSView 覆写，捏合缩放派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,zoomCore,func,1112,KEEP,":1009,1010 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,applyZoom,func,1130,KEEP,":879,882,1025 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,setScale,func,1150,KEEP,":603,877,909,1196 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,rotate,func,1176,KEEP,"PinWindow.swift:1198,1200 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,showBubble,func,1196,KEEP,":610,621,1269,1273 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,anchorInScreen,func,1206,KEEP,PinWindow.swift:1115 调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,showMoreMenuFromToolbar,func,1211,KEEP,":602 闭包, :875 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,rightMouseDown,func,1218,KEEP,NSView 覆写，右键弹更多菜单
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,menuEntries,func,1226,KEEP,":1114,1122 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,handleMenuPick,func,1293,KEEP,PinWindow.swift:628 menuPanel.onPick
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,resetOrientation,func,1348,KEEP,PinWindow.swift:1208 调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,probe,func,1366,KEEP,:1470 调用 ← probeLast ← 深链
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,flattenedImage,func,1385,KEEP,":1303,1308 调用"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,flattened,func,1389,KEEP,flattenedImage和复制任务共用；只读传入图像与旋转翻转快照，生成最终像素图，复制任务可在后台执行
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,annotateClicked,func,1412,KEEP,:600 闭包 + :867 键位
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,copyClicked,func,1417,KEEP,:601 闭包 + :872 键位
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,closeClicked,func,1434,KEEP,":616 闭包, :856 Esc, :1224 菜单"
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotWindow,init,init,1446,KEEP,PinAppearance.init建立单图外观值；PinImageView.init接收图像/尺寸/外观并一次取样描边色，正式PinnedScreenshotContentView继承它并挂控制条和鼠标追踪，预览使用同一图像基类
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotWindow,initialSize,func,1480,KEEP,PinWindow.swift:1330 调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotWindow,becomeKey,func,1493,KEEP,NSWindow 覆写，成为 key 时派发
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotWindow,constrainFrameRect,func,1499,KEEP,NSWindow 覆写（仅调 super，无附加逻辑）
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,init,init,1518,KEEP,PinAppearance.init建立单图外观值；PinImageView.init接收图像/尺寸/外观并一次取样描边色，正式PinnedScreenshotContentView继承它并挂控制条和鼠标追踪，预览使用同一图像基类
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,deinit,deinit,1545,KEEP,运行时析构钩子（单例常驻实际不触发）
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,show,func,1556,KEEP,CaptureActionChain:90 等 4 处调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,closeAll,func,1574,KEEP,:1404 Esc 监视器 + CommandPalette:98
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,hideAll,func,1580,KEEP,PinWindow.swift:1221 更多菜单调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,showAll,func,1585,KEEP,PinWindow.swift:1219 调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,repinLast,func,1592,KEEP,AppBootstrap重新钉住快捷键复用lastImage及正式show；没有上一张图时返回false供上层提示
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,otherFrames,func,1598,KEEP,PinWindow.swift:996 吸附调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,probeLast,func,1603,KEEP,FrsetNextApp.swift:321 深链 kitnest://pin?probe
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,closeActive,func,1609,KEEP,PinWindow.swift:1407 Delete 监视器调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,windowDidBecomeKey,func,1616,KEEP,PinWindow.swift:1377 becomeKey 调用
-Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,windowDidClose,func,1621,KEEP,NotificationCenter selector :1431 注册
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,repositionHUD,func,908,KEEP,":705,794 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,showHUD,func,914,KEEP,":880,883,1026,1071 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,makeCursor,func,929,KEEP,:805-806 静态属性初始化调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,updateCursor,func,942,KEEP,PinWindow.swift:893 调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,hitZone,func,952,KEEP,":822,913 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,keyDown,func,973,KEEP,NSView 覆写，键盘事件派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,mouseEntered,func,1012,KEEP,NSView 覆写，进入即显示控制条
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,mouseMoved,func,1013,KEEP,NSView 覆写，moved 事件派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,mouseExited,func,1017,KEEP,NSView 覆写，离开收控制条
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,mouseDown,func,1027,KEEP,NSView 覆写，拖动/双击复位
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,beginWindowDrag,func,1038,KEEP,":604 闭包, :912 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,mouseDragged,func,1044,KEEP,NSView 覆写，拖动事件派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,continueWindowDrag,func,1049,KEEP,":605 闭包, :925 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,mouseUp,func,1099,KEEP,NSView 覆写，结束拖动
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,magnetSnapped,func,1107,KEEP,PinWindow.swift:942 调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,scrollWheel,func,1115,KEEP,NSView 覆写，滚轮缩放派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,magnify,func,1116,KEEP,NSView 覆写，捏合缩放派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,zoomCore,func,1118,KEEP,":1009,1010 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,applyZoom,func,1136,KEEP,":879,882,1025 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,setScale,func,1156,KEEP,":603,877,909,1196 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,rotate,func,1182,KEEP,"PinWindow.swift:1198,1200 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,showBubble,func,1202,KEEP,":610,621,1269,1273 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,anchorInScreen,func,1212,KEEP,PinWindow.swift:1115 调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,showMoreMenuFromToolbar,func,1217,KEEP,":602 闭包, :875 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,rightMouseDown,func,1224,KEEP,NSView 覆写，右键弹更多菜单
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,menuEntries,func,1232,KEEP,":1114,1122 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,handleMenuPick,func,1299,KEEP,PinWindow.swift:628 menuPanel.onPick
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,resetOrientation,func,1354,KEEP,PinWindow.swift:1208 调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,probe,func,1372,KEEP,:1470 调用 ← probeLast ← 深链
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,flattenedImage,func,1391,KEEP,":1303,1308 调用"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,flattened,func,1395,KEEP,flattenedImage和复制任务共用；只读传入图像与旋转翻转快照，生成最终像素图，复制任务可在后台执行
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,annotateClicked,func,1418,KEEP,:600 闭包 + :867 键位
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,copyClicked,func,1423,KEEP,:601 闭包 + :872 键位
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotContentView,closeClicked,func,1440,KEEP,":616 闭包, :856 Esc, :1224 菜单"
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotWindow,init,init,1452,KEEP,PinAppearance.init建立单图外观值；PinImageView.init接收图像/尺寸/外观并一次取样描边色，正式PinnedScreenshotContentView继承它并挂控制条和鼠标追踪，预览使用同一图像基类
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotWindow,initialSize,func,1486,KEEP,PinWindow.swift:1330 调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotWindow,becomeKey,func,1499,KEEP,NSWindow 覆写，成为 key 时派发
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotWindow,constrainFrameRect,func,1505,KEEP,NSWindow 覆写（仅调 super，无附加逻辑）
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,init,init,1524,KEEP,PinAppearance.init建立单图外观值；PinImageView.init接收图像/尺寸/外观并一次取样描边色，正式PinnedScreenshotContentView继承它并挂控制条和鼠标追踪，预览使用同一图像基类
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,deinit,deinit,1551,KEEP,运行时析构钩子（单例常驻实际不触发）
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,show,func,1562,KEEP,CaptureActionChain:90 等 4 处调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,closeAll,func,1580,KEEP,:1404 Esc 监视器 + CommandPalette:98
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,hideAll,func,1586,KEEP,PinWindow.swift:1221 更多菜单调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,showAll,func,1591,KEEP,PinWindow.swift:1219 调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,repinLast,func,1598,KEEP,AppBootstrap重新钉住快捷键复用lastImage及正式show；没有上一张图时返回false供上层提示
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,otherFrames,func,1604,KEEP,PinWindow.swift:996 吸附调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,probeLast,func,1609,KEEP,FrsetNextApp.swift:321 深链 kitnest://pin?probe
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,closeActive,func,1615,KEEP,PinWindow.swift:1407 Delete 监视器调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,windowDidBecomeKey,func,1622,KEEP,PinWindow.swift:1377 becomeKey 调用
+Capture,Features/Capture/Pin/PinWindow.swift,PinnedScreenshotManager,windowDidClose,func,1627,KEEP,NotificationCenter selector :1431 注册
 Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionTool,init,init,30,KEEP,2026-11-19：tools注册表构造每个动作项；保存id、标题、图标、可选⌘键及同步image/URL handler
 Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionGroup,init,init,47,KEEP,2026-11-19：groups定义构造六个主入口分组；保存primary动作ID与有序子项ID供工具条同源渲染
 Capture,Features/Capture/Screenshot/CaptureActionChain.swift,CaptureActionChain,pin,func,183,KEEP,2026-11-19：四个preset工具闭包调用；无效preset沿PinAppearance.preset回退current，打开钉图后提示实际外观名
@@ -1722,9 +1726,9 @@ Capture,Features/Capture/Screenshot/CaptureModule.swift,CaptureModule,capture,fu
 Capture,Features/Capture/Screenshot/CaptureModule.swift,CaptureModule,recordUsage,func,243,KEEP,2026-11-19：capture唯一调用；仅pin/long/annotate在发起时计数，截图、OCR、取色依完成事件在App接线计数
 Capture,Features/Capture/Screenshot/CaptureModule.swift,CaptureModule,translateSelection,func,259,KEEP,2026-11-19：PanelRootView菜单调用；记录translationUse并发跨模块选择文本翻译通知
 Capture,Features/Capture/Screenshot/CaptureOCRNotify.swift,CaptureOCRNotify,show,func,30,KEEP,2026-11-19：ScreenshotManager识别成功回调在静默模式调用；交MainActor单例面板按偏好秒数展示
-Capture,Features/Capture/Screenshot/CaptureOCRNotify.swift,OCRNotePanel,init,init,46,KEEP,2026-11-19：shared唯一构造不激活且忽略鼠标；建立固定320×54的图标、单行识别文案与已复制标签
-Capture,Features/Capture/Screenshot/CaptureOCRNotify.swift,OCRNotePanel,show,func,89,KEEP,2026-11-19：CaptureOCRNotify转入；复用主屏顶部窗口，取消前一hideTask后淡入并启动新的隐藏Task
-Capture,Features/Capture/Screenshot/CaptureOCRNotify.swift,OCRNotePanel,fadeOut,func,113,KEEP,2026-11-19：show的sleep到期调用；动画完成后orderOut并复位alpha
+Capture,Features/Capture/Screenshot/CaptureOCRNotify.swift,OCRNotePanel,init,init,47,KEEP,2026-11-19：shared唯一构造不激活且忽略鼠标；建立固定320×54的图标、单行识别文案与已复制标签
+Capture,Features/Capture/Screenshot/CaptureOCRNotify.swift,OCRNotePanel,show,func,90,KEEP,2026-11-19：CaptureOCRNotify转入；复用主屏顶部窗口，取消前一hideTask后淡入并启动新的隐藏Task
+Capture,Features/Capture/Screenshot/CaptureOCRNotify.swift,OCRNotePanel,fadeOut,func,119,KEEP,2026-11-19：show的sleep到期调用；动画完成后orderOut并复位alpha
 Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,init,init,14,KEEP,2026-11-19：CaptureModule面板区段build闭包构造；无需参数
 Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,entryButton,func,117,KEEP,2026-11-19：body九个CaptureMode入口共用；标题/图标只从enum读，动作由调用闭包执行
 Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView,thumbnailView,func,175,KEEP,最近截图网格前九项调用；绘制RecentCaptureThumbnail并保留原点击、右键和时间提示
@@ -1949,11 +1953,11 @@ Capture,Features/Capture/Workflow/WorkflowSettingsPane.swift,WorkflowSettingsDra
 Capture,Features/Capture/Workflow/WorkflowSettingsPane.swift,WorkflowSettingsDraft,discard,func,32,KEEP,2026-11-19：SettingsDraftEditor取消时从文件重读并同时替换workflows与saved
 Capture,Features/Capture/Workflow/WorkflowSettingsPane.swift,WorkflowSettingsDraft,restoreDefaults,func,33,KEEP,2026-11-19：设置恢复默认将草稿置空；持久工作流仅在随后保存时改变
 Capture,Features/Capture/Workflow/WorkflowSettingsPane.swift,WorkflowSettingsContent,workflowBlock,func,80,KEEP,2026-11-19：body按数组顺序渲染工作流与步骤；新建和删除仅改SettingsDraft，保存动作才写文件
-Capture,Features/Capture/Workflow/WorkflowSettingsPane.swift,WorkflowSettingsContent,stepRow,func,122,KEEP,2026-11-19：workflowBlock按kind.fieldTitles渲染参数并通过stepBinding编辑；移除只改草稿步骤数组
-Capture,Features/Capture/Workflow/WorkflowSettingsPane.swift,WorkflowSettingsContent,icon,func,161,KEEP,2026-11-19：stepRow按WorkflowStep.Kind七种值选对应SF Symbol
-Capture,Features/Capture/Workflow/WorkflowSettingsPane.swift,WorkflowSettingsContent,defaultArgument,func,173,KEEP,2026-11-19：添加save步骤预填RecordingOptions.saveDirectory.path；其他步骤a参数为空
-Capture,Features/Capture/Workflow/WorkflowSettingsPane.swift,WorkflowSettingsContent,binding,func,182,KEEP,2026-11-19：启用开关和名称控件经KeyPath读写draft.workflows，不直接持久化
-Capture,Features/Capture/Workflow/WorkflowSettingsPane.swift,WorkflowSettingsContent,stepBinding,func,187,KEEP,2026-11-19：步骤参数框经工作流/步骤索引及KeyPath读写草稿a/b，不直接持久化
+Capture,Features/Capture/Workflow/WorkflowSettingsPane.swift,WorkflowSettingsContent,stepRow,func,125,KEEP,2026-11-19：workflowBlock按kind.fieldTitles渲染参数并通过stepBinding编辑；移除只改草稿步骤数组
+Capture,Features/Capture/Workflow/WorkflowSettingsPane.swift,WorkflowSettingsContent,icon,func,164,KEEP,2026-11-19：stepRow按WorkflowStep.Kind七种值选对应SF Symbol
+Capture,Features/Capture/Workflow/WorkflowSettingsPane.swift,WorkflowSettingsContent,defaultArgument,func,176,KEEP,2026-11-19：添加save步骤预填RecordingOptions.saveDirectory.path；其他步骤a参数为空
+Capture,Features/Capture/Workflow/WorkflowSettingsPane.swift,WorkflowSettingsContent,binding,func,185,KEEP,2026-11-19：启用开关和名称控件经KeyPath读写draft.workflows，不直接持久化
+Capture,Features/Capture/Workflow/WorkflowSettingsPane.swift,WorkflowSettingsContent,stepBinding,func,190,KEEP,2026-11-19：步骤参数框经工作流/步骤索引及KeyPath读写草稿a/b，不直接持久化
 Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,-,floatingClipColor,func,20,KEEP,同文件 :449 标签色点调用
 Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipDeskStore,select,func,128,KEEP,悬浮剪贴板按 item 反查 selectedIndex：外部点卡片时键盘选中位跟着同步，避免两套高亮
 Clipboard,Features/Clipboard/Floating/FloatingClipboardDesk.swift,FloatingClipDeskStore,clearHover,func,153,KEEP,hover 预览结束/键盘移动时清掉悬停项并恢复预览到主动选中项，避免悬停反复夺走选中状态
@@ -2811,7 +2815,7 @@ Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,refresh,fu
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,applyPreferences,func,167,KEEP,2026-11-20：偏好变化与可见性变化共用；更新温度条件，总开关关闭时停止，否则按可见状态选择设定间隔或至少5秒
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,scheduleNext,func,187,KEEP,2026-11-20：取消旧定时任务，在采样队列延时执行；执行前读取总开关，采样后按当前界面可见性安排下一帧
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,sampleOnce,func,212,KEEP,2026-11-20：优先使用有效 C 快照，补深层指标及时间轴；轮换同一组历史缓冲，在 MonitorExtra 的锁内合并峰值，主队列发布当前值与历史
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,resetHistory,func,347,KEEP,2026-11-20：监测设置的清空按钮调用，锁内重置环形缓冲与两份快照，重置补充指标后发布空历史
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,resetHistory,func,358,KEEP,2026-11-20：监测设置的清空按钮调用，锁内重置环形缓冲与两份快照，重置补充指标后发布空历史
 Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,init,init,75,KEEP,2026-11-20：shared 唯一构造，从空应用及网卡历史开始；启动由 MonitorModule 决定
 Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,applyKeepAlivePreference,func,91,KEEP,2026-11-20：MonitorModule 启动和 MonitorSampler 原偏好观察者共用；两个开关均开启时首采并启用 5 秒定时器，任一关闭时取消
 Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,backgroundTick,func,108,KEEP,2026-11-21：首拍及5秒定时器派发到既有采样队列；启用时读nettop并累计；菜单栏快照有效时复用网速，停用时直接读取网卡差分，避免继续累计旧速率
@@ -3315,9 +3319,9 @@ Panel,Features/Panel/Preview/DocumentInlinePreview.swift,Entry,init,init,102,KEE
 Panel,Features/Panel/Preview/DocumentInlinePreview.swift,WordDocumentStore,cached,func,115,KEEP,按文档URL读取最多8项的NSCache，只有修订标识一致才返回富文本正文及页面背景，供WordInlineContent和load复用
 Panel,Features/Panel/Preview/DocumentInlinePreview.swift,WordDocumentStore,load,func,121,KEEP,复用8项修订缓存及同修订在途Task；后台原生导入Word正文后，仅OOXML用ArchiveCore.run内存提取word/document.xml并交restoreOpenXMLFormatting恢复格式，再缓存正文与页面背景；读取或解析错误传递，完成后移除在途记录
 Panel,Features/Panel/Preview/DocumentInlinePreview.swift,WordDocumentStore,restoreOpenXMLFormatting,func,151,KEEP,解析word/document.xml，按正文run顺序前向匹配导入文本，仅去掉原文w:b或w:i明确val=0的字体特性；按tblGrid及columnSpan恢复表格百分比列宽，结合gridSpan定位tcPr，把原文vAlign=top的单元格设为顶对齐
-Panel,Features/Panel/Preview/DocumentInlinePreview.swift,InlineQuickLookView,makeNSView,func,209,KEEP,为非Word文档构造compact样式QLPreviewView，关闭自动播放和随窗口关闭设置，指定URL为previewItem；Word正文另由AttributedTextView显示
-Panel,Features/Panel/Preview/DocumentInlinePreview.swift,InlineQuickLookView,updateNSView,func,217,KEEP,SwiftUI更新QuickLook宿主时仅在URL不同才替换previewItem，由系统异步加载新文档，不再调用refreshPreviewItem
-Panel,Features/Panel/Preview/DocumentInlinePreview.swift,InlineQuickLookView,dismantleNSView,func,224,KEEP,SwiftUI拆除内联QuickLook宿主时调用QLPreviewView.close释放预览内容
+Panel,Features/Panel/Preview/DocumentInlinePreview.swift,InlineQuickLookView,makeNSView,func,223,KEEP,为非Word文档构造compact样式QLPreviewView，关闭自动播放和随窗口关闭设置，指定URL为previewItem；Word正文另由AttributedTextView显示
+Panel,Features/Panel/Preview/DocumentInlinePreview.swift,InlineQuickLookView,updateNSView,func,231,KEEP,SwiftUI更新QuickLook宿主时仅在URL不同才替换previewItem，由系统异步加载新文档，不再调用refreshPreviewItem
+Panel,Features/Panel/Preview/DocumentInlinePreview.swift,InlineQuickLookView,dismantleNSView,func,238,KEEP,SwiftUI拆除内联QuickLook宿主时调用QLPreviewView.close释放预览内容
 Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverSlot,init,init,43,KEEP,2026-11-20：呈现入口创建统一窗口槽位；关闭和编辑回调弱持有槽位，开始编辑调用cancelHoverClose，保留当前编辑状态
 Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,hasPreview,func,131,KEEP,2026-11-20：刘海跨屏、收起与活动记录选择检查来源窗口身份和槽位状态，可选核对鼠标是否在预览窗内
 Panel,Features/Panel/Preview/MainPanelPreviewPopoverCoordinator.swift,MainPanelPreviewPopoverCoordinator,movePreview,func,137,KEEP,2026-11-20：IslandController.move移动来源时调用；固定窗不跟随，普通预览取消待关闭后只移动原窗口并限制到可见区域，不重建模型
@@ -3363,11 +3367,12 @@ Panel,Features/Panel/Preview/PanelPreviewPreferences.swift,PreviewPopoverDataBri
 Panel,Features/Panel/Preview/PanelPreviewPreferences.swift,PreviewPopoverDataBridge,saveOCRText,func,74,KEEP,PanelRootView:212、PreviewPopoverContentView:892
 Panel,Features/Panel/Preview/PanelPreviewPreferences.swift,PreviewPopoverDataBridge,recognizeImage,func,79,KEEP,PreviewPopoverContentView:886 重新识别
 Panel,Features/Panel/Preview/PanelPreviewPreferences.swift,PreviewPopoverDataBridge,richTextAttributed,func,88,KEEP,PreviewPopoverContentModel:152/163
-Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,init,init,37,KEEP,shared单例构造；图片解码缓存限定32项和64MiB解码像素成本
-Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,loadImage,func,50,KEEP,两个预览调用共用ImageIO缩略/全图解码；同键在途请求共用回调且缓存按像素成本受64MiB上限约束
-Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,detectQRCode,func,97,KEEP,PreviewPopoverContentView:950
-Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,cacheKey,func,108,KEEP,loadImage区分同一路径的缩略与全图缓存项
-Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,decode,func,113,KEEP,loadImage沿专用解码队列调用ImageIO下采样，缩略最长边320pt×屏幕倍率、全图上限1600pt×倍率
+Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,cachedDecode,func,30,KEEP,同步解码缓存（NSCache，上限 8 张）：悬停预览模型构造走不了 loadImage 异步缓存/在途去重，同一文件每次 hover 重新解码；sync- 路径独立 key，不影响 loadImage 的缓存语义
+Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,init,init,56,KEEP,shared单例构造；图片解码缓存限定32项和64MiB解码像素成本
+Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,loadImage,func,69,KEEP,两个预览调用共用ImageIO缩略/全图解码；同键在途请求共用回调且缓存按像素成本受64MiB上限约束
+Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,detectQRCode,func,116,KEEP,PreviewPopoverContentView:950
+Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,cacheKey,func,127,KEEP,loadImage区分同一路径的缩略与全图缓存项
+Panel,Features/Panel/Preview/PreviewImageLoader.swift,PreviewImageLoader,decode,func,132,KEEP,loadImage沿专用解码队列调用ImageIO下采样，缩略最长边320pt×屏幕倍率、全图上限1600pt×倍率
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,s,func,57,KEEP,内部字号缩放辅助，全文 20+ 处调用
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderBody,func,64,KEEP,PreviewPopoverContentView:389/511
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,parseSourced,func,92,KEEP,renderBody :93 与 parse :118
@@ -3387,14 +3392,14 @@ Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRender
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,splitTableRow,func,628,KEEP,parseSourced :241
 Panel,Features/Panel/Preview/PreviewMarkdownRenderer.swift,PreviewMarkdownRenderer,renderTable,func,651,KEEP,render(block) :454 表格块
 Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,init,init,66,KEEP,2026-11-20：唯一条目判型，富文本仅初始化解析一次保存NSAttributedString供正文测量共用；无有效RTF按正文分类，textPath且全文未加载仍异步，浮动已读全文直接分类；编辑kindOverride不读旧RTF，文件加载保留
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,classifyRawText,func,144,KEEP,2026-11-20：模型及落盘文本视图、归档和编辑后预览共用；先JSON，再以代码强度及Markdown强信号分流，最后普通代码或文本；长文视图每次body仍调用完整分类
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,markdownStrongCount,func,157,KEEP,2026-11-20：classifyRawText强代码分支调用；去首尾空白后对10条静态正则分别找首命中，统计模式数而非全部匹配次数
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,codeStrength,func,169,KEEP,2026-11-20：classifyRawText调用；maxSplits80后仅取前80条非空行，不分配样本外每行；以去空白文本排除Markdown结构且允许井叹/include/import，代码标点前缀及原行4空格或Tab参与代码比例
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isCodeLine,func,189,KEEP,2026-11-20：codeStrength唯一调用；接收去空白行按语言前缀尾标点和操作符判代码，编译指令已能到达本方法；原始缩进由调用方判断，删除本方法不可达缩进分支
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isJSONPreviewEligible,func,211,KEEP,2026-11-20：classifyRawText首段调用；200000字符内尝试对象数组单根，失败则逐行统计对象数组JSONL，至少2条有效且有效不少于坏行；不改变既有资格范围
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeMarkdown,func,263,KEEP,2026-11-20：classifyRawText调用；强信号共用一次区间且任一命中即返回，弱信号复用静态下划线正则并扫描最多40条，累计两分即通过
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeCode,func,294,KEEP,2026-11-20：classifyRawText最后代码判定；maxSplits30保留空行并只取前30行，少于4行仍false；原尾标点前缀和至少3行缩进计分，合计3分判断代码
-Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,MarkdownScrollState,init,init,318,KEEP,2026-11-20：Markdown滚动回调构造并由共享协调器按条目键持有，仅保存实际传入和恢复的scrollOffset；无消费者的块锚点和矩形字段已删除
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,classifyRawText,func,146,KEEP,2026-11-20：模型及落盘文本视图、归档和编辑后预览共用；先JSON，再以代码强度及Markdown强信号分流，最后普通代码或文本；长文视图每次body仍调用完整分类
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,markdownStrongCount,func,159,KEEP,2026-11-20：classifyRawText强代码分支调用；去首尾空白后对10条静态正则分别找首命中，统计模式数而非全部匹配次数
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,codeStrength,func,171,KEEP,2026-11-20：classifyRawText调用；maxSplits80后仅取前80条非空行，不分配样本外每行；以去空白文本排除Markdown结构且允许井叹/include/import，代码标点前缀及原行4空格或Tab参与代码比例
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isCodeLine,func,191,KEEP,2026-11-20：codeStrength唯一调用；接收去空白行按语言前缀尾标点和操作符判代码，编译指令已能到达本方法；原始缩进由调用方判断，删除本方法不可达缩进分支
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,isJSONPreviewEligible,func,213,KEEP,2026-11-20：classifyRawText首段调用；200000字符内尝试对象数组单根，失败则逐行统计对象数组JSONL，至少2条有效且有效不少于坏行；不改变既有资格范围
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeMarkdown,func,265,KEEP,2026-11-20：classifyRawText调用；强信号共用一次区间且任一命中即返回，弱信号复用静态下划线正则并扫描最多40条，累计两分即通过
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,PreviewPopoverContentModel,looksLikeCode,func,296,KEEP,2026-11-20：classifyRawText最后代码判定；maxSplits30保留空行并只取前30行，少于4行仍false；原尾标点前缀和至少3行缩进计分，合计3分判断代码
+Panel,Features/Panel/Preview/PreviewPopoverContentModel.swift,MarkdownScrollState,init,init,320,KEEP,2026-11-20：Markdown滚动回调构造并由共享协调器按条目键持有，仅保存实际传入和恢复的scrollOffset；无消费者的块锚点和矩形字段已删除
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewRichTextView,init,init,83,KEEP,2026-11-20：richText分支构造，直接持有model.richAttributed既有解析对象，缺格式时以inlineText构造普通正文，不再自身读盘或解析RTF
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewSourceTextView,copy,func,107,KEEP,覆写 NSResponder.copy(_:)；⌘C 经响应链派发；:151 实例化
 Panel,Features/Panel/Preview/PreviewPopoverContentView.swift,PreviewTextViewRepresentable,makeNSView,func,159,KEEP,NSViewRepresentable 协议；ArchiveTextPreview.swift:176 亦用
@@ -3957,42 +3962,43 @@ Toolbox,Features/Toolbox/Search/SearchSectionView.swift,FileSearchSource,fuzzySp
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,FileSearchSource,runMdfind,func,274,KEEP,search:191 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,searchURL,func,332,KEEP,fetchResults:313 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,ensureWebView,func,341,KEEP,fetchResults:314 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,fetchResults,func,352,KEEP,本文件:1511/1519 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,resolveURL,func,413,KEEP,fetchResults:342 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,webView,func,433,KEEP,nonisolated WKNavigationDelegate：didFinish / didFail 两个重载都回 MainActor resume navContinuation，等待导航时不会卡死或泄漏；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,webView,func,441,KEEP,nonisolated WKNavigationDelegate：didFinish / didFail 两个重载都回 MainActor resume navContinuation，等待导航时不会卡死或泄漏；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,init,init,575,KEEP,ToolboxModule.swift:16 经 PanelSectionRegistry.build 构造；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,init,init,582,KEEP,正式 SearchSectionView.init 观察共享服务；草稿重载观察 SearchDisplayDraft.service 并注入三项分类绑定，预览与正式路径复用同一视图；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,init,init,589,KEEP,正式 SearchSectionView.init 观察共享服务；草稿重载观察 SearchDisplayDraft.service 并注入三项分类绑定，预览与正式路径复用同一视图
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,previewAction,func,799,KEEP,设置预览的网页/工具/引擎动作仅显示演示反馈，消费clearSearchInputAfterWebAction决定调用clearInput或保留输入；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ContentHeightKey,reduce,func,915,KEEP,PreferenceKey 协议实现（:710 onPreferenceChange 消费）；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,categoryHeader,func,1008,KEEP,webCategory:844、clipboard:1173、files:1299、tools:1381 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webCategory,func,1072,KEEP,listContent:732/734 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webResultArea,func,1133,KEEP,webCategory调用并构造网页结果动作；日志探针仅记录结果数量与状态，不输出标题和目标URL
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ClipboardFilterKind,matches,func,1337,KEEP,filteredClipboardMatches:1127 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filterChips,func,1377,KEEP,clipboardCategory:1176、filesCategory:1302 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardCategory,func,1399,KEEP,listContent:731/736 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardIcon,func,1490,KEEP,clipboardCategory:1195/1215 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fileIcon,func,1511,KEEP,filesCategory:1318/1340 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,resultFileIcon,func,1522,KEEP,设置预览文件行用 doc SF Symbol，正式文件行继续读取缓存的 NSWorkspace 文件图标；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,ago,func,1601,KEEP,「22 分钟前建立」相对时间文案；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filesCategory,func,1609,KEEP,listContent:729/738 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,toolCategory,func,1718,KEEP,listContent:730/747 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,highlighted,func,1787,KEEP,web:1014/1036、clipboard:1199、files:1321、tools:1396 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,updatePreviewCategories,func,1832,KEEP,仅设置预览响应分类开关；当前类关闭时切回全部并调用本地 scheduleSearch，不写持久分类；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filterPreviewItems,func,1839,KEEP,固定工具名/命令、副标题、五类文件名及网页标题/摘要通过 FuzzyMatcher 本地筛选，更新结果与搜索状态，不进入注册检索源、文件索引或网页抓取；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,previewSelectionFill,func,1865,KEEP,按 previewSelectedResultID 给被点击的固定结果绘制强调色圆角底，正式搜索行使用透明底；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,performWebSearch,func,1876,KEEP,搜索框提交与引擎按钮调用；生成搜索URL并交默认浏览器，日志只记引擎，不记录关键词或URL参数
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clearInput,func,1904,KEEP,搜索框 ✕ 按钮:629、toolCategory:1385、performWebSearch:1486 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fetchWebResults,func,1919,KEEP,categoryChips:658、engineActionsRow:863、scheduleSearch:1567；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,scheduleSearch,func,1953,KEEP,body onChange(query):502 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,2021,KEEP,WKNavigationDelegate加载完成回调；只记录目标host，不记录搜索结果路径和查询参数
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,2024,KEEP,WKNavigationDelegate加载失败回调；日志只记NSError domain与code，避免错误描述夹带目标URL
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,2028,KEEP,WKNavigationDelegate连接失败回调；日志只记NSError domain与code，避免错误描述夹带目标URL
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeCoordinator,func,2034,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeNSView,func,2036,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,updateNSView,func,2047,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,dismantleNSView,func,2053,KEEP,NSViewRepresentable 静态协议方法；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,fetchResults,func,359,KEEP,本文件:1511/1519 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,performFetch,func,370,KEEP,搜索页抓取体（原 fetchResults 主体）：按引擎 URL 加载→8s 超时→渲染余量→JS 提取；外层 fetchResults 以任务链串行化后，单槽位 continuation 竞争消失，本体语义不变
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,resolveURL,func,431,KEEP,fetchResults:342 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,webView,func,451,KEEP,nonisolated WKNavigationDelegate：didFinish / didFail 两个重载都回 MainActor resume navContinuation，等待导航时不会卡死或泄漏；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,webView,func,459,KEEP,nonisolated WKNavigationDelegate：didFinish / didFail 两个重载都回 MainActor resume navContinuation，等待导航时不会卡死或泄漏；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,init,init,593,KEEP,ToolboxModule.swift:16 经 PanelSectionRegistry.build 构造；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,init,init,600,KEEP,正式 SearchSectionView.init 观察共享服务；草稿重载观察 SearchDisplayDraft.service 并注入三项分类绑定，预览与正式路径复用同一视图；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,init,init,607,KEEP,正式 SearchSectionView.init 观察共享服务；草稿重载观察 SearchDisplayDraft.service 并注入三项分类绑定，预览与正式路径复用同一视图
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,previewAction,func,817,KEEP,设置预览的网页/工具/引擎动作仅显示演示反馈，消费clearSearchInputAfterWebAction决定调用clearInput或保留输入；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ContentHeightKey,reduce,func,933,KEEP,PreferenceKey 协议实现（:710 onPreferenceChange 消费）；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,categoryHeader,func,1026,KEEP,webCategory:844、clipboard:1173、files:1299、tools:1381 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webCategory,func,1090,KEEP,listContent:732/734 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webResultArea,func,1151,KEEP,webCategory调用并构造网页结果动作；日志探针仅记录结果数量与状态，不输出标题和目标URL
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ClipboardFilterKind,matches,func,1355,KEEP,filteredClipboardMatches:1127 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filterChips,func,1395,KEEP,clipboardCategory:1176、filesCategory:1302 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardCategory,func,1417,KEEP,listContent:731/736 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardIcon,func,1508,KEEP,clipboardCategory:1195/1215 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fileIcon,func,1529,KEEP,filesCategory:1318/1340 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,resultFileIcon,func,1540,KEEP,设置预览文件行用 doc SF Symbol，正式文件行继续读取缓存的 NSWorkspace 文件图标；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,ago,func,1619,KEEP,「22 分钟前建立」相对时间文案；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filesCategory,func,1627,KEEP,listContent:729/738 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,toolCategory,func,1736,KEEP,listContent:730/747 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,highlighted,func,1805,KEEP,web:1014/1036、clipboard:1199、files:1321、tools:1396 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,updatePreviewCategories,func,1850,KEEP,仅设置预览响应分类开关；当前类关闭时切回全部并调用本地 scheduleSearch，不写持久分类；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filterPreviewItems,func,1857,KEEP,固定工具名/命令、副标题、五类文件名及网页标题/摘要通过 FuzzyMatcher 本地筛选，更新结果与搜索状态，不进入注册检索源、文件索引或网页抓取；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,previewSelectionFill,func,1883,KEEP,按 previewSelectedResultID 给被点击的固定结果绘制强调色圆角底，正式搜索行使用透明底；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,performWebSearch,func,1894,KEEP,搜索框提交与引擎按钮调用；生成搜索URL并交默认浏览器，日志只记引擎，不记录关键词或URL参数
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clearInput,func,1922,KEEP,搜索框 ✕ 按钮:629、toolCategory:1385、performWebSearch:1486 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fetchWebResults,func,1937,KEEP,categoryChips:658、engineActionsRow:863、scheduleSearch:1567；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,scheduleSearch,func,1971,KEEP,body onChange(query):502 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,2039,KEEP,WKNavigationDelegate加载完成回调；只记录目标host，不记录搜索结果路径和查询参数
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,2042,KEEP,WKNavigationDelegate加载失败回调；日志只记NSError domain与code，避免错误描述夹带目标URL
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,2046,KEEP,WKNavigationDelegate连接失败回调；日志只记NSError domain与code，避免错误描述夹带目标URL
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeCoordinator,func,2052,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeNSView,func,2054,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,updateNSView,func,2065,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,dismantleNSView,func,2071,KEEP,NSViewRepresentable 静态协议方法；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SlashCommands.swift,SlashCommandCatalog,build,func,52,KEEP,CommandPalette.swift:58 buildSlash 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SlashCommands.swift,SlashCommandCatalog,match,func,112,KEEP,SearchSectionView.swift:97 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Shell/ToolboxModule.swift,ToolboxModule,start,func,9,KEEP,AppModule 协议，经 ModuleRegistry.startAll 派发；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
@@ -4197,19 +4203,21 @@ TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebD
 TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,stop,func,73,KEEP,2026-11-19：CastView关闭开关调用；取消listener后在原服务串行队列设running为false并取消清空全部登记连接
 TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,accept,func,87,KEEP,2026-11-19：NWListener接入回调在服务队列登记连接和失败状态回调；服务已关闭直接取消；唯一readRequest处理请求
 TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,close,func,101,KEEP,2026-11-19：WebDAV网络失败、取消、头或正文提前结束及响应完成共用；在原服务队列移除连接并解绑取消，关闭服务后迟到响应不再发送
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,readRequest,func,107,KEEP,2026-11-19 安全复审：接收定长请求并由dispatch分发；负数及非整数回400，缺失长度按0；请求头和body无总长上限，PUT可占用全量内存；只绑定127.0.0.1
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,readBody,func,132,KEEP,2026-11-19 安全复审：按Content-Length续读PUT并在完整后dispatch；网络提前结束取消连接；全量body留内存且未设大小上限
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,headerValue,func,147,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：读取Content-Length和Depth共用；按字段名前缀读取冒号后剩余字符并去空白；无数组下标操作
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,dispatch,func,154,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：完整请求进入；既有OPTIONS/PROPFIND/GET/HEAD/PUT/MKCOL/DELETE分别派发；MKCOL和DELETE已有单引号转义
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,remotePath,func,190,KEEP,2026-11-19安全复审：百分号解码并剔除..段，路径固定在/sdcard；命令参数已引用转义；adb仍会跟随存储内软链接
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,propfind,func,205,KEEP,2026-11-19：PROPFIND路由调用；listRemote回调生成自身及Depth1子项；统一href编码与entryXML文本转义
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,href,func,228,KEEP,2026-11-19：PROPFIND自身及子项共用；去sdcard前缀并按路径段编码；从urlPathAllowed去除百分号问号井号及斜线以保持文件名原意
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,escapeXML,func,241,KEEP,2026-11-19：entryXML中的href和displayname共用；依次转义与号及左右尖括号，使文件名作为XML文本而非标签解释
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,entryXML,func,247,KEEP,2026-11-19：PROPFIND每项XML输出；href和displayname均交escapeXML转义与号及左右尖括号；目录类型和文件长度沿原结构
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,listRemote,func,265,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：propfind调用；adb shell ls路径按现有MKCOL规则转义单引号；解析固定8列及软链名；避免请求文件名脱离shell引用
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,download,func,288,KEEP,2026-11-20：HEAD用统一run读取stat -L字节长度且shell文件谓词排除目录；跟随文件链接与GET的cat一致，状态0且UInt64才200否则404，缺ADB503；GET仍全量读取待优化
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,upload,func,328,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：PUT路由调用；将既有body写临时文件并交adb push；完成回调删除该临时文件；写入失败返回500
-TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,send,func,345,KEEP,2026-11-19：全部响应共用；尊重HEAD提供的长度否则按Data填入；跨队列结果回原服务串行队列并只向仍登记的连接发送；完成close
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,readRequest,func,111,KEEP,2026-11-19 安全复审：接收定长请求并由dispatch分发；负数及非整数回400，缺失长度按0；请求头和body无总长上限，PUT可占用全量内存；只绑定127.0.0.1
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,readBody,func,142,KEEP,2026-11-19 安全复审：按Content-Length续读PUT并在完整后dispatch；网络提前结束取消连接；全量body留内存且未设大小上限
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,headerValue,func,198,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：读取Content-Length和Depth共用；按字段名前缀读取冒号后剩余字符并去空白；无数组下标操作
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,dispatch,func,205,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：完整请求进入；既有OPTIONS/PROPFIND/GET/HEAD/PUT/MKCOL/DELETE分别派发；MKCOL和DELETE已有单引号转义
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,remotePath,func,246,KEEP,2026-11-19安全复审：百分号解码并剔除..段，路径固定在/sdcard；命令参数已引用转义；adb仍会跟随存储内软链接
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,propfind,func,261,KEEP,2026-11-19：PROPFIND路由调用；listRemote回调生成自身及Depth1子项；统一href编码与entryXML文本转义
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,href,func,284,KEEP,2026-11-19：PROPFIND自身及子项共用；去sdcard前缀并按路径段编码；从urlPathAllowed去除百分号问号井号及斜线以保持文件名原意
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,escapeXML,func,297,KEEP,2026-11-19：entryXML中的href和displayname共用；依次转义与号及左右尖括号，使文件名作为XML文本而非标签解释
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,entryXML,func,303,KEEP,2026-11-19：PROPFIND每项XML输出；href和displayname均交escapeXML转义与号及左右尖括号；目录类型和文件长度沿原结构
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,listRemote,func,321,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：propfind调用；adb shell ls路径按现有MKCOL规则转义单引号；解析固定8列及软链名；避免请求文件名脱离shell引用
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,download,func,344,KEEP,2026-11-20：HEAD用统一run读取stat -L字节长度且shell文件谓词排除目录；跟随文件链接与GET的cat一致，状态0且UInt64才200否则404，缺ADB503；GET仍全量读取待优化
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,streamDownload,func,388,KEEP,WebDAV 下载流式化①：先 adb stat 取大小拿 Content-Length，发响应头后进入分块泵送；旧实现 readDataToEndOfFile 整文件进内存（GB 级视频峰值≈文件大小）
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,pumpDownload,func,402,KEEP,WebDAV 下载流式化②：后台线程阻塞读 256KB → 连接队列发送 → 完成回调驱动下一块；连接消失/设备断开时 terminate cat 并关闭，连接关闭路径会清理 spills 与临时文件
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,upload,func,431,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：PUT路由调用；将既有body写临时文件并交adb push；完成回调删除该临时文件；写入失败返回500
+TransferDock,Features/TransferDock/Android/AndroidWebDAVServer.swift,AndroidWebDAVServer,send,func,454,KEEP,2026-11-19：全部响应共用；尊重HEAD提供的长度否则按Data填入；跨队列结果回原服务串行队列并只向仍登记的连接发送；完成close
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryWindowController,init,init,14,KEEP,CastAppLibraryWindow.swift:10 shared
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryWindowController,show,func,16,KEEP,CastView.swift:629；FrsetNextApp.swift:347 菜单
 TransferDock,Features/TransferDock/Cast/CastAppLibraryWindow.swift,CastAppLibraryView,tile,func,113,KEEP,2026-11-20：筛选后的懒网格调用；有图标时复用App按路径保存的NSImage，缺图仍使用应用名首字，尺寸48点
@@ -4308,34 +4316,36 @@ TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferS
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,loadToken,func,220,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:187
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,regenerateToken,func,228,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:106,201"
 TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,lanIPv4,func,239,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:143 二维码地址
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,ConnectionContext,init,init,288,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:266
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,handle,func,291,KEEP,2026-11-19安全复审：复核源码与动态入口；newConnectionHandler 闭包 :137
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,receive,func,306,KEEP,2026-11-19安全复审：接收HTTP并受300秒连接超时限制；EOF、网络错误和超时均关闭body文件并删除临时文件
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,consume,func,331,KEEP,2026-11-19安全复审：请求头完整后先验主/选中分享token再创建body文件；无效token先回403；请求头限64KiB
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,parseHead,func,368,KEEP,2026-11-19安全复审：解析请求行与小写header；Content-Length非法转0、负数不写入；声明body无大小上限
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,hasValidToken,func,387,KEEP,2026-11-19：consume创建请求体文件前校验路径令牌及方法；主令牌沿原路由权限，选中文件分享令牌仅接受GET；query不参与认证
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,writeBody,func,401,KEEP,2026-11-19安全复审：只写Content-Length声明范围至唯一临时文件；授权请求可声明任意长度，连接最长300秒
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,finish,func,410,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:315,318"
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,route,func,421,KEEP,2026-11-19安全复审：主令牌可列举、上传、删除和下载；选择令牌仅GET且限选中ID；defer覆盖各路由body清理
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,onMain,func,508,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:414,471,498"
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,listPayload,func,513,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:387 api/list
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,handleUpload,func,527,KEEP,2026-11-19 安全复审：multipart仅从已落盘body解析，文件名取末路径段并清理分隔符；暂存成功后交LocalTransferStore；请求body由route统一清理
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,handleDownload,func,587,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:397 dl/<id>
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,handleDelete,func,610,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:392 api/delete
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,cleanupBody,func,624,KEEP,2026-11-19安全复审：关闭文件句柄并删除临时body；route完成与连接EOF、错误、超时共用
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,respond,func,633,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:430,435,440,455"
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,respond,func,638,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:376,385"
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,respond,func,642,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:297,394,399"
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,respond,func,646,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:519,523,527 汇聚"
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,send,func,669,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:493,549"
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,errorPage,func,693,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:376 失效页
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,connectHTML,func,709,KEEP,立项 v2 主路线 A 的连接页：UA 分流给 iPhone(AirPlay 引导)/Android(无线调试指引)，直传动作跳 /s/ 复用既有路由；AP 隔离提示；无外链资源
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,boundary,func,993,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:434
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,files,func,1005,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:438 上传解析
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,files,func,1010,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:771 重载
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,filename,func,1045,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:797
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,sanitize,func,1070,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:819,821,828"
-TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,write,func,1080,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:450
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,ConnectionContext,init,init,290,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:266
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,handle,func,293,KEEP,2026-11-19安全复审：复核源码与动态入口；newConnectionHandler 闭包 :137
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,receive,func,308,KEEP,2026-11-19安全复审：接收HTTP并受300秒连接超时限制；EOF、网络错误和超时均关闭body文件并删除临时文件
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,consume,func,333,KEEP,2026-11-19安全复审：请求头完整后先验主/选中分享token再创建body文件；无效token先回403；请求头限64KiB
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,parseHead,func,370,KEEP,2026-11-19安全复审：解析请求行与小写header；Content-Length非法转0、负数不写入；声明body无大小上限
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,hasValidToken,func,389,KEEP,2026-11-19：consume创建请求体文件前校验路径令牌及方法；主令牌沿原路由权限，选中文件分享令牌仅接受GET；query不参与认证
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,writeBody,func,403,KEEP,2026-11-19安全复审：只写Content-Length声明范围至唯一临时文件；授权请求可声明任意长度，连接最长300秒
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,finish,func,412,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:315,318"
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,route,func,423,KEEP,2026-11-19安全复审：主令牌可列举、上传、删除和下载；选择令牌仅GET且限选中ID；defer覆盖各路由body清理
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,onMain,func,510,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:414,471,498"
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,listPayload,func,515,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:387 api/list
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,handleUpload,func,529,KEEP,2026-11-19 安全复审：multipart仅从已落盘body解析，文件名取末路径段并清理分隔符；暂存成功后交LocalTransferStore；请求body由route统一清理
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,handleDownload,func,595,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:397 dl/<id>
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,pumpDownload,func,629,KEEP,手机扫码下载流式化②：后台读 256KB → 连接队列发送 → 回调驱动下一块；长度不符/文件提前读到头按失败收尾（触觉 + 关连接）
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,finishDownload,func,666,KEEP,下载收尾唯一出口：防重（done2）、触觉、GET 完成通知、cancel 连接；与 send() 的成功口径一致（method==GET 且 2xx）
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,handleDelete,func,684,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:392 api/delete
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,cleanupBody,func,698,KEEP,2026-11-19安全复审：关闭文件句柄并删除临时body；route完成与连接EOF、错误、超时共用
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,respond,func,707,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:430,435,440,455"
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,respond,func,712,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:376,385"
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,respond,func,716,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:297,394,399"
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,respond,func,720,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:519,523,527 汇聚"
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,send,func,743,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:493,549"
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,errorPage,func,767,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:376 失效页
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,LanTransferServer,connectHTML,func,783,KEEP,立项 v2 主路线 A 的连接页：UA 分流给 iPhone(AirPlay 引导)/Android(无线调试指引)，直传动作跳 /s/ 复用既有路由；AP 隔离提示；无外链资源
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,boundary,func,1067,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:434
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,files,func,1079,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:438 上传解析
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,files,func,1084,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:771 重载
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,filename,func,1119,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:797
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,sanitize,func,1144,KEEP,"2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:819,821,828"
+TransferDock,Features/TransferDock/Transfer/LanTransferServer.swift,MultipartParser,write,func,1154,KEEP,2026-11-19安全复审：复核源码与动态入口；LanTransferServer.swift:450
 TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,init,init,109,KEEP,2026-11-20：shared唯一构造，复用LocalTransferPaths静态根目录避免单例重入；设置indexURL后同步load并后台pruneMissing，保留期清理由AppBootstrap启动
 TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,load,func,118,KEEP,2026-11-20：init同步读取index.json并解码条目数组，按addedAt降序恢复；读取或解码失败设空items，原文件未覆盖
 TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,persist,func,127,KEEP,2026-11-20：新增刷新和移除后调用；取消前一pendingPersist并捕获items快照，在同一串行暂存队列编码并原子写索引；错误写日志，当前保存的work仍持有最后快照
