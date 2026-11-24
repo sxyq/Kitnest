@@ -2844,7 +2844,7 @@ Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,cancel,func,43
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,scan,func,442,KEEP,2026-11-20：rescan交原串行queue，walk完整summary直接生成分类与排除路径，删除扫描后第二次整树汇总；取消及完成在worker交付，worker写盘后main按scanner身份发布
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,physicalSize,func,489,KEEP,2026-11-20：walk对普通文件与DT_UNKNOWN分支统一取st_blocks×512，零分配返回0；本地扫描根不把稀疏文件逻辑长度记成磁盘占用
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,retainFile,func,498,KEEP,2026-11-20：walk对普通文件调用，原100MB门槛和60项最大候选保持降序，只保留本层大文件用于可见树
-Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,walk,func,512,KEEP,2026-11-20：scan唯一根入口后递归，opendir/readdir/lstat不跟随链接；按原排除路径深度和节点数收尾，最大60项外目录以分类小计折叠，每万项main队列发进度
+Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexScanner,walk,func,510,KEEP,2026-11-24：scan唯一根入口递归；opendir/readdir配合目录相对fstatat(AT_SYMLINK_NOFOLLOW)读取文件元数据，避免每项拼接绝对路径且不跟随链接；排除范围、深度与节点上限、每目录最大60项及每万项主线程进度保持
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,cacheURL,func,692,KEEP,2026-11-20：两范围读写和清缓存共用，以scope.rawValue组成原index文件名；实际内容为二进制plist并保留旧JSON读取
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,init,init,697,KEEP,2026-11-20：shared构造唯一DiskIndexStore，原缓存路径、串行queue及发布属性由该实例持有，窗口出现才加载
 Monitor,Features/Monitor/Storage/DiskIndex.swift,DiskIndexStore,loadIfNeeded,func,703,KEEP,2026-11-20：存储窗口首次出现才读取清理记录，随后同串行队列读取范围缓存；loaded避免切换范围反复读旧记录覆盖新删除记录，不自动扫描
