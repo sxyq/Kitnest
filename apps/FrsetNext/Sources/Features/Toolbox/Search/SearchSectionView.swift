@@ -348,8 +348,26 @@ final class WebResultScraper: NSObject, WKNavigationDelegate {
         return wv
     }
 
+    /// 抓取链尾：前一次抓取未结束时新请求排在它后面（2026-11-25 函数审查 NEEDS_FIX）。
+    ///
+    /// 旧实现 navContinuation 是单槽位：抓取 A 进行中再触发 B，B 会覆盖槽位里的
+    /// A 的 continuation——A 的 didFinish 再也等不到，A 的 Task 永久挂起（泄漏）。
+    /// 现在按「任务链」串行化：新请求先等链上前一个完成再开始，槽位竞争消失。
+    private var fetchChain: Task<[WebSearchResult], Never>?
+
     /// 抓取某引擎的结果列表（失败/为空返回 []，由 UI 显示回落提示）
     func fetchResults(engine: SearchEngine, query: String) async -> [WebSearchResult] {
+        let previous = fetchChain
+        let task = Task { [weak self] () -> [WebSearchResult] in
+            await previous?.value
+            guard let self else { return [] }
+            return await self.performFetch(engine: engine, query: query)
+        }
+        fetchChain = task
+        return await task.value
+    }
+
+    private func performFetch(engine: SearchEngine, query: String) async -> [WebSearchResult] {
         guard let url = Self.searchURL(for: engine, query: query) else { return [] }
         let wv = ensureWebView()
 
@@ -1970,9 +1988,22 @@ public struct SearchSectionView: View {
             // 第一次搜文件时才把索引准备好（有缓存就 mmap，没有就后台建）；
             // 平时不搜文件的话这里一次都不会执行，零常驻。
             if wantsFiles { FileNameIndex.shared.ensureReady() }
-            let files: [FuzzyFileResult] = wantsFiles
-                ? await Task.detached(priority: .utility) { FileSearchSource.search(trimmed, kind: kind) }.value
-                : []
+            // v292：detached 任务**不继承**父任务取消——查询换了词，上一次全扫仍会跑到底
+            // （实测单次 0.3-1.9s，很容易叠两三轮）。这里显式把取消传给它，
+            // FileNameIndex.search 每 8192 条检查一次 Task.isCancelled 就能提前收工。
+            let files: [FuzzyFileResult]
+            if wantsFiles {
+                let job = Task.detached(priority: .utility) {
+                    FileSearchSource.search(trimmed, kind: kind)
+                }
+                files = await withTaskCancellationHandler {
+                    await job.value
+                } onCancel: {
+                    job.cancel()
+                }
+            } else {
+                files = []
+            }
             guard !Task.isCancelled, current == generation else { return }
             await MainActor.run {
                 guard !Task.isCancelled, current == generation else { return }

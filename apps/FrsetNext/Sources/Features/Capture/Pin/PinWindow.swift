@@ -886,7 +886,13 @@ final class PinnedScreenshotContentView: PinImageView {
         let timer = Timer(timeInterval: interval, repeats: false) { [weak self] _ in
             guard let self else { return }
             if self.toolbarHovered { self.scheduleChromeHide(); return }
-            let p = self.convert(NSEvent.mouseLocation, from: nil)
+            // 2026-11-25（函数审查 NEEDS_FIX 落实）：NSEvent.mouseLocation 是**屏幕坐标**，
+            // convert(_:from: nil) 会把它当 window base 坐标解释，contains 恒不命中——
+            // 光标停在关闭按钮上时自动收起到点照样执行，控制条在光标下收起。
+            // 改用窗口自身坐标流（window 坐标 → 视图坐标）。
+            let windowPoint = self.window?.mouseLocationOutsideOfEventStream
+                ?? NSEvent.mouseLocation
+            let p = self.convert(windowPoint, from: nil)
             if self.toolbar.frame.contains(p) || self.closeButton.frame.contains(p) {
                 self.scheduleChromeHide()
                 return

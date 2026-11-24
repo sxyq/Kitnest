@@ -171,9 +171,12 @@ private enum WordDocumentStore {
             }
         }
         let tables = try xml.nodes(forXPath: "//w:tbl").compactMap { $0 as? XMLElement }
-        let grids = tables.map { table in
-            table.elements(forName: "w:tblGrid").first!.elements(forName: "w:gridCol")
-                .map { Double($0.attribute(forName: "w:w")!.stringValue!)! }
+        // 2026-11-25（函数审查 NEEDS_FIX 落实）：非 Word 标准生成器产出的 docx 可能没有
+        // w:tblGrid / w:w 属性，强解包会让悬停预览整 App 崩溃。全部改安全解包，
+        // 缺列宽的表按空数组处理（后面 span/百分比计算都要判空跳过）。
+        let grids: [[Double]] = tables.map { table in
+            (table.elements(forName: "w:tblGrid").first?.elements(forName: "w:gridCol") ?? [])
+                .compactMap { $0.attribute(forName: "w:w")?.stringValue.flatMap(Double.init) }
         }
         var tableIndices: [ObjectIdentifier: Int] = [:]
         var seenBlocks: Set<ObjectIdentifier> = []
@@ -183,14 +186,25 @@ private enum WordDocumentStore {
                 guard seenBlocks.insert(ObjectIdentifier(block)).inserted else { continue }
                 let id = ObjectIdentifier(block.table)
                 if tableIndices[id] == nil { tableIndices[id] = tableIndices.count }
-                let table = tables[tableIndices[id]!]
-                let widths = grids[tableIndices[id]!]
-                let span = widths[block.startingColumn..<(block.startingColumn + block.columnSpan)].reduce(0, +)
-                block.setContentWidth(CGFloat(span / widths.reduce(0, +) * 100), type: .percentageValueType)
+                let index = tableIndices[id]!
+                guard index < tables.count, index < grids.count else { return }
+                let table = tables[index]
+                let widths = grids[index]
+                let start = block.startingColumn
+                let end = start + block.columnSpan
+                // 列号越界 / tblGrid 缺列 → 这一块按默认宽度处理，不崩也不乱设
+                guard start >= 0, end <= widths.count, !widths.isEmpty else { return }
+                let span = widths[start..<end].reduce(0, +)
+                let total = widths.reduce(0, +)
+                if total > 0 {
+                    block.setContentWidth(CGFloat(span / total * 100), type: .percentageValueType)
+                }
                 var column = 0
-                let cell = table.elements(forName: "w:tr")[block.startingRow].elements(forName: "w:tc").first { cell in
+                let rows = table.elements(forName: "w:tr")
+                guard block.startingRow >= 0, block.startingRow < rows.count else { return }
+                let cell = rows[block.startingRow].elements(forName: "w:tc").first { cell in
                     let span = Int(cell.elements(forName: "w:tcPr").first?.elements(forName: "w:gridSpan").first?
-                        .attribute(forName: "w:val")?.stringValue ?? "1")!
+                        .attribute(forName: "w:val")?.stringValue ?? "1") ?? 1
                     defer { column += span }
                     return column == block.startingColumn
                 }

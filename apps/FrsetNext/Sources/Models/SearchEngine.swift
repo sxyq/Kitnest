@@ -149,7 +149,11 @@ public final class SearchServiceManager: ObservableObject {
 
     /// 由模板构造可打开的搜索 URL（{query} → URL 编码后的关键词；{tl} → 目标语言码）
     public static func searchURL(for engine: SearchEngine, query: String) -> URL? {
-        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+        // 2026-11-25（函数审查 NEEDS_FIX 落实）：.urlQueryAllowed 不转义 & = + 等保留字符，
+        // 「Tom & Jerry」会把 & 拼成模板的额外参数、+ 被服务端当空格。按 RFC 3986
+        // unreserved（字母数字 + -._~）编码，等价于 encodeURIComponent。
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+        let encoded = query.addingPercentEncoding(withAllowedCharacters: allowed) ?? query
         var template = engine.urlTemplate
             .replacingOccurrences(of: "{query}", with: encoded)
         if template.contains("{tl}") {

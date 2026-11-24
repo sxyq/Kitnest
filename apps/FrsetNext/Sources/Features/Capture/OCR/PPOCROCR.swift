@@ -37,6 +37,8 @@ public final class PPOCROCR {
     private static let maxInputWidth = 960
 
     private var session: UnsafeMutableRawPointer?
+    /// 是否有线程正在初始化会话（防并发重复创建）
+    private var creating = false
     private var dictionary: [String] = []
     private var loadError: String?
     private let lock = NSLock()
@@ -65,11 +67,33 @@ public final class PPOCROCR {
     }
 
     /// 懒加载会话（首次调用时初始化；失败记原因并保持不可用）
+    ///
+    /// 2026-11-25（函数审查 NEEDS_FIX 落实）：旧实现是**不完整的双重检查锁**——
+    /// 锁内确认未初始化后先解锁，再跑 FSPPOCRSessionCreate 与字典读取，最后重新加锁
+    /// 赋值。两个线程同时进「未初始化」分支会各建一份 ONNX 会话并互相覆盖，
+    /// 先建的那份指针泄漏（C 侧资源，没有释放路径）。现在用 `creating` 标志把
+    /// 「谁在初始化」也纳入锁保护：第二个线程要么等到结果、要么直接复用。
     private func ensureSession() -> UnsafeMutableRawPointer? {
         lock.lock()
         if let s = session { lock.unlock(); return s }
         if let err = loadError { lock.unlock(); return nil }
+        if creating {
+            // 另一个线程正在初始化：放锁轮询结果（初始化是百 ms 级，10ms 一查成本可忽略）
+            lock.unlock()
+            for _ in 0..<200 {
+                Thread.sleep(forTimeInterval: 0.01)
+                lock.lock()
+                let ready = session
+                let failed = (ready == nil && loadError != nil)
+                lock.unlock()
+                if let ready { return ready }
+                if failed { return nil }
+            }
+            return nil
+        }
+        creating = true
         lock.unlock()
+        defer { lock.lock(); creating = false; lock.unlock() }
 
         let lib = libraryPath ?? defaultLibraryPath()
         let model = modelPath ?? defaultModelPath()

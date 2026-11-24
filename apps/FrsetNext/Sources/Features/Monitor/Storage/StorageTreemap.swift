@@ -158,6 +158,9 @@ private final class DiskLayoutCache {
     func tiles(for node: DiskNode, size: CGSize, freeSpace: Int64? = nil,
                indexRevision: Int, contentTopRatio: CGFloat = 0,
                geometry: StorageSurfaceGeometry = StorageSurfaceGeometry()) -> [DiskTile] {
+        // 关窗/最小化途中画布会被压到 0；此时切 Voronoi 既无意义又极贵
+        //（退化尺寸会切出大量碎片路径，命中测试再逐个 contains → 主线程卡住）。
+        guard size.width > 40, size.height > 40 else { return [] }
         // v286：外轮廓改由整窗画布推导，缓存键必须带上画布口径
         //（画布宽/顶带高度/图块画布左缘任一变化都要重切）。
         let k = "\(node.id)|\(size.width)×\(size.height)|\(node.children.count)|\(node.size)"
@@ -354,7 +357,14 @@ struct StorageMapShape: Shape {
     }
 
     func path(in rect: CGRect) -> Path {
-        let blob = Self.blob(in: geometry)
+        StorageShapeCache.shared.path(for: geometry, in: rect) { g, target in
+            Self.rawPath(in: g, rect: target)
+        }
+    }
+
+    /// 实际路径构造（缓存未命中时才走）。
+    private static func rawPath(in geometry: StorageSurfaceGeometry, rect: CGRect) -> Path {
+        let blob = blob(in: geometry)
         let tile = geometry.tileFrame
         // 背景消费方：rect 就是画布本身，直接给整条轮廓。
         if abs(rect.width - geometry.canvas.width) < 0.5,
@@ -371,6 +381,57 @@ struct StorageMapShape: Shape {
             .scaledBy(x: sx, y: sy)
             .translatedBy(x: rect.minX, y: rect.minY)
         return Path(clipped).applying(transform)
+    }
+}
+
+/// 曲面路径缓存（2026-11-24 v293）。
+///
+/// 为什么必须缓存：`path(in:)` 里要做一次 `CGPath ∩ CGPath`（布尔路径运算），
+/// 而 `StorageMapShape` 是 `Shape`——SwiftUI 的 `.contentShape(...)` 会在**每次命中测试**
+/// 重建路径，`onContinuousHover` 又按指针事件频率（60–120Hz）调用 `path(in:)`。
+/// 关窗卡死栈里 302/577 个样本落在 `Path.contains`，上游就是这条「每事件重建整张地图」。
+///
+/// 缓存键 = 几何（画布/顶边/顶带左缘/过渡终点/图块画布）+ 目标矩形。
+/// 只在窗口缩放、操作带高度变化时失效，命中测试与悬停复用同一份 Path。
+final class StorageShapeCache {
+
+    static let shared = StorageShapeCache()
+
+    private struct Key: Hashable {
+        let canvas: CGSize
+        let surfaceTop: CGFloat
+        let crestLeft: CGFloat
+        let sweepEnd: CGFloat
+        let tile: CGRect
+        let rect: CGRect
+    }
+
+    private let lock = NSLock()
+    private var storage: [Key: Path] = [:]
+    private var order: [Key] = []
+    /// 只保留最近 8 个（一张地图 + 几个 Voronoi 单位矩形足够）。
+    private let capacity = 8
+
+    func path(for geometry: StorageSurfaceGeometry, in rect: CGRect,
+              build: (StorageSurfaceGeometry, CGRect) -> Path) -> Path {
+        let key = Key(canvas: geometry.canvas, surfaceTop: geometry.surfaceTop,
+                      crestLeft: geometry.crestLeft, sweepEnd: geometry.sweepEnd,
+                      tile: geometry.tileFrame, rect: rect)
+        lock.lock()
+        if let hit = storage[key] {
+            lock.unlock()
+            return hit
+        }
+        lock.unlock()
+        let path = build(geometry, rect)
+        lock.lock()
+        storage[key] = path
+        order.append(key)
+        if order.count > capacity {
+            storage.removeValue(forKey: order.removeFirst())
+        }
+        lock.unlock()
+        return path
     }
 }
 

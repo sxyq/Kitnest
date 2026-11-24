@@ -552,7 +552,19 @@ final class CurtainCardView: NSView {
         let delta = event.scrollingDeltaY * (event.hasPreciseScrollingDeltas ? 0.6 : 2.0)
         guard abs(delta) > 0.01 else { return }
         onResizeStep?(delta)
-        onResizeEnd?()
+        // 2026-11-25（函数审查 NEEDS_FIX 落实）：滚轮每个 tick 都立刻 end，会在滚动过程中
+        // 反复「写 UserDefaults + 发通知 rebuild + Toast + 缩略图重扫」。改为停止滚动
+        // 350ms 后收尾一次；拖拽路径的 mouseUp end 不经过这里，语义不变。
+        scheduleScrollResizeEnd()
+    }
+
+    private var scrollResizeEndWork: DispatchWorkItem?
+
+    private func scheduleScrollResizeEnd() {
+        scrollResizeEndWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.onResizeEnd?() }
+        scrollResizeEndWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: work)
     }
 
     /// 复制 = 同时给 PNG 和文件 URL，粘贴到聊天窗口是图片，粘到 Finder 是文件
@@ -1049,7 +1061,17 @@ final class CurtainCanvasView: NSView {
         let delta = event.scrollingDeltaY * (event.hasPreciseScrollingDeltas ? 0.6 : 2.0)
         guard abs(delta) > 0.01 else { return }
         onResizeStep?(delta)
-        onResizeEnd?()
+        // 同 CurtainCardView.scrollWheel：滚轮收尾去抖（350ms），拖拽路径不受影响。
+        scheduleScrollResizeEnd()
+    }
+
+    private var scrollResizeEndWork: DispatchWorkItem?
+
+    private func scheduleScrollResizeEnd() {
+        scrollResizeEndWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.onResizeEnd?() }
+        scrollResizeEndWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: work)
     }
 
     /// 落入动画：从上方 10pt 落下 + 淡入 + 绕顶部摆一次衰减，

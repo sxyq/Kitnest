@@ -294,7 +294,9 @@ private struct MonitorWidgetsContent: View {
         Binding(get: { draft.string(key, default: value) }, set: { draft.configuration[key] = $0 })
     }
     private func numberBinding(_ key: String, _ value: String) -> Binding<Double> {
-        Binding(get: { Double(draft.string(key, default: value))! },
+        // 2026-11-25（函数审查 NEEDS_FIX 落实）：配置值可能是历史导入的非数字文本，
+        // 强解包会让打开对应表单直接崩溃。解析失败回退默认值。
+        Binding(get: { Double(draft.string(key, default: value)) ?? Double(value) ?? 0 },
                 set: { draft.configuration[key] = String(format: "%.0f", $0) })
     }
     @ViewBuilder private func optionControl(keyPrefix: String, spec: OptionSpec) -> some View {
@@ -382,7 +384,14 @@ private struct MonitorWidgetsPreview: NSViewRepresentable {
     @Environment(\.colorScheme) private var colorScheme
 
     func makeNSView(context: Context) -> NSView {
-        FSBarCreateConfiguredPreview(modules, configuration, dark ?? (colorScheme == .dark))!
+        // 2026-11-25（函数审查 NEEDS_FIX 落实）：引擎工厂可空（未知模块/配置组合），
+        // 强解包会让部件设置页打开即崩。回退一个透明占位，updateNSView 仍会再试。
+        if let view = FSBarCreateConfiguredPreview(modules, configuration, dark ?? (colorScheme == .dark)) {
+            return view
+        }
+        let fallback = NSView()
+        fallback.isHidden = true
+        return fallback
     }
     func updateNSView(_ view: NSView, context: Context) {
         FSBarUpdateConfiguredPreview(view, modules, configuration, dark ?? (colorScheme == .dark))

@@ -543,9 +543,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let autoScan = comps?.queryItems?.first(where: { $0.name == "scan" })?.value == "1"
                 let drill = comps?.queryItems?.first(where: { $0.name == "drill" })?.value
                 let openAgent = comps?.queryItems?.first(where: { $0.name == "agent" })?.value == "1"
-                StorageManagerWindowController.shared.show(autoScan: autoScan,
-                                                           drill: drill,
-                                                           openAgent: openAgent)
+                // v292 排障：?action=close 延到下一轮 runloop 再关窗——用于无人值守验证
+                // 「关窗」路径本身（正常关闭走 Esc/红灯，需要键盘或鼠标）。
+                if comps?.queryItems?.first(where: { $0.name == "action" })?.value == "close" {
+                    DispatchQueue.main.async { StorageManagerWindowController.shared.close() }
+                } else {
+                    StorageManagerWindowController.shared.show(autoScan: autoScan,
+                                                               drill: drill,
+                                                               openAgent: openAgent)
+                }
                 // 排障/录屏：?hover=1 让液态地图的悬停巡航重放一次
                 // （只在 probe.storageHover 打开时生效，正常使用没有任何影响）
                 if comps?.queryItems?.first(where: { $0.name == "hover" })?.value == "1" {
@@ -703,7 +709,17 @@ final class InstanceLock {
         guard age > 3 else { return false }
 
         Log.warn("App", "接管实例锁：持有者 pid=\(holder) \(reason)")
-        if holder > 0 { kill(holder, SIGKILL) }
+        // 2026-11-25（函数审查 NEEDS_FIX 落实）：SIGKILL 只能发给「确认是本应用实例」的
+        // 持有者。锁文件里的 pid 可能被内核复用给无关进程（判据 (a) 正是这种情况）——
+        // 对无辜进程发 SIGKILL 是系统级破坏。此时走既有的无锁接管兜底。
+        if !isLegitimateHolder(holder) || holder <= 0 {
+            Log.warn("App", "持有者 pid=\(holder) 不是本应用实例 → 不发送 SIGKILL，改无锁运行")
+            runningWithoutLock = true
+            try? "\(getpid())\nbuild=\(buildStamp)\n".write(to: url, atomically: true, encoding: .utf8)
+            startHeartbeat()
+            return true
+        }
+        kill(holder, SIGKILL)
         usleep(400_000)
         if let handle = tryAcquire() { fd = handle; startHeartbeat(); return true }
 

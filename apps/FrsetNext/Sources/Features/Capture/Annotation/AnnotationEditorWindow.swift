@@ -954,7 +954,11 @@ final class AnnotationCanvasView: NSView {
         body(&annotations[index])
         let updated = annotations[index]
         if updated != old {
-            record(.modify(old: old, new: updated), coalescing: false)
+            // 2026-11-25（函数审查 NEEDS_FIX 落实）：旧实现传 coalescing: false——
+            // 粗细/样式滑杆每个 tick、ColorPicker 连续拖动都各自入撤销栈，几十个中间态
+            // 把栈塞满。文字路径 mutateSelectedText 用默认的 coalescing: true 合并同 id
+            // 连续改写（record 注释即此设计意图），形状路径对齐同款。
+            record(.modify(old: old, new: updated))
             onShapeSelectionChange?(updated)
         }
     }

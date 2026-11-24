@@ -5,7 +5,9 @@
 
 | 文件 | 内容 | 生成方式 |
 |---|---|---|
-| `FrsetNext-函数清单.csv` | 全仓函数/属性清单，原八列 `module,file,owner,kind,name,line,lines,complexity` + 2026-11-23 新增 `feature_id,doc_path`（功能归属与实现文档定位） | `python3 tools/func_table.py`（唯一解析器，勿手改） |
+| `FrsetNext-函数清单.csv` | **Swift 声明清单**（属性 + 函数）。列：`module,file,owner,kind,name,signature,line,lines,complexity,feature_id,doc_path,perf_priority,review_status,reviewed_revision,review_note,action,measurement,perf_issue`；`signature` 为声明到 `{` 前的归一化文本，用于区分同名重载 | `python3 tools/func_table.py`（唯一解析器，勿手改） |
+| `FrsetNext-函数清单-非Swift.csv` | **非 Swift 索引**：`language,file,owner,kind,name,line,lines`，覆盖 `FrsetStatsBar/*.m`（ObjC 方法 + 内嵌 C 函数）、`*.c`、`tools/*.py`。声明级定位，不参与 Swift 台账对账 | `python3 tools/non_swift_func_table.py`（生成物） |
+| `函数审查记录.csv` | **逐函数审查结论的来源**（人工维护）：`file,owner,name,signature,review_status,reviewed_revision,review_note,action,measurement,perf_issue`。生成时按 `file+owner+name+signature` 合并进函数清单；同名多行禁止按名字回退（防虚报已读） | 人工阅读源码后追加；状态取值 `NOT_REVIEWED / REVIEWED_OK / NEEDS_MEASUREMENT / NEEDS_FIX / FIXED / VERIFIED` |
 | `函数审阅台账.csv` | 逐函数审阅结论（KEEP/UNSURE + 调用点证据） | 人工审阅后维护；行号随 `func_table.py` 重跑重锚（`rebuild_ledger.py --strict`） |
 | `预览窗口排查.csv` | 全部自建窗体、附属弹层、系统文件面板与提示框的目录及问题记录（136 行登记） | 随窗口源码改动和用户反馈持续更新（手写） |
 | `2026-10-20-个性化覆盖核对.csv` | 个性化设置项接入核对 | 一次性证据（勿扩） |
@@ -26,11 +28,24 @@
 - 函数清单以 `apps/FrsetNext/Sources/**/*.swift` 为准，由 `tools/func_table.py` 唯一解析：
   多行字符串 / 块注释按状态剥离，属性访问器与闭包初始化器的体跳读，因此
   **getter 内局部 `let` 不计入成员、SQL 字面量里的 `{}` 不污染括号深度**（v259 修）。
-- 口径仍有两个已知边界：① 只收 `.swift`，`FrsetStatsBar/` 的 C/ObjC 不在表内；
+- 口径边界（2026-11-24 明示，别再混着说）：① `FrsetNext-函数清单.csv` **只收 `.swift`**；
+  `FrsetStatsBar/` 的 C/ObjC 与 `tools/*.py` 在**另一份** `FrsetNext-函数清单-非Swift.csv`
+  （声明级索引，274 条：objc 169 / c 53 / python 52）。两份表不合并、不互相换算总数；
+  说「全项目函数数」时必须分别报「Swift 4,542（函数类声明）/ 非 Swift 274（声明级）」。
   ② 函数体内的嵌套函数（如 `func both(...)`）按设计不入表，只算所属的外层函数。
+  ③ 非 Swift 索引是正则声明级扫描：ObjC 宏生成的方法、C 静态内联可能漏记，不当作审查台账。
 - 符号索引 `docs/00-总览/符号索引.md` 由
   `python3 tools/symbol_index_md.py apps/FrsetNext/Sources docs/00-总览/数据表/FrsetNext-函数清单.csv docs/00-总览/符号索引.md` 生成，
   改代码后与 CSV 一起重跑。
+- **逐函数审查状态来自 `函数审查记录.csv`，不是生成器开关**：没有记录的声明一律
+  `NOT_REVIEWED`；`REVIEWED_OK / FIXED / VERIFIED` 必须有人读过函数体并写下结论。
+  `VERIFIED` 另需实际运行/测量证据，编译通过不算。
+- **2026-11-25 全量里程碑**：4,542 条函数类声明全部读过（主线 200 条 + 21 个审查子代理
+  4,342 条，子代理结论经主线抽查对质后合并）；`REVIEWED_OK 4,406 / NEEDS_FIX 15 /
+  NEEDS_MEASUREMENT 48 / FIXED 73`。合并口径：主线已写结论的条目优先，片段按
+  `file+owner+name+signature` 精确对号（同名多行禁止按名字回退）。非 Swift 348 条
+  声明亦在记录里（signature 为空、按 file+owner+name 对应）。抽查方式：随机取记录
+  与源码对质（本轮抽 4+5 条全对上）。
 - 三方对账：`python3 tools/rebuild_ledger.py --strict` → `python3 tools/reconcile.py`（函数清单 ↔ 台账 ↔ 符号索引/依赖图数字全部一致为全绿）。
 - `feature_id`/`doc_path` 两列由 `func_table.py` 按 `源码与文档映射.csv` 的**最长前缀匹配**自动填入；
   匹配不到的声明两列填 `未映射`（明确标注，不生成不存在的链接）。

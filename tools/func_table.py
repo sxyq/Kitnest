@@ -47,6 +47,71 @@ from collections import Counter
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "apps", "FrsetNext", "Sources")
 OUT = os.path.join(ROOT, "docs", "00-总览", "数据表", "FrsetNext-函数清单.csv")
+
+# 性能热点标注（2026-11-24 v292 全链路实测）——写入 CSV 的 perf_priority 列。
+# 分级：P0=实测证实为关键路径大头；P1=有实测证据的次热点/待优化；P2=已加计时或已修待复测。
+# key = (file, owner, name)。CSV 只有 file#owner#name 粒度，重载共用同一标注。
+# 数据出处：2026-11-24 授权实测（岛 163ms 定位 / 截图 92-257ms / 归档 0.16s 引擎 /
+# 主面板 77ms / 内存 81-151MB），详见 docs/40-修改记录 对模块记录与当轮实测报告。
+PERF_HOTSPOTS = {
+    # ---- P0：实测证实的关键路径大头 ----
+    ("Features/Toolbox/Search/FileNameIndex.swift", "FileNameIndex", "search"):
+        "P0 全盘文件名检索（已优化待续）：144.7 万条 / 177MB 池。原实现每个命中都建 path 串+URL"
+        "+lastPathComponent，短词 deck（47 万命中）实测 19.0s；改为惰性构造+ASCII 字节快路径后"
+        "683ms，多词 319-404ms，命中集不变（22 万例对拍 0 不一致）；内存仍只 +5MB（mmap）",
+    ("Features/Capture/Screenshot/ScreenSnapshot.swift", "ScreenSnapshot", "captureScreenForScreenshot"):
+        "P0 截图抓帧：子任务 141-214ms，决定首块覆盖层 119-164ms（通道选择+probe+画面对照）",
+    ("Features/Capture/Screenshot/NativeRegionCapture.swift", "NativeRegionCapture", "run"):
+        "P0 screencapture 子进程：空闲 71-149ms / 8 核满载 92-257ms（14.1MB BMP，读取 ~1ms、解码 0.1ms）",
+    ("Features/Archive/UI/ArchiveBrowserWindow.swift", "ArchiveBrowserModel", "visibleEntries"):
+        "P0 每次 body 求值入口：v292 已消除空搜索白算 O(N)（1万 7.7ms→<0.001ms，10万 77ms→<0.001ms），保持",
+    # ---- P1：有实测证据的次热点/待优化 ----
+    ("Features/Monitor/Storage/DiskIndex.swift", "DiskIndexStore", "reloadFromCache"):
+        "P1 存储窗打开只读缓存：磁盘索引 JSON/plist 解码，实测 1.4s 内 footprint +121~170MB，"
+        "落定 229MB；**关窗后仍常驻约 120MB**（单例快照）。释放方案实测受阻：关窗本身会把"
+        "主线程卡在 Path.contains（见 StorageTreemap.contentShape/onContinuousHover），待专项",
+    ("Features/Island/IslandController.swift", "IslandController", "position"):
+        "P2 岛展开定位（实测降级）：冷 36-45ms / 热 15-20ms；setFrame display on/off 实测差 <8ms，"
+        "首帧 didUpdate 双峰 30-50/140-170ms 与模式无关；历史 163ms 为部署后首次冷进程一次性值",
+    ("Features/Panel/Presentation/PanelController.swift", "PanelController", "show"):
+        "P1 主面板开：主线程 77ms 首开/42ms 复开（快照 29+落位 19+帧构建 15+上屏 14）",
+    ("Core/Motion/GenieWarp.swift", "GenieWarp", "play"):
+        "P1 神灯播放：384ms/23-24 帧 60fps 零缺失；帧构建 15-47ms 是主线程最大单项",
+    ("Features/Archive/UI/ArchiveBrowserWindow.swift", "ArchiveBrowserModel", "reload"):
+        "P1 归档索引 UI 侧：v292 已加首批/发布次数/rebuild 计时；100k 实测首批 56 条@46ms、"
+        "完整@1338ms、UI 完成 1381ms（发布 9 次、rebuild 0ms）",
+    ("Features/Archive/Core/ArchiveCore.swift", "ArchiveCore", "listStreaming"):
+        "P1 渐进索引引擎：10k 完整@165ms / 100k 完整@1338ms（发布 9 次）；峰值 footprint "
+        "100k 90→293MB、落定 190MB；条目数组本身仅 227B/条（100k=21.6MB），驻留 method/modified 只省 4.3MB",
+    ("Features/Clipboard/Store/ClipboardFileStorages.swift", "ClipboardImageStorage", "store"):
+        "P1 图片入库重编码：42.1MB TIFF→HEIC 0.90 0.3MB/219ms（持久化串行队列，不阻塞主线程）；历史 TIFF 不回溯",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "ClipboardManager", "writeToDatabase"):
+        "P1 入库落盘主路径（persist 串行队列）：图片编码/富文本写盘/去重判定；大图单次 219ms 级别",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "ClipboardManager", "reload"):
+        "P1 三栏工作台列表刷新（fetch+截断 800 条）：滚动/搜索场景待实测",
+    ("Features/FloatingBall/DesktopPetView.swift", "DesktopPetView", "petContent"):
+        "P2 桌面精灵 3.3fps（0.3s）动画时钟：静态实测 0.3% CPU / 93MB（与空闲基线同）；"
+        "轻动/自定义 PNG 需人手交互，待实测",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "ScreenshotManager", "beginCapture"):
+        "P1 截图编排：首块覆盖层 119-164ms（双屏第二块 +66-70ms），v292 已加全链分段计时",
+    ("Features/Archive/Table/ArchiveEntryTable.swift", "ArchiveEntryTableRepresentable", "updateNSView"):
+        "P1 归档表格行更新：万条滚动/选中刷新路径，待实测",
+    ("Features/Island/IslandSurface.swift", "IslandMaterialHost", "updateNSView"):
+        "P1 岛材质宿主逐帧回调：surfaceDidChange→updatePointer；layout p95 0.048ms 已低，观察每帧指针判定",
+    # ---- P2：已加计时/已修的观察项 ----
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "ScreenshotManager", "streamScreenSnapshots"):
+        "P2 v292 已加子任务/主线程回调/流开始三段计时 + 取消传播修复；待满载复测",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "ScreenshotManager", "presentOverlay"):
+        "P2 四段计时：建窗 2-13ms/状态 0/激活 0-1ms/orderFront 0-1ms（上屏非瓶颈）",
+    ("Features/Island/IslandController.swift", "IslandController", "beginSelectionRefresh"):
+        "P2 v292 选区异步：0-9ms 后台完成，不再阻塞开窗",
+    ("Features/Island/IslandController.swift", "IslandController", "refreshClipboard"):
+        "P2 v292 复用 ClipboardManager.items 内存快照（默认过滤态），消除展开时 SQLite 查询",
+    ("Features/Island/IslandController.swift", "IslandController", "refreshEntries"):
+        "P2 v292 入口窗状态去重（EntryWindowState），消除重复 setFrame/order 往返",
+    ("Features/Island/IslandSurface.swift", "IslandMaterialView", "applyGeometry"):
+        "P2 取样面更新计数（非对象重建）；layout p50 0.008ms/p95 0.053ms 已低，probe.islandMaterial 开关控制",
+}
 MAP_CSV = os.path.join(ROOT, "docs", "00-总览", "源码与文档映射.csv")
 
 MODULE_DIRS = {
@@ -265,10 +330,15 @@ def scan_file(path: str, rel: str):
             complexity = 1
             for bc in body_lines:
                 complexity += sum(bc.count(w) for w in BRANCH_WORDS)
+            # 2026-11-24：签名（重载区分用）。只取声明到第一个 `{` 之前的文本，
+            # 归一化空白；台账/审查记录用它区分同名重载，不再只能按名字匹配。
+            decl = " ".join(codes[start:j + 1])
+            signature = re.sub(r"\s+", " ", decl.split("{")[0]).strip()
             rows.append({
                 "module": module_of(rel), "file": rel, "owner": stack[-1][0] if stack else "-",
                 "kind": "func" if kind == "func" else kind,
-                "name": name, "line": start + 1, "lines": len(body_lines), "complexity": complexity,
+                "name": name, "line": start + 1, "lines": len(body_lines),
+                "complexity": complexity, "signature": signature,
             })
             # 跳过函数体，避免把体内嵌套闭包/局部声明记成成员
             if body_depth is not None and j > start:
@@ -287,7 +357,7 @@ def scan_file(path: str, rel: str):
             rows.append({
                 "module": module_of(rel), "file": rel, "owner": stack[-1][0] if stack else "-",
                 "kind": mprop.group(1), "name": mprop.group(2),
-                "line": i + 1, "lines": 0, "complexity": 1,
+                "line": i + 1, "lines": 0, "complexity": 1, "signature": "",
             })
             # v259：计算属性 / 观察器 / `= { … }()` 初始化闭包也要跳体。
             # 旧版只记属性、不跳体，于是 getter 里的 `let opacity` / 闭包里的
@@ -317,6 +387,72 @@ def scan_file(path: str, rel: str):
     return rows
 
 
+# ── 逐函数审查记录（2026-11-24 新增）────────────────────────────────────
+#
+# 为什么单独一份文件：`函数清单.csv` 是**生成物**（行号随每次改码漂移），
+# 手工审查结论写进去会被下一次 `func_table.py` 覆盖。审查记录是人工维护的
+# **来源**，生成时按 (file, owner, name, signature) 合并进 CSV：
+#   · 签名命中 → 精确匹配（同名重载不会互相串结论）；
+#   · 只有一条同名记录时允许回退按名字匹配（老记录没写签名）；
+#   · 没有记录 → NOT_REVIEWED（绝不默认 REVIEWED_OK）。
+REVIEW = os.path.join(ROOT, "docs", "00-总览", "数据表", "函数审查记录.csv")
+REVIEW_FIELDS = ["review_status", "reviewed_revision", "review_note",
+                 "action", "measurement", "perf_issue"]
+REVIEW_STATUSES = ("NOT_REVIEWED", "REVIEWED_OK", "NEEDS_MEASUREMENT",
+                   "NEEDS_FIX", "FIXED", "VERIFIED")
+
+
+def load_reviews() -> dict:
+    if not os.path.exists(REVIEW):
+        return {}
+    out = {}
+    with open(REVIEW, encoding="utf-8-sig", newline="") as fh:
+        for row in csv.DictReader(fh):
+            key = (row.get("file", ""), row.get("owner", ""),
+                   row.get("name", ""), row.get("signature", ""))
+            out[key] = row
+    return out
+
+
+def apply_reviews(rows: list) -> Counter:
+    """把审查记录合并进清单行；返回各状态计数（全部来自真实记录）。"""
+    reviews = load_reviews()
+    by_name = Counter((k[0], k[1], k[2]) for k in reviews)
+    # 同名行数：重载（同 file#owner#name 出现多行）时**禁止**按名字回退，
+    # 否则一条记录会被同名的另一条重载共用，等于虚报已读。
+    row_count = Counter((r["file"], r["owner"], r["name"]) for r in rows)
+    stats = Counter()
+    func_kinds = ("func", "init", "deinit", "subscript")
+    for r in rows:
+        if r["kind"] not in func_kinds:
+            # 审查记录只针对函数类声明；属性/let 不参与（同名属性不得借函数结论）
+            r["review_status"] = "NOT_REVIEWED"
+            for f in REVIEW_FIELDS[1:]:
+                r[f] = ""
+            stats["NOT_REVIEWED"] += 1
+            continue
+        rec = reviews.get((r["file"], r["owner"], r["name"], r.get("signature", "")))
+        if rec is None:
+            key = (r["file"], r["owner"], r["name"])
+            if by_name.get(key) == 1 and row_count.get(key) == 1:
+                rec = next(v for k, v in reviews.items()
+                           if (k[0], k[1], k[2]) == key)
+        if rec is None:
+            for f in REVIEW_FIELDS:
+                r[f] = "NOT_REVIEWED" if f == "review_status" else ""
+            stats["NOT_REVIEWED"] += 1
+            continue
+        for f in REVIEW_FIELDS:
+            r[f] = rec.get(f, "")
+        status = r["review_status"] or "NOT_REVIEWED"
+        if status not in REVIEW_STATUSES:
+            print(f"?? 未知审查状态 {status!r}：{r['file']}#{r['owner']}#{r['name']}")
+            status = "NOT_REVIEWED"
+        r["review_status"] = status
+        stats[status] += 1
+    return stats
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true", help="只统计不写文件")
@@ -343,11 +479,19 @@ def main() -> int:
         r["feature_id"], r["doc_path"] = fid, doc
         if fid == "未映射":
             unmapped[r["file"]] += 1
+    review_stats = apply_reviews(all_rows)
     funcs = [r for r in all_rows if r["kind"] in ("func", "init", "deinit", "subscript")]
     kinds = Counter(r["kind"] for r in all_rows)
     modules = Counter(r["module"] for r in all_rows if r["kind"] != "var" and r["kind"] != "let")
 
     print(f"文件 {files}；声明 {len(all_rows)}；函数 {len(funcs)}")
+    func_review = Counter()
+    for r in funcs:
+        func_review[r.get("review_status", "NOT_REVIEWED")] += 1
+    total_reviewed = sum(v for k, v in func_review.items() if k != "NOT_REVIEWED")
+    print("逐函数审查（仅函数类声明）：" + " · ".join(f"{k} {func_review.get(k, 0)}"
+                                    for k in REVIEW_STATUSES)
+          + f"（已读 {total_reviewed}/{len(funcs)}）")
     print("kind:", dict(kinds))
     print("模块:", modules.most_common())
     if unmapped:
@@ -358,10 +502,13 @@ def main() -> int:
         return 0
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
+    for r in all_rows:
+        r["perf_priority"] = PERF_HOTSPOTS.get((r["file"], r["owner"], r["name"]), "")
     with open(args.out, "w", newline="", encoding="utf-8-sig") as fh:
         writer = csv.DictWriter(fh, fieldnames=["module", "file", "owner", "kind",
-                                                "name", "line", "lines", "complexity",
-                                                "feature_id", "doc_path"])
+                                                "name", "signature", "line", "lines",
+                                                "complexity", "feature_id", "doc_path",
+                                                "perf_priority"] + REVIEW_FIELDS)
         writer.writeheader()
         writer.writerows(all_rows)
     print("已写入", os.path.relpath(args.out, ROOT))

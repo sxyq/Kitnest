@@ -426,7 +426,10 @@ public final class FloatingBallController: NSObject, ObservableObject, NSWindowD
         } ?? screenAtPointer()
     }
     private func screenKey(_ screen: NSScreen) -> String {
-        IslandDisplay(screen: screen)!.id
+        // 2026-11-25（函数审查 NEEDS_FIX 落实）：IslandDisplay 是可失败 init
+        //（NSScreenNumber 缺失 / CGDisplayCreateUUID 返回 nil），屏热插拔瞬间强解包会崩。
+        // 回退到 legacyScreenKey 的数字键，两套键空间不混用（此函数只在 IslandDisplay 可用时才需要稳定键）。
+        IslandDisplay(screen: screen)?.id ?? legacyScreenKey(screen)
     }
     private func legacyScreenKey(_ screen: NSScreen) -> String {
         String((screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value ?? 0)

@@ -173,27 +173,44 @@ public final class CaptureHistoryStore {
     // MARK: 查询 / 删除
 
     /// 查询历史（按时间倒序）。`query` 空 = 全量；否则按 OCR 文本 / 模式 / 日期串模糊匹配。
+    ///
+    /// 2026-11-25（函数审查 NEEDS_FIX 落实）：`queue.sync` 被主线程调用（VM.reload），
+    /// 而 record() 的缩略图生成（整图解码+PNG 编码，可达数百 ms）跑在同一串行队列——
+    /// 刚截完图就打开历史窗会阻塞主线程。新增异步入口 `itemsAsync`（同一串行队列查询、
+    /// 结果回主线程），同步版保留给非主线程调用点。
     public func items(query: String = "", mode: String? = nil, limit: Int = 500) -> [CaptureHistoryItem] {
-        queue.sync {
-            var sql = "SELECT * FROM capture_history WHERE 1=1"
-            var values: [SQLiteValue] = []
-            if let mode, !mode.isEmpty, mode != "all" {
-                sql += " AND mode = ?"
-                values.append(.text(mode))
-            }
-            let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
-            if !q.isEmpty {
-                // OCR 文本 / 文件路径 / 模式 / 创建日期（yyyy-MM-dd 或 M月d日）任一命中
-                sql += " AND (ocr_text LIKE ? OR path LIKE ? OR mode LIKE ? OR " +
-                       "strftime('%Y-%m-%d', created_at, 'unixepoch', 'localtime') LIKE ?)"
-                let like = "%\(q)%"
-                values.append(contentsOf: [.text(like), .text(like), .text(like), .text(like)])
-            }
-            sql += " ORDER BY created_at DESC LIMIT ?"
-            values.append(.int(Int64(limit)))
-            let rows = (try? self.db.query(sql, values)) ?? []
-            return rows.map { Self.item(from: $0) }
+        queue.sync { itemsLocked(query: query, mode: mode, limit: limit) }
+    }
+
+    /// 异步查询：结果回主线程（串行队列保证完成顺序与调用顺序一致）。
+    public func itemsAsync(query: String = "", mode: String? = nil, limit: Int = 500,
+                           completion: @escaping ([CaptureHistoryItem]) -> Void) {
+        queue.async { [weak self] in
+            guard let self else { return }
+            let result = self.itemsLocked(query: query, mode: mode, limit: limit)
+            DispatchQueue.main.async { completion(result) }
         }
+    }
+
+    /// 必须在 queue 上调用
+    private func itemsLocked(query: String, mode: String?, limit: Int) -> [CaptureHistoryItem] {
+        var sql = "SELECT * FROM capture_history WHERE 1=1"
+        var values: [SQLiteValue] = []
+        if let mode, !mode.isEmpty, mode != "all" {
+            sql += " AND mode = ?"
+            values.append(.text(mode))
+        }
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !q.isEmpty {
+            sql += " AND (ocr_text LIKE ? OR path LIKE ? OR mode LIKE ? OR " +
+                   "strftime('%Y-%m-%d', created_at, 'unixepoch', 'localtime') LIKE ?)"
+            let like = "%\(q)%"
+            values.append(contentsOf: [.text(like), .text(like), .text(like), .text(like)])
+        }
+        sql += " ORDER BY created_at DESC LIMIT ?"
+        values.append(.int(Int64(limit)))
+        let rows = (try? self.db.query(sql, values)) ?? []
+        return rows.map { Self.item(from: $0) }
     }
 
     public func delete(id: String) {

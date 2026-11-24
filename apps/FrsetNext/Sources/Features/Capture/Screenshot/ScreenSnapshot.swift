@@ -7,6 +7,35 @@ import Foundation
 
 // MARK: - 屏幕快照来源
 
+/// 一轮截图的时间预算（2026-11-24 v293）。
+///
+/// 旧实现每条通道各自写死 4s：原生 BMP 4s（超时）→ PNG 再 4s → SCK 再 4s，
+/// 极端情况下一次截图会在关键路径上串行等 12s，用户只看到「按了没反应」。
+/// 现在整轮共用一个 deadline，各通道只拿「剩余时间」，绝不叠加。
+struct CaptureBudget: Sendable {
+    /// 单调时钟 deadline（uptimeNanoseconds）
+    let deadline: UInt64
+    /// 冻结阶段预算：双屏空闲实测 <500ms，高负载留足余量。
+    /// 取值依据见 docs/40-修改记录 本轮截图专项；不是「越短越好」，
+    /// 太短会把高负载下本来正常的画面误判成失败。
+    static let freezeSeconds: Double = 2.4
+    /// 单通道上限：不能因为整轮还有预算就让某一条通道独占。
+    static let channelSeconds: Double = 4.0
+
+    static func seconds(_ seconds: Double) -> CaptureBudget {
+        CaptureBudget(deadline: DispatchTime.now().uptimeNanoseconds
+                      + UInt64(max(0.1, seconds) * 1_000_000_000))
+    }
+
+    /// 剩余秒数（可为负）
+    var remaining: Double {
+        (Double(deadline) - Double(DispatchTime.now().uptimeNanoseconds)) / 1_000_000_000
+    }
+
+    var expired: Bool { remaining <= 0 }
+}
+
+
 /// 抓屏通道：
 /// - ScreenCaptureKit（macOS 14+）：原作技术栈（otool 实证已链接该框架），异步、不含光标；
 /// - CGWindowListCreateImage：低版本回退，同步，覆盖层快照（放大镜）也走这条路。
@@ -245,7 +274,8 @@ enum ScreenSnapshot {
     /// 日志只记这些元数据，不记任何画面内容。
     static func captureScreenForScreenshot(_ screen: NSScreen,
                                            epoch: Int? = nil,
-                                           toast: ToastExclusion = .unknown) async -> CGImage? {
+                                           toast: ToastExclusion = .unknown,
+                                           budget: CaptureBudget? = nil) async -> CGImage? {
         let started = DispatchTime.now().uptimeNanoseconds
         let screenFrame = screen.frame
         let displayID = displayID(of: screen)
@@ -261,6 +291,7 @@ enum ScreenSnapshot {
         let toastVisible = toastFrame != nil
         let shouldCancel: () -> Bool = {
             if let epoch, !isCurrentEpoch(epoch) { return true }
+            if let budget, budget.expired { return true }
             return false
         }
         var probeMs: Double = 0   // v292 B1：32×32 校验累计耗时（native + SCK 两段）
@@ -277,9 +308,12 @@ enum ScreenSnapshot {
         let nativeDisplayIndex = displayID.flatMap(screencaptureDisplayIndex(for:))
         let native: CGImage?
         if let nativeDisplayIndex {
+            let channel = NativeRegionCapture.ChannelLimit(
+                seconds: min(CaptureBudget.channelSeconds, budget?.remaining ?? CaptureBudget.channelSeconds))
             native = await Task.detached(priority: .userInitiated) {
                 NativeRegionCapture.captureScreenOnDisplay(index: nativeDisplayIndex,
-                                                           isCancelled: shouldCancel)
+                                                           isCancelled: shouldCancel,
+                                                           limit: channel)
             }.value
         } else {
             native = nil
@@ -294,6 +328,11 @@ enum ScreenSnapshot {
         }
         if shouldCancel() { return nil }
         let sck: CGImage?
+        // 预算不足时不要再起一条 4s 的 SCK 等待（旧实现会在原生失败后无条件下一条通道）。
+        if let budget, budget.remaining < 0.2 {
+            Log.warn("Capture", "抓帧预算用尽，跳过 SCK 回退")
+            return finish(nil, "冻结帧预算用尽")
+        }
         if toastVisible {
             if #available(macOS 14.0, *), let displayID {
                 sck = await Task.detached(priority: .userInitiated) {
@@ -424,7 +463,19 @@ enum ScreenSnapshot {
 
     /// v162：legacy 通道运行时存活探针（逐帧采捕等高频路径用）。nil=未探测；
     /// false=该系统上已失效（返回 nil，如 macOS 26/27）；true=可用（如 ≤15）。
-    private static var legacyAlive: Bool?
+    ///
+    /// 2026-11-24 v293：读写都在后台线程上，原先裸 `static var` 是数据竞争（虽然只是
+    /// 提示性缓存）。改成锁保护的槽位，语义不变。
+    private final class LegacyProbeState: @unchecked Sendable {
+        private let lock = NSLock()
+        private var alive: Bool?
+        var value: Bool? {
+            get { lock.lock(); defer { lock.unlock() }; return alive }
+            set { lock.lock(); alive = newValue; lock.unlock() }
+        }
+    }
+
+    private static let legacyProbe = LegacyProbeState()
 
     /// 带存活记账的 legacy 抓屏：首次 nil 记「该系统 legacy 已废」，此后调用方可直接换通道
     static func legacyCaptureProbed(rect: CGRect,
@@ -433,15 +484,15 @@ enum ScreenSnapshot {
                                     imageOption: CGWindowImageOption = [.bestResolution]) -> CGImage? {
         let img = legacyCapture(rect: rect, option: option, windowID: windowID, imageOption: imageOption)
         if img != nil {
-            legacyAlive = true
-        } else if legacyAlive == nil {
-            legacyAlive = false
+            legacyProbe.value = true
+        } else if legacyProbe.value == nil {
+            legacyProbe.value = false
         }
         return img
     }
 
     /// legacy 是否已被运行时证实失效（false = 未探测或仍可用）
-    static var isLegacyKnownDead: Bool { legacyAlive == false }
+    static var isLegacyKnownDead: Bool { legacyProbe.value == false }
 
     /// 同步版 ScreenCaptureKit 抓整屏（v108：长截图采帧用）。
     /// legacy dlsym 路径在 macOS 15+ 被移除后返回 nil（实测 macOS 27 采帧

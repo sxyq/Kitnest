@@ -57,8 +57,17 @@ def main() -> int:
             text = open(full, encoding="utf-8", errors="ignore").read()
             lines = text.split("\n")
 
+            # 2026-11-25（函数审查 NEEDS_FIX 落实）：旧实现 text.find 只给第一处行号，
+            # 同文件里出现相同 snippet 时全部报同一行，误导修改位置。改为按出现序
+            # 逐个查找（find 从上次结束位置继续），每个出现位置单独报行号。
+            search_from = 0
             for snippet in scan_rr(text):
-                lineno = text[: text.find(snippet)].count("\n") + 1
+                found = text.find(snippet, search_from)
+                if found < 0:
+                    found = text.find(snippet)
+                    search_from = 0
+                lineno = text[:found].count("\n") + 1
+                search_from = found + max(1, len(snippet))
                 violations.append(f"{rel}:{lineno}: 缺 style: .continuous → {snippet[:60]}")
             counts["swiftui"] += sum(1 for line in lines if "RoundedRectangle(cornerRadius:" in line
                                      and "style: .continuous" in line)

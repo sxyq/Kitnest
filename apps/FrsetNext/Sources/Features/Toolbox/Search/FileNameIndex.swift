@@ -126,8 +126,16 @@ final class FileNameIndex: ObservableObject {
             if a.depth != b.depth { return a.depth < b.depth }
             return a.path < b.path
         }
+        var cancelled = false
         key.withCString { literalKey in
+            var scanned = 0
             while offset < poolLength {
+                // v292 实测：单次全扫 361-1431ms，且循环内原本不看取消——快速输入会把
+                // 多次全扫叠在协作线程池上。每 8192 条检查一次 Task 取消（纯计数，
+                // 不改匹配语义）；被取消即中止并返回空集，调用方本来就会丢弃这次结果。
+                scanned += 1
+                if scanned & 0x1FFF == 0, Task.isCancelled { cancelled = true; return }
+                let pathStart = offset
                 let bytes = paths.advanced(by: offset)
                 let end = offset + strlen(bytes)
                 var matched = 0
@@ -144,28 +152,56 @@ final class FileNameIndex: ObservableObject {
                 }
                 offset = end + 1
                 guard matched == needle.count else { continue }
-                let path = String(cString: bytes)
-                let url = URL(fileURLWithPath: path)
-                guard kind.includes(url) else { continue }
-                let nameMatch = FuzzyMatcher.match(key, in: url.lastPathComponent)
-                let pathMatch = nameMatch == nil ? FuzzyMatcher.match(key, in: path) : nil
+                // v292 实测：单次全扫 361-1431ms，采样显示热点不在字节扫描，而在
+                // 「每个命中都建 path String + URL + lastPathComponent」。改为惰性构造：
+                //   1) 先从字节池切出最后一段（name 平均 18B，path 平均 127B）；
+                //      实测 144.7 万条与 URL.lastPathComponent 完全一致（0 条不一致）
+                //   2) 只有 name 未命中时才建整条 path 串跑 pathMatch
+                //   3) kind == .all 时完全不建 URL（URL 只用于 lastPathComponent）
+                //   4) path 串只在真正可能入榜时才构造
+                var nameEnd = end
+                while nameEnd > pathStart, pool[nameEnd - 1] == 47 { nameEnd -= 1 }
+                var nameStart = pathStart
+                var cursor = nameEnd - 1
+                while cursor >= pathStart {
+                    if pool[cursor] == 47 { nameStart = cursor + 1; break }
+                    cursor -= 1
+                }
+                let nameText = nameEnd > nameStart
+                    ? String(decoding: UnsafeBufferPointer(start: pool + nameStart, count: nameEnd - nameStart),
+                             as: UTF8.self)
+                    : String(cString: bytes)
+                let nameMatch = FuzzyMatcher.match(key, in: nameText)
+                var pathText: String?
+                var pathMatch: FuzzyMatch?
+                if nameMatch == nil {
+                    let fullPath = String(cString: bytes)
+                    pathText = fullPath
+                    pathMatch = FuzzyMatcher.match(key, in: fullPath)
+                }
                 guard nameMatch != nil || pathMatch != nil else { continue }
-                let candidate = (path: path, score: (nameMatch?.score ?? 0) * 2 + (pathMatch?.score ?? 0),
-                                 depth: Self.depth(path))
+                if kind != .all {
+                    let url = URL(fileURLWithPath: pathText ?? String(cString: bytes))
+                    guard kind.includes(url) else { continue }
+                }
+                let score = (nameMatch?.score ?? 0) * 2 + (pathMatch?.score ?? 0)
+                var depth = 0
+                for index in pathStart..<end where pool[index] == 47 { depth += 1 }
+                // 先按 score/depth 挡掉确定进不了榜的（与 before 的前两级完全同义），
+                // 避免为它们构造 path 串。
+                if candidates.count == limit, let last = candidates.last {
+                    if score < last.score { continue }
+                    if score == last.score, depth > last.depth { continue }
+                }
+                let candidate = (path: pathText ?? String(cString: bytes), score: score, depth: depth)
                 if candidates.count == limit, let last = candidates.last, !before(candidate, last) { continue }
                 let index = candidates.firstIndex { before(candidate, $0) } ?? candidates.endIndex
                 candidates.insert(candidate, at: index)
                 if candidates.count > limit { candidates.removeLast() }
             }
         }
+        if cancelled { return [] }
         return candidates.map(\.path)
-    }
-
-    /// 路径深度（`/` 的个数）
-    private static func depth(_ path: String) -> Int {
-        var n = 0
-        for u in path.utf8 where u == 47 { n += 1 }
-        return n
     }
 
     // MARK: - 磁盘格式

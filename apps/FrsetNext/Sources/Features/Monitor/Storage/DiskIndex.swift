@@ -1064,9 +1064,16 @@ enum StorageFormat {
         if d >= 1_000_000 { return String(format: "%.1f MB", d / 1_000_000) }
         return String(format: "%.0f KB", d / 1_000)
     }
-    static func date(_ t: TimeInterval) -> String {
+    /// 2026-11-25（函数审查 NEEDS_FIX 落实）：DateFormatter 是 ICU 重对象，
+    /// statusLine（header 每次 body 求值）/工作记录表各行都走这里，旧实现每次调用
+    /// 都新建一个。格式固定，缓存成静态实例即可。
+    private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "MM-dd HH:mm"
-        return f.string(from: Date(timeIntervalSince1970: t))
+        return f
+    }()
+
+    static func date(_ t: TimeInterval) -> String {
+        Self.dateFormatter.string(from: Date(timeIntervalSince1970: t))
     }
 }

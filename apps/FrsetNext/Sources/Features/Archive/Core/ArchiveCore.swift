@@ -698,6 +698,11 @@ public enum ArchiveCore {
         args += [url.path]
 
         DispatchQueue.global(qos: .userInitiated).async {
+            // v292（性能第二轮 F）：渐进索引计时——首批可浏览/完整索引/进程退出三段。
+            // 只记条目数与毫秒，不记任何路径内容。
+            let indexStart = DispatchTime.now().uptimeNanoseconds
+            var firstEmitMs: Double = -1        // 只在主队列读写（onPreliminary 串行回调）
+            var emitCount = 0
             let task = Process()
             task.executableURL = URL(fileURLWithPath: bin)
             task.arguments = args
@@ -730,7 +735,15 @@ public enum ArchiveCore {
                 let partial = includeAuxiliary ? snapshot
                     : snapshot.filter { !isAuxiliary($0.path) }
                 guard !partial.isEmpty else { return }
-                DispatchQueue.main.async { onPreliminary(partial) }
+                DispatchQueue.main.async {
+                    emitCount += 1
+                    let ms = Double(DispatchTime.now().uptimeNanoseconds - indexStart) / 1_000_000
+                    if firstEmitMs < 0 {
+                        firstEmitMs = ms
+                        Log.info("Archive", String(format: "渐进索引：首批可浏览 %d 条 @ %.0fms", partial.count, ms))
+                    }
+                    onPreliminary(partial)
+                }
             }
 
             // 看门狗：120s 未结束按超时收尾（与 list 的 60s 同量级，大包放宽）
@@ -765,7 +778,12 @@ public enum ArchiveCore {
             }
             let all = streamer.finish()
             let filtered = includeAuxiliary ? all : all.filter { !isAuxiliary($0.path) }
-            DispatchQueue.main.async { completion(filtered, nil) }
+            let totalMs = Double(DispatchTime.now().uptimeNanoseconds - indexStart) / 1_000_000
+            DispatchQueue.main.async {
+                Log.info("Archive", String(format: "渐进索引：完整 %d 条 @ %.0fms（首批 %.0fms · 发布 %d 次）",
+                                           filtered.count, totalMs, firstEmitMs, emitCount))
+                completion(filtered, nil)
+            }
         }
     }
 

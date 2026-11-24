@@ -114,7 +114,10 @@ private struct WorkflowSettingsContent: View {
         }
         .padding(.vertical, 8)
         .background(targetField == workflows[index].name ? Theme.accent.opacity(0.08) : Color.clear)
-        .id(workflows[index].name)
+        // 2026-11-25（函数审查 NEEDS_FIX 落实）：视图身份必须绑稳定 UUID。
+        // 旧实现绑在可编辑的 name 上——名称 TextField 每敲一个字符整块（含全部步骤行）
+        // 销毁重建、输入焦点被打断。CaptureWorkflow 本就是 Identifiable。
+        .id(workflows[index].id)
         .opacity(workflows[index].enabled ? 1 : 0.72)
     }
 

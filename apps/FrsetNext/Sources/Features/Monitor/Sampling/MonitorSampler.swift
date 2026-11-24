@@ -268,9 +268,20 @@ public final class MonitorSampler: ObservableObject {
             ? [cSnap.load1, cSnap.load5, cSnap.load15]
             : reader.loadAverages()
 
+        var frameDelta: Double = 0
         lock.lock()
         let now = Date().timeIntervalSince1970
         let interval = uiActive ? MonitorPreferences.refreshInterval : max(MonitorPreferences.refreshInterval, 5)
+        // 2026-11-25（函数审查 NEEDS_FIX 落实）：累计流量必须按**本帧真实间隔**积分。
+        // 旧实现用 MonitorPreferences.refreshInterval——UI 隐藏时帧间隔被抬到
+        // max(base,5s)（scheduleNext 同款），按 2s 设置积分会把隐藏期间的累计下载/上传
+        // 低估约 60%。取上一帧时间戳的真实差值（钳制 0.1–30s 防时钟跳变），首帧用排程值。
+        if buffers.timestamps.count == 0 {
+            frameDelta = interval
+        } else {
+            // last 在空缓冲时返回 0（环形缓冲口径），count>0 时即上一帧时间戳
+            frameDelta = max(0.1, min(30, now - buffers.timestamps.last))
+        }
         let previousCount = buffers.timestamps.count
         buffers.timestamps.append(now)
         buffers.intervals.append(interval)
@@ -312,8 +323,8 @@ public final class MonitorSampler: ObservableObject {
         lock.unlock()
 
         // 补充字段写入旁路容器（峰值/累计/负载）
-        let netIn = MonitorFormat.u64(Double(sample.netDownload) * MonitorPreferences.refreshInterval)
-        let netOut = MonitorFormat.u64(Double(sample.netUpload) * MonitorPreferences.refreshInterval)
+        let netIn = MonitorFormat.u64(Double(sample.netDownload) * frameDelta)
+        let netOut = MonitorFormat.u64(Double(sample.netUpload) * frameDelta)
         MonitorExtra.update { extra in
             extra.compressedMemory = result.compressedMemory
             extra.loadAverages = loadAverages
