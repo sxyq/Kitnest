@@ -37,6 +37,10 @@ public final class LanTransferServer: ObservableObject {
     @Published public private(set) var port: UInt16 = 0
     /// 手机访问地址（含 token，末尾带 / 以便页面内相对路径解析）
     @Published public private(set) var shareURL: String?
+    /// v291（立项 v2）：连接页地址（`/c/<token>/`）。安卓和 iPhone 扫**同一张码**
+    /// 的主路线 A——页面按 UA 分流：iPhone 给 AirPlay 引导 + 直传入口，
+    /// Android 给无线调试指引 + 直传入口。服务没起时为 nil。
+    @Published public private(set) var connectURL: String?
     /// 最近一条状态（UI 显示 + 排错）
     @Published public private(set) var statusText = ""
     /// 本次运行累计收到/发出的文件数
@@ -75,6 +79,7 @@ public final class LanTransferServer: ObservableObject {
             DispatchQueue.main.async {
                 self.running = false
                 self.shareURL = nil
+                self.connectURL = nil
                 self.port = 0
                 self.statusText = "已停止"
             }
@@ -94,6 +99,7 @@ public final class LanTransferServer: ObservableObject {
                 DispatchQueue.main.async {
                     self.running = false
                     self.shareURL = nil
+                    self.connectURL = nil
                 }
                 return
             }
@@ -160,6 +166,8 @@ public final class LanTransferServer: ObservableObject {
                     self.running = true
                     self.port = candidate
                     self.shareURL = url
+                    // v291：连接页与直传页共用同一个监听器与 token
+                    self.connectURL = "http://\(ip):\(candidate)/c/\(Self.tokenCache)/"
                     self.statusText = "手机与本机在同一 Wi-Fi 即可扫码传输"
                     if candidate != TransferDockPref.lanPort {
                         TransferDockPref.lanPort = candidate  // 顺延后的端口写回，避免每次重新试
@@ -379,8 +387,14 @@ public final class LanTransferServer: ObservableObject {
     private func hasValidToken(_ requestPath: String, method: String) -> Bool {
         let path = requestPath.split(separator: "?", maxSplits: 1).first.map(String.init) ?? requestPath
         let parts = path.split(separator: "/")
-        guard parts.count >= 2, parts[0] == "s" else { return false }
+        guard parts.count >= 2 else { return false }
+        // v291：`s/` = 直传页（原口径），`c/` = 连接页（立项 v2 主路线 A，只读 GET）
+        guard parts[0] == "s" || parts[0] == "c" else { return false }
         let token = String(parts[1])
+        if parts[0] == "c" {
+            // 连接页只接受主 token 的 GET；token 即凭据，不做任何写操作
+            return method == "GET" && token == Self.tokenCache
+        }
         return token == Self.tokenCache || (method == "GET" && selection?.token == token)
     }
 
@@ -421,6 +435,24 @@ public final class LanTransferServer: ObservableObject {
         }
 
         let pathParts = sub.split(separator: "/")
+
+        // v291：连接页路由（立项 v2 主路线 A）。`/c/<token>/` 只服务 GET 的页面本身，
+        // 页面内的直传动作全部跳到 `/s/<token>/`（复用既有上传/下载/删除路由）。
+        if pathParts.first == "c" {
+            guard pathParts.count >= 2, String(pathParts[1]) == Self.tokenCache else {
+                respond(context, status: 403, html: Self.errorPage("链接已失效",
+                                                                   detail: "请重新扫描 Kitnest 上的二维码。"))
+                return
+            }
+            let rest = pathParts.dropFirst(2).joined(separator: "/")
+            if context.method == "GET", rest.isEmpty || rest == "index.html" {
+                respond(context, status: 200, html: Self.connectHTML(transferToken: Self.tokenCache))
+            } else {
+                respond(context, status: 404, text: "Not Found")
+            }
+            return
+        }
+
         guard pathParts.count >= 2, pathParts[0] == "s" else {
             respond(context, status: 403, text: "链接已失效")
             return
@@ -667,6 +699,108 @@ public final class LanTransferServer: ObservableObject {
         text-align:center;color:#111;background:#fafafa}h1{font-size:19px;margin:0 0 8px}
         p{color:#666;font-size:14px;margin:0}</style></head>
         <body><h1>\(title)</h1><p>\(detail)</p></body></html>
+        """
+    }
+
+    /// v291（立项 v2 主路线 A）：连接页。安卓和 iPhone 扫**同一张码**（URL）落到这里，
+    /// 页面内按 UA 分流：iPhone 给 AirPlay 引导（接收端上线前如实标注），Android 给
+    /// 无线调试两步指引；两条平台的「传文件到 Mac」都跳 `/s/<token>/`（复用既有路由）。
+    /// 无外链资源；UA 判定放客户端，服务端不用读请求头。
+    private static func connectHTML(transferToken: String) -> String {
+        """
+        <!doctype html>
+        <html lang="zh-CN">
+        <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+        <title>Kitnest 连接</title>
+        <style>
+          :root { color-scheme: light dark; }
+          * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+          body { margin:0; padding:20px 16px 44px; background:#f7f7f8; color:#111;
+                 font:16px/1.55 -apple-system, BlinkMacSystemFont, "PingFang SC", system-ui, sans-serif; }
+          @media (prefers-color-scheme: dark) {
+            body { background:#0f0f10; color:#f2f2f4; }
+            .card { background:#1b1b1d !important; border-color:#2c2c2f !important; }
+            .muted { color:#9a9aa0 !important; }
+            .step { border-color:#2c2c2f !important; }
+            a.go { background:#2a4a8a !important; }
+          }
+          header { text-align:center; margin-bottom:16px; }
+          h1 { font-size:19px; margin:0 0 4px; letter-spacing:.2px; }
+          .muted { color:#6b6b70; font-size:12.5px; }
+          .card { background:#fff; border:1px solid #e6e6e9; border-radius:14px;
+                  padding:16px 14px; margin-bottom:14px; }
+          .badge { display:inline-block; font-size:11px; padding:2px 8px; border-radius:999px;
+                   background:rgba(255,149,0,.14); color:#a05a00; margin-left:6px; vertical-align:2px; }
+          ol { margin:0; padding-left:20px; }
+          ol li { margin:7px 0; font-size:14px; }
+          .step { border-top:1px solid #eee; padding-top:10px; margin-top:10px; font-size:12.5px; color:#6b6b70; }
+          a.go { display:block; text-align:center; text-decoration:none; padding:13px 12px;
+                 border-radius:12px; background:#0a60ff; color:#fff; font-size:15px; font-weight:600; }
+          .tip { font-size:12.5px; color:#6b6b70; margin-top:10px; }
+          footer { text-align:center; font-size:11px; color:#a0a0a6; margin-top:20px; }
+          section { display:none; }
+          section.on { display:block; }
+        </style>
+        </head>
+        <body>
+          <header>
+            <h1>Kitnest 连接</h1>
+            <div class="muted">同一 Wi-Fi · 不经过任何服务器</div>
+          </header>
+
+          <section id="ios">
+            <div class="card">
+              <b>屏幕镜像</b><span class="badge">接收端即将上线</span>
+              <ol>
+                <li>下拉打开「控制中心」→ 长按「屏幕镜像」</li>
+                <li>选择 <b>Kitnest 投屏</b></li>
+                <li>Mac 上确认后开始镜像</li>
+              </ol>
+              <div class="step">镜像接收端正在按 v2 立项开发（局域网内，无需装任何 App）。
+                上线后配过一次，控制中心会一直显示「Kitnest 投屏」，之后免扫码。</div>
+            </div>
+            <div class="card">
+              <b>现在就能用：传文件到 Mac</b>
+              <div class="tip">照片、视频、文档，走浏览器直传，不经过云。</div>
+              <a class="go" href="../s/\(transferToken)/">打开文件直传</a>
+            </div>
+          </section>
+
+          <section id="android">
+            <div class="card">
+              <b>投屏到 Mac</b>
+              <ol>
+                <li>手机打开「设置 → 开发者选项 → <b>无线调试</b>」</li>
+                <li>点「<b>使用二维码配对设备</b>」→ 扫 Mac 屏幕上的配对码
+                    （Mac 投屏页 → 「扫码直连」）</li>
+              </ol>
+              <div class="step">没有扫码入口时：点「使用配对码配对设备」，把手机显示的
+                6 位配对码和 IP:端口输入 Mac 投屏页的「无线连接」输入框。</div>
+              <div class="step">配过一次后，只要手机的无线调试开关开着，Mac 会自动连上，不再需要扫码。</div>
+            </div>
+            <div class="card">
+              <b>传文件到 Mac</b>
+              <a class="go" href="../s/\(transferToken)/">打开文件直传</a>
+            </div>
+          </section>
+
+          <div class="card">
+            <b>扫不到 / 连不上？</b>
+            <div class="tip">确认手机和 Mac 连的是<b>同一个 Wi-Fi</b>。公司、酒店路由器常开
+              「AP 隔离」会挡住设备互访——改用手机开热点、Mac 加入热点即可。</div>
+          </div>
+
+          <footer>Kitnest · 局域网直连</footer>
+
+        <script>
+        var ua = navigator.userAgent;
+        var isIOS = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
+        document.getElementById(isIOS ? 'ios' : 'android').classList.add('on');
+        </script>
+        </body>
+        </html>
         """
     }
 

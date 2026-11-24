@@ -284,6 +284,17 @@ private struct CastContent: View {
                     .onTapGesture { qrPair.restart() }
                     .accessibilityAddTraits(.isButton)
             }
+
+            // v291（立项 v2 §3.2 实验 B）：U: 附加字段真机实验的可视状态。
+            // 开关在 defaults（transfer.cast.qrFieldExperiment），主码内容随之变化；
+            // Android 扫码器容忍度与 iOS 相机行为由判定表定案，双过则取消本提示并把
+            // 主码收敛为唯一一张（立项 §3.2）。
+            if UserDefaults.standard.bool(forKey: "transfer.cast.qrFieldExperiment") {
+                Text("实验 B 生效：这张码附带连接页地址，iPhone 相机也可扫（真机定案前仅供实验）")
+                    .font(.system(size: 10.5))
+                    .foregroundStyle(Theme.tertiaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(14)
         .frame(width: 226)
@@ -389,14 +400,11 @@ private struct CastContent: View {
         .padding(.bottom, 4)
     }
 
-    /// iPhone：只留最基本信息，不写说明性长文
+    /// iPhone：扫码连接引导（v291 立项 v2 主路线 A）
+    /// URL 码 = 连接页（按 UA 分流）；镜像接收端上线前如实标注，不画假入口。
     private var iosPane: some View {
         VStack(spacing: 10) {
-            Image(systemName: "airplayvideo")
-                .font(.system(size: 30))
-                .foregroundStyle(Theme.tertiaryText)
-            Text("iPhone")
-                .font(.system(size: 13, weight: .medium))
+            IOSConnectPane()
             Button {
                 if isSettingsPreview { previewFeedback = "隔空投送入口预览" }
                 else { MonitorCenterPresenter.shared.selectTransferDock() }
@@ -418,6 +426,56 @@ private struct CastContent: View {
         .frame(maxWidth: .infinity)
         .padding(.horizontal, 20)
         .padding(.vertical, 26)
+    }
+
+    /// v291：iPhone 扫码连接面板（观察局域网服务状态）。
+    /// 服务没起 → 一颗显式启动按钮（用户点按即「按需启动」，2026-10-20 口径）；
+    /// 起了 → 连接页 URL 码 + 两行说明。接收端未上线写清楚，不冒充能投屏。
+    private struct IOSConnectPane: View {
+        @ObservedObject private var server = LanTransferServer.shared
+
+        var body: some View {
+            Group {
+                if let connect = server.connectURL {
+                    VStack(spacing: 7) {
+                        QRCodeView(text: connect, size: 168)
+                        Text("系统相机扫码 · 按页面引导连接")
+                            .font(.system(size: 11.5))
+                            .foregroundStyle(.secondary)
+                        Text("传文件立即可用 · 屏幕镜像接收端开发中（立项 v2 P0）")
+                            .font(.system(size: 10.5))
+                            .foregroundStyle(Theme.tertiaryText)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                } else {
+                    VStack(spacing: 7) {
+                        Button {
+                            LanTransferServer.shared.start()
+                        } label: {
+                            HStack(spacing: 5) {
+                                Image(systemName: "wifi").font(.system(size: 12))
+                                Text(server.running ? "正在启动连接服务…" : "开启局域网连接服务")
+                                    .font(.system(size: 12, weight: .medium))
+                            }
+                            .foregroundStyle(Theme.accent)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 30)
+                            .background(Theme.accent.opacity(0.08),
+                                        in: RoundedRectangle(cornerRadius: Theme.Radius.control,
+                                                             style: .continuous))
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(server.running)
+                        Text("启动后 iPhone 扫码：投屏引导 + 文件直传")
+                            .font(.system(size: 10.5))
+                            .foregroundStyle(Theme.tertiaryText)
+                    }
+                }
+            }
+            .frame(maxWidth: 220)
+        }
     }
 
     /// 唯一连接入口：弹出二维码

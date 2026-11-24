@@ -166,8 +166,21 @@ public final class AirDropReceiveWatcher {
 
 public enum ScreenCastEngine {
 
-    /// scrcpy 可执行文件探测（PATH / Homebrew / 手动放置）
+    /// scrcpy 可执行文件探测（随包 → 工程目录 → PATH / Homebrew / 手动放置）
+    ///
+    /// v291（立项 v2 P0「捆绑 scrcpy」）：官方 release 目录整体随包在
+    /// `Resources/bin/scrcpy/`（scrcpy + scrcpy-server + adb 同目录，由
+    /// tools/bundle_scrcpy.sh 在构建期填充，产物不入库）。官方构建只链系统
+    /// 框架，整目录拷贝即可运行；server 与二进制同目录时 scrcpy 自行找到。
     public static func findScrcpy() -> String? {
+        if let bundled = Bundle.main.url(forResource: "scrcpy", withExtension: nil,
+                                         subdirectory: "bin/scrcpy")?.path,
+           FileManager.default.isExecutableFile(atPath: bundled) {
+            return bundled
+        }
+        // 开发机：工程目录里的随包副本（build.sh 部署时随 Resources 一起进 .app）
+        let dev = "/Users/sunyiyang/Desktop/Project/frset-rebuild/apps/FrsetNext/Resources/bin/scrcpy/scrcpy"
+        if FileManager.default.isExecutableFile(atPath: dev) { return dev }
         let candidates = [
             "\(NSHomeDirectory())/.local/bin/scrcpy",   // v115：实测本机装在这里
             "/opt/homebrew/bin/scrcpy",
@@ -184,8 +197,15 @@ public enum ScreenCastEngine {
         return nil
     }
 
-    /// adb 可执行文件探测
+    /// adb 可执行文件探测（随包 → 工程目录 → PATH / Homebrew / SDK）
     public static func findADB() -> String? {
+        if let bundled = Bundle.main.url(forResource: "adb", withExtension: nil,
+                                         subdirectory: "bin/scrcpy")?.path,
+           FileManager.default.isExecutableFile(atPath: bundled) {
+            return bundled
+        }
+        let dev = "/Users/sunyiyang/Desktop/Project/frset-rebuild/apps/FrsetNext/Resources/bin/scrcpy/adb"
+        if FileManager.default.isExecutableFile(atPath: dev) { return dev }
         let candidates = [
             "\(NSHomeDirectory())/.local/bin/adb",   // v115：实测本机 adb 装在这里（应用 PATH 看不到）
             "/opt/homebrew/bin/adb",

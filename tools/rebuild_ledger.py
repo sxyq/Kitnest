@@ -3275,5 +3275,12 @@ EVIDENCE.update({
         "析构兜底停表（单例不会走到，但保留以防将来改成实例持有）",
 })
 
+# ── v291（2026-11-24 投屏线 v2 立项落地）────────────────────────────
+EVIDENCE.update({
+    ("Features/TransferDock/Transfer/LanTransferServer.swift", "connectHTML"):
+        "立项 v2 主路线 A 的连接页：UA 分流给 iPhone(AirPlay 引导)/Android(无线调试指引)，"
+        "直传动作跳 /s/ 复用既有路由；AP 隔离提示；无外链资源",
+})
+
 if __name__ == "__main__":
     sys.exit(main())

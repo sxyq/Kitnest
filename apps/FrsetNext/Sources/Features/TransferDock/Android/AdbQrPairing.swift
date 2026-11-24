@@ -108,7 +108,18 @@ public final class AdbQrPairing: ObservableObject {
     @Published public private(set) var code: String
 
     /// 二维码内容（手机系统相机识别为「无线调试配对」）
-    public var qrText: String { "WIFI:T:ADB;S:\(serviceName);P:\(code);;" }
+    ///
+    /// v291（立项 v2 §3.2 实验 B）：defaults 开关 `transfer.cast.qrFieldExperiment` 打开
+    /// 且连接页可用时，主码附加 `U:<连接页URL>` 字段——Android 无线调试扫码器是否容忍
+    /// 未知字段、iOS 系统相机是否会打开 URL，由真机实验定案（30 分钟判定表见立项文档）。
+    /// 双过 → 这张码成为唯一主码（字面意义「同一个码」）；任一不过 → 主路线 A 兜底，
+    /// 展示层由 CastView 决定。默认关闭，现行为（纯 WIFI:T:ADB）不变。
+    public var qrText: String {
+        let base = "WIFI:T:ADB;S:\(serviceName);P:\(code);;"
+        guard UserDefaults.standard.bool(forKey: "transfer.cast.qrFieldExperiment"),
+              let connect = LanTransferServer.shared.connectURL else { return base }
+        return "WIFI:T:ADB;S:\(serviceName);P:\(code);U:\(connect);;"
+    }
 
     private var timer: Timer?
     private var startedAt = Date()
