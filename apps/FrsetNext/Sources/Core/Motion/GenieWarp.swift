@@ -286,10 +286,10 @@ final class GenieWarp {
         // 总开关：默认开。缺省也当开。
         if !Self.isEnabled { return false }
         guard let screen = window.screen ?? NSScreen.main else { return false }
-        // 2026-11-23 阶段计时：神灯同步段到底花在哪（快照/缩放/帧构建/上屏），
-        // 以及主线程一共被占多久、帧序列持有多大内存。只记毫秒与 MB，不记画面内容。
-        let tEnter = CFAbsoluteTimeGetCurrent()
-        let memBefore = Self.footprintMB()
+        // 仅在 probe.genieMetrics 开启时采集阶段耗时、进程内存与诊断日志。
+        let measure = UserDefaults.standard.bool(forKey: "probe.genieMetrics")
+        let tEnter = measure ? CFAbsoluteTimeGetCurrent() : 0
+        let memBefore = measure ? Self.footprintMB() : 0
         memBase = memBefore
         memPeak = memBefore
 
@@ -318,7 +318,7 @@ final class GenieWarp {
             window.displayIfNeeded()
         }
         CATransaction.flush()
-        let tPrepared = CFAbsoluteTimeGetCurrent()
+        let tPrepared = measure ? CFAbsoluteTimeGetCurrent() : 0
 
         var shot = Self.snapshot(of: window)
         if shot == nil {
@@ -336,9 +336,9 @@ final class GenieWarp {
             Log.warn("Motion", "genie：快照为单色空白帧，跳过动画直接落位")
             return false
         }
-        let tSnapshot = CFAbsoluteTimeGetCurrent()
+        let tSnapshot = measure ? CFAbsoluteTimeGetCurrent() : 0
         // 快照本身也是一大块位图（720 宽 @2x），单独采一次，别把它的峰值漏掉
-        memPeak = max(memPeak, Self.footprintMB())
+        if measure { memPeak = max(memPeak, Self.footprintMB()) }
 
         if running { cancel(restoreWindow: false) }
 
@@ -352,7 +352,7 @@ final class GenieWarp {
         }
         // 2026-11-23 补测：窗口落位（setFrameOrigin + alpha）单独计一段，
         // 它与「显示准备」「快照」不是同一件事，混在总计里会看不出是移动贵还是抓图贵。
-        let tPlaced = CFAbsoluteTimeGetCurrent()
+        let tPlaced = measure ? CFAbsoluteTimeGetCurrent() : 0
 
         self.targetWindow = window
         self.completion = completion
@@ -384,8 +384,8 @@ final class GenieWarp {
         let targetSourceWidth = viewWindow.width * Self.pixelScale(bbox: bbox.size, frames: 1)
         let ratio = shot.width > 0 ? targetSourceWidth / CGFloat(shot.width) : 1
         let renderShot = ratio < 0.95 ? (Self.downscale(shot, ratio: ratio) ?? shot) : shot
-        let tDownscale = CFAbsoluteTimeGetCurrent()
-        memPeak = max(memPeak, Self.footprintMB())
+        let tDownscale = measure ? CFAbsoluteTimeGetCurrent() : 0
+        if measure { memPeak = max(memPeak, Self.footprintMB()) }
 
         let showsMesh = UserDefaults.standard.bool(forKey: "probe.genieMesh")
         let showsGuides = UserDefaults.standard.bool(forKey: "probe.genieDebug")
@@ -397,7 +397,7 @@ final class GenieWarp {
         let refresh = max(60, min(120, screen.maximumFramesPerSecond))
         let target = max(12, min(48, Int((self.duration * Double(refresh)).rounded())))
         let pixelScale = Self.pixelScale(bbox: bbox.size, frames: target)
-        let t0 = CFAbsoluteTimeGetCurrent()
+        let t0 = measure ? CFAbsoluteTimeGetCurrent() : 0
         var frames: [CGImage] = []
 
         let hold = Self.heldProgress()
@@ -428,12 +428,12 @@ final class GenieWarp {
             }
             frames = slots.compactMap { $0 }
         }
-        let buildMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+        let buildMs = measure ? (CFAbsoluteTimeGetCurrent() - t0) * 1000 : 0
         // 2026-11-23 补测：真正的内存峰值在「整条帧序列刚渲染完」这一刻——
         // 48 张位图同时在手，之后释放到动画结束。基线/峰值/收尾三段都要有。
-        let memAfterFrames = Self.footprintMB()
-        let frameBytes = frames.reduce(0) { $0 + $1.bytesPerRow * $1.height }
-        memPeak = max(memPeak, memAfterFrames)
+        let memAfterFrames = measure ? Self.footprintMB() : 0
+        let frameBytes = measure ? frames.reduce(0, { $0 + $1.bytesPerRow * $1.height }) : 0
+        if measure { memPeak = max(memPeak, memAfterFrames) }
         guard !frames.isEmpty else {
             Log.warn("Motion", "genie：帧渲染失败，退回缩放动画")
             running = false
@@ -485,8 +485,8 @@ final class GenieWarp {
         // 这一下之后到下一 vsync 就会出像素（120Hz 屏 ≤8.3ms），日志按「提交时刻」记。
         panel.displayIfNeeded()
         CATransaction.flush()
-        let tFirstFrame = CFAbsoluteTimeGetCurrent()
-        memPeak = max(memPeak, Self.footprintMB())
+        let tFirstFrame = measure ? CFAbsoluteTimeGetCurrent() : 0
+        if measure { memPeak = max(memPeak, Self.footprintMB()) }
         overlay = panel
 
         // 真窗退到幕后：动画期间由覆盖窗上的帧序列代替。
@@ -500,11 +500,11 @@ final class GenieWarp {
                                   viewSlot.width, viewSlot.height,
                                   abs(viewWindow.maxY - viewSlot.midY),
                                   phases.bendLength, phases.slideLength, phases.settled * 100, self.duration * 1000))
-        Log.info("Motion", String(format: "genie 预渲染 %d 帧 %.0f×%.0f@%.1fx 耗时 %.0fms（刷新 %dHz，缓动 %.1f）",
+        if measure { Log.info("Motion", String(format: "genie 预渲染 %d 帧 %.0f×%.0f@%.1fx 耗时 %.0fms（刷新 %dHz，缓动 %.1f）",
                                   frames.count, bbox.width, bbox.height, pixelScale, buildMs,
-                                  refresh, Double(Self.easeExponent())))
-        let memAfter = Self.footprintMB()
-        Log.info("Motion", String(format: "genie 阶段：显示准备 %.0fms · 快照 %.0fms · 落位 %.0fms · 降采样 %.0fms · 帧构建 %.0fms · 首帧上屏 %.0fms · 主线程总计 %.0fms · 动画 %.0fms",
+                                  refresh, Double(Self.easeExponent()))) }
+        let memAfter = measure ? Self.footprintMB() : 0
+        if measure { Log.info("Motion", String(format: "genie 阶段：显示准备 %.0fms · 快照 %.0fms · 落位 %.0fms · 降采样 %.0fms · 帧构建 %.0fms · 首帧上屏 %.0fms · 主线程总计 %.0fms · 动画 %.0fms",
                                   (tPrepared - tEnter) * 1000,
                                   (tSnapshot - tPrepared) * 1000,
                                   (tPlaced - tSnapshot) * 1000,
@@ -512,13 +512,13 @@ final class GenieWarp {
                                   buildMs,
                                   (tFirstFrame - tDownscale) * 1000 - buildMs,
                                   (tFirstFrame - tEnter) * 1000,
-                                  self.duration * 1000))
+                                  self.duration * 1000)) }
         // 内存三段：基线（进函数）/ 帧序列就绪（峰值）/ 首帧后。帧字节数按位图实算，
         // 用来核对 phys_footprint 的增量是不是就是这批图。
-        Log.info("Motion", String(format: "genie 内存：基线 %.1fMB → 帧序列 %.1fMB（%d 帧 %.1fMB）→ 峰值 %.1fMB（+%.1f）· 首帧后 %.1fMB",
+        if measure { Log.info("Motion", String(format: "genie 内存：基线 %.1fMB → 帧序列 %.1fMB（%d 帧 %.1fMB）→ 峰值 %.1fMB（+%.1f）· 首帧后 %.1fMB",
                                   memBefore, memAfterFrames, frames.count,
                                   Double(frameBytes) / (1024 * 1024),
-                                  memPeak, memPeak - memBefore, memAfter))
+                                  memPeak, memPeak - memBefore, memAfter)) }
 
         // 排障：定格模式停在第一张，交给截图核对
         if hold != nil { return true }

@@ -53,14 +53,14 @@ Core,Core/Motion/GenieWarp.swift,GenieWarp,duration,func,228,KEEP,"2026-11-19：
 Core,Core/Motion/GenieWarp.swift,GenieWarp,playIn,func,247,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；PanelController.swift:273 调用
 Core,Core/Motion/GenieWarp.swift,GenieWarp,playOut,func,257,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；PanelController.swift:362 调用
 Core,Core/Motion/GenieWarp.swift,GenieWarp,cancel,func,262,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；PanelController:207,342 / play:258"
-Core,Core/Motion/GenieWarp.swift,GenieWarp,play,func,282,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；playIn与playOut共用入口；同一窗口反向请求交switchDirection复用现有帧序列，新动画采用probe.genieDuration或duration(for:)并预渲染后交startLeg；现有展开/收起日志追加self.duration×1000的实际播放毫秒
+Core,Core/Motion/GenieWarp.swift,GenieWarp,play,func,282,KEEP,2026-11-24：playIn与playOut共用入口；同窗反向复用帧序列，新动画预渲染后交startLeg；probe.genieMetrics默认关闭阶段计时、footprint采样及对应诊断日志，不改帧和播放时序
 Core,Core/Motion/GenieWarp.swift,GenieWarp,currentPosition,func,539,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v244 反向播放：当前播放位置
 Core,Core/Motion/GenieWarp.swift,GenieWarp,startLeg,func,547,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v244 新增：从指定帧播一腿，playIn/playOut/switchDirection 调用
 Core,Core/Motion/GenieWarp.swift,GenieWarp,switchDirection,func,595,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v244 新增：反向复用帧序列；play() 打断分支调用
 Core,Core/Motion/GenieWarp.swift,GenieWarp,stopWatchdog,func,610,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；cancel:227 / finish:413
 Core,Core/Motion/GenieWarp.swift,GenieWarp,finish,func,615,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；watchdog Timer:399 回调
 Core,Core/Motion/GenieWarp.swift,GenieWarp,teardownOverlay,func,668,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；cancel:228 / finish:417
-Core,Core/Motion/GenieWarp.swift,GenieWarp,footprintMB,func,677,KEEP,2026-11-23：神灯 play() 阶段计时的内存读数——task_info 取 phys_footprint 换算 MB，只读无副作用，记录帧序列构建前后占用；与 LogArchive.STATUS 的 footprint 各自短小独立
+Core,Core/Motion/GenieWarp.swift,GenieWarp,footprintMB,func,677,KEEP,2026-11-24：仅 probe.genieMetrics=true 时由 play/finish 采样 task_info 的 phys_footprint；关闭时不读取进程内存
 Core,Core/Motion/GenieWarp.swift,GenieWarp,isBlank,func,691,KEEP,2026-11-21：play在快照后调用；24×24 RGB 缩略图逐像素与首色比较，RGB差异即判非空白、全相同判空白
 Core,Core/Motion/GenieWarp.swift,GenieWarp,easeExponent,func,710,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；v244 新增：缓动指数读取，帧采样循环外调用
 Core,Core/Motion/GenieWarp.swift,GenieWarp,pixelScale,func,717,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；play:291,300 帧内存预算"
