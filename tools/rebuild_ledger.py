@@ -45,6 +45,12 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("App/AppBootstrap.swift", "frontmostForSelection"):
+        "2026-11-24 性能第二轮 A2：纯本地 NSWorkspace 查询（不触发 AX IPC），岛展开时固定触发时前台应用上下文供后台选区读取；前台是 Kitnest 自身时返回 nil 沿用原语义；命令面板/划词路径不改",
+    ("Features/Island/IslandController.swift", "beginSelectionRefresh"):
+        "2026-11-24 性能第二轮 A2：岛展开选区读取改后台执行——先捕获前台上下文，DispatchQueue.global 读 AX（0.25s IPC 超时），回主线程按 selectionGeneration 代次丢弃过期结果；外壳展开不再阻塞在三次同步 AX IPC 上",
+    ("Features/Island/IslandController.swift", "logExpandPhases"):
+        "2026-11-24 性能第二轮 A1：expand() 单调时钟分步计时（开页/选区发起/剪贴板/状态/定位/上屏/入口/焦点）一行汇总，替代原笼统的「首次布局」单值日志；只记机器耗时不代表真实呈现",
     ("Core/Motion/GenieWarp.swift", "footprintMB"):
         "2026-11-23：神灯 play() 阶段计时的内存读数——task_info 取 phys_footprint 换算 MB，只读无副作用，记录帧序列构建前后占用；与 LogArchive.STATUS 的 footprint 各自短小独立",
     ("Features/Capture/Workflow/WorkflowSettingsPane.swift", "init"):

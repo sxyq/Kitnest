@@ -352,12 +352,18 @@ private final class IslandMaterialView: NSView {
     private var glassView: NSView?
     override var isFlipped: Bool { true }
 
-    // MARK: 实测（2026-11-24）
+    // MARK: 实测（2026-11-24，v292 口径修正）
     //
-    // 逐帧记 layout 耗时与玻璃重建次数，形变收尾时打一行日志。
-    // 只记毫秒/次数，不记画面内容；默认开，不影响观感。
+    // 逐帧记 layout 耗时与玻璃取样面更新次数，形变收尾时打一行日志。
+    // 只记毫秒/次数，不记画面内容。
+    // v292（性能第二轮 A4）：
+    //   · 口径：glassFrameUpdates 统计的是 **glass.frame（取样面）变化次数**，不是
+    //     NSGlassEffectView 对象重建次数（对象只在 init 建一次，applyMaterial 只切显隐）；
+    //   · 默认关闭：普通运行不再累积/排序统计。需要时 `defaults write com.sxyq.frsetnext
+    //     probe.islandMaterial -bool true` 再开（与 probe.motionPacing 同族）。
+    private static let statsEnabled = UserDefaults.standard.bool(forKey: "probe.islandMaterial")
     private var layoutCount = 0
-    private var glassRebuilds = 0
+    private var glassFrameUpdates = 0
     private var maskPathCount = 0
     private var frameCosts: [Double] = []      // layout 总耗时
     private var maskCosts: [Double] = []       // 遮罩路径重算
@@ -418,7 +424,7 @@ private final class IslandMaterialView: NSView {
     /// 唯一几何入口：插值尺寸只喂遮罩，取样面只在两档之间整块切换。
     func applyGeometry(interpolated: CGSize, radius newRadius: CGFloat,
                        sampling target: CGSize, samplingInset inset: CGFloat) {
-        layoutCount += 1
+        if Self.statsEnabled { layoutCount += 1 }
         if radius != newRadius { radius = newRadius; needsLayout = true }
         // 放大：展开一开始就按最终尺寸铺玻璃（本帧一次）；
         // 缩小：等遮罩真的收到收起态（插值 == 目标）再缩——提前缩会让收起途中透出桌面。
@@ -449,10 +455,10 @@ private final class IslandMaterialView: NSView {
         let maximum = frameCosts.max() ?? 0
         let maskP95 = maskCosts.isEmpty ? 0 : pct(maskCosts, 0.95)
         Log.info("Island", String(format:
-            "岛材质：几何更新 %d 次 · 玻璃重建 %d 次 · 遮罩重算 %d 次 · layout p50 %.3fms p95 %.3fms max %.3fms · 遮罩 p95 %.3fms · 落位 %.0f×%.0f",
-            layoutCount, glassRebuilds, maskPathCount, p50, p95, maximum, maskP95,
+            "岛材质：几何更新 %d 次 · 取样面更新 %d 次 · 遮罩重算 %d 次 · layout p50 %.3fms p95 %.3fms max %.3fms · 遮罩 p95 %.3fms · 落位 %.0f×%.0f",
+            layoutCount, glassFrameUpdates, maskPathCount, p50, p95, maximum, maskP95,
             size.width, size.height))
-        layoutCount = 0; glassRebuilds = 0; maskPathCount = 0
+        layoutCount = 0; glassFrameUpdates = 0; maskPathCount = 0
         frameCosts.removeAll(keepingCapacity: true)
         maskCosts.removeAll(keepingCapacity: true)
     }
@@ -460,7 +466,7 @@ private final class IslandMaterialView: NSView {
     override func layout() {
         super.layout()
         guard bounds != renderedBounds || radius != renderedRadius || sampling != renderedSampling else { return }
-        let started = CFAbsoluteTimeGetCurrent()
+        let started = Self.statsEnabled ? CFAbsoluteTimeGetCurrent() : 0
         renderedBounds = bounds
         renderedRadius = radius
         renderedSampling = sampling
@@ -474,22 +480,23 @@ private final class IslandMaterialView: NSView {
                                 width: sampling.width, height: sampling.height + samplingInset)
             if glass.frame != target {
                 glass.frame = target
-                glassRebuilds += 1
+                if Self.statsEnabled { glassFrameUpdates += 1 }
             }
             if samplingInset != renderedSamplingInset {
                 renderedSamplingInset = samplingInset
                 LiquidGlass.setCornerRadius(samplingInset, on: glass)
             }
         }
-        let maskStart = CFAbsoluteTimeGetCurrent()
+        let maskStart = Self.statsEnabled ? CFAbsoluteTimeGetCurrent() : 0
         mask.frame = bounds
         mask.path = IslandOutline(radius: radius).path(in: bounds).cgPath
-        maskPathCount += 1
-        let maskMs = (CFAbsoluteTimeGetCurrent() - maskStart) * 1000
         CATransaction.commit()
-        maskCosts.append(maskMs)
-        frameCosts.append((CFAbsoluteTimeGetCurrent() - started) * 1000)
-        if frameCosts.count > 300 { frameCosts.removeFirst(150); maskCosts.removeFirst(min(150, maskCosts.count)) }
+        if Self.statsEnabled {
+            maskPathCount += 1
+            maskCosts.append((CFAbsoluteTimeGetCurrent() - maskStart) * 1000)
+            frameCosts.append((CFAbsoluteTimeGetCurrent() - started) * 1000)
+            if frameCosts.count > 300 { frameCosts.removeFirst(150); maskCosts.removeFirst(min(150, maskCosts.count)) }
+        }
     }
 }
 

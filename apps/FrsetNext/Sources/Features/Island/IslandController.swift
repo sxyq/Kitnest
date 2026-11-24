@@ -86,7 +86,11 @@ final class IslandController: NSObject, ObservableObject {
     private var horizontalScroll: CGFloat = 0
     private var didSwipe = false
     private var afterCollapse: (() -> Void)?
-    private(set) var selection: AppBootstrap.SelectionResult?
+    /// v292 A2：选区结果改为 @Published——异步读取完成时可能没有其他状态变化，
+    /// 必须靠它自身触发岛视图刷新（原同步赋值搭 expanded/showingContent 的顺风车）。
+    @Published private(set) var selection: AppBootstrap.SelectionResult?
+    /// v292 A2：选区异步读取的代次（每次展开递增；旧代次结果回到主线程时直接丢弃）
+    private var selectionGeneration = 0
 
     init(configuration: IslandConfiguration = .load(), previewOnly: Bool = false) {
         self.configuration = configuration
@@ -396,7 +400,15 @@ final class IslandController: NSObject, ObservableObject {
 
     private func refreshClipboard() {
         if previewOnly { clipboardSummary = IslandSample.clipboard[0].title; return }
-        let summary = String((ClipboardRepository.shared.fetch(ClipboardQuery(limit: 1)).first?.displayTitle ?? "暂无内容").prefix(24)).replacingOccurrences(of: "\n", with: " ")
+        // v292（性能第二轮 A3）：优先复用 ClipboardManager 的内存快照（items 随捕获实时
+        // reload、最新在头部），不再每次展开同步查一次 SQLite。
+        // 快照受搜索/筛选影响 → 只有在默认过滤态才用它；否则回退查库保持语义。
+        // 快照为空（启动后尚未加载成功）同样回退。
+        let manager = ClipboardManager.shared
+        let snapshotUsable = manager.searchText.isEmpty && manager.filter == .all && manager.tagFilterID == nil
+        let cached = snapshotUsable ? manager.items.first?.displayTitle : nil
+        let title = cached ?? ClipboardRepository.shared.fetch(ClipboardQuery(limit: 1)).first?.displayTitle
+        let summary = String((title ?? "暂无内容").prefix(24)).replacingOccurrences(of: "\n", with: " ")
         if clipboardSummary != summary { clipboardSummary = summary }
     }
 
@@ -554,10 +566,22 @@ final class IslandController: NSObject, ObservableObject {
         refreshEntries()
     }
 
+    /// 入口窗的上次已应用状态（v292 A3）：旧实现每次 refreshEntries 都无条件
+    /// setFrame/isHidden/ignoresMouseEvents/orderFront|orderOut——expand/collapse/move
+    /// 路径里多次重复执行，产生不必要的 WindowServer 往返。现在只有真实变化的属性才动窗口。
+    private struct EntryWindowState: Equatable {
+        var frame: CGRect
+        var contentHidden: Bool
+        var ignoresMouse: Bool
+        var onScreen: Bool
+    }
+    private var entryWindowStates: [String: EntryWindowState] = [:]
+
     private func refreshEntries() {
         let ids = Set(displays.map(\.id))
         for id in Array(entries.keys) where !ids.contains(id) {
             entries.removeValue(forKey: id)?.orderOut(nil)
+            entryWindowStates.removeValue(forKey: id)
         }
         for display in displays {
             if entries[display.id] == nil {
@@ -569,20 +593,28 @@ final class IslandController: NSObject, ObservableObject {
                 entry.isReleasedWhenClosed = false
                 entry.contentView = IslandEntryView(hasNotch: display.hasNotch) { [weak self] in self?.activateDisplay(display.id) }
                 entries[display.id] = entry
+                entryWindowStates.removeValue(forKey: display.id)   // 新窗口：状态未知，首轮全部重放
             }
+            guard let entry = entries[display.id] else { continue }
             let visibility = configuration.entryVisibilities[display.id] ?? (display.hasNotch ? .always : .event)
             let width = configuration.hotspotWidths[display.id] ?? 210
-            entries[display.id]?.setFrame(display.entryFrame(hotspot: configuration.hotspots[display.id] ?? .center,
-                                                              width: width), display: true)
+            let frame = display.entryFrame(hotspot: configuration.hotspots[display.id] ?? .center, width: width)
             let revealed = visibility != .hidden && (display.hasNotch || visibility == .always ||
                 (visibility == .event && revealedEntryID == display.id)
             )
-            entries[display.id]?.contentView?.isHidden = !revealed
-            entries[display.id]?.ignoresMouseEvents = !revealed
             let visible = display.hasNotch ? display.id != activeDisplayID
                 : !(display.id == activeDisplayID && contentVisible)
-            if visible { entries[display.id]?.orderFrontRegardless() }
-            else { entries[display.id]?.orderOut(nil) }
+            let newState = EntryWindowState(frame: frame, contentHidden: !revealed,
+                                            ignoresMouse: !revealed, onScreen: visible)
+            let old = entryWindowStates[display.id]
+            if old?.frame != frame { entry.setFrame(frame, display: true) }
+            if old?.contentHidden != newState.contentHidden { entry.contentView?.isHidden = newState.contentHidden }
+            if old?.ignoresMouse != newState.ignoresMouse { entry.ignoresMouseEvents = newState.ignoresMouse }
+            // 状态缓存失真的兜底：窗口被系统暂时隐藏时仍按需拉回前台。
+            if old?.onScreen != visible || (visible && !entry.isVisible) {
+                if visible { entry.orderFrontRegardless() } else { entry.orderOut(nil) }
+            }
+            entryWindowStates[display.id] = newState
         }
     }
 
@@ -669,29 +701,80 @@ final class IslandController: NSObject, ObservableObject {
         hoverWork?.cancel()
         hoverWork = nil
         openedExplicitly = openedExplicitly || takeFocus
-        if !expanded {
+        var expandStart: UInt64 = 0
+        var stepMarks: [(label: String, nanos: UInt64)] = []
+        let didExpand = !expanded
+        if didExpand {
             // 2026-11-23 阶段计时：展开同步段到底花在哪（与主面板 布局=XXms 同口径）。
             // 只记毫秒，不动动画曲线（弹簧 0.42s/0.80 保持原值）。
             // v286：显示时钟探针在**同步段之前**起表——旧位置在首次布局之后，
             // 会漏掉「入口事件 → 首帧可见」那一段（审计包 02 指出的口径缺口）。
+            // v292（性能第二轮 A1）：改为单调时钟分步计时、一行汇总；口径是「开窗准备
+            // 各步骤的机器耗时」，不代表真实呈现。选区已异步化（A2），这里只记发起耗时。
             if !previewOnly { MotionPacingProbe.shared.run("岛展开", duration: 0.75) }
-            let t0 = CFAbsoluteTimeGetCurrent()
+            let clock = { DispatchTime.now().uptimeNanoseconds }
+            func mark(_ label: String) { stepMarks.append((label, clock())) }
+            expandStart = clock()
+
             if useOpeningPage { applyOpeningPage() }
-            if !previewOnly { selection = AppBootstrap.readSelection() }
+            mark("开页")
+            if !previewOnly { beginSelectionRefresh() }
+            mark("选区发起")
             refreshClipboard()
+            mark("剪贴板")
             showingContent = true
             contentOpacity = 0
-            if !previewOnly { position(); panel?.orderFrontRegardless() }
+            mark("状态")
+            if !previewOnly { position() }
+            mark("定位")
+            if !previewOnly { panel?.orderFrontRegardless() }
+            mark("上屏")
             expanded = true
             revealedEntryID = nil
             if !previewOnly { refreshEntries() }
+            mark("入口")
             revealContent(after: 0.08)
-            if !previewOnly {
-                Log.info("Island", String(format: "岛展开：首次布局 %.0fms", (CFAbsoluteTimeGetCurrent() - t0) * 1000))
-            }
         }
         hoverArmed = false
-        if takeFocus { panel?.makeKeyAndOrderFront(nil) }
+        if takeFocus {
+            panel?.makeKeyAndOrderFront(nil)
+            if didExpand { stepMarks.append(("焦点", DispatchTime.now().uptimeNanoseconds)) }
+        }
+        if didExpand, !previewOnly {
+            logExpandPhases(stepMarks, start: expandStart)
+        }
+    }
+
+    /// v292（性能第二轮 A2）：岛展开的选区读取移到后台——外壳展开不再阻塞在三次同步 AX IPC 上。
+    /// 触发时先固定前台应用上下文（纯本地查询）；完成后回主线程，代次不匹配就丢弃。
+    /// 命令面板 / 划词路径仍走 AppBootstrap.readSelection() 同步读取，语义不变。
+    private func beginSelectionRefresh() {
+        selectionGeneration &+= 1
+        let generation = selectionGeneration
+        let capturedApp = AppBootstrap.frontmostForSelection()
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let started = DispatchTime.now().uptimeNanoseconds
+            let result = AppBootstrap.readSelection(in: capturedApp, messagingTimeout: 0.25)
+            let costMs = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000
+            DispatchQueue.main.async {
+                guard let self, self.selectionGeneration == generation else { return }
+                self.selection = result
+                Log.info("Island", String(format: "岛展开·选区异步读取 %.0fms（不计入开窗准备）", costMs))
+            }
+        }
+    }
+
+    private func logExpandPhases(_ marks: [(label: String, nanos: UInt64)], start: UInt64) {
+        guard !marks.isEmpty else { return }
+        var parts: [String] = []
+        var previous = start
+        for mark in marks {
+            let ms = Double(mark.nanos - previous) / 1_000_000
+            parts.append(String(format: "%@ %.1f", mark.label, ms))
+            previous = mark.nanos
+        }
+        let total = Double(previous - start) / 1_000_000
+        Log.info("Island", "岛展开分段：\(parts.joined(separator: " · ")) · 合计 \(String(format: "%.1f", total))ms")
     }
 
     /// 延后淡入正文；期间再次收起会被 guard 拦下，不会把已收起的正文又点亮。
