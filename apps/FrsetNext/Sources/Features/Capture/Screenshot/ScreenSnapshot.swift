@@ -263,12 +263,14 @@ enum ScreenSnapshot {
             if let epoch, !isCurrentEpoch(epoch) { return true }
             return false
         }
+        var probeMs: Double = 0   // v292 B1：32×32 校验累计耗时（native + SCK 两段）
         func finish(_ image: CGImage?, _ channel: String) -> CGImage? {
             let ms = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000
-            Log.info("Capture", String(format: "%@ D%@ %.0fms %@", channel,
+            Log.info("Capture", String(format: "%@ D%@ %.0fms %@ · 校验 %.1fms", channel,
                                        displayID.map { String($0) } ?? "?",
                                        ms,
-                                       image.map { "\($0.width)×\($0.height)px" } ?? "无可用图像"))
+                                       image.map { "\($0.width)×\($0.height)px" } ?? "无可用图像",
+                                       probeMs))
             return image
         }
         if shouldCancel() { return nil }
@@ -282,7 +284,9 @@ enum ScreenSnapshot {
         } else {
             native = nil
         }
+        let nativeProbeStart = DispatchTime.now().uptimeNanoseconds
         let nativeProbe = native.map { probe($0, size: screenFrame.size) }
+        probeMs += Double(DispatchTime.now().uptimeNanoseconds - nativeProbeStart) / 1_000_000
         let usableNative = nativeProbe?.usable == true ? native : nil
         let nativeColor = nativeProbe?.monochrome
         if !toastVisible, let usableNative, nativeColor == nil {
@@ -301,7 +305,9 @@ enum ScreenSnapshot {
         } else {
             sck = await captureScreenAdaptive(screen: screen)
         }
+        let sckProbeStart = DispatchTime.now().uptimeNanoseconds
         let sckProbe = sck.map { probe($0, size: screenFrame.size) }
+        probeMs += Double(DispatchTime.now().uptimeNanoseconds - sckProbeStart) / 1_000_000
         let usableSCK = sckProbe?.usable == true ? sck : nil
         if let usableSCK, let usableNative {
             if toastVisible {

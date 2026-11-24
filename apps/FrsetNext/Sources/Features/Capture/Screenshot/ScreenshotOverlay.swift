@@ -134,6 +134,17 @@ final class ScreenshotMagnifierContainerView: NSView {
 /// 全屏覆盖层：拖拽选区 + 尺寸标签 + 十字准星 + 放大镜
 final class ScreenshotOverlayView: NSView {
     var recentClipboardHint: String?
+    /// v292 B1：呈现时间锚点（presentOverlay 写入）；首次真实输入事件时记一行「距建窗」耗时。
+    /// 口径：这是事件到达覆盖层的时刻，不代表系统已完成合成呈现。
+    var presentedAt: UInt64 = 0
+    private var didLogFirstInput = false
+
+    private func noteFirstInput(_ kind: String) {
+        guard !didLogFirstInput, presentedAt > 0 else { return }
+        didLogFirstInput = true
+        let ms = Double(DispatchTime.now().uptimeNanoseconds - presentedAt) / 1_000_000
+        Log.info("Capture", String(format: "覆盖层首次输入：%@ 距建窗 %.0fms", kind, ms))
+    }
     /// v126（性能审计 F0553）：缓存标签字体与属性字典，避免 drawSizeLabel 每帧重建
     private static let labelFont = NSFont.systemFont(ofSize: 12, weight: .medium)
     private static let labelAttrs: [NSAttributedString.Key: Any] = [
@@ -291,6 +302,7 @@ final class ScreenshotOverlayView: NSView {
     // MARK: 鼠标
 
     override func mouseDown(with event: NSEvent) {
+        noteFirstInput("mouseDown")
         let p = convert(event.locationInWindow, from: nil)
         // ⌘ 单击 = 勾选/取消勾选一个窗口（多选），不立即截
         if event.modifierFlags.contains(.command), let hit = highlightedWindow {
@@ -366,6 +378,7 @@ final class ScreenshotOverlayView: NSView {
 
     override func mouseMoved(with event: NSEvent) {
         guard !draggingRegion, startPoint == nil else { return }
+        noteFirstInput("mouseMoved")
         let p = convert(event.locationInWindow, from: nil)
         currentPoint = p
         // 悬停永远做整窗识别（用缓存的 rects，零 CG 调用）：单击就是截这个窗口
