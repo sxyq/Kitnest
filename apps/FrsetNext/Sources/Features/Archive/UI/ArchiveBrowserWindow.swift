@@ -398,6 +398,11 @@ public final class ArchiveBrowserModel: ObservableObject {
     public func reload() {
         loading = true
         errorText = nil
+        // v292（性能第二轮 F）：UI 侧计时——首批上屏、发布次数、每次 rebuild 耗时、
+        // 全量完成总耗时。只记条目数与毫秒。
+        let reloadStart = DispatchTime.now().uptimeNanoseconds
+        var publishCount = 0
+        var lastRebuildMs: Double = 0
         // v290：渐进式索引——7zz 边流边解析，部分条目先上屏（根目录先可浏览、
         // 可全部解压），全量索引完成后开放搜索/预览/拖出/解压所选。
         // 全量载入（含辅助文件），由 visibleEntries 决定显隐——这样开关能即时生效
@@ -409,7 +414,15 @@ public final class ArchiveBrowserModel: ObservableObject {
             self.preliminaryCount = partial.count
             self.entries = partial
             self.invalidateChildIndex()
+            let rebuildStart = DispatchTime.now().uptimeNanoseconds
             self.rebuildColumns()                // 分栏渐进期也要刷新
+            lastRebuildMs = Double(DispatchTime.now().uptimeNanoseconds - rebuildStart) / 1_000_000
+            publishCount += 1
+            if publishCount == 1 {
+                let ms = Double(DispatchTime.now().uptimeNanoseconds - reloadStart) / 1_000_000
+                Log.info("Archive", String(format: "UI 首批上屏 %.0fms（%d 条 · rebuild %.0fms）",
+                                           ms, partial.count, lastRebuildMs))
+            }
         }, completion: { [weak self] list, err in
             guard let self else { return }
             self.loading = false
@@ -418,6 +431,9 @@ public final class ArchiveBrowserModel: ObservableObject {
             self.entries = list
             self.invalidateChildIndex()   // v288：目录索引随重载失效（惰性重建）
             self.rebuildColumns()
+            let totalMs = Double(DispatchTime.now().uptimeNanoseconds - reloadStart) / 1_000_000
+            Log.info("Archive", String(format: "UI 索引完成 %.0fms（%d 条 · 渐进发布 %d 次 · 末次 rebuild %.0fms）",
+                                       totalMs, list.count, publishCount, lastRebuildMs))
             if let err {
                 // v124：像是缺密码就弹输入框，输对自动重载
                 if ArchiveCore.ArchivePasswords.looksLikePasswordError(err) {

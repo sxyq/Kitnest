@@ -47,6 +47,59 @@ from collections import Counter
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SRC = os.path.join(ROOT, "apps", "FrsetNext", "Sources")
 OUT = os.path.join(ROOT, "docs", "00-总览", "数据表", "FrsetNext-函数清单.csv")
+
+# 性能热点标注（2026-11-24 v292 全链路实测）——写入 CSV 的 perf_priority 列。
+# 分级：P0=实测证实为关键路径大头；P1=有实测证据的次热点/待优化；P2=已加计时或已修待复测。
+# key = (file, owner, name)。CSV 只有 file#owner#name 粒度，重载共用同一标注。
+# 数据出处：2026-11-24 授权实测（岛 163ms 定位 / 截图 92-257ms / 归档 0.16s 引擎 /
+# 主面板 77ms / 内存 81-151MB），详见 docs/40-修改记录 对模块记录与当轮实测报告。
+PERF_HOTSPOTS = {
+    # ---- P0：实测证实的关键路径大头 ----
+    ("Features/Island/IslandController.swift", "IslandController", "position"):
+        "P0 岛展开定位：冷 163ms / 热 12-60ms，占开窗 75-94%（setFrame display:true 同步重绘；CA 提交+WindowServer）",
+    ("Features/Capture/Screenshot/ScreenSnapshot.swift", "ScreenSnapshot", "captureScreenForScreenshot"):
+        "P0 截图抓帧：子任务 141-214ms，决定首块覆盖层 119-164ms（通道选择+probe+画面对照）",
+    ("Features/Capture/Screenshot/NativeRegionCapture.swift", "NativeRegionCapture", "run"):
+        "P0 screencapture 子进程：空闲 71-149ms / 8 核满载 92-257ms（14.1MB BMP，读取 ~1ms、解码 0.1ms）",
+    ("Features/Archive/UI/ArchiveBrowserWindow.swift", "ArchiveBrowserModel", "visibleEntries"):
+        "P0 每次 body 求值入口：v292 已消除空搜索白算 O(N)（1万 7.7ms→<0.001ms，10万 77ms→<0.001ms），保持",
+    # ---- P1：有实测证据的次热点/待优化 ----
+    ("Features/Panel/Presentation/PanelController.swift", "PanelController", "show"):
+        "P1 主面板开：主线程 77ms 首开/42ms 复开（快照 29+落位 19+帧构建 15+上屏 14）",
+    ("Core/Motion/GenieWarp.swift", "GenieWarp", "play"):
+        "P1 神灯播放：384ms/23-24 帧 60fps 零缺失；帧构建 15-47ms 是主线程最大单项",
+    ("Features/Archive/UI/ArchiveBrowserWindow.swift", "ArchiveBrowserModel", "reload"):
+        "P1 归档索引 UI 侧：v292 已加首批/发布次数/rebuild 计时，10k 条待复测（引擎 0.16s）",
+    ("Features/Archive/Core/ArchiveCore.swift", "ArchiveCore", "listStreaming"):
+        "P1 渐进索引引擎：10k 条 7zz 0.10-0.28s；v292 已加首批/完整/发布次数计时，待复测 UI 解析占比",
+    ("Features/Clipboard/Store/ClipboardFileStorages.swift", "ClipboardImageStorage", "store"):
+        "P1 图片入库重编码：42.1MB TIFF→HEIC 0.90 0.3MB/219ms（持久化串行队列，不阻塞主线程）；历史 TIFF 不回溯",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "ClipboardManager", "writeToDatabase"):
+        "P1 入库落盘主路径（persist 串行队列）：图片编码/富文本写盘/去重判定；大图单次 219ms 级别",
+    ("Features/Clipboard/Store/ClipboardManager.swift", "ClipboardManager", "reload"):
+        "P1 三栏工作台列表刷新（fetch+截断 800 条）：滚动/搜索场景待实测",
+    ("Features/FloatingBall/DesktopPetView.swift", "DesktopPetView", "petContent"):
+        "P1 桌面精灵 3fps 动画时钟：v288 已加 path+mtime 图片缓存；静态/轻动/自定义三态 CPU 待实测",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "ScreenshotManager", "beginCapture"):
+        "P1 截图编排：首块覆盖层 119-164ms（双屏第二块 +66-70ms），v292 已加全链分段计时",
+    ("Features/Archive/Table/ArchiveEntryTable.swift", "ArchiveEntryTableRepresentable", "updateNSView"):
+        "P1 归档表格行更新：万条滚动/选中刷新路径，待实测",
+    ("Features/Island/IslandSurface.swift", "IslandMaterialHost", "updateNSView"):
+        "P1 岛材质宿主逐帧回调：surfaceDidChange→updatePointer；layout p95 0.048ms 已低，观察每帧指针判定",
+    # ---- P2：已加计时/已修的观察项 ----
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "ScreenshotManager", "streamScreenSnapshots"):
+        "P2 v292 已加子任务/主线程回调/流开始三段计时 + 取消传播修复；待满载复测",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "ScreenshotManager", "presentOverlay"):
+        "P2 四段计时：建窗 2-13ms/状态 0/激活 0-1ms/orderFront 0-1ms（上屏非瓶颈）",
+    ("Features/Island/IslandController.swift", "IslandController", "beginSelectionRefresh"):
+        "P2 v292 选区异步：0-9ms 后台完成，不再阻塞开窗",
+    ("Features/Island/IslandController.swift", "IslandController", "refreshClipboard"):
+        "P2 v292 复用 ClipboardManager.items 内存快照（默认过滤态），消除展开时 SQLite 查询",
+    ("Features/Island/IslandController.swift", "IslandController", "refreshEntries"):
+        "P2 v292 入口窗状态去重（EntryWindowState），消除重复 setFrame/order 往返",
+    ("Features/Island/IslandSurface.swift", "IslandMaterialView", "applyGeometry"):
+        "P2 取样面更新计数（非对象重建）；layout p50 0.008ms/p95 0.053ms 已低，probe.islandMaterial 开关控制",
+}
 MAP_CSV = os.path.join(ROOT, "docs", "00-总览", "源码与文档映射.csv")
 
 MODULE_DIRS = {
@@ -358,10 +411,12 @@ def main() -> int:
         return 0
 
     os.makedirs(os.path.dirname(args.out), exist_ok=True)
+    for r in all_rows:
+        r["perf_priority"] = PERF_HOTSPOTS.get((r["file"], r["owner"], r["name"]), "")
     with open(args.out, "w", newline="", encoding="utf-8-sig") as fh:
         writer = csv.DictWriter(fh, fieldnames=["module", "file", "owner", "kind",
                                                 "name", "line", "lines", "complexity",
-                                                "feature_id", "doc_path"])
+                                                "feature_id", "doc_path", "perf_priority"])
         writer.writeheader()
         writer.writerows(all_rows)
     print("已写入", os.path.relpath(args.out, ROOT))
