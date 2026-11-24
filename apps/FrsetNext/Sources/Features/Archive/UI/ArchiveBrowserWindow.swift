@@ -40,10 +40,23 @@ public final class ArchiveBrowserModel: ObservableObject {
     @Published public var draftText: String = ""
     @Published public var dirty = false
     @Published public var searchText: String = ""
-    /// v124：是否显示 `__MACOSX` / `.DS_Store` 等辅助文件（默认隐藏）
-    @Published public var showAuxiliary = false
+    /// v127：是否显示 `__MACOSX` / `.DS_Store` 等辅助文件（默认隐藏）
+    @Published public var showAuxiliary = false {
+        didSet { if showAuxiliary != oldValue { invalidateChildIndex() } }
+    }
     /// v127（ArcZip P1）：当前层级（"" = 根）
     @Published public var currentPath: String = ""
+    /// 2026-11-23（ArcZip 1.2.5 对齐）：三档视图（图标 / 列表 / 分栏），跨窗口记住
+    @Published var viewMode: ArchiveViewMode = ArchiveViewMode(
+        rawValue: UserDefaults.standard.string(forKey: "archive.workspace.viewMode") ?? ""
+    ) ?? .list {
+        didSet { UserDefaults.standard.set(viewMode.rawValue, forKey: "archive.workspace.viewMode") }
+    }
+    /// 前进/后退历史（ArcZip 的 ‹ › 不是「上一层」，而是访问历史）
+    private var backStack: [String] = []
+    private var forwardStack: [String] = []
+    public var canGoBack: Bool { !backStack.isEmpty || !currentPath.isEmpty }
+    public var canGoForward: Bool { !forwardStack.isEmpty }
 
     public let url: URL
     public var editable: Bool { ArchiveCore.isEditable(url) }
@@ -119,35 +132,77 @@ public final class ArchiveBrowserModel: ObservableObject {
     /// 当前层级的直接子项（+ 为「无显式目录条目」的中间目录合成虚拟文件夹）；
     /// 搜索时跳过层级过滤，全量匹配
     public var visibleEntries: [ArchiveEntry] {
+        rebuildChildIndexIfNeeded()
         let list = showAuxiliary ? entries : entries.filter { !ArchiveCore.isAuxiliary($0.path) }
         guard searchText.isEmpty else {
             return list.filter { $0.path.localizedCaseInsensitiveContains(searchText) }
         }
-        return children(in: list, of: currentPath)
+        return childIndex[currentPath] ?? []
     }
 
-    /// v127（ArcZip P1）：某目录的直接子项。zip 可以没有显式目录条目（7zz -slt 只列文件
-    /// 路径，实测），按深层路径补出中间文件夹，否则这些文件在层级视图里「消失」。
-    private func children(in list: [ArchiveEntry], of dir: String) -> [ArchiveEntry] {
-        let direct = list.filter { $0.parent == dir }
-        var known = Set(list.filter { $0.isDirectory }.map { $0.path })
-        var extra: [ArchiveEntry] = []
-        let prefix = dir.isEmpty ? "" : dir + "/"
-        for e in list where !e.isDirectory && e.path.hasPrefix(prefix) && e.path.count > prefix.count {
-            let rest = e.path.dropFirst(prefix.count)
-            guard let slash = rest.firstIndex(of: "/") else { continue }
-            let dirName = String(rest[..<slash])
-            let dirPath = dir.isEmpty ? dirName : dir + "/" + dirName
-            if !known.contains(dirPath) {
-                known.insert(dirPath)
-                extra.append(ArchiveEntry(path: dirPath, name: dirName, size: 0, packedSize: 0,
-                                          modified: "", method: "", isDirectory: true, parent: dir))
+    /// v288（2026-11-24 审计包 04）：parent → 直接子项索引（含隐式中间目录）。
+    ///
+    /// 旧 `children(in:of:)` 每调用一次就全表扫三遍——`filter { parent == dir }`、
+    /// 重建显式目录 `Set`、再全表探测隐式目录；分栏视图 `columnTrail` 对**每一列**
+    /// 都各扫一遍 = O(深度 × 3N)。万条档案 × 10 列 ≈ 30 万次比较，而且这是
+    /// SwiftUI body 求值路径上的纯计算，每次状态变化都重来。
+    /// 现在只在 entries / showAuxiliary 变化时构建一次（O(N + 路径段数)），
+    /// 列内 O(1) 查表；语义逐条对齐旧实现：
+    ///   · 显式子项按 parent 分组（等价于 filter parent == dir）；
+    ///   · 隐式目录 = 文件路径逐级前缀里「该层第一个目录段」，且路径不在显式
+    ///     目录集合中才合成（旧 known 集合是全表显式目录，路径全局唯一，等价）；
+    ///   · 目录在前、名称 localizedStandardCompare 排序；
+    ///   · 辅助文件过滤先行（aux 文件被滤掉时它撑起的隐式目录同样消失）；
+    ///   · 搜索分支不经过索引（全量匹配，不变）。
+    private var childIndex: [String: [ArchiveEntry]] = [:]
+    /// 索引版本：entries 重载与 showAuxiliary 切换时递增，命中即重建。
+    private var childIndexGeneration = 0
+
+    private func rebuildChildIndexIfNeeded() {
+        guard childIndexGeneration != 0 else { return }
+        // generation 在失效点已递增；这里用「已构建版本号」做幂等
+        if builtChildIndexGeneration == childIndexGeneration { return }
+        builtChildIndexGeneration = childIndexGeneration
+
+        let list = showAuxiliary ? entries : entries.filter { !ArchiveCore.isAuxiliary($0.path) }
+        var map: [String: [ArchiveEntry]] = [:]
+        var knownDirs = Set<String>()
+        for e in list {
+            map[e.parent, default: []].append(e)
+            if e.isDirectory { knownDirs.insert(e.path) }
+        }
+        // 隐式中间目录：每个**文件**路径的每一级前缀目录，都向其父层注册一个合成项
+        for e in list where !e.isDirectory {
+            let segments = e.path.split(separator: "/")
+            guard segments.count > 1 else { continue }
+            var acc = ""
+            for seg in segments.dropLast() {
+                let parent = acc
+                let dirPath = acc.isEmpty ? String(seg) : acc + "/" + seg
+                if !knownDirs.contains(dirPath) {
+                    knownDirs.insert(dirPath)
+                    map[parent, default: []].append(
+                        ArchiveEntry(path: dirPath, name: String(seg), size: 0, packedSize: 0,
+                                     modified: "", method: "", isDirectory: true, parent: parent))
+                }
+                acc = dirPath
             }
         }
-        return (direct + extra).sorted { a, b in
-            if a.isDirectory != b.isDirectory { return a.isDirectory }
-            return a.name.localizedStandardCompare(b.name) == .orderedAscending
+        for key in map.keys {
+            map[key]!.sort { a, b in
+                if a.isDirectory != b.isDirectory { return a.isDirectory }
+                return a.name.localizedStandardCompare(b.name) == .orderedAscending
+            }
         }
+        childIndex = map
+    }
+
+    /// 与 generation 配对的「已构建」标记（0 = 从未构建）。
+    private var builtChildIndexGeneration = 0
+
+    /// 索引失效：entries 重载与辅助文件开关两处（generation 递增，查表前惰性重建）。
+    private func invalidateChildIndex() {
+        childIndexGeneration += 1
     }
 
     /// v127（ArcZip P1）：面包屑（根 / docs / images），每段可点
@@ -163,7 +218,36 @@ public final class ArchiveBrowserModel: ObservableObject {
         return result
     }
 
-    public func navigateTo(_ path: String) {
+    /// 分栏视图：从根到当前层级的每一列（每列 = 该目录的直接子项）
+    public struct ColumnTrailItem {
+        public let path: String
+        public let entries: [ArchiveEntry]
+    }
+
+    public var columnTrail: [ColumnTrailItem] {
+        rebuildChildIndexIfNeeded()
+        var paths: [String] = [""]
+        if !currentPath.isEmpty {
+            var acc = ""
+            for comp in currentPath.split(separator: "/") {
+                acc = acc.isEmpty ? String(comp) : acc + "/" + comp
+                paths.append(acc)
+            }
+        }
+        return paths.map { ColumnTrailItem(path: $0, entries: childIndex[$0] ?? []) }
+    }
+
+    /// 切层级：默认记进历史（ArcZip 的 ‹ › 走访问历史，不是简单上一层）
+    public func navigateTo(_ path: String, recordHistory: Bool = true) {
+        guard path != currentPath else { return }
+        if recordHistory {
+            backStack.append(currentPath)
+            forwardStack.removeAll()
+        }
+        applyPath(path)
+    }
+
+    private func applyPath(_ path: String) {
         currentPath = path
         searchText = ""                 // 搜索是全量的，跳转层级时清掉
         selection = []
@@ -177,10 +261,28 @@ public final class ArchiveBrowserModel: ObservableObject {
         navigateTo(entry.path)
     }
 
-    /// v127（ArcZip P1）：返回上一层（⌘[）
-    public func goBack() {
+    /// 上一层（↑ 按钮 / ⌘↑）
+    public func goUp() {
         guard !currentPath.isEmpty else { return }
         navigateTo((currentPath as NSString).deletingLastPathComponent)
+    }
+
+    /// 返回（⌘[）：优先走历史，历史上没有才退回上一层
+    public func goBack() {
+        if let previous = backStack.popLast() {
+            forwardStack.append(currentPath)
+            applyPath(previous)
+            return
+        }
+        guard !currentPath.isEmpty else { return }
+        applyPath((currentPath as NSString).deletingLastPathComponent)
+    }
+
+    /// 前进（⌘]）
+    public func goForward() {
+        guard let next = forwardStack.popLast() else { return }
+        backStack.append(currentPath)
+        applyPath(next)
     }
 
     /// 双击条目：目录进层级；文件选中并预览
@@ -242,6 +344,7 @@ public final class ArchiveBrowserModel: ObservableObject {
             guard let self else { return }
             self.loading = false
             self.entries = list
+            self.invalidateChildIndex()   // v288：目录索引随重载失效（惰性重建）
             if let err {
                 // v124：像是缺密码就弹输入框，输对自动重载
                 if ArchiveCore.ArchivePasswords.looksLikePasswordError(err) {
@@ -921,9 +1024,12 @@ public final class ArchiveBrowserWindowController: NSWindowController, NSWindowD
         hosting.sizingOptions = []
         let win = NSWindow(contentViewController: hosting)
         win.title = "归档 · \(url.lastPathComponent)"
-        win.setContentSize(NSSize(width: 860, height: 560))
-        win.minSize = NSSize(width: 640, height: 420)
-        win.styleMask = [.titled, .closable, .resizable, .miniaturizable]
+        // 2026-11-23：按 ArcZip 1.2.5 的窗口比例（截图 1180×760 量级）给默认尺寸；
+        // 内容顶到最上沿，标题行与右侧圆钮组同排（截图对齐）。
+        win.setContentSize(NSSize(width: 1040, height: 660))
+        win.minSize = NSSize(width: 780, height: 520)
+        win.styleMask = [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView]
+        win.isMovableByWindowBackground = true
         // v210（用户：「红绿灯被下面那行交互遮住了」）：改用全工程唯一外观入口。
         // 原因：这里原来手写 4 行（isOpaque/backgroundColor/titlebarAppearsTransparent/
         // installUnifiedGlassBackground），漏了 `titleVisibility = .hidden` ——
@@ -986,34 +1092,67 @@ struct ArchiveBrowserView: View {
     /// v180：任务按钮角标（运行中 + 等待），让「有任务在跑」在窗口里可见
     @ObservedObject private var taskQueue = ArchiveTaskQueue.shared
     @Stored private var columnWidth: CGFloat = 340
-    /// v127（ArcZip P1）：列表 ↔ 图标视图（@AppStorage 跨窗口记住）
-    @AppStorage("archiveBrowserViewMode") private var iconView = false
+    /// 展开大预览（检查器画布点开；文本编辑仍走这里）
+    @Stored private var expandPreview = false
 
     var body: some View {
         VStack(spacing: 0) {
-            toolbar
-            breadcrumbBar
-            // v127（ArcZip P3-3）：Flow 智能推荐条——按压缩包内容推断此刻最合适的操作
-            // （含 .app→装应用 / 字体→装字体 / 单文件→打开 / 多图→解压图片 / .dmg→挂载）
-            ArchiveFlowBar(entries: model.entries, url: model.url, selected: model.selectedEntries)
+            // 2026-11-23（ArcZip 1.2.5 对齐）：标题行与右侧控件同排；下方路径胶囊；
+            // 内容区右侧是检查器（详情 + 预览画布）；底部一条操作条。
+            ArchiveTitleBar(
+                title: model.url.lastPathComponent,
+                dirty: model.dirty,
+                searchText: $model.searchText,
+                mode: $model.viewMode,
+                onSave: { model.saveDraft() },
+                onDelete: { model.deleteSelected() },
+                canDelete: !model.selection.isEmpty && model.editable,
+                canSave: model.editable && model.dirty
+            )
+            ArchivePathBar(
+                crumbs: model.breadcrumbs,
+                currentPath: model.currentPath,
+                canGoBack: model.canGoBack,
+                canGoForward: model.canGoForward,
+                onBack: { model.goBack() },
+                onForward: { model.goForward() },
+                onUp: { model.goUp() },
+                onSelect: { model.navigateTo($0) }
+            )
             Divider()
-            HSplitView {
+            HStack(spacing: 0) {
                 browserPane
-                    .frame(minWidth: 260, idealWidth: columnWidth)
-                VStack(spacing: 0) {
-                    previewPane
-                    // v170（用户：「点开文件它是一个怎样的状态」）：
-                    // 右栏底部补条目详情——原来选中一条只能看到内容预览，
-                    // 看不到大小/压缩率/方法/时间这些"这是什么"的信息。
-                    if let entry = model.previewEntry {
-                        Divider()
-                        ArchiveInspectorBar(entry: entry)
-                    }
+                    .frame(minWidth: 420, maxWidth: .infinity)
+                Divider()
+                ArchiveInspectorPanel(content: ArchiveInspectorContent(model: model)) {
+                    if let entry = model.previewEntry { model.openExternally(entry) }
+                } onExpandPreview: {
+                    expandPreview = true
                 }
-                .frame(minWidth: 320)
             }
+            Divider()
+            bottomBar
         }
-        .frame(minWidth: 640, minHeight: 420)
+        .frame(minWidth: 780, minHeight: 520)
+        .ignoresSafeArea(.container, edges: .top)
+        .background(Theme.windowSurface)
+        .sheet(isPresented: $expandPreview) {
+            VStack(spacing: 0) {
+                HStack(spacing: 8) {
+                    Text(model.previewEntry?.name ?? "预览")
+                        .font(.system(size: 13, weight: .semibold))
+                        .lineLimit(1)
+                    Spacer()
+                    Button("完成") { expandPreview = false }
+                        .keyboardShortcut(.defaultAction)
+                }
+                .padding(.horizontal, 16)
+                .frame(height: 44)
+                Divider()
+                previewPane
+            }
+            .frame(width: 780, height: 560)
+        }
         .onChange(of: model.selection) { sel in
             // v127：单选才载预览；多选/清空走摘要
             if sel.count == 1, let path = sel.first,
@@ -1025,14 +1164,7 @@ struct ArchiveBrowserView: View {
         }
     }
 
-    // MARK: 工具栏
-    //
-    // v181（用户：「按钮太多太杂，没有有效分类，太挤」）：照截图编辑器的做法重排——
-    //   · 一条 46pt 的工具条，控件按「标题 │ 搜索 │ 视图 │ 历史 │ 主操作 │ 更多」分组，组间竖线；
-    //   · 图标按钮统一 28×28 圆角命中区（复用 Capture 的 `ToolIconButton`，与标注工具栏同一形状）；
-    //   · 只剩一个主操作（解压，强调色胶囊，menu 里带「解压全部 / 所选 / 解压到…」）；
-    //   · 低频动作（添加文件 / 重命名 / 删除 / 另存加密 / 辅助文件 / 归档任务）收进「⋯」；
-    //   · 「保存」只在有未保存修改时出现，不占常驻位置。
+    // MARK: 派生状态（底部操作条 / 检查器共用）
 
     private var undoTitle: String {
         model.undoStack.canUndo ? "撤销 \(model.undoStack.undoLabel)" : "撤销"
@@ -1042,253 +1174,7 @@ struct ArchiveBrowserView: View {
         model.undoStack.canRedo ? "重做 \(model.undoStack.redoLabel)" : "重做"
     }
 
-    private var subtitle: String {
-        var text = "共 \(model.entries.count) 项\(model.editable ? " · 可编辑" : " · 只读")"
-        if !model.selection.isEmpty {
-            text += " · 已选 \(model.selection.count) 项"
-        }
-        return text
-    }
-
-    private var toolbar: some View {
-        HStack(spacing: 8) {
-            archiveTitle
-            Spacer(minLength: 6)
-            searchField
-            barSeparator
-            viewModeGroup
-            barSeparator
-            historyGroup
-            if model.dirty && editableSelection {
-                saveButton
-            }
-            barSeparator
-            extractButton
-            moreMenu
-            taskButton
-            if let err = model.errorText {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.orange)
-                    .help(err)
-            }
-        }
-        .padding(.horizontal, 14)
-        .frame(height: 46)
-    }
-
-    /// 左：归档名 + 摘要
-    private var archiveTitle: some View {
-        HStack(spacing: 9) {
-            Image(systemName: "archivebox.fill")
-                .font(.system(size: 15))
-                .foregroundStyle(Theme.accent)
-            VStack(alignment: .leading, spacing: 0) {
-                Text(model.url.lastPathComponent)
-                    .font(.system(size: 12, weight: .semibold))
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-                Text(subtitle)
-                    .font(.system(size: 10.5))
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-            }
-        }
-        .frame(maxWidth: 240, alignment: .leading)
-    }
-
-    /// 搜索：胶囊底 + 放大镜，宽度弹性（窗口窄时先压它）
-    private var searchField: some View {
-        HStack(spacing: 5) {
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 10.5))
-                .foregroundStyle(Theme.tertiaryText)
-            TextField("搜索条目", text: $model.searchText)
-                .textFieldStyle(.plain)
-                .font(.system(size: 11.5))
-            if !model.searchText.isEmpty {
-                Button {
-                    model.searchText = ""
-                } label: {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 10))
-                        .foregroundStyle(Theme.tertiaryText)
-                }
-                .buttonStyle(.plain)
-                .help("清空搜索")
-            }
-        }
-        .padding(.horizontal, 8)
-        .frame(height: 26)
-        .frame(minWidth: 130, idealWidth: 170, maxWidth: 220)
-        .glassCard(radius: Theme.Radius.control)
-    }
-
-    /// 视图切换：列表 / 图标（两个 28pt 图标按钮，选中浅底，与标注工具栏一致）
-    private var viewModeGroup: some View {
-        HStack(spacing: 1) {
-            ToolIconButton(symbol: "list.bullet", selected: !iconView,
-                           help: "列表视图") {
-                iconView = false
-            }
-            ToolIconButton(symbol: "square.grid.2x2", selected: iconView,
-                           help: "图标视图") {
-                iconView = true
-            }
-        }
-    }
-
-    /// 撤销 / 重做（不可用时自动禁用置灰）
-    private var historyGroup: some View {
-        HStack(spacing: 1) {
-            ToolIconButton(symbol: "arrow.uturn.backward", enabled: model.undoStack.canUndo,
-                           help: "\(undoTitle)  ⌘Z") {
-                model.undoStack.undo()
-            }
-            ToolIconButton(symbol: "arrow.uturn.forward", enabled: model.undoStack.canRedo,
-                           help: "\(redoTitle)  ⇧⌘Z") {
-                model.undoStack.redo()
-            }
-        }
-    }
-
-    /// 保存（只在有未保存修改时出现，⌘S 仍然可用）
-    private var saveButton: some View {
-        Button {
-            model.saveDraft()
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: "square.and.arrow.down")
-                    .font(.system(size: 10.5, weight: .semibold))
-                Text("保存")
-                    .font(.system(size: 11, weight: .medium))
-            }
-            .foregroundStyle(.white)
-            .padding(.horizontal, 9)
-            .frame(height: 24)
-            .background(Capsule().fill(Color.orange))
-            .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .focusable(false)
-        .keyboardShortcut("s", modifiers: .command)
-        .disabled(model.saving)
-        .help("把修改写回归档（⌘S）")
-    }
-
-    /// 主操作：解压。有选中项就解压所选，否则解压全部；长按/点箭头出更多解压方式。
-    private var extractButton: some View {
-        Menu {
-            Button("解压全部") { model.extractAll() }
-            if !model.selection.isEmpty {
-                Button("解压所选（\(model.selection.count) 项）") { model.extractSelected() }
-            }
-            Divider()
-            Button("保存到归档") { model.saveDraft() }
-                .disabled(model.saving || !model.dirty || !editableSelection)
-            if model.editable {
-                Button("另存加密…") { model.saveEncryptedCopy() }
-            }
-        } label: {
-            HStack(spacing: 4) {
-                Image(systemName: "arrow.down.doc")
-                    .font(.system(size: 10.5, weight: .semibold))
-                Text(model.selection.isEmpty ? "解压" : "解压 \(model.selection.count) 项")
-                    .font(.system(size: 11, weight: .semibold))
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 7, weight: .bold))
-                    .opacity(0.85)
-            }
-            .foregroundStyle(.white)
-            .padding(.horizontal, 10)
-            .frame(height: 26)
-            .background(Capsule().fill(Theme.accent))
-            .contentShape(Capsule())
-        } primaryAction: {
-            if model.selection.isEmpty { model.extractAll() } else { model.extractSelected() }
-        }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .fixedSize()
-        .help("解压（有选中项时解压所选）")
-    }
-
-    /// 更多：低频动作集中在这里，避免工具条被按钮填满
-    private var moreMenu: some View {
-        Menu {
-            Button("添加文件…") { model.pickAndAddFiles() }
-            Button("重命名…") { model.renameSelected() }
-                .disabled(model.selection.isEmpty)
-            Button("删除选中") { model.deleteSelected() }
-                .disabled(model.selection.isEmpty)
-            Divider()
-            Toggle("显示辅助文件", isOn: $model.showAuxiliary)
-            Button("隐藏的辅助文件：__MACOSX / .DS_Store / Thumbs.db") {}
-                .disabled(true)
-            Divider()
-            Button("任务队列…") { ArchiveProgressWindowController.toggle() }
-        } label: {
-            Image(systemName: "ellipsis")
-                .font(.system(size: 12.5, weight: .medium))
-                .frame(width: 28, height: 28)
-                .foregroundStyle(Color.primary.opacity(0.8))
-                .contentShape(Rectangle())
-        }
-        .menuStyle(.borderlessButton)
-        .menuIndicator(.hidden)
-        .fixedSize()
-        .help("更多操作")
-    }
-
-    /// 任务队列入口（v181）：压缩/解压的长任务从这里看。
-    /// 有任务在跑时图标转强调色 + 数字角标（角标是「运行中+等待」），
-    /// 没任务时保持中性——不要为了一个空队列常驻一个红点。
-    private var taskButton: some View {
-        let active = activeTaskCount > 0
-        return Button {
-            ArchiveProgressWindowController.toggle()
-        } label: {
-            Image(systemName: "list.bullet.rectangle.portrait")
-                .font(.system(size: 12.5, weight: .medium))
-                .frame(width: 28, height: 28)
-                .foregroundStyle(active ? Theme.accent : Color.primary.opacity(0.8))
-                .background {
-                    if active {
-                        RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous)
-                            .fill(Theme.accent.opacity(0.12))
-                    }
-                }
-                .contentShape(Rectangle())
-                .overlay(alignment: .topTrailing) {
-                    if active {
-                        Text("\(activeTaskCount)")
-                            .font(.system(size: 9, weight: .bold).monospacedDigit())
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 0.5)
-                            .background(Capsule().fill(Theme.accent))
-                            .offset(x: 6, y: -5)
-                    }
-                }
-        }
-        .buttonStyle(.plain)
-        .focusable(false)
-        .help(taskQueue.tasks.isEmpty
-              ? "任务队列（压缩/解压）：暂时没有任务"
-              : "任务队列：\(taskQueue.summaryText)")
-    }
-
-    private var barSeparator: some View {
-        Rectangle()
-            .fill(Theme.separator)
-            .frame(width: 0.5, height: 18)
-    }
-
-    /// 运行中 + 等待中（失败的不算，避免角标一直挂着）
-    private var activeTaskCount: Int {
-        taskQueue.runningCount + taskQueue.waitingCount
-    }
-
+    /// 文本类条目在可编辑归档里才允许「保存草稿」
     private var editableSelection: Bool {
         guard let entry = model.previewEntry else { return false }
         if entry.isDirectory { return false }
@@ -1296,96 +1182,209 @@ struct ArchiveBrowserView: View {
         return false
     }
 
-    // MARK: 面包屑（v127（ArcZip P1）：根 / docs / images，每段可点 + 返回 ⌘[）
+    // MARK: 底部操作条（ArcZip Mini 同款：左侧状态，右侧胶囊按钮）
 
-    private var breadcrumbBar: some View {
-        HStack(spacing: 6) {
-            Button { model.goBack() } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 11, weight: .semibold))
-            }
-            .buttonStyle(.borderless)
-            .disabled(model.currentPath.isEmpty)
-            .keyboardShortcut("[", modifiers: .command)
-            .help("返回上一层（⌘[）")
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 3) {
-                    ForEach(model.breadcrumbs.indices, id: \.self) { index in
-                        let seg = model.breadcrumbs[index]
-                        if index > 0 {
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 7))
-                                .foregroundStyle(Theme.tertiaryText)
-                        }
-                        Button(seg.name) {
-                            model.navigateTo(seg.path)
-                        }
-                        .buttonStyle(.borderless)
-                        .font(.system(size: 11, weight: seg.path == model.currentPath
-                                      ? .semibold : .regular))
-                        .foregroundStyle(seg.path == model.currentPath
-                                         ? Theme.accent : Color.secondary)
-                    }
+    private var bottomBar: some View {
+        HStack(spacing: 10) {
+            Text(statusSummary)
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.tertiaryText)
+                .lineLimit(1)
+
+            Spacer(minLength: 8)
+
+            if model.dirty {
+                Button {
+                    model.saveDraft()
+                } label: {
+                    Text("保存")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Theme.accent)
+                        .padding(.horizontal, 12)
+                        .frame(height: 26)
+                        .background(Capsule().fill(Theme.accent.opacity(0.12)))
                 }
+                .buttonStyle(.plain)
             }
-            Spacer(minLength: 0)
-            if model.selection.count > 1 {
-                Text("已选 \(model.selection.count) 项")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(Theme.accent)
+
+            ArchiveCircleButton(symbol: "arrow.uturn.backward", size: 26, help: undoTitle) {
+                model.undoStack.undo()
             }
+            .disabled(!model.undoStack.canUndo)
+            .opacity(model.undoStack.canUndo ? 1 : 0.4)
+
+            ArchiveCircleButton(symbol: "arrow.uturn.forward", size: 26, help: redoTitle) {
+                model.undoStack.redo()
+            }
+            .disabled(!model.undoStack.canRedo)
+            .opacity(model.undoStack.canRedo ? 1 : 0.4)
+
+            Menu {
+                Button("全部解压…") { model.extractAll() }
+                Button("解压所选项目…") { model.extractSelected() }
+                    .disabled(model.selection.isEmpty)
+                Divider()
+                Button("添加文件…") { model.pickAndAddFiles() }
+                Button("删除所选项目") { model.deleteSelected() }
+                    .disabled(model.selection.isEmpty || !model.editable)
+                Toggle("显示辅助文件", isOn: $model.showAuxiliary)
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 26, height: 26)
+                    .background(Circle().fill(Theme.cardFill))
+                    .overlay { Circle().strokeBorder(Theme.hairlineColor, lineWidth: 1) }
+            }
+            .menuStyle(.borderlessButton)
+            .menuIndicator(.hidden)
+            .frame(width: 26)
+
+            Button {
+                if model.selection.isEmpty { model.extractAll() } else { model.extractSelected() }
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: "bolt.fill").font(.system(size: 10))
+                    Text(model.selection.isEmpty ? "全部解压" : "解压所选")
+                        .font(.system(size: 11, weight: .semibold))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14)
+                .frame(height: 26)
+                .background(Capsule().fill(Theme.accent))
+            }
+            .buttonStyle(.plain)
+            .help(model.selection.isEmpty ? "解压全部项目" : "解压所选项目")
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 5)
+        .padding(.horizontal, 16)
+        .frame(height: 46)
+        .background(.bar)
     }
 
-    // MARK: 左栏（列表 / 图标）
+    private var statusSummary: String {
+        var text = "共 \(model.entries.count) 项"
+        if !model.selection.isEmpty { text += " · 已选 \(model.selection.count) 项" }
+        if !model.editable { text += " · 只读" }
+        if model.loading { text += " · 正在读取…" }
+        return text
+    }
+
+    // MARK: 左栏（列表 / 图标 / 分栏）
 
     @ViewBuilder private var browserPane: some View {
         VStack(spacing: 0) {
-            if !iconView {
-                entryHeader
-                Divider()
-            }
             if model.loading {
                 Spacer(); ProgressView(); Spacer()
             } else if model.visibleEntries.isEmpty {
                 emptyState
-            } else if iconView {
-                iconGrid
             } else {
-                // v127（ArcZip P0/P1）：AppKit 表格——原生多选/双击/多承诺拖出
-                ArchiveEntryTableRepresentable(model: model)
+                switch model.viewMode {
+                case .list:
+                    entryHeader
+                    Divider()
+                    ArchiveEntryTableRepresentable(model: model)
+                case .icons:
+                    iconGrid
+                case .columns:
+                    columnBrowser
+                }
             }
         }
     }
 
     private var entryHeader: some View {
-        HStack(spacing: 4) {
-            Text("名称").frame(maxWidth: .infinity, alignment: .leading)
-            Text("大小").frame(width: 64, alignment: .trailing)
-            Text("压缩率").frame(width: 48, alignment: .trailing)
+        HStack(spacing: 6) {
+            Text("名称")
+                .padding(.leading, 32)          // 让开 16pt 图标 + 间距，与行内文字对齐
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text("大小").frame(width: 76, alignment: .trailing)
+            Text("修改日期").frame(width: 132, alignment: .trailing)
         }
-        .font(.system(size: 11, weight: .medium))
-        .foregroundStyle(.secondary)
+        .font(.system(size: 11))
+        .foregroundStyle(Theme.tertiaryText)
         .padding(.horizontal, 10)
-        .padding(.vertical, 5)
+        .frame(height: 26)
     }
 
     private var emptyState: some View {
-        VStack(spacing: 6) {
-            Image(systemName: model.searchText.isEmpty ? "folder" : "magnifyingglass")
-                .font(.system(size: 24))
-                .foregroundStyle(Theme.tertiaryText)
-            Text(model.searchText.isEmpty ? "此文件夹为空" : "无匹配条目")
-                .font(.system(size: 11))
-                .foregroundStyle(.secondary)
-            if !model.currentPath.isEmpty && model.searchText.isEmpty {
-                Button("返回上一层") { model.goBack() }
-                    .controlSize(.small)
+        Group {
+            if model.searchText.isEmpty && model.currentPath.isEmpty {
+                ArchiveEmptyDropCard { model.pickAndAddFiles() }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else {
+                VStack(spacing: 6) {
+                    Image(systemName: model.searchText.isEmpty ? "folder" : "magnifyingglass")
+                        .font(.system(size: 24))
+                        .foregroundStyle(Theme.tertiaryText)
+                    Text(model.searchText.isEmpty ? "此文件夹为空" : "无匹配条目")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    if !model.currentPath.isEmpty && model.searchText.isEmpty {
+                        Button("返回上一层") { model.goUp() }
+                            .controlSize(.small)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // MARK: 分栏视图（ArcZip 第三档：按层级横向排列）
+
+    private var columnBrowser: some View {
+        ScrollView(.horizontal, showsIndicators: true) {
+            HStack(alignment: .top, spacing: 0) {
+                ForEach(Array(model.columnTrail.enumerated()), id: \.offset) { _, column in
+                    VStack(spacing: 0) {
+                        ScrollView {
+                            LazyVStack(spacing: 0) {
+                                ForEach(column.entries) { entry in
+                                    Button {
+                                        if entry.isDirectory {
+                                            model.navigateTo(entry.path, recordHistory: true)
+                                        } else {
+                                            model.selection = [entry.path]
+                                            model.loadPreview(for: entry)
+                                        }
+                                    } label: {
+                                        HStack(spacing: 6) {
+                                            Image(systemName: ArchiveFormat.symbol(entry.name,
+                                                                                   isDirectory: entry.isDirectory))
+                                                .font(.system(size: 12))
+                                                .foregroundStyle(entry.isDirectory ? Theme.accent : .secondary)
+                                                .frame(width: 16)
+                                            Text(entry.name)
+                                                .font(.system(size: 12))
+                                                .lineLimit(1)
+                                                .truncationMode(.middle)
+                                            Spacer(minLength: 0)
+                                            if entry.isDirectory {
+                                                Image(systemName: "chevron.right")
+                                                    .font(.system(size: 8, weight: .semibold))
+                                                    .foregroundStyle(Theme.tertiaryText)
+                                            }
+                                        }
+                                        .padding(.horizontal, 10)
+                                        .frame(height: 26)
+                                        .background(model.selection.contains(entry.path)
+                                                    ? Theme.State.selected(isDark: colorScheme == .dark)
+                                                    : Color.clear)
+                                        .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                    .frame(width: 220)
+                    .overlay(alignment: .trailing) {
+                        Rectangle().fill(Theme.hairlineColor).frame(width: 1)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+        }
     }
 
     // v127（ArcZip P1）：图标视图（LazyVGrid + 缩略图磁贴；点选/右键/双击/拖出在 AppKit 层）
@@ -1634,5 +1633,98 @@ struct ArchiveInspectorBar: View {
             }
         }
         .background(Theme.cardFill)
+    }
+}
+
+// MARK: - 检查器内容映射（模型 → 视图数据）
+//
+// 检查器视图只吃值类型，窗口负责把 model 拍平成 ArchiveInspectorContent：
+// 这样画布可以脱离窗口渲染（离线核对样式），也避免视图直接读模型状态。
+
+extension ArchiveInspectorContent {
+    init(model: ArchiveBrowserModel) {
+        let formatter = ByteCountFormatter()
+        formatter.countStyle = .file
+
+        if model.selection.count > 1 {
+            let total = model.selectedEntries.reduce(Int64(0)) { $0 + $1.size }
+            self = ArchiveInspectorContent(
+                kind: .multi,
+                headerTitle: "多选详情",
+                name: "已选 \(model.selection.count) 项",
+                subtitle: "合计 \(formatter.string(fromByteCount: total))",
+                rows: [("项目", "\(model.selection.count)")],
+                preview: .symbol("square.stack.3d.up"),
+                canOpenExternally: false
+            )
+            return
+        }
+
+        if let entry = model.previewEntry, model.selection.count == 1 {
+            var rows: [(String, String)] = [("大小", formatter.string(fromByteCount: entry.size))]
+            if entry.packedSize > 0 {
+                rows.append(("压缩后", formatter.string(fromByteCount: entry.packedSize)))
+                if entry.size > 0 {
+                    let pct = Int((Double(entry.packedSize) / Double(entry.size)) * 100)
+                    rows.append(("压缩率", "\(pct)%"))
+                }
+            }
+            if !entry.modified.isEmpty { rows.append(("修改日期", entry.modified)) }
+            if entry.isEncrypted { rows.append(("加密", "是")) }
+
+            let preview: ArchiveInspectorContent.Preview
+            switch model.previewKind {
+            case .none:
+                preview = .symbol(ArchiveFormat.symbol(entry.name, isDirectory: entry.isDirectory))
+            case .text(let text):
+                preview = .text(text)
+            case .image(let image):
+                preview = .image(image)
+            case .pdf(let doc):
+                preview = .pdf(doc)
+            case .html:
+                preview = .placeholder("safari")
+            case .office:
+                preview = .placeholder("doc.richtext")
+            case .unsupported:
+                preview = .unsupported
+            }
+
+            self = ArchiveInspectorContent(
+                kind: .entry,
+                headerTitle: entry.isDirectory ? "文件夹详情" : "文件详情",
+                name: entry.name,
+                subtitle: entry.isDirectory ? "文件夹" : ArchiveFormat.fileType(entry.name),
+                rows: rows,
+                preview: preview,
+                canOpenExternally: !entry.isDirectory
+            )
+            return
+        }
+
+        let attrs = try? FileManager.default.attributesOfItem(atPath: model.url.path)
+        let size = (attrs?[.size] as? NSNumber)?.int64Value ?? 0
+        let modified: String = {
+            guard let date = attrs?[.modificationDate] as? Date else { return "—" }
+            let f = DateFormatter()
+            f.dateFormat = "yyyy/M/d HH:mm"
+            return f.string(from: date)
+        }()
+        let encrypted = model.entries.contains { $0.isEncrypted }
+
+        self = ArchiveInspectorContent(
+            kind: .archive,
+            headerTitle: "压缩包详情",
+            name: model.url.lastPathComponent,
+            subtitle: ArchiveFormat.describe(model.url),
+            rows: [
+                ("大小", formatter.string(fromByteCount: size)),
+                ("项目", "\(model.entries.count)"),
+                ("加密", encrypted ? "是" : "否"),
+                ("修改日期", modified),
+            ],
+            preview: .none,
+            canOpenExternally: false
+        )
     }
 }

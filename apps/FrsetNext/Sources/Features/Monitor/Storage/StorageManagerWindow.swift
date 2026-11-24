@@ -53,8 +53,13 @@ public final class StorageManagerWindowController: NSWindowController, NSWindowD
             Log.warn("Storage", "show：window 尚未创建，深链无效")
             return
         }
-        window.makeKeyAndOrderFront(nil)
-        NSApp.activate(ignoringOtherApps: true)
+        // 零打扰验证（--no-activate）：只上屏、不激活、不抢 key（截图/录屏用）
+        if DebugLaunch.noActivate {
+            window.orderFrontRegardless()
+        } else {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+        }
         let f = window.frame
         Log.info("Storage", "show：\(Int(f.width))x\(Int(f.height)) @\(Int(f.minX)),\(Int(f.minY)) visible=\(window.isVisible)")
         // v211 排障：kitnest://storage?scan=1 —— 无人值守触发一次扫描（验证全盘索引/进度/截断提示）
@@ -74,51 +79,78 @@ public final class StorageManagerWindowController: NSWindowController, NSWindowD
     }
 }
 
-/// v285（2026-11-23 存储布局重整）：正文几何的唯一口径。
+/// v286（2026-11-24 用户定案「液面沿左侧弯曲边界持续延伸到上半部」）：
+/// 正文几何的唯一口径——**画布 = 窗口内容整体，跨顶部操作带与主体**。
 ///
-/// 旧版问题（用户截图确认）：液面轮廓抬到 y=-34pt 藏进 header 背后、工具条
-/// `.offset(y: -20)` 凑红绿灯基线、清单行按轮廓逐行截断成「锯齿」、
-/// 导航条悬在大片空白光带里——窗口一缩放/文字一变长就错位。
-/// 现在按七个真实区域划分（全部父子布局驱动，无负 offset、无逐行截断）：
-///   ① 系统标题栏安全区（padding 顶让红绿灯）② 顶栏容量概况 ③ 右上工具条
-///   ④ 左清理清单（稳定列宽）⑤ 右地图画布 ⑥ 导航/面包屑条（真实行）
-///   ⑦ 底部详情（地图列底部浮层）
-/// StorageMapShape / 图块裁切 / 鼠标命中 / 手势区域共享 mapCanvasSize 同一坐标系；
-/// 有机轮廓只活在地图列自己的矩形里，不再侵入清单控件区。
+/// v285 的折衷（轮廓缩回地图列、上缘一条水平直线）把「曲面延伸到上半部」
+/// 一起砍掉了；v286 恢复用户截图口径，同时不回退 v285 修好的缺陷：
+///   ① 曲面 = 整窗画布上的一条 StorageMapShape（顶边有机起伏、左缘在操作带
+///      高度内连续弯曲过渡到顶带左缘），作为内容背景层，禁命中；
+///   ② 顶部操作带（容量摘要 + 右上工具条）是画布前景层，可与曲面视觉重叠，
+///      点击/文字区域不被图块覆盖（图块只从芯片行下方开始）；
+///   ③ 前景导航（查看/面包屑）改为浮在曲面上的芯片行，不再用整条不透明
+///      玻璃横条把曲面上半段截断；
+///   ④ 左清单仍是稳定列宽玻璃卡片，左缘以下边界全程 ≥ 地图列左缘，绝不咬清单；
+///   ⑤ 图块面积仍按真实字节分配（数据口径不变）；图块裁切/命中/手势/Voronoi
+///      外轮廓全部由 StorageSurfaceGeometry 推导，共享同一坐标变换。
+/// 全部父子布局 + PreferenceKey 实测驱动：无负 offset、无逐行截断、无魔法数拼接。
 struct StorageBodyLayout {
-    /// 主体区尺寸（顶栏以下、窗口内边距以内）。
+    /// 整窗内容画布（标题栏安全区以下、窗内边距以内，含顶部操作带）。
     let region: CGSize
-    /// 清单列与地图列之间的呼吸缝（原 seam 语义）。
+    /// 清单列与地图列之间的呼吸缝。
     var seam: CGFloat = 12
-    /// 清单列宽占比（真实列宽；列表文字不再被轮廓截断）。
+    /// 清单列宽占比（真实列宽）。
     var listRatio: CGFloat = 0.40
-    /// 导航条（查看/手势提示/容量 + 返回前进/面包屑）真实高度。
-    var navHeight: CGFloat = 66
+    /// 顶部操作带实测高度（header 的 PreferenceKey 回填；默认按无提示行的典型值兜底）。
+    /// 兜底取**偏小**的典型值：实测更大时曲面过渡终点下移是安全的（不会咬清单）；
+    /// 反向（兜底偏大）会让过渡段扫进清单卡片顶行。
+    var headerHeight: CGFloat = StorageBodyLayout.defaultHeaderHeight
+    static let defaultHeaderHeight: CGFloat = 96
+    /// 前景导航芯片行总高（查看行 31 + 面包屑行 33，行高沿用 v285 真实行）。
+    var chipHeight: CGFloat = 64
+
+    /// 红绿灯安全区（fullSizeContentView）：header 顶 padding 与曲面顶边共同引用，
+    /// 避免两处各写一个数导致漂移。
+    static let safeTop: CGFloat = 28
 
     var listWidth: CGFloat { max(250, min(430, region.width * listRatio)) }
     var mapWidth: CGFloat { max(320, region.width - listWidth - seam) }
-    var mapHeight: CGFloat { region.height }
-    /// 地图画布（液态图块所在）尺寸 = 地图列去掉导航条后的剩余。
-    /// StorageTreemap 的内容顶边从 0 起（导航条是真实行，不再有内嵌光带）。
-    var mapCanvasSize: CGSize {
-        CGSize(width: mapWidth, height: max(150, region.height - navHeight))
+    /// 地图列左缘 = 曲面下段左缘（边界在操作带以下绝不到达更左边）。
+    var mapLeft: CGFloat { listWidth + seam }
+    /// 曲面顶边基线：贴近窗口上沿（顶带从画布中线开始，不碰左侧红绿灯）。
+    var surfaceTop: CGFloat { 10 }
+    /// 顶带左缘：曲面上半部延伸到画布中线（与用户参考图口径一致）。
+    var crestLeft: CGFloat { region.width * 0.5 }
+    /// 图块画布：顶部操作带以下、地图列整高（右列不再被 navHeight 限死）。
+    var tileFrame: CGRect {
+        CGRect(x: mapLeft, y: headerHeight,
+               width: mapWidth, height: max(150, region.height - headerHeight))
+    }
+    /// 单一几何事实，供背景/图块/手势/悬停共享。
+    var geometry: StorageSurfaceGeometry {
+        StorageSurfaceGeometry(canvas: region, surfaceTop: surfaceTop,
+                               crestLeft: crestLeft, sweepEnd: headerHeight,
+                               tileFrame: tileFrame, contentTop: chipHeight)
     }
 }
 
 private struct StorageSwipeRegion: NSViewRepresentable {
     let enabled: Bool
-    /// 图块画布上沿（map 局部坐标）。搜索/面包屑条所在的光条不属于手势区，
+    /// 图块画布上沿（画布局部坐标）：前景导航芯片行不算手势区，
     /// 从那里起手的横滑不能吃掉控件自己的操作。
     let hitTop: CGFloat
+    /// v286：整窗画布几何——命中轮廓由 StorageMapShape 统一推导。
+    let geometry: StorageSurfaceGeometry
     let onNavigate: (Int) -> Void
 
     func makeNSView(context: Context) -> SwipeView {
-        SwipeView(hitTop: hitTop, onNavigate: onNavigate)
+        SwipeView(hitTop: hitTop, geometry: geometry, onNavigate: onNavigate)
     }
 
     func updateNSView(_ nsView: SwipeView, context: Context) {
         nsView.enabled = enabled
         nsView.hitTop = hitTop
+        nsView.geometry = geometry
         nsView.onNavigate = onNavigate
         nsView.refreshHitPathIfNeeded()
     }
@@ -136,6 +168,9 @@ private struct StorageSwipeRegion: NSViewRepresentable {
         var hitTop: CGFloat = 0 {
             didSet { if hitTop != oldValue { hitBounds = .zero } }
         }
+        var geometry: StorageSurfaceGeometry = StorageSurfaceGeometry() {
+            didSet { if geometry != oldValue { hitBounds = .zero } }
+        }
         var onNavigate: (Int) -> Void
         private var swipeMonitor: Any?
         private var delta = CGSize.zero
@@ -145,11 +180,12 @@ private struct StorageSwipeRegion: NSViewRepresentable {
         private var hitPath = Path()
         private var hitBounds = CGRect.zero
 
-        init(hitTop: CGFloat, onNavigate: @escaping (Int) -> Void) {
-            self.hitTop = hitTop
-            self.onNavigate = onNavigate
-            super.init(frame: .zero)
-        }
+    init(hitTop: CGFloat, geometry: StorageSurfaceGeometry, onNavigate: @escaping (Int) -> Void) {
+        self.hitTop = hitTop
+        self.geometry = geometry
+        self.onNavigate = onNavigate
+        super.init(frame: .zero)
+    }
 
         required init?(coder: NSCoder) { fatalError() }
         override var isFlipped: Bool { true }
@@ -164,13 +200,13 @@ private struct StorageSwipeRegion: NSViewRepresentable {
             if window != nil { installSwipeMonitor() }
         }
 
-        /// 命中的是**图块画布**那一段外轮廓（不含顶部搜索/面包屑光条）。
-        /// 轮廓与 SwiftUI 绘制共用 StorageMapShape，窗口缩放后重算；
-        /// 左侧候选清单与轮廓互不重叠（清单遮罩减掉的正是这条轮廓），竖向滚动不会被吞。
+        /// 命中的是**图块画布**那一段外轮廓（不含顶部导航芯片行）。
+        /// 轮廓与 SwiftUI 绘制共用 StorageMapShape（同一 StorageSurfaceGeometry），
+        /// 窗口缩放后重算；左侧候选清单与轮廓互不重叠，竖向滚动不会被吞。
         func refreshHitPathIfNeeded() {
             guard bounds.width > 0, bounds.height > 0, bounds != hitBounds else { return }
             hitBounds = bounds
-            let blob = StorageMapShape().path(in: bounds)
+            let blob = StorageMapShape(geometry: geometry).path(in: bounds)
             let top = min(max(hitTop, 0), max(0, bounds.height - 1))
             let canvas = CGRect(x: bounds.minX, y: bounds.minY + top,
                                 width: bounds.width, height: bounds.height - top)
@@ -253,10 +289,30 @@ private struct StorageSwipeRegion: NSViewRepresentable {
 
 // MARK: - 根视图
 
+/// v286：header 高度实测。曲面上段过渡终点（sweepEnd）必须等于真实操作带高度，
+/// 否则窗口内容增减（授权提示行出现/消失）会让曲线终点和清单卡顶错位。
+private struct HeaderHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = StorageBodyLayout.defaultHeaderHeight
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+private struct HeaderHeightMeter: View {
+    var body: some View {
+        GeometryReader { g in
+            Color.clear.preference(key: HeaderHeightKey.self, value: g.size.height)
+        }
+    }
+}
+
 struct StorageManagerRootView: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @StateObject private var store = DiskIndexStore.shared
+    /// v286：顶部操作带实测高度（PreferenceKey 回填）。曲面左缘的「上段→下段」
+    /// 过渡终点 = 这个高度；不写死像素，header 内容增减（如授权提示行）自动跟随。
+    @Stored private var headerHeight: CGFloat = StorageBodyLayout.defaultHeaderHeight
     /// 每次实际进入的目录路径；游标两侧分别是返回、前进记录。
     @Stored private var directoryHistory: [[DiskNode]] = [[]]
     @Stored private var historyIndex = 0
@@ -398,44 +454,59 @@ struct StorageManagerRootView: View {
         }
     }
 
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // 区①②③：标题栏安全区 + 容量概况 + 右上工具条（真实 HStack，无 offset）
-            header
-                .fixedSize(horizontal: false, vertical: true)
-            GeometryReader { region in
-                let layout = StorageBodyLayout(region: region.size)
-                HStack(alignment: .top, spacing: layout.seam) {
-                    // 区④：清理清单（稳定列宽；行宽不再按轮廓截断）
-                    VStack(alignment: .leading, spacing: 8) {
-                        candidateControls
-                        leftPane()
-                    }
-                    .frame(width: layout.listWidth, height: region.size.height)
-                    .glassCard(radius: Theme.Radius.card)
-
-                    // 区⑤⑥：导航条（真实行）+ 地图画布（有机轮廓只在自己的矩形里）
-                    VStack(alignment: .leading, spacing: 0) {
-                        mapControls
-                            .frame(height: layout.navHeight)
-                        rightPane()
-                            .frame(width: layout.mapWidth,
-                                   height: layout.mapCanvasSize.height)
-                            .overlay {
-                                // 手势区 = 整块图布（导航条已独立成行，不再吃手势）
-                                StorageSwipeRegion(enabled: !showDataCategories,
-                                                   hitTop: 0,
-                                                   onNavigate: navigateHistory(by:))
-                                    .allowsHitTesting(false)
-                            }
-                    }
-                }
-                .frame(width: region.size.width, height: region.size.height)
-                .coordinateSpace(name: "storageCanvas")
+    /// v286：曲面背景层（整条异形外轮廓底衬 + 1pt 描边）。
+    /// 统一视觉路径的唯一绘制点；禁命中——前景控件/文字永远优先。
+    private func surfaceBackdrop(_ layout: StorageBodyLayout) -> some View {
+        StorageMapShape(geometry: layout.geometry)
+            .fill(Color.primary.opacity(0.03))
+            .overlay {
+                StorageMapShape(geometry: layout.geometry)
+                    .stroke(Theme.accent.opacity(0.42), lineWidth: 1)
+                    .allowsHitTesting(false)
             }
-            .frame(maxHeight: .infinity)
+            .allowsHitTesting(false)
+    }
+
+    /// v286：主体两列（清单 + 地图列），从顶部操作带以下铺到窗底。
+    private func bodyColumns(_ layout: StorageBodyLayout, regionHeight: CGFloat) -> some View {
+        HStack(alignment: .top, spacing: layout.seam) {
+            // 区④：清理清单（稳定列宽；行宽不再按轮廓截断）
+            VStack(alignment: .leading, spacing: 8) {
+                candidateControls
+                leftPane()
+            }
+            .frame(width: layout.listWidth, height: regionHeight - layout.headerHeight)
+            .glassCard(radius: Theme.Radius.card)
+
+            // 区⑤：地图列（图块 + 前景导航芯片 + 底部详情共享画布）
+            rightPane(layout)
+                .frame(width: layout.mapWidth,
+                       height: regionHeight - layout.headerHeight)
         }
-        .padding(.top, 8)
+        .padding(.top, layout.headerHeight)
+    }
+
+    var body: some View {
+        GeometryReader { region in
+            // v286：整窗内容 = 一块共享画布。曲面是背景层，顶部操作带是前景层，
+            // 左清单 / 地图列从操作带以下铺到窗底——液面不再被导航行截成矩形。
+            let layout = StorageBodyLayout(region: region.size, headerHeight: headerHeight)
+            ZStack(alignment: .topLeading) {
+                surfaceBackdrop(layout)
+                bodyColumns(layout, regionHeight: region.size.height)
+                    .frame(width: region.size.width, height: region.size.height, alignment: .topLeading)
+                    .coordinateSpace(name: "storageCanvas")
+                // z2 顶部操作带（前景）：容量摘要上移、右上按钮靠上一字排齐；
+                // 与曲面视觉重叠（曲面是 3% 底衬），文字与点击区域不被图块覆盖。
+                header
+                    .fixedSize(horizontal: false, vertical: true)
+                    .background(HeaderHeightMeter())
+            }
+            .onPreferenceChange(HeaderHeightKey.self) { headerHeight = $0 }
+        }
+        // 2026-11-23 实测（存储录屏）：地图画布高度原来正好顶到窗口底边，
+        // 最下一排图块/标签被 .clipped() 切掉。留 10pt 底沟，让有机轮廓完整收在窗内。
+        .padding(.bottom, 10)
         .clipped()
         .onAppear {
             refreshDiskSpace()
@@ -557,10 +628,10 @@ struct StorageManagerRootView: View {
             .fixedSize()
             .padding(.top, 6)   // 与 38pt 大数字行视觉居中的真实内边距
         }
-        .padding(.top, 28)      // 区①：红黄绿系统安全区（fullSizeContentView）
+        .padding(.top, StorageBodyLayout.safeTop)  // 区①：红黄绿系统安全区（fullSizeContentView）
         .padding(.leading, 20)
         .padding(.trailing, 16)
-        .padding(.bottom, 6)
+        .padding(.bottom, 4)
     }
 
     /// 顶部第一层的并排小指标（标签在上、数值在下，等宽数字对齐）。
@@ -711,10 +782,14 @@ struct StorageManagerRootView: View {
         }
     }
 
-    // MARK: 正文上方的目录操作区
+    // MARK: 地图列前景导航（v286：芯片浮层，不再整条玻璃横条截断曲面）
 
+    /// v286：目录操作区从「导航条真实行」改为浮在曲面上的前景芯片行。
+    /// 行高（31/33）沿用 v285 真实行；容器不再铺玻璃底——液面从芯片之间
+    /// 连续穿过，上半段不再被一条不透明矩形拦腰截断。
+    /// 图块画布用 `contentTop = chipHeight` 避让本行，点击/文字区域不被图块覆盖。
     private var mapControls: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 8) {
                 Picker("查看", selection: $showDataCategories) {
                     Text("目录").tag(false)
@@ -742,8 +817,6 @@ struct StorageManagerRootView: View {
             }
             .padding(.horizontal, 10)
             .frame(height: 31)
-
-            Divider().opacity(0.6)
 
             HStack(spacing: 6) {
                 if showDataCategories {
@@ -782,6 +855,9 @@ struct StorageManagerRootView: View {
                         Text("根")
                             .font(.system(size: 11, weight: .medium))
                             .foregroundStyle(stack.isEmpty ? .secondary : Theme.accent)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Capsule().fill(Theme.cardFill.opacity(0.9)))
                     }
                     .buttonStyle(.plain)
                     .disabled(stack.isEmpty)
@@ -799,8 +875,12 @@ struct StorageManagerRootView: View {
                                 .font(.system(size: 11, weight: idx == stack.count - 1 ? .medium : .regular))
                                 .foregroundStyle(idx == stack.count - 1 ? .secondary : Theme.accent)
                                 .lineLimit(1)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(Capsule().fill(Theme.cardFill.opacity(0.9)))
                         }
                         .buttonStyle(.plain)
+                        .help(node.path)
                     }
                 }
                 Spacer(minLength: 0)
@@ -808,13 +888,14 @@ struct StorageManagerRootView: View {
             .padding(.horizontal, 10)
             .frame(height: 33)
         }
-        .padding(.vertical, 1)
-        .glassCard(radius: Theme.Radius.card)
     }
 
     // MARK: 正文画布（图形、清单遮罩和手势共用局部坐标）
 
-    private func rightPane() -> some View {
+    /// v286：地图列 = 一块从顶部操作带以下铺到窗底的画布。
+    /// 前景导航芯片浮在曲面上（不再用整条不透明玻璃横条截断液面上半段），
+    /// 图块从芯片行下方开始；底部详情浮层不变。
+    private func rightPane(_ layout: StorageBodyLayout) -> some View {
         GeometryReader { pane in
             ZStack(alignment: .topLeading) {
                 if showDataCategories, let issue = store.snapshot?.categorySummaryIssue {
@@ -850,7 +931,8 @@ struct StorageManagerRootView: View {
                                    },
                                    freeSpace: !showDataCategories && stack.isEmpty ? diskFreeBytes : nil,
                                    indexRevision: store.indexRevision,
-                                   contentTop: 0)
+                                   contentTop: layout.chipHeight,
+                                   geometry: layout.geometry)
                         .id(node.id)
                         // v266：Q 弹。旧版 0.82→1 的 springBouncy 太短，像淡入；
                         // 现在从被点块的中心涨开（0.55），回弹更慢更明显，
@@ -877,8 +959,14 @@ struct StorageManagerRootView: View {
                     }
                     .padding(.leading, pane.size.width * 0.5)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(StorageMapShape().fill(Color.primary.opacity(0.03)))
+                    .background(StorageMapShape(geometry: layout.geometry)
+                        .fill(Color.primary.opacity(0.03)))
                 }
+                // 前景导航芯片行：浮在曲面上半段，图块从它下方开始（contentTop 避让）
+                mapControls
+                    .padding(.horizontal, 12)
+                    .padding(.top, 4)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
             VStack(spacing: 0) {
 
             Spacer(minLength: 8)
@@ -947,7 +1035,15 @@ struct StorageManagerRootView: View {
             }
             .animation(reduceMotion ? nil : Theme.Motion.fast, value: detailNode?.id)
             }
-            .clipShape(StorageMapShape())
+            // 手势区 = 整块图布减去芯片行（芯片行的横滑属于控件自己，不吃导航）
+            .overlay {
+                StorageSwipeRegion(enabled: !showDataCategories,
+                                   hitTop: layout.chipHeight,
+                                   geometry: layout.geometry,
+                                   onNavigate: navigateHistory(by:))
+                    .allowsHitTesting(false)
+            }
+            .clipShape(StorageMapShape(geometry: layout.geometry))
             // v267：果冻回弹。切层时整张液面先被「压扁」再弹回，
             // X/Y 反向、低阻尼——和 0.55 涨开叠加后能看出两次回弹。
             .scaleEffect(x: jelly, y: 2 - jelly, anchor: mapMotion.anchor)

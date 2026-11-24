@@ -3,10 +3,42 @@ name: frset-verify
 description: Kitnest 改动验证方法集。当需要确认 Kitnest 的 UI/行为改动是否生效时使用——包含窗口截图、defaults 探针、深链唤起、日志核对四类手段与已知坑（玻璃窗捕获发黑、环境变量探针不生效等）。配合 frset-release 发布闭环的验证步骤使用。
 agent_created: true
 ---
-
 # Kitnest 验证方法
 
 确认改动生效的四类手段。UI 改动用截图，行为改动用深链/探针+日志。
+
+## 0. 零打扰验证（用户正在用电脑时必须遵守）
+
+硬约束：**不抢鼠标、不改变前台焦点、不弹出无关窗口打断、不重启/终止 Kitnest**。
+
+- **默认允许**：静态分析、无 UI 编译、读现有日志（第 4 节）、读源码。这些不需要任何窗口。
+- **本节及后面所有会创建窗口 / 打开页面 / 录屏 / 重启实例的手段**（`open -g` 深链、
+  defaults 探针 + 重启、`screencapture -l`、AX 关窗等）**默认禁止自动执行**——
+  「不激活」不等于「不打扰」：`open -g` 与深链仍会弹出新窗口盖在用户屏幕上。
+  它们只在**用户明确批准的独占验证时段**使用（开工前先 `git status` 保护未提交改动，
+  用完即清理探针键与截图/录屏）。
+
+已批准的独占时段内可用的做法：
+
+```bash
+# 1) 启动时只上屏不激活（二选一；probe.noActivate 对已运行实例也即时生效）
+open -g -a /Applications/Kitnest.app --args --panel-pin --no-activate
+defaults write com.sxyq.frsetnext probe.noActivate -bool true   # 验完删掉
+
+# 2) 深链一律加 -g（只投递 URL，不把 App 带到前台）
+open -g "kitnest://paneltoggle?count=2&gap=1.0"
+open -g "kitnest://storage?hover=1"
+
+# 3) 只拍/只录目标窗口（被遮挡也能拍，不置前、不录桌面）
+screencapture -l<窗id> -o /tmp/shot.png
+screencapture -l<窗id> -V 8 -o /tmp/clip.mov
+```
+
+- 动画太短录不到：`defaults write com.sxyq.frsetnext probe.genieDuration -float 2.5` 慢放（验完删除）；日志会写「动画 2500ms」证明是同一套动画。
+- 液态悬停不能移鼠标：`defaults write … probe.storageHover -bool true` + `kitnest://storage?hover=1`，让压力中心沿最大图块巡航（同一压力场/弹簧），默认关闭。
+- 关窗/关 sheet 用 AX 按关闭按钮（不激活、不动鼠标）；`CGEvent.postToPid` 对 SwiftUI 无边框 sheet/`onContinuousHover` 常无效，别当可靠手段。
+- 禁止：无 `-g` 的 `open`、`osascript activate`、`NSApp.activate`、真实光标移动、`tccutil reset`。
+- 做不到的（真实鼠标手感、触控板震动、Instruments 帧率）如实标注待实测，不用截图/编译成功代替。
 
 ## 1. 窗口截图（UI 验证）
 
@@ -14,6 +46,7 @@ agent_created: true
 /usr/bin/swift /tmp/winall2.swift        # 列出窗口 id/尺寸/位置
 screencapture -x -o -l<窗id> /tmp/shot.png
 ```
+
 - 玻璃/透明窗（层叠面板、弹窗）按 id 截出来是**黑的** → 改全屏 `screencapture -x /tmp/full.png` 后 `sips` 裁目标区域：
   ```bash
   sips -c <高> <宽> --cropOffset <Y> <X> /tmp/full.png --out /tmp/crop.png
@@ -21,12 +54,16 @@ screencapture -x -o -l<窗id> /tmp/shot.png
 - 判断对齐/间距：裁左右边缘窄条对比，或目视缩放图
 - 截完用 Read 工具查看图片确认效果
 
-### 1.1 动效验证（录屏 + 逐帧，2026-11-22 v274）
+### 1.1 动效验证（录屏 + 逐帧，2026-11-22 v274；2026-11-23 改为窗口直录优先）
 
 单张截图看不出「有没有动画」——弹簧可能被合并成单帧跳变，也可能被系统「减弱动态效果」吃掉。
 
 ```bash
-screencapture -x -v -V 8 -R <x>,<y>,<w>,<h> /tmp/loop.mov
+# 首选：只录目标窗口（不录桌面、不打扰）
+screencapture -l<窗id> -V 8 -o /tmp/loop.mov
+# 仅当用户明确允许录屏区域时才用 -R（会录到该区域里的一切）
+# screencapture -x -v -V 8 -R <x>,<y>,<w>,<h> /tmp/loop.mov
+
 rm -rf /tmp/frames && mkdir -p /tmp/frames
 ffmpeg -v error -i /tmp/loop.mov -vf fps=30 /tmp/frames/f%04d.png
 # 用 PIL 统计目标图标/色块像素：帧间应出现小→大→过冲→稳态，而不是 0→满值
@@ -35,15 +72,18 @@ defaults read com.apple.universalaccess reduceMotion   # 1 = 系统已减弱动�
 
 设置页通知条预览的稳定判据：弹入 77→450→533→586（过冲）→530；隐藏 474→261→0。
 若只有 0→满值，先查 `reduceMotion`，再查 `withAnimation` 的两帧是否被合并。
+短动画（如神灯 380ms）常短于录制启动：用 `probe.genieDuration` 慢放，日志里的「动画 2500ms」可证明是同一套动画。
 
-## 2. defaults 探针（非交互触发）
+## 2. defaults 探针（非交互触发；**会重启实例，仅限已批准的独占时段**）
 
 ```bash
 defaults write com.sxyq.frsetnext probe.preview -string "text"     # 启动3s后预览首条文本
 defaults write com.sxyq.frsetnext probe.openTool -string "qrcode"  # 启动3.5s后打开工具窗
+# 下面的 pkill + open 会杀掉运行中的实例，用户在用电脑时禁止：
 pkill -f "Kitnest.app/Contents/MacOS/Kitnest"; sleep 2; open -a /Applications/Kitnest.app
 # 用完删除：defaults delete com.sxyq.frsetnext probe.preview
 ```
+
 注意：`launchctl setenv` 环境变量探针对 `open` 启动的 App **不生效**，一律用 defaults 探针。
 
 ## 3. 深链唤起（打开页面/驱动功能）
@@ -51,15 +91,10 @@ pkill -f "Kitnest.app/Contents/MacOS/Kitnest"; sleep 2; open -a /Applications/Ki
 ```
 kitnest://panel?page=home                 主面板
 kitnest://settings?pane=monitor           设置页（monitor / monitor.widgets / about）
-kitnest://settings?pane=clipboard.appearance  剪贴板预览字号
-kitnest://clipdesk                        独立剪贴板工作台
-kitnest://storage                         存储管理（读取现有索引）
 kitnest://statistics                      使用统计
 kitnest://cloudlink?url=<URL>&action=download   直驱网盘解析下载（测试矩阵用）
 kitnest://toast?text=测试                 全局提示
 ```
-
-性能监测窗：`open 'kitnest://monitor?module=cpu'`；核对 `监测独立窗口预热完成`、`打开（CPU）`、`已收起` 日志。
 
 ## 4. 日志核对
 
@@ -69,39 +104,11 @@ import datetime
 p=f'/Users/sunyiyang/Library/Application Support/FrsetNext/logs/{datetime.date.today()}.log'
 print(''.join(open(p,errors='replace').readlines()[-8:]))"
 ```
+
 关键词：`已部署` `解析下载` `下载完成` `工具窗已打开` `启动追赶` `show: frame=`。
-
-## 5. 本次入口与任务链
-
-- 性能场景使用 `open -a /Applications/Kitnest.app 'kitnest://monitor?module=cpu'` 明确指定目标。共用应用标识的前后版串行运行，对照完成即清理短期安装包。
-- 前后采样用 `top -pid <PID> -l 8 -s 2 -stats pid,cpu,mem -n 1`，排除首笔，另用 `footprint <PID> -f bytes -s` 记录当前与进程峰值字节；同时记主机 CPU 空闲率。UI操作和源码工具查询不与测量窗口交叠。
-- 部件设置走 `kitnest://settings?pane=monitor.widgets`；选择传感器，若原先隐藏就仅在草稿开启，展开真实传感器列表并观察预览，最后取消草稿还原。旧 ObjC 设置窗已移除，不再使用 `FRSET_SETTINGSHOT`。
-- `cua.getApp(路径)` 在应用退出后会再次启动它；退出是否成功用进程状态确认，再切换下一版。CPU窗原Motion日志包含帧数、刷新率、播放时长和缓动，可与实际画面一并对照。
-
-- 剪贴板正文改动用独立工作台搜索已有纯文本、Markdown 和 JSON；主面板失焦会自动收起。字号保存后可在设置页重开核对。
-- 存储管理使用现有索引验证目录进退。两指横滑从色块区域开始；带 phase 的触控板与无 phase 的横向滚动都识别，一次手势只切一层（260ms 静默才重新计数）。
-- 收藏状态以 SQLite `resource_favorites` 为共享来源；剪贴板另外同步写 `clipboard_items.is_favorite`。核对其他入口时从状态栏「查看收藏…」或命令面板打开收藏窗。
-- 悬浮球界面目录复用 `IslandWidget`；显示开关、组件顺序、宽高、格子尺寸、列数、默认页及逐屏记忆均由「设置 → 入口与交互 → 悬浮球」读取。
-- 悬浮球从球面拖动，释放后左右贴边，半隐藏露16pt；快捷窗底部箭头切页。关闭刘海入口后再打开媒体、日历等组件，确认共用内容窗仍展示真实业务。临时启用或改布局前记录对应偏好，结束后仅恢复这些键。
-- 悬浮球触发截图后，恢复依赖截图取消或动作条关闭回调；不要用固定计时器推断截图结束。
-- 在线翻译分别查看 Apple 本机 Provider 与 AI/360 在线 Provider；在线 Provider 首次请求会展示授权说明。仅用成功结果提示里的 Provider 名称确认实际服务。
-- 工作流首次打开使用 `kitnest://settings?pane=workflow`；没有保存文件时，示例应直接显示「已保存」，不能因重复生成 UUID 出现未操作的脏草稿。
-- Linear 工作流仅 `data.issueCreate.success=true` 作为成功；业务失败沿现有失败步骤提示与重试入口。真实调用需要用户的 Team ID 与凭证。
-- 2026-11-21安装版用现有更新探针读取真实发布地址且不提供SHA-256，日志记录提示「更新包缺少有效的 SHA-256 或未使用 HTTPS，已取消安装」，visible=true；探针键读取后自删。
-
-### 屏幕录制授权
-
-```bash
-codesign -d --requirements - /Applications/Kitnest.app 2>&1
-rg '屏幕录制权限启动实况|权限探测|截图快照冻结完成' "$HOME/Library/Application Support/FrsetNext/logs/$(date +%F).log"
-```
-
-- requirement 必须与 `apps/FrsetNext/build.sh` 的固定 FrsetDev 身份一致；身份迁移后的旧 TCC 记录只需对最终安装版重新授权一次。
-- `CGPreflightScreenCaptureAccess()` 可能假阴性，结合 `ScreenshotManager.probePermission()` 的真实抓屏结果和实际截图日志判断。
-- 不因部署后弹过一次权限提示就重置 TCC；先确认运行包签名身份及真实抓屏结果。
 
 ## 常见坑
 
-- 截图拿不到内容 ≠ 功能坏：先确认窗口 id 对不对、是否被遮挡（必要时 `osascript` 把 Kitnest 设为 frontmost 再全屏截）
+- 截图拿不到内容 ≠ 功能坏：先确认窗口 id 对不对、是否被遮挡（被遮挡时**等独占时段**或请用户配合，不要 `osascript` 抢 frontmost）
 - 设置类"没生效"：先分清「链路没接」还是「没生效反馈」——后者补 UI 反馈（如关闭项显示「已停用」）
 - 网盘下载测试后记得删 ~/Downloads 里的测试文件

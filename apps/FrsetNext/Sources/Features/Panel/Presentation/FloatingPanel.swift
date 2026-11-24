@@ -86,13 +86,18 @@ public final class FloatingPanel: NSPanel {
 
 extension FloatingPanel {
 
-    /// 面板玻璃的着色：浅色外观给淡乳白保证可读，深色外观几乎不加色
-    /// （深色壁纸 + 白色 tint 会变成一块脏灰，这正是「黑色背景下模糊不好看」的观感来源）
+    /// 面板玻璃的着色：只做极轻微的明暗校正，不再当"乳白底"用。
+    ///
+    /// 2026-11-24（用户：「白雾和深灰污染」「材质更自然」）：浅色 18% 白 + 深色 10% 黑
+    /// 是叠在 NSGlassEffectView 上的**第二层整窗着色**——底衬（GlassSurface 的
+    /// windowSurface）已经把亮度封住了，这层白只会把玻璃压成一块奶白板，
+    /// 背景细节全糊掉。降到 7%/6%：只保留系统玻璃在高光与暗部之间的色调偏移，
+    /// 折射与背景采样重新可见；正文可读性由内容卡片保证，不靠这层。
     static let glassTint = NSColor(name: nil) { appearance in
         let isDark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
         return isDark
-            ? NSColor.black.withAlphaComponent(0.10)
-            : NSColor.white.withAlphaComponent(0.18)
+            ? NSColor.black.withAlphaComponent(0.06)
+            : NSColor.white.withAlphaComponent(0.07)
     }
 
     /// 「个性化 → 背景材质」即时切换（v166.5：统一走 LiquidGlass，保留 solid 语义）

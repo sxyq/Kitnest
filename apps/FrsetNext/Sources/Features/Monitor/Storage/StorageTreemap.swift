@@ -44,7 +44,8 @@ enum DiskVoronoiLayout {
     /// - Parameter freeSpace: 根层的磁盘可用空间（字节），同样按实际字节分配面积。
     static func make(nodes: [DiskNode], in size: CGSize,
                      parentPath: String, freeSpace: Int64? = nil, maxTiles: Int = 14,
-                     contentTopRatio: CGFloat = 0) -> [DiskTile] {
+                     contentTopRatio: CGFloat = 0,
+                     geometry: StorageSurfaceGeometry = StorageSurfaceGeometry()) -> [DiskTile] {
         guard size.width > 12, size.height > 12, !nodes.isEmpty else { return [] }
         var list = nodes.filter { $0.size > 0 }.sorted { $0.size > $1.size }
 
@@ -91,7 +92,7 @@ enum DiskVoronoiLayout {
         let polys = VoronoiTreemap.layout(weights: weights,
                                           in: CGRect(origin: .zero, size: size),
                                           arcFirst: freeNode != nil,
-                                          outline: StorageTileShape(top: contentTopRatio)
+                                          outline: StorageTileShape(geometry: geometry, top: contentTopRatio)
                                             .path(in: CGRect(x: 0, y: 0, width: 1, height: 1)))
         guard polys.count == list.count else { return [] }
 
@@ -155,9 +156,14 @@ private final class DiskLayoutCache {
     private var tiles: [DiskTile] = []
 
     func tiles(for node: DiskNode, size: CGSize, freeSpace: Int64? = nil,
-               indexRevision: Int, contentTopRatio: CGFloat = 0) -> [DiskTile] {
+               indexRevision: Int, contentTopRatio: CGFloat = 0,
+               geometry: StorageSurfaceGeometry = StorageSurfaceGeometry()) -> [DiskTile] {
+        // v286：外轮廓改由整窗画布推导，缓存键必须带上画布口径
+        //（画布宽/顶带高度/图块画布左缘任一变化都要重切）。
         let k = "\(node.id)|\(size.width)×\(size.height)|\(node.children.count)|\(node.size)"
             + "|\(freeSpace ?? 0)|\(indexRevision)|\(contentTopRatio)"
+            + "|\(Int(geometry.canvas.width))×\(Int(geometry.canvas.height))"
+            + "|\(Int(geometry.tileFrame.minX))|\(Int(geometry.surfaceTop))|\(Int(geometry.sweepEnd))"
         if k == key { return tiles }
         var nodes = node.children
         if node.isDirectory, node.ownSize > 0 {
@@ -167,7 +173,8 @@ private final class DiskLayoutCache {
         }
         let made = DiskVoronoiLayout.make(nodes: nodes, in: size,
                                           parentPath: node.path, freeSpace: freeSpace,
-                                          contentTopRatio: contentTopRatio)
+                                          contentTopRatio: contentTopRatio,
+                                          geometry: geometry)
         key = k
         tiles = made
         return made
@@ -259,48 +266,122 @@ private struct TilePressStyle: ButtonStyle {
     }
 }
 
+/// v286（2026-11-24 用户定案「液面沿左侧弯曲边界持续延伸到上半部」）：
+/// 曲面几何的唯一口径——**画布 = 存储窗口内容整体（含顶部操作带）**。
+/// 单一事实来源：背景轮廓、图块裁切、悬停命中、手势区域、Voronoi 外轮廓
+/// 全部由这一份几何推导，禁止各消费方各自再画一条近似路径。
+/// 坐标系约定：所有字段都是画布坐标（窗口内容，原点在标题栏安全区以下）。
+struct StorageSurfaceGeometry: Equatable {
+    /// 整窗内容画布尺寸。
+    var canvas: CGSize = .zero
+    /// 曲面顶边基线（画布 y）。顶边有机起伏，**不再是一条水平直线**。
+    var surfaceTop: CGFloat = 0
+    /// 顶带左缘：曲面上半部延伸到画布中线的 x（只发生在顶部操作带高度内）。
+    var crestLeft: CGFloat = 0
+    /// 左缘到达图块区左缘的 y（= 顶部操作带高度）；以下边界全程 ≥ 图块区左缘，
+    /// 绝不咬进左侧清单卡片（v285 的清单锯齿缺陷不回归）。
+    var sweepEnd: CGFloat = 0
+    /// 图块画布（画布坐标）：地图列、顶部操作带以下、整列高。
+    var tileFrame: CGRect = .zero
+    /// 图块画布顶部的前景导航芯片行高——图块从它下方开始（芯片浮在曲面上）。
+    var contentTop: CGFloat = 0
+}
+
 struct StorageMapShape: Shape {
-    /// v285（2026-11-23 存储布局重整）：外轮廓只描述地图列自己的矩形。
+    /// v286：由 StorageSurfaceGeometry 推导的整条异形外轮廓。
     ///
-    /// 旧轮廓从 0.50W 起顶边、左缘一路咬进清单区（清单行被逐行截断成锯齿），
-    /// 是「异形轮廓侵入控件区域」的根源。现在四个边都活在自己的 rect 里：
-    /// 保留手绘液面手感（左缘中段微鼓 + 底边轻弧 + 0.045 圆角），
-    /// 图块裁切 / 鼠标命中 / 手势区域与它共享同一局部坐标（见 StorageBodyLayout）。
-    func path(in rect: CGRect) -> Path {
+    /// v285 的教训：轮廓只活在地图列自己的矩形里、上缘是从 (r,0) 到 (1-r,0) 的
+    /// 整条水平直线——这正是用户说「曲面没有延伸到上半部」的直接原因。
+    /// 现在轮廓以整窗内容为画布：顶边有机起伏、左缘在顶部操作带高度内连续弯曲
+    /// 过渡到顶带左缘、以下全程守住图块区左缘（清单可读性不回退）；液面手感参数
+    /// （中段微鼓、底边轻弧、0.045 圆角）沿用 54402adc/v285 口径。
+    var geometry: StorageSurfaceGeometry
+
+    /// 画布坐标下的整条轮廓（唯一实现；消费方只做「裁剪 + 线性映射」）。
+    static func blob(in g: StorageSurfaceGeometry) -> Path {
+        let W = g.canvas.width, H = g.canvas.height
+        guard W > 60, H > 60 else { return Path() }
+        let x0 = g.tileFrame.minX
+        let mapW = max(10, W - x0)
+        let xC = min(max(g.crestLeft, x0), W - 12)
+        let topY = min(max(g.surfaceTop, 2), H * 0.2)
+        let sweepY = min(max(g.sweepEnd, topY + 20), H * 0.5)
+        let wave = max(3, H * 0.012)
+        let r = max(8, min(W, H) * 0.045)
         var path = Path()
-        let point: (CGFloat, CGFloat) -> CGPoint = {
-            CGPoint(x: rect.minX + $0 * rect.width, y: rect.minY + $1 * rect.height)
-        }
-        let r: CGFloat = 0.045
-        // 顶边
-        path.move(to: point(r, 0))
-        path.addLine(to: point(1 - r, 0))
-        path.addCurve(to: point(1, r), control1: point(1 - r * 0.45, 0), control2: point(1, r * 0.45))
+        // 顶边：左低右高的有机波浪（液面一直漫到窗口上沿，不再水平截断）
+        path.move(to: CGPoint(x: xC, y: topY + wave))
+        path.addCurve(to: CGPoint(x: W * 0.55, y: topY - wave * 0.5),
+                      control1: CGPoint(x: xC + (W * 0.55 - xC) * 0.45, y: topY + wave * 0.1),
+                      control2: CGPoint(x: W * 0.38, y: topY - wave))
+        path.addCurve(to: CGPoint(x: W - r, y: topY + wave * 0.2),
+                      control1: CGPoint(x: W * 0.74, y: topY - wave),
+                      control2: CGPoint(x: W - r * 2.4, y: topY - wave * 0.4))
+        // 右上角
+        path.addCurve(to: CGPoint(x: W, y: topY + wave * 0.2 + r),
+                      control1: CGPoint(x: W, y: topY + wave * 0.2 + r * 0.45),
+                      control2: CGPoint(x: W, y: topY + wave * 0.2 + r * 0.45))
         // 右边
-        path.addLine(to: point(1, 1 - r))
-        path.addCurve(to: point(1 - r, 1), control1: point(1, 1 - r * 0.45), control2: point(1 - r * 0.45, 1))
-        // 底边：轻弧（液面下沿微微上提，不平板）
-        path.addLine(to: point(0.35, 1))
-        path.addCurve(to: point(0.10, 0.985), control1: point(0.24, 1.005), control2: point(0.15, 1.00))
-        path.addCurve(to: point(0, 0.92), control1: point(0.045, 0.975), control2: point(0, 0.958))
-        // 左边：中段向左微鼓（保留「液面」手感，幅度约 3%W），上下收进圆角
-        path.addLine(to: point(0, 0.72))
-        path.addCurve(to: point(0.032, 0.50), control1: point(0, 0.62), control2: point(0.032, 0.58))
-        path.addCurve(to: point(0, 0.22), control1: point(0.032, 0.40), control2: point(0, 0.34))
-        path.addLine(to: point(0, r))
-        path.addCurve(to: point(r, 0), control1: point(0, r * 0.45), control2: point(r * 0.45, 0))
+        path.addLine(to: CGPoint(x: W, y: H - r))
+        path.addCurve(to: CGPoint(x: W - r, y: H),
+                      control1: CGPoint(x: W, y: H - r * 0.45),
+                      control2: CGPoint(x: W - r * 0.45, y: H))
+        // 底边：轻弧（液面下沿微微上提；比例换成地图列口径，形状与 v285 一致）
+        path.addLine(to: CGPoint(x: x0 + mapW * 0.35, y: H))
+        path.addCurve(to: CGPoint(x: x0 + mapW * 0.10, y: H - H * 0.015),
+                      control1: CGPoint(x: x0 + mapW * 0.24, y: H + H * 0.005),
+                      control2: CGPoint(x: x0 + mapW * 0.15, y: H))
+        path.addCurve(to: CGPoint(x: x0, y: H - H * 0.08),
+                      control1: CGPoint(x: x0 + mapW * 0.045, y: H - H * 0.025),
+                      control2: CGPoint(x: x0, y: H - H * 0.042))
+        // 左边下段：中段向右微鼓（液面手感；只向图块区内鼓，绝不咬清单）
+        path.addLine(to: CGPoint(x: x0, y: H * 0.72))
+        path.addCurve(to: CGPoint(x: x0 + mapW * 0.032, y: H * 0.50),
+                      control1: CGPoint(x: x0, y: H * 0.62),
+                      control2: CGPoint(x: x0 + mapW * 0.032, y: H * 0.58))
+        path.addCurve(to: CGPoint(x: x0, y: sweepY),
+                      control1: CGPoint(x: x0 + mapW * 0.032, y: max(H * 0.40, sweepY + 8)),
+                      control2: CGPoint(x: x0, y: max(H * 0.34, sweepY + 4)))
+        // 左边上段（sweepY → 顶带）：连续弯曲过渡到顶带左缘
+        path.addCurve(to: CGPoint(x: xC + (x0 - xC) * 0.35, y: topY + (sweepY - topY) * 0.42),
+                      control1: CGPoint(x: x0, y: sweepY - (sweepY - topY) * 0.30),
+                      control2: CGPoint(x: xC + (x0 - xC) * 0.62, y: topY + (sweepY - topY) * 0.55))
+        path.addCurve(to: CGPoint(x: xC, y: topY + wave),
+                      control1: CGPoint(x: xC + (x0 - xC) * 0.10, y: topY + (sweepY - topY) * 0.16),
+                      control2: CGPoint(x: xC, y: topY + (sweepY - topY) * 0.30))
         path.closeSubpath()
         return path
     }
+
+    func path(in rect: CGRect) -> Path {
+        let blob = Self.blob(in: geometry)
+        let tile = geometry.tileFrame
+        // 背景消费方：rect 就是画布本身，直接给整条轮廓。
+        if abs(rect.width - geometry.canvas.width) < 0.5,
+           abs(rect.height - geometry.canvas.height) < 0.5 {
+            return blob
+        }
+        // 图块画布消费方：轮廓 ∩ 图块画布，再线性映射到调用方 rect
+        //（rect == 画布局部矩形时是恒等映射；rect == 单位正方形时供 Voronoi 用）。
+        guard tile.width > 1, tile.height > 1 else { return Path() }
+        let clipped = blob.cgPath.intersection(CGPath(rect: tile, transform: nil))
+        guard !clipped.isEmpty else { return Path() }
+        let sx = rect.width / tile.width, sy = rect.height / tile.height
+        let transform = CGAffineTransform(translationX: -tile.minX, y: -tile.minY)
+            .scaledBy(x: sx, y: sy)
+            .translatedBy(x: rect.minX, y: rect.minY)
+        return Path(clipped).applying(transform)
+    }
 }
 
-/// 深色图块实际可占用的容器：外轮廓在 `top`（0...1，图框高度）以下的部分。
-/// 搜索/面包屑条所在的上沿留白不铺色块，但外轮廓与左侧曲线仍按 StorageMapShape 走。
+/// 深色图块实际可占用的容器：外轮廓在图块画布内、前景芯片行以下的部分。
+/// 芯片行所在的曲面上沿不铺色块，但外轮廓与左侧曲线仍按 StorageMapShape 走。
 struct StorageTileShape: Shape {
+    var geometry: StorageSurfaceGeometry
     var top: CGFloat = 0
 
     func path(in rect: CGRect) -> Path {
-        let outer = StorageMapShape().path(in: rect)
+        let outer = StorageMapShape(geometry: geometry).path(in: rect)
         let t = min(max(top, 0), 0.95)
         guard t > 0 else { return outer }
         let clip = CGRect(x: rect.minX, y: rect.minY + rect.height * t,
@@ -324,21 +405,41 @@ struct StorageTreemap: View {
     /// 根层的磁盘可用空间（字节）。子目录不混入全盘可用空间。
     var freeSpace: Int64? = nil
     var indexRevision: Int = 0
-    /// v274：外轮廓已抬到按钮下方，深色图块仍从搜索/面包屑条下方开始。
-    /// 这个 inset（pt）就是外轮廓顶边到图块画布顶边的距离；0 = 铺满整个外轮廓。
+    /// v274：深色图块仍从前景导航芯片行下方开始。
+    /// 这个 inset（pt）就是图块画布顶边到图块区顶边的距离；0 = 铺满整个外轮廓。
     var contentTop: CGFloat = 0
+    /// v286：曲面几何（画布坐标）。轮廓/裁切/命中/Voronoi 全部由它推导，
+    /// 本视图自己的局部 rect == geometry.tileFrame（调用方按同一几何布frame）。
+    var geometry: StorageSurfaceGeometry = StorageSurfaceGeometry()
     /// v268：悬停状态恢复为「指针 + 活跃」二元组——压力场需要鼠标位置
     /// 连续跟随，离开时把 active 弹回 0（自然回弹，允许中途反向）。
     @Stored private var hover = (point: CGPoint.zero, id: Optional<String>.none, active: false)
     /// 本工程 @State 宏不可用，按项目约定用 @Stored（StateCompat）。
     @Stored private var pressedID: String?
 
+    /// 演示/排障：脚本化悬停。深链 `kitnest://storage?hover=1` 会发通知重放，
+    /// 场景重开窗口（onAppear）时也自动跑一次；默认键关着时什么都不做。
+    private func startScriptedHoverIfNeeded(tiles: [DiskTile]) {
+        guard StorageHoverScript.isEnabled else { return }
+        let route = tiles
+            .sorted { $0.frame.width * $0.frame.height > $1.frame.width * $1.frame.height }
+            .prefix(6)
+            .map { CGPoint(x: $0.frame.midX, y: $0.frame.midY) }
+        StorageHoverScript.shared.start(route: Array(route)) { [self] point in
+            let id = tiles.first {
+                $0.frame.contains(point) && $0.hitPath.contains(point)
+            }?.id
+            hover = (point, id, true)
+        }
+    }
+
     var body: some View {
         GeometryReader { geo in
             let tiles = DiskLayoutCache.shared.tiles(for: node, size: geo.size,
                                                      freeSpace: freeSpace, indexRevision: indexRevision,
                                                      contentTopRatio: geo.size.height > 0
-                                                        ? contentTop / geo.size.height : 0)
+                                                        ? contentTop / geo.size.height : 0,
+                                                     geometry: geometry)
             if tiles.isEmpty {
                 VStack(spacing: 6) {
                     Image(systemName: "square.dashed")
@@ -357,7 +458,10 @@ struct StorageTreemap: View {
                         .onTapGesture { onBack?() }
                     // 所有图块共用一块绘制层；压力场与曲线参数沿用 54402adc 原值。
                     LiquidTileDrawing(tiles: tiles, pressurePoint: hover.point,
-                        pressure: hover.active && !reduceMotion ? 1 : 0,
+                        // 指针跟随是「直接操作」，不是自动播放的装饰动画：
+                        // 系统开了「减弱动态效果」时只把弹簧换成无过冲直跟（见下方 animation），
+                        // 压力场本身仍然跟随鼠标，否则整块悬停手感会被系统开关一键抹掉。
+                        pressure: hover.active ? 1 : 0,
                         reach: max(140, min(260, min(geo.size.width, geo.size.height) * 0.42)),
                         pressedID: pressedID,
                         selectedID: selectedID, hoveredID: hover.id,
@@ -370,17 +474,39 @@ struct StorageTreemap: View {
                     ForEach(tiles) { tile in
                         tileView(tile, in: geo.size)
                     }
+                    // 2026-11-23 实测：某些目录（如 Users）只有一个子项，整层就是一大块深灰，
+                    // 看起来像「空白/坏了」。给一句可行动的提示，数据面积不变（不伪造比例）。
+                    // 判据用「最大图块占画布面积」而非 ratio：ratio 是相对父级数据的，不直观。
+                    if let biggest = tiles.filter({ !$0.isFreeSpace })
+                        .max(by: { $0.frame.width * $0.frame.height < $1.frame.width * $1.frame.height }),
+                       biggest.frame.width * biggest.frame.height
+                        > geo.size.width * geo.size.height * 0.82 {
+                        Text("这一层只有 1 个子项 · 点击继续下钻")
+                            .font(.system(size: 10.5))
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Capsule(style: .continuous).fill(Theme.cardFill))
+                            .overlay(Capsule(style: .continuous)
+                                .strokeBorder(Theme.cardStroke, lineWidth: Theme.Stroke.hairline))
+                            .padding(12)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                            .allowsHitTesting(false)
+                    }
                 }
                 .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
-                .contentShape(StorageMapShape())
+                .contentShape(StorageMapShape(geometry: geometry))
                 .onContinuousHover { phase in
                     switch phase {
                     case .active(let location):
-                        let inside = StorageMapShape().path(in: CGRect(origin: .zero, size: geo.size))
+                        // v286：命中判定与裁切/手势共用同一份几何推导的图块外轮廓。
+                        let inside = StorageMapShape(geometry: geometry)
+                            .path(in: CGRect(origin: .zero, size: geo.size))
                             .contains(location)
-                        let nextPoint = inside && !reduceMotion ? location : hover.point
+                        // 同上：位置与活跃态始终跟随真实指针，减弱动态只影响过渡曲线。
+                        let nextPoint = inside ? location : hover.point
                         let nextID = inside ? tiles.first { $0.frame.contains(location) && $0.hitPath.contains(location) }?.id : nil
-                        let active = inside && !reduceMotion
+                        let active = inside
                         if hover.point != nextPoint || hover.id != nextID || hover.active != active {
                             hover = (nextPoint, nextID, active)
                         }
@@ -388,23 +514,31 @@ struct StorageTreemap: View {
                         if hover.id != nil || hover.active { hover = (hover.point, nil, false) }
                     }
                 }
+                // 排障/演示（probe.storageHover=1，默认关闭）：脚本化悬停。
+                // 液态回弹真实触发需要鼠标；自动化录屏时让压力中心沿最大几块巡航，
+                // 走的仍是同一条压力场与同一根弹簧（0.26/0.86），只是输入源换成定时器。
+                // 只读这个 defaults 键，不改变真实鼠标交互与任何产品行为。
+                .onAppear { startScriptedHoverIfNeeded(tiles: tiles) }
+                .onReceive(NotificationCenter.default.publisher(for: .frsetStorageDemoHover)) { _ in
+                    startScriptedHoverIfNeeded(tiles: tiles)
+                }
+                .onDisappear { StorageHoverScript.shared.stop() }
                 // v268：压力中心与强度用 0.26/0.86 弹簧跟随——移动平滑、
                 // 离开自然回弹、快速反向不跳变。
-                .animation(reduceMotion ? nil : .spring(response: 0.26, dampingFraction: 0.86),
+                // 减弱动态：不取消跟随，只把「回弹」换成临界阻尼的 0.12s 直跟，
+                // 去掉过冲但保留连续感（否则整块液态悬停会被系统开关一键抹掉）。
+                .animation(reduceMotion ? .spring(response: 0.12, dampingFraction: 1)
+                                        : .spring(response: 0.26, dampingFraction: 0.86),
                            value: hover.point)
-                .animation(reduceMotion ? nil : .spring(response: 0.26, dampingFraction: 0.86),
+                .animation(reduceMotion ? .spring(response: 0.12, dampingFraction: 1)
+                                        : .spring(response: 0.26, dampingFraction: 0.86),
                            value: hover.active)
             }
         }
-        .background(StorageMapShape().fill(Color.primary.opacity(0.03)))
-        .clipShape(StorageMapShape())
-        // v274（用户：「边切需要进一步清晰」）：外轮廓改由这里画一条 1pt 实线，
-        // 不再依赖控件焦点环；焦点环会随键盘焦点出现/消失，边缘也发虚。
-        .overlay {
-            StorageMapShape()
-                .stroke(Theme.accent.opacity(0.42), lineWidth: 1)
-                .allowsHitTesting(false)
-        }
+        // v286：底衬与 1pt 外轮廓描边上移到窗口级的曲面背景层（StorageManagerRootView），
+        // 这里只保留裁切——否则图块画布会在芯片行下沿画出一条水平接缝，
+        // 与整条轮廓的连续曲线相接处出现双线。
+        .clipShape(StorageMapShape(geometry: geometry))
         .onChange(of: indexRevision) { _ in hover = (.zero, nil, false); pressedID = nil }
     }
 
@@ -501,4 +635,60 @@ struct StorageTreemap: View {
     private func contentColor(_ ratio: Double) -> Color {
         ratio >= 0.09 ? Color(nsColor: .windowBackgroundColor) : Color.primary
     }
+}
+
+// MARK: - 排障/演示：脚本化悬停（默认关闭）
+
+/// 存储地图的液态回弹由真实鼠标的 `onContinuousHover` 驱动。自动化录屏/截图时
+/// 不能移动用户光标，这里用定时器把压力中心沿「最大几块的中心」巡航一圈：
+/// 目标仍是同一个 `hover` 状态、同一根 0.26/0.86 弹簧、同一条压力场绘制路径，
+/// 所以录到的是真实形变与回弹，只是输入源不是鼠标。
+///
+/// 开关：`defaults write com.sxyq.frsetnext probe.storageHover -bool true`（默认关）。
+private final class StorageHoverScript {
+
+    static let shared = StorageHoverScript()
+
+    static var isEnabled: Bool {
+        UserDefaults.standard.bool(forKey: "probe.storageHover")
+    }
+
+    private var timer: Timer?
+    private var started: CFTimeInterval = 0
+
+    func start(route: [CGPoint], duration: TimeInterval = 6, onUpdate: @escaping (CGPoint) -> Void) {
+        stop()
+        guard route.count >= 2 else { return }
+        started = CACurrentMediaTime()
+        // 往返路线：A→B→C→B→A，端点处自然减速换向（线性插值，弹簧负责柔化）
+        let path = route + route.dropLast().reversed()
+        let timer = Timer(timeInterval: 1.0 / 30.0, repeats: true) { [weak self] timer in
+            guard let self else { timer.invalidate(); return }
+            let elapsed = CACurrentMediaTime() - self.started
+            if elapsed >= duration {
+                self.stop()
+                return
+            }
+            let u = min(0.999, elapsed / duration)
+            let scaled = u * Double(path.count - 1)
+            let index = min(Int(scaled), path.count - 2)
+            let frac = CGFloat(scaled - Double(index))
+            let a = path[index], b = path[index + 1]
+            onUpdate(CGPoint(x: a.x + (b.x - a.x) * frac,
+                             y: a.y + (b.y - a.y) * frac))
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        self.timer = timer
+        Log.info("Storage", "probe.storageHover：脚本化悬停开始（\(route.count) 个落点 / \(Int(duration))s）")
+    }
+
+    func stop() {
+        timer?.invalidate()
+        timer = nil
+    }
+}
+
+extension Notification.Name {
+    /// 存储地图脚本化悬停重放（`kitnest://storage?hover=1`，排障/录屏用；默认不触发）
+    static let frsetStorageDemoHover = Notification.Name("frsetStorageDemoHover")
 }

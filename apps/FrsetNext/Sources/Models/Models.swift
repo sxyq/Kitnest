@@ -139,11 +139,56 @@ public struct Tag: Codable, Identifiable, Hashable, Sendable {
     public var colorHex: String
     public let createdAt: Date
     public var updatedAt: Date
+    /// v286（2026-11-23 剪贴板三栏）：标签分组与组内排序。
+    /// 旧数据解码缺字段时为 nil/0，不破坏既有标签。
+    public var groupID: String?
+    public var sortOrder: Int
 
     public init(id: String = UUID().uuidString, name: String, colorHex: String = "#8E8E93",
-                createdAt: Date = Date(), updatedAt: Date = Date()) {
+                createdAt: Date = Date(), updatedAt: Date = Date(),
+                groupID: String? = nil, sortOrder: Int = 0) {
         self.id = id; self.name = name; self.colorHex = colorHex
         self.createdAt = createdAt; self.updatedAt = updatedAt
+        self.groupID = groupID; self.sortOrder = sortOrder
+    }
+}
+
+/// v286：标签分组（用户自定义分组：名称/颜色/排序）。
+/// 删除分组只解绑标签（tags.group_id → NULL），不删任何剪贴板记录。
+public struct TagGroup: Codable, Identifiable, Hashable, Sendable {
+    public let id: String
+    public var name: String
+    public var colorHex: String
+    public var sortOrder: Int
+    public let createdAt: Date
+    public var updatedAt: Date
+
+    public init(id: String = UUID().uuidString, name: String, colorHex: String = "#8E8E93",
+                sortOrder: Int = 0, createdAt: Date = Date(), updatedAt: Date = Date()) {
+        self.id = id; self.name = name; self.colorHex = colorHex
+        self.sortOrder = sortOrder; self.createdAt = createdAt; self.updatedAt = updatedAt
+    }
+}
+
+/// v286：收藏等级（0 未收藏 / 1 普通 / 2 重要 / 3 置顶）。
+public enum FavoriteLevel: Int, Codable, CaseIterable, Sendable {
+    case none = 0, normal = 1, important = 2, pinned = 3
+
+    public var title: String {
+        switch self {
+        case .none: return "未收藏"
+        case .normal: return "普通收藏"
+        case .important: return "重要收藏"
+        case .pinned: return "置顶收藏"
+        }
+    }
+    public var symbolName: String {
+        switch self {
+        case .none: return "star"
+        case .normal: return "star.fill"
+        case .important: return "exclamationmark.circle.fill"
+        case .pinned: return "pin.fill"
+        }
     }
 }
 

@@ -50,7 +50,7 @@
 | [Toolbox](Toolbox/变更记录.md) | `Features/Toolbox/` | [20-源码实现/Features/Toolbox/](../20-源码实现/Features/Toolbox/模块说明.md) |
 | [Archive](Archive/变更记录.md) | `Features/Archive/` | [20-源码实现/Features/Archive/](../20-源码实现/Features/Archive/模块说明.md) |
 | [StatusBar](StatusBar/变更记录.md) | `Features/StatusBar/` | [20-源码实现/Features/StatusBar/](../20-源码实现/Features/StatusBar/模块说明.md) |
-| [Recording](Recording/变更记录.md) | `Features/Recording/` | [20-源码实现/Features/…](../20-源码实现/)（并入 Toolbox 说明） |
+| [Recording](Recording/变更记录.md) | `Features/Recording/` | [20-源码实现/Features/Recording/](../20-源码实现/Features/Recording/模块说明.md)（独立模块说明，未并入 Toolbox） |
 | [Haptics](Haptics/变更记录.md) | `Features/Haptics/` | [20-源码实现/Features/Haptics/](../20-源码实现/Features/Haptics/模块说明.md) |
 | [FrsetStatsBar](FrsetStatsBar/变更记录.md) | `FrsetStatsBar/` | [20-源码实现/FrsetStatsBar/](../20-源码实现/FrsetStatsBar/模块说明.md) |
 | [Core-UI](Core-UI/变更记录.md) | `apps/FrsetNext/Sources/Core/UI/` | [20-源码实现/Core/UI/](../20-源码实现/Core/UI/模块说明.md) |

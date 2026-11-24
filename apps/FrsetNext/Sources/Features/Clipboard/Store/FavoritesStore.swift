@@ -14,11 +14,16 @@ public struct FavoriteReference: Identifiable, Hashable {
     public var id: String { "\(kind.rawValue):\(resourceID)" }
 }
 
-/// 非剪贴板资源只保存类型与稳定 ID；剪贴板继续以 clipboard_items.is_favorite 为唯一数据源。
+/// 非剪贴板资源只保存类型与稳定 ID；剪贴板继续以 clipboard_items.is_favorite 为兼容字段，
+/// 真实等级存 resource_favorites.level（0 未收藏 / 1 普通 / 2 重要 / 3 置顶），
+/// 两处写入在同一事务内保持一致（level>0 ⇔ is_favorite=1）。
 public final class FavoritesStore: ObservableObject {
     public static let shared = FavoritesStore()
 
     @Published public private(set) var keys = Set<String>()
+    /// v286：收藏等级表（"kind:id" → 0...3）。keys 仍然存在（level>0 的键集），
+    /// 旧调用方的 contains/布尔语义完全兼容。
+    @Published public private(set) var levels = [String: Int]()
     public static let didChangeNotification = Notification.Name("Kitnest.Favorites.didChange")
     private let database = DatabaseManager.shared.clipboard
     private let queue = DispatchQueue(label: "kitnest.favorites", qos: .utility)
@@ -29,17 +34,29 @@ public final class FavoritesStore: ObservableObject {
         keys.contains("\(kind.rawValue):\(id)")
     }
 
+    /// 当前收藏等级（0 = 未收藏）。
+    public func level(_ kind: FavoriteResourceKind, id: String) -> FavoriteLevel {
+        FavoriteLevel(rawValue: levels["\(kind.rawValue):\(id)"] ?? 0) ?? .none
+    }
+
     public func set(_ kind: FavoriteResourceKind, id: String, favorite: Bool) {
+        set(kind, id: id, level: favorite ? .normal : .none)
+    }
+
+    /// v286 分级收藏主入口：0 取消（删行），1...3 写等级（INSERT OR REPLACE 保留 added_at 首次值）。
+    public func set(_ kind: FavoriteResourceKind, id: String, level: FavoriteLevel) {
         queue.async {
             do {
-                if favorite {
-                    try self.database.run("INSERT OR IGNORE INTO resource_favorites(resource_type,resource_id,added_at) VALUES(?,?,?)",
-                                          [.text(kind.rawValue), .text(id), .real(Date().timeIntervalSince1970)])
-                } else {
+                if level == .none {
                     try self.database.run("DELETE FROM resource_favorites WHERE resource_type=? AND resource_id=?",
                                           [.text(kind.rawValue), .text(id)])
+                } else {
+                    try self.database.run(
+                        "INSERT INTO resource_favorites(resource_type,resource_id,added_at,level) VALUES(?,?,?,?) " +
+                        "ON CONFLICT(resource_type,resource_id) DO UPDATE SET level=excluded.level",
+                        [.text(kind.rawValue), .text(id), .real(Date().timeIntervalSince1970), .int(Int64(level.rawValue))])
                 }
-                self.publish(kind, id: id, favorite: favorite)
+                self.publish(kind, id: id, level: level)
             } catch {
                 DispatchQueue.main.async {
                     Toast.show("收藏状态未保存：\(error.localizedDescription)", icon: "exclamationmark.triangle", isWarning: true)
@@ -50,22 +67,30 @@ public final class FavoritesStore: ObservableObject {
 
     @discardableResult
     public func setClipboard(dedupeKey: String, favorite: Bool) -> Bool {
+        setClipboard(dedupeKey: dedupeKey, level: favorite ? .normal : .none)
+    }
+
+    /// v286：剪贴板分级收藏（事务内同步 is_favorite 兼容字段）。
+    @discardableResult
+    public func setClipboard(dedupeKey: String, level: FavoriteLevel) -> Bool {
         do {
             try database.transaction { db in
                 guard try db.scalarInt("SELECT COUNT(*) FROM clipboard_items WHERE dedupe_key=?", [.text(dedupeKey)]) > 0 else {
                     throw DatabaseError(message: "剪贴板条目已不存在")
                 }
                 try db.run("UPDATE clipboard_items SET is_favorite=? WHERE dedupe_key=?",
-                           [.int(favorite ? 1 : 0), .text(dedupeKey)])
-                if favorite {
-                    try db.run("INSERT OR IGNORE INTO resource_favorites(resource_type,resource_id,added_at) VALUES('clipboard',?,?)",
-                               [.text(dedupeKey), .real(Date().timeIntervalSince1970)])
-                } else {
+                           [.int(level == .none ? 0 : 1), .text(dedupeKey)])
+                if level == .none {
                     try db.run("DELETE FROM resource_favorites WHERE resource_type='clipboard' AND resource_id=?",
                                [.text(dedupeKey)])
+                } else {
+                    try db.run(
+                        "INSERT INTO resource_favorites(resource_type,resource_id,added_at,level) VALUES('clipboard',?,?,?) " +
+                        "ON CONFLICT(resource_type,resource_id) DO UPDATE SET level=excluded.level",
+                        [.text(dedupeKey), .real(Date().timeIntervalSince1970), .int(Int64(level.rawValue))])
                 }
             }
-            publish(.clipboard, id: dedupeKey, favorite: favorite)
+            publish(.clipboard, id: dedupeKey, level: level)
             return true
         } catch {
             Log.error("clipboard", "收藏状态保存失败: \(error.localizedDescription)")
@@ -74,36 +99,47 @@ public final class FavoritesStore: ObservableObject {
     }
 
     public func clipboardRemoved(_ dedupeKey: String) {
-        publish(.clipboard, id: dedupeKey, favorite: false)
+        publish(.clipboard, id: dedupeKey, level: .none)
     }
 
-    private func publish(_ kind: FavoriteResourceKind, id: String, favorite: Bool) {
+    private func publish(_ kind: FavoriteResourceKind, id: String, level: FavoriteLevel) {
         DispatchQueue.main.async {
-            var next = self.keys
             let key = "\(kind.rawValue):\(id)"
-            if favorite { next.insert(key) } else { next.remove(key) }
+            var next = self.keys
+            var nextLevels = self.levels
+            if level == .none {
+                next.remove(key)
+                nextLevels.removeValue(forKey: key)
+            } else {
+                next.insert(key)
+                nextLevels[key] = level.rawValue
+            }
             if next != self.keys { self.keys = next }
-            NotificationCenter.default.post(name: Self.didChangeNotification, object: nil)
+            if nextLevels != self.levels { self.levels = nextLevels }
+            NotificationCenter.default.post(name: Self.didChangeNotification, object: nil,
+                                            userInfo: ["kind": kind.rawValue, "id": id, "level": level.rawValue])
         }
     }
 
     public func toggle(_ kind: FavoriteResourceKind, id: String) {
         queue.async {
             do {
-                var nextFavorite = false
+                var nextLevel: FavoriteLevel = .none
                 try self.database.transaction { db in
-                    nextFavorite = try db.scalarInt(
-                        "SELECT COUNT(*) FROM resource_favorites WHERE resource_type=? AND resource_id=?",
-                        [.text(kind.rawValue), .text(id)]) == 0
-                    if nextFavorite {
-                        try db.run("INSERT OR IGNORE INTO resource_favorites(resource_type,resource_id,added_at) VALUES(?,?,?)",
-                                   [.text(kind.rawValue), .text(id), .real(Date().timeIntervalSince1970)])
-                    } else {
+                    let current = try db.scalarInt(
+                        "SELECT COALESCE(level,0) FROM resource_favorites WHERE resource_type=? AND resource_id=?",
+                        [.text(kind.rawValue), .text(id)])
+                    nextLevel = current > 0 ? .none : .normal
+                    if nextLevel == .none {
                         try db.run("DELETE FROM resource_favorites WHERE resource_type=? AND resource_id=?",
                                    [.text(kind.rawValue), .text(id)])
+                    } else {
+                        try db.run("INSERT INTO resource_favorites(resource_type,resource_id,added_at,level) VALUES(?,?,?,?) " +
+                                   "ON CONFLICT(resource_type,resource_id) DO UPDATE SET level=excluded.level",
+                                   [.text(kind.rawValue), .text(id), .real(Date().timeIntervalSince1970), .int(Int64(nextLevel.rawValue))])
                     }
                 }
-                self.publish(kind, id: id, favorite: nextFavorite)
+                self.publish(kind, id: id, level: nextLevel)
             } catch {
                 DispatchQueue.main.async {
                     Toast.show("收藏状态未保存：\(error.localizedDescription)", icon: "exclamationmark.triangle", isWarning: true)
@@ -135,13 +171,16 @@ public final class FavoritesStore: ObservableObject {
 
     public func refresh() {
         queue.async {
-            let loaded: [String] = (try? self.database.query("SELECT resource_type,resource_id FROM resource_favorites") { row -> String? in
-                guard let type = row.string("resource_type"), let id = row.string("resource_id") else { return nil as String? }
-                return "\(type):\(id)"
+            let loaded: [(String, Int)] = (try? self.database.query("SELECT resource_type,resource_id,COALESCE(level,1) AS level FROM resource_favorites") { row -> (String, Int)? in
+                guard let type = row.string("resource_type"), let id = row.string("resource_id") else { return nil }
+                return ("\(type):\(id)", Int(row.int("level")))
             }.compactMap { $0 }) ?? []
             DispatchQueue.main.async {
-                let next = Set<String>(loaded)
+                var nextLevels = [String: Int]()
+                for (key, level) in loaded { nextLevels[key] = level }
+                let next = Set(nextLevels.keys)
                 if self.keys != next { self.keys = next }
+                if self.levels != nextLevels { self.levels = nextLevels }
             }
         }
     }

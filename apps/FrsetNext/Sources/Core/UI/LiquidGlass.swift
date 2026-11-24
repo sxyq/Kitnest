@@ -68,8 +68,9 @@ extension EnvironmentValues {
 // 设计口径（Apple HIG / Liquid Glass）：
 //   · 玻璃表达「层级」而不是装饰：只铺在窗口 / 面板 / 弹出层这一类结构面上；
 //     不给每张卡片各叠一层（叠层模糊既费 GPU 又会糊内容）。
-//   · 卡片用「玻璃镀边」——极淡斜向高光 + 0.5pt 亮边 + 内阴影，随明暗自适应；
-//     观感与玻璃一致，代价接近零。
+//   · 卡片用「玻璃镀边」——极淡明度台阶 + 0.5pt 亮边，随明暗自适应；
+//     观感与玻璃一致，代价接近零。同一张卡不再叠「渐变 + 高光 + 描边 + 阴影」四层
+//     （2026-11-24：方向不一致的两道渐变会在卡面中间留下可见分界）。
 //   · 辅助功能「降低透明度」开启时退回不透明底色，保证可读性。
 //   · macOS 26+ 用真·NSGlassEffectView；旧系统回退 NSVisualEffectView（原观感）。
 
@@ -205,15 +206,16 @@ struct GlassSurface: View {
                 colors.windowSurface.opacity(1)
             } else {
                 if includesBlur {
+                    // 2026-11-24：不再挂 .id(material) —— 背景材质只决定**内容卡片**
+                    // 的实/透（见 GlassCard），与结构面玻璃无关。旧实现每切一次材质
+                    // 就把整个 NSVisualEffectView 拆了重建，等于全窗玻璃重采样一次。
                     LiquidGlassBackground(cornerRadius: cornerRadius,
                                           tint: tint,
                                           appliesWindowShadow: appliesWindowShadow)
-                        // 「背景材质」（纯色卡片/毛玻璃）切换必须重建 representable：
-                        // 只改颜色覆盖层的话，已创建的 NSVisualEffectView material 不会跟着变
-                        .id(p.material.rawValue)
                 }
-                colors.windowSurface
-                colors.glassFrost
+                // 2026-11-24：底衬 + 霜感合成**一层**（旧实现两个 fill 叠着铺，
+                // 同一块玻璃多一次整窗 alpha 合成；预合成结果与叠色等价）
+                colors.glassTint
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
@@ -228,23 +230,19 @@ struct GlassSurface: View {
 // （毛玻璃 → 通透度底衬 → 磨砂霜感），并订阅个性化通知实时刷新。
 // 内容窗只需 isOpaque=false + 内容背景透明——applyOfficialChrome 已统一处理。
 
-/// 「通透度底衬 + 磨砂霜感」两层（NSView 版）：毛玻璃之上、内容之下。
+/// 「通透度底衬 + 磨砂霜感」预合成后的**一层**着色（NSView 版）：毛玻璃之上、内容之下。
 /// 订阅个性化通知实时刷新——所有窗口的玻璃底都用它，保证与四个滑块一致。
+///
+/// 2026-11-24：旧实现是两个全尺寸无内容 subview（surface + frost）叠着铺，
+/// 每个窗口每帧多一次整窗合成。两色都是纯色 + 常量 alpha，预合成后一层 CALayer 即可。
 final class GlassTintOverlayView: NSView {
 
-    private let surfaceView = NSView()
-    private let frostView = NSView()
     private var observer: NSObjectProtocol?
 
     override init(frame frameRect: NSRect) {
         super.init(frame: frameRect)
         wantsLayer = true
-        surfaceView.wantsLayer = true
-        surfaceView.autoresizingMask = [.width, .height]
-        frostView.wantsLayer = true
-        frostView.autoresizingMask = [.width, .height]
-        addSubview(surfaceView)
-        addSubview(frostView)
+        layer?.masksToBounds = true
         refreshColors()
         observer = NotificationCenter.default.addObserver(
             forName: Personalization.didChangeNotification, object: nil, queue: .main
@@ -255,12 +253,6 @@ final class GlassTintOverlayView: NSView {
 
     deinit {
         if let observer { NotificationCenter.default.removeObserver(observer) }
-    }
-
-    override func layout() {
-        super.layout()
-        surfaceView.frame = bounds
-        frostView.frame = bounds
     }
 
     override func viewDidChangeEffectiveAppearance() {
@@ -276,8 +268,7 @@ final class GlassTintOverlayView: NSView {
     private func refreshColors() {
         let appearance = window?.effectiveAppearance ?? effectiveAppearance
         appearance.performAsCurrentDrawingAppearance {
-            surfaceView.layer?.backgroundColor = NSColor(Theme.windowSurface).cgColor
-            frostView.layer?.backgroundColor = NSColor(Theme.glassFrost).cgColor
+            layer?.backgroundColor = NSColor(Theme.glassTint).cgColor
         }
     }
 }
@@ -372,8 +363,10 @@ public extension NSWindow {
 //   L1 页面底（FloatingPanel 窗玻璃）——最淡，衬底
 //   L2 内容卡（剪贴板行 / 日历卡）——白色玻璃 + liquid 镀边（本样式）
 //   L3 工具条胶囊——半透明真玻璃，第三种质感
-// 卡片不叠真玻璃（逐卡模糊掉帧）：白渐变实底 + 斜向高光 + 顶部亮边 + 柔投影，
-// 即「liquid glass 质感」的卡片表达（亮边与高光是质感来源，不是模糊）。
+// 卡片不叠真玻璃（逐卡模糊掉帧）：白渐变实底 + 顶部亮边即「玻璃」的卡片表达
+// （亮边与明度台阶是质感来源，不是模糊）。
+// 2026-11-24：去掉同卡的斜向高光与投影——一张卡同时挂「渐变 + 高光 + 描边 + 阴影」
+// 正是用户点出的材质混乱来源；方向不一致的两道渐变还会在卡面中间留下可见分界。
 
 struct WhiteGlassCard: ViewModifier {
     var cornerRadius: CGFloat = 12
@@ -394,12 +387,6 @@ struct WhiteGlassCard: ViewModifier {
                                 : [Color.white.opacity(0.93), Color.white.opacity(0.80)],
                             startPoint: .top, endPoint: .bottom)
                     )
-                    // 斜向高光（liquid 反光层）
-                    shape.fill(
-                        LinearGradient(
-                            colors: [Color.white.opacity(dark ? 0.10 : 0.42), .clear],
-                            startPoint: .topLeading, endPoint: .bottomTrailing)
-                    )
                 }
             )
             .overlay(
@@ -414,7 +401,6 @@ struct WhiteGlassCard: ViewModifier {
                         startPoint: .top, endPoint: .bottom),
                     lineWidth: 0.6)
             )
-            .shadow(color: .black.opacity(dark ? 0.22 : 0.08), radius: 8, x: 0, y: 2)
     }
 }
 
@@ -512,9 +498,14 @@ struct GlassCard: ViewModifier {
     @Environment(\.settingsPreviewIsMidnight) private var previewIsMidnight
 
     func body(content: Content) -> some View {
-        let colors = ThemeAppearance(personalization: previewPersonalization ?? personalization,
+        let p = previewPersonalization ?? personalization
+        let colors = ThemeAppearance(personalization: p,
                                      isMidnight: previewIsMidnight ?? appearance.isMidnight)
-        let color = fill ?? midnightCard ?? colors.cardFill
+        // 「背景材质 = 纯色卡片」时卡片走不透明底（同一个基色、alpha 1），
+        // 毛玻璃时保留半透明填充（层次感来源）。此前该开关没有任何消费分支，
+        // 设置里选什么都一样 —— 用户点名的"玻璃配置与执行不一致"之一。
+        let color = fill ?? midnightCard
+            ?? (p.material == .solid ? colors.readingBase : colors.cardFill)
         content.glassCard(radius: radius, fill: color, stroke: colors.cardStroke)
     }
 }

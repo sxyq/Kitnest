@@ -20,6 +20,12 @@ public struct ClipboardQuery {
     public var urlLikeOnly: Bool = false
     public var fileCategoryMask: Int = 0
     public var tagID: String? = nil
+    /// 收藏等级筛选：nil=不限；1/2/3=按 resource_favorites.level 精确匹配（05 号规格 B8：等级收藏）
+    public var favoriteLevel: Int? = nil
+    /// 标签分组筛选：nil=不限；按 tags.group_id 子查询（05 号规格 B8：标签分组）
+    public var tagGroupID: String? = nil
+    /// 最近使用：仅最近 24 小时（三栏工作台「最近使用」入口；时间维度与类型/等级正交）
+    public var recentOnly: Bool = false
     public var limit: Int = ClipboardRepository.defaultPageSize
     public var offset: Int = 0
 
@@ -33,6 +39,9 @@ public struct ClipboardQuery {
                 urlLikeOnly: Bool = false,
                 fileCategoryMask: Int = 0,
                 tagID: String? = nil,
+                favoriteLevel: Int? = nil,
+                tagGroupID: String? = nil,
+                recentOnly: Bool = false,
                 limit: Int = ClipboardRepository.defaultPageSize,
                 offset: Int = 0) {
         self.search = search
@@ -45,19 +54,32 @@ public struct ClipboardQuery {
         self.urlLikeOnly = urlLikeOnly
         self.fileCategoryMask = fileCategoryMask
         self.tagID = tagID
+        self.favoriteLevel = favoriteLevel
+        self.tagGroupID = tagGroupID
+        self.recentOnly = recentOnly
         self.limit = limit
         self.offset = offset
     }
 
+    /// 三栏工作台入口：**类型、收藏等级、标签分组是三个正交维度**。
+    /// `favoriteOnly` 由调用方显式传入（不再由 `filter == .favorite` 推导），
+    /// 这样「文本 + 重要收藏 + 工作分组」能同时生效。
     public init(filter: ClipboardFilterKind, search: String, tagID: String?,
+                favoriteOnly: Bool = false,
+                favoriteLevel: Int? = nil, tagGroupID: String? = nil,
+                recentOnly: Bool = false,
+                noteOnlyOverride: Bool? = nil,
                 limit: Int = ClipboardRepository.defaultPageSize, offset: Int = 0) {
         let mapping = filter.queryMapping
         self.init(search: search.trimmingCharacters(in: .whitespacesAndNewlines),
-                  type: mapping.type, noteOnly: mapping.noteOnly, favoriteOnly: filter == .favorite,
+                  type: mapping.type, noteOnly: noteOnlyOverride ?? mapping.noteOnly,
+                  favoriteOnly: favoriteOnly || filter == .favorite,
                   toolGeneratedOnly: mapping.toolGeneratedOnly,
                   generatedSourceKeyword: mapping.generatedSourceKeyword,
                   codeLikeOnly: mapping.codeLikeOnly, urlLikeOnly: filter == .link,
                   fileCategoryMask: mapping.fileCategoryMask, tagID: tagID,
+                  favoriteLevel: favoriteLevel, tagGroupID: tagGroupID,
+                  recentOnly: recentOnly,
                   limit: limit, offset: offset)
     }
 }
@@ -133,6 +155,21 @@ public final class ClipboardRepository: @unchecked Sendable {
             clauses.append(#"dedupe_key IN (SELECT item_dedupe_key FROM clipboard_item_tags WHERE tag_id = ?)"#)
             values.append(.text(tagID))
         }
+        // 收藏等级筛选：通过 resource_favorites.level 关联（与 is_favorite 兼容字段独立）
+        if let level = query.favoriteLevel {
+            clauses.append(#"dedupe_key IN (SELECT resource_id FROM resource_favorites WHERE resource_type='clipboard' AND level = ?)"#)
+            values.append(.int(Int64(level)))
+        }
+        // 标签分组筛选：通过 tags.group_id 子查询
+        if let groupID = query.tagGroupID {
+            clauses.append(#"dedupe_key IN (SELECT cit.item_dedupe_key FROM clipboard_item_tags cit JOIN tags t ON cit.tag_id = t.id WHERE t.group_id = ?)"#)
+            values.append(.text(groupID))
+        }
+        // 最近使用：24 小时窗口（三栏工作台「最近使用」；与类型/等级/分组正交）
+        if query.recentOnly {
+            clauses.append("timestamp >= ?")
+            values.append(.real(Date().timeIntervalSince1970 - 86_400))
+        }
         if !query.search.isEmpty {
             let pattern = SQLiteValue.text("%" + Self.escapeLike(query.search) + "%")
             var conditions = [#"content LIKE ? ESCAPE '\'"#, #"title LIKE ? ESCAPE '\'"#, #"alias_title LIKE ? ESCAPE '\'"#]
@@ -176,6 +213,70 @@ public final class ClipboardRepository: @unchecked Sendable {
         Self.appendClauses(query, clauses: &clauses, values: &values)
         if !clauses.isEmpty { sql += " WHERE " + clauses.joined(separator: " AND ") }
         return Int((try? db.scalarInt(sql, values)) ?? 0)
+    }
+
+    // MARK: 侧栏计数（v287 三栏工作台：「显示条目数量」）
+
+    /// 侧栏各入口的条目数。全部走 COUNT/GROUP BY，不把历史记录载入内存。
+    public struct SidebarCounts: Equatable, Sendable {
+        public var total = 0
+        public var recent = 0
+        public var favoriteAll = 0
+        public var levels: [Int: Int] = [1: 0, 2: 0, 3: 0]
+        public var notes = 0
+        public var perTag: [String: Int] = [:]
+        public var perGroup: [String: Int] = [:]
+        public init() {}
+        public static let empty = SidebarCounts()
+    }
+
+    /// 一次取齐侧栏全部计数（单次加锁，6 条聚合查询）。
+    public func sidebarCounts() -> SidebarCounts {
+        db.accessLock.lock(); defer { db.accessLock.unlock() }
+        var result = SidebarCounts()
+        result.total = Int((try? db.scalarInt("SELECT COUNT(*) FROM clipboard_items")) ?? 0)
+        result.recent = Int((try? db.scalarInt(
+            "SELECT COUNT(*) FROM clipboard_items WHERE timestamp >= ?",
+            [.real(Date().timeIntervalSince1970 - 86_400)])) ?? 0)
+        result.notes = Int((try? db.scalarInt(
+            "SELECT COUNT(*) FROM clipboard_items WHERE is_note = 1")) ?? 0)
+        // 收藏：JOIN 剪贴板表，孤儿收藏行（条目已删）不计入
+        if let rows = try? db.query("""
+            SELECT rf.level AS level, COUNT(*) AS n
+              FROM resource_favorites rf
+              JOIN clipboard_items ci ON ci.dedupe_key = rf.resource_id
+             WHERE rf.resource_type = 'clipboard'
+             GROUP BY rf.level
+            """) {
+            for row in rows {
+                let level = Int(row.int("level"))
+                let n = Int(row.int("n"))
+                result.levels[level] = n
+                result.favoriteAll += n
+            }
+        }
+        // 每个标签的条目数
+        if let rows = try? db.query("""
+            SELECT t.id AS tag_id, COUNT(DISTINCT cit.item_dedupe_key) AS n
+              FROM clipboard_item_tags cit JOIN tags t ON cit.tag_id = t.id
+             GROUP BY t.id
+            """) {
+            for row in rows {
+                if let id = row.string("tag_id") { result.perTag[id] = Int(row.int("n")) }
+            }
+        }
+        // 每个分组的条目数（组内标签去重后按条目计）
+        if let rows = try? db.query("""
+            SELECT t.group_id AS group_id, COUNT(DISTINCT cit.item_dedupe_key) AS n
+              FROM clipboard_item_tags cit JOIN tags t ON cit.tag_id = t.id
+             WHERE t.group_id IS NOT NULL
+             GROUP BY t.group_id
+            """) {
+            for row in rows {
+                if let id = row.string("group_id") { result.perGroup[id] = Int(row.int("n")) }
+            }
+        }
+        return result
     }
 
     /// 按去重键取条目（去重命中 / 编辑前刷新用）

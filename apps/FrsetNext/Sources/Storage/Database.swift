@@ -336,6 +336,49 @@ public final class DatabaseManager {
             }
         }
 
+        // v286（2026-11-23 剪贴板三栏工作台）：收藏分级 + 标签分组。
+        // 历史收藏迁移：level 列默认 1（= 普通收藏），无需改写旧行；
+        // clipboard_items.is_favorite 保留为兼容字段（level>0 ⇔ is_favorite=1，写入时事务内保持一致）。
+        if !(try clipboard.query("PRAGMA table_info(resource_favorites)")).contains(where: { $0.string("name") == "level" }) {
+            try clipboard.transaction { db in
+                try db.exec("ALTER TABLE resource_favorites ADD COLUMN level INTEGER NOT NULL DEFAULT 1")
+            }
+        }
+        // v287 分级收藏迁移（幂等）：
+        // ① 历史收藏只有 clipboard_items.is_favorite=1、没有关系行 → 补成普通收藏(level=1)，
+        //    否则侧栏「全部收藏」计数与卡片星标会对不上；
+        // ② 反向：有关系行但兼容字段还是 0 → 补 1，保证两个口径一致。
+        try clipboard.exec("""
+        INSERT INTO resource_favorites(resource_type, resource_id, added_at, level)
+        SELECT 'clipboard', ci.dedupe_key, ci.timestamp, 1
+          FROM clipboard_items ci
+         WHERE ci.is_favorite = 1
+           AND NOT EXISTS (SELECT 1 FROM resource_favorites rf
+                            WHERE rf.resource_type = 'clipboard' AND rf.resource_id = ci.dedupe_key)
+        """)
+        try clipboard.exec("""
+        UPDATE clipboard_items SET is_favorite = 1
+         WHERE is_favorite = 0
+           AND dedupe_key IN (SELECT resource_id FROM resource_favorites
+                               WHERE resource_type = 'clipboard' AND level > 0)
+        """)
+        try clipboard.exec("""
+        CREATE TABLE IF NOT EXISTS tag_groups (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            color_hex TEXT NOT NULL DEFAULT '#8E8E93',
+            sort_order INTEGER NOT NULL DEFAULT 0,
+            created_at REAL NOT NULL,
+            updated_at REAL NOT NULL
+        );
+        """)
+        if !(try clipboard.query("PRAGMA table_info(tags)")).contains(where: { $0.string("name") == "group_id" }) {
+            try clipboard.transaction { db in
+                try db.exec("ALTER TABLE tags ADD COLUMN group_id TEXT")
+                try db.exec("ALTER TABLE tags ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         // spec 17 §0/§1b D7：原作为事件名驱动的窄表（重建早期臆测的 daily_stats 宽表必改）
         try statistics.exec("""
         CREATE TABLE IF NOT EXISTS usage_daily_metrics (

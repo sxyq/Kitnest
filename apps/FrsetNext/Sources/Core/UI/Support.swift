@@ -132,7 +132,15 @@ public struct ThemeAppearance {
         thumbSize + personalization.density.statsRowHeight - personalization.density.thumbSize
     }
     public var windowSurface: Color { Theme.windowSurface(for: personalization, midnight: isMidnight) }
+    /// 阅读面不透明底（预览栏 / 长文区：切断玻璃透射，保证正文对比度）
+    public var readingBase: Color { Theme.readingBase(for: personalization, midnight: isMidnight) }
+    /// 侧栏磨砂底衬（分类导航栏：比 contentBase 实、比 floatingGlass 透）
+    public var sidebarFill: Color { Theme.sidebarFill(for: personalization, midnight: isMidnight) }
+    /// 侧栏磨砂霜感（跟随「磨砂」滑块，强度是窗口级的一半）
+    public var sidebarFrost: Color { Theme.sidebarFrost(for: personalization) }
     public var glassFrost: Color { Theme.glassFrost(for: personalization) }
+    /// 结构面单层着色（底衬 + 霜感预合成）
+    public var glassTint: Color { Theme.glassTint(for: personalization, midnight: isMidnight) }
     public var cardFill: Color { Theme.cardFill(for: personalization, midnight: isMidnight) }
     public var cardStroke: Color { Theme.cardStroke(for: personalization) }
     public var insetFill: Color { Theme.insetFill(for: personalization) }
@@ -220,6 +228,41 @@ extension Theme {
         return color
     }
 
+    /// 带自定义 alpha 的动态色缓存（预合成用：alpha 由合成公式算出，
+    /// 不是「基色 + 常量 alpha」两段式，所以不能走 cachedSurface）。
+    private static var glassTintCache: [String: Color] = [:]
+
+    private static func cachedDynamicColor(_ key: String,
+                                          _ build: @escaping (Bool) -> NSColor) -> Color {
+        surfaceLock.lock()
+        if let hit = glassTintCache[key] {
+            surfaceLock.unlock()
+            return hit
+        }
+        surfaceLock.unlock()
+        let color = Color(nsColor: NSColor(name: nil) { appearance in
+            build(appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua)
+        })
+        surfaceLock.lock()
+        glassTintCache[key] = color
+        surfaceLock.unlock()
+        return color
+    }
+
+    /// 纯色叠合：base(alpha a1) 上面再压一层白色(alpha a2)，返回等价的单层颜色。
+    /// 两个 alpha 都来自用户滑块，取值固定 → 结果可以缓存，运行期零计算。
+    private static func composite(_ base: NSColor, alpha a1: CGFloat,
+                                  whiteAlpha a2: CGFloat) -> NSColor {
+        let total = a1 + a2 * (1 - a1)
+        guard total > 0.0001 else { return base.withAlphaComponent(0) }
+        let base = base.usingColorSpace(.sRGB) ?? base
+        func mix(_ c: CGFloat) -> CGFloat { (c * a1 + a2 * (1 - a1)) / total }
+        return NSColor(srgbRed: mix(base.redComponent),
+                       green: mix(base.greenComponent),
+                       blue: mix(base.blueComponent),
+                       alpha: total)
+    }
+
     /// L0 窗口底：铺在真玻璃之上的那层半透明底。
     /// Midnight 只更换基色，通透度仍由同一个参数决定。
     public static var windowSurface: Color {
@@ -238,11 +281,98 @@ extension Theme {
         }
     }
 
+    /// 阅读面不透明底（2026-11-23 需求 B 五：「预览文字可读，不被玻璃透射干扰」）。
+    ///
+    /// 与 `windowSurface` **同基色**，但 alpha 恒为 1。预览栏 / 长文阅读区
+    /// 这类要长时间盯正文的面，铺在窗口玻璃之上时必须切断玻璃透射——
+    /// 否则壁纸/桌面内容会从正文底下透出来，小字号对比度直接塌掉。
+    /// 只给「阅读面」用；普通卡片仍走 cardFill（半透明是层次感来源）。
+    public static var readingBase: Color {
+        readingBase(for: .shared, midnight: AppearanceState.shared.isMidnight)
+    }
+    public static func readingBase(for p: Personalization, midnight: Bool) -> Color {
+        if midnight { return MidnightTheme.baseBackground(for: p) }
+        return cachedSurface("reading") { isDark in
+            let base = isDark
+                ? NSColor(srgbRed: 0.110, green: 0.110, blue: 0.118, alpha: 1)
+                : NSColor(srgbRed: 0.957, green: 0.957, blue: 0.969, alpha: 1)
+            return (base, 1)
+        }
+    }
+
+    // MARK: 侧栏磨砂（2026-11-23 需求 B 三：三栏工作台左侧分类导航栏）
+    //
+    // 口径：**比 contentBase 实一点、比 floatingGlass 透一点**——
+    // 分类导航栏要「轻微磨砂感」，与中间卡片区有微妙区分，但不能像浮层那样抢戏。
+    // 配方沿用 GlassSurface 的两层色调（底衬 + 霜感），**不另加模糊**：
+    // 侧栏坐在窗口玻璃之上，采样已经由窗口那层做过，再叠一层只会掉帧。
+    // 两层强度都比窗口级轻一档（底衬 ≈ insetFill 的一半，霜感 ≈ glassFrost 的一半）。
+
+    /// 侧栏底衬：极轻的明暗微调，把侧栏和卡片区分成两块但不抢内容。
+    /// 浅色压一点暗、深色提一点亮（与设置窗侧栏原实色同向、略轻）。
+    public static var sidebarFill: Color {
+        sidebarFill(for: .shared, midnight: AppearanceState.shared.isMidnight)
+    }
+    public static func sidebarFill(for p: Personalization, midnight: Bool) -> Color {
+        if midnight { return MidnightTheme.baseBackground(for: p).opacity(0.30) }
+        return cachedSurface("sidebar.fill") { isDark in
+            let base = isDark ? NSColor(white: 1, alpha: 1) : NSColor(white: 0, alpha: 1)
+            return (base, isDark ? 0.05 : 0.028)
+        }
+    }
+
+    /// 侧栏霜感：玻璃之上的漫反射薄雾，「磨砂」观感的来源。
+    /// 跟随「磨砂」滑块（`glassBlur`），强度是窗口级 `glassFrost` 的一半。
+    public static var sidebarFrost: Color {
+        sidebarFrost(for: .shared)
+    }
+    public static func sidebarFrost(for p: Personalization) -> Color {
+        let blur = p.glassBlur
+        return cachedSurface("sidebar.frost.\(blur)") { isDark in
+            let b = CGFloat(blur)
+            return (NSColor(white: 1, alpha: 1), isDark ? 0.055 * b : 0.10 * b)
+        }
+    }
+
+    /// 玻璃面单层着色 = 「通透度底衬」叠「磨砂霜感」**预合成**后的等价颜色。
+    ///
+    /// 2026-11-24（用户：「每个窗口只保留必要的背景采样层」「避免重复的整窗着色和磨砂层」）：
+    /// 旧实现把这两层当成两个独立视图（SwiftUI 两个 fill / AppKit 两个 subview）
+    /// 铺在玻璃上——同一块玻璃每帧多一次整窗 alpha 合成，20 余个窗口都这么干；
+    /// 观感上还容易出现「白雾叠深灰」的双层污染。
+    ///
+    /// 两色都是纯色 + 常量 alpha，叠合结果可以离线算出来：
+    ///   A = a1 + a2(1-a1)，C = (C1·a1 + C2·a2(1-a1)) / A
+    /// 这里按该式预合成，一层 fill/一个 CALayer 就够，四个滑块依旧全部生效。
+    public static var glassTint: Color {
+        glassTint(for: .shared, midnight: AppearanceState.shared.isMidnight)
+    }
+    public static func glassTint(for p: Personalization, midnight: Bool) -> Color {
+        let opacity = CGFloat(p.glassOpacity)
+        let blur = CGFloat(p.glassBlur)
+        if midnight {
+            let base = NSColor(MidnightTheme.baseBackground(for: p)).usingColorSpace(.sRGB)
+                ?? NSColor(srgbRed: 0.055, green: 0.067, blue: 0.105, alpha: 1)
+            return cachedDynamicColor("glassTint.m.\(opacity).\(blur)") { _ in
+                composite(base, alpha: opacity, whiteAlpha: 0.11 * blur)
+            }
+        }
+        return cachedDynamicColor("glassTint.\(opacity).\(blur)") { isDark in
+            let base = isDark
+                ? NSColor(srgbRed: 0.110, green: 0.110, blue: 0.118, alpha: 1)
+                : NSColor(srgbRed: 0.957, green: 0.957, blue: 0.969, alpha: 1)
+            return composite(base, alpha: opacity, whiteAlpha: (isDark ? 0.11 : 0.20) * blur)
+        }
+    }
+
     /// 霜感层（磨砂强度）：真玻璃/毛玻璃之上的一层漫反射，模拟"起雾"
     ///
     /// v203（用户：「这两个改了无效」）：霜感必须压在「通透度底衬」之上
     /// （顺序见 GlassSurface）；夹在 93% 底衬之下时最大只剩 ~0.8% 可见度，滑块等于空转。
     /// 强度同时上调一档（浅色 0.12→0.20、深色 0.05→0.11），否则浅色主题下几乎看不出。
+    ///
+    /// 2026-11-24：结构面已改用上面的预合成 `glassTint`（单层）。
+    /// 这里保留给仍需要「单独一层霜」的调用点（侧栏等），不要再叠在 glassTint 之上。
     public static var glassFrost: Color {
         glassFrost(for: .shared)
     }

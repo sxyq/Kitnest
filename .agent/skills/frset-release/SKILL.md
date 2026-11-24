@@ -1,6 +1,6 @@
 ---
 name: frset-release
-description: Kitnest 完整发布闭环 + 在线发版。当用户在 Kitnest 项目里完成一次代码/功能更改、要求"发布/更新/改完/出包/看效果"时使用。本地闭环固定顺序：构建部署 → 验证 → 函数表/台账对账 → CodeGraph 同步 → git 提交（需求+文件）→ 推送 origin → 重打**完整版** DMG（版本固定 1.0.0，不是 Lite 变体）→ 本地重启 App → 复核 skill/AGENTS.md；要给用户推新版时再走 publish_update.sh 发版。每步的命令、提交格式与验收标准见正文。
+description: Kitnest 完整发布闭环 + 在线发版。当用户在 Kitnest 项目里完成一次代码/功能更改、要求"发布/更新/改完/出包/看效果"时使用。本地闭环固定顺序：构建部署 → 验证 → 函数表/台账对账 → CodeGraph 同步 → git 提交（需求+文件）→ 推送 origin → 重打**完整版** DMG（版本固定 1.0.0，不是 Lite 变体）→ 本地重启 App → 复核 skill/AGENTS.md；要给用户推新版时再走 publish_update.sh 发版。**零打扰优先（2026-11-24）**：用户在用电脑时，本 Skill 的部署/重启/冷启动闸门/DMG/深链验证一律不自动执行——默认只做无 UI 编译、静态检查、读日志与 git 提交，交付时报告「已准备好构建、未部署」；涉及打断的步骤须用户明确授权后执行。每步的命令、提交格式与验收标准见正文。
 agent_created: true
 ---
 
@@ -8,6 +8,11 @@ agent_created: true
 
 Kitnest（原名 FrsetNext，macOS 菜单栏工具）每次更改的固定收尾流程。顺序不可省：
 **改代码 → 构建部署 → 验证 → 函数表/台账对账 → CodeGraph 同步 → git 提交 → 推送 → 重打完整版 DMG → 本地重启 App → 复核 skill/AGENTS.md**。
+
+> **零打扰优先（2026-11-24 修订）**：用户正在使用电脑时，第 1 步部署、第 2 步冷启动闸门、
+> 第 5 步 DMG、第 6 步重启、任何会开窗口的验证**都不自动执行**——它们会杀运行实例、覆盖
+> `/Applications`、抢前台。默认收尾=无 UI 编译/静态检查/读现有日志 + git 提交，并如实报告
+> 「已准备好构建、未部署/未重启」。用户明确授权独占时段后才按下面步骤执行。
 
 ## 授权与整机负载
 
@@ -27,7 +32,7 @@ Kitnest（原名 FrsetNext，macOS 菜单栏工具）每次更改的固定收尾
    ```
    验收：输出含「已部署(原子)」且签名 requirement 与 `build.sh` 固定值一致。失败则看 /tmp/frsetnext_build.log 的首个 error。构建期间不要并行编辑源文件（build/ 清理可能打断）。
 
-2. **冷启动闸门（不可跳过）**：
+2. **冷启动闸门（仅用户明确授权可打断时执行；默认跳过并如实标注「未跑」）**：
    ```bash
    bash /Users/sunyiyang/Desktop/Project/frset-rebuild/tools/launch_smoke.sh 25
    ```
@@ -49,6 +54,7 @@ Kitnest（原名 FrsetNext，macOS 菜单栏工具）每次更改的固定收尾
 3. **验证**：按 `frset-verify` skill 的方法截图/探针确认改动生效。
    没有辅助功能权限、点不到菜单栏图标时，用 `defaults write com.sxyq.frsetnext probe.openPanel -bool YES`
    让 App 启动 4s 后自动开面板（验完 `defaults delete`）。
+   该验证会打开窗口并需重启实例，**同样只在用户授权的独占验证时段执行**。
 
 4. **git 提交**（格式必须含需求与文件）：
    ```bash
@@ -68,7 +74,7 @@ Kitnest（原名 FrsetNext，macOS 菜单栏工具）每次更改的固定收尾
    ```
    验收：输出「✓ DMG 已打包」且签名校验通过。
 
-6. **重启 App**（用户要求：更新后本地重启供随时查看）：
+6. **重启 App**（仅用户明确要求重启并已允许打断时执行；默认不执行，改动在用户下次自行重启后生效）：
    ```bash
    pkill -f "Kitnest.app/Contents/MacOS/Kitnest" 2>/dev/null; sleep 2
    open -a /Applications/Kitnest.app; sleep 5

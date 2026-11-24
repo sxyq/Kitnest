@@ -12,6 +12,8 @@ public final class TagStore: ObservableObject {
     public static let manageRequestedNotification = Notification.Name("FrsetNext.Clipboard.manageTagsRequested")
 
     @Published public private(set) var tags: [Tag] = []
+    /// v286：标签分组（名称/颜色/排序）。删组只解绑，不删记录。
+    @Published public private(set) var groups: [TagGroup] = []
 
     private let db: SQLiteDatabase = DatabaseManager.shared.clipboard
     /// dedupeKey -> tagID 列表（内存索引，避免每行一次 SQL）
@@ -25,13 +27,34 @@ public final class TagStore: ObservableObject {
     public func refresh(notifying: Bool = false) {
         db.accessLock.lock(); defer { db.accessLock.unlock() }
         do {
-            let rows = try db.query("SELECT id, name, color_hex, created_at, updated_at FROM tags ORDER BY updated_at DESC")
-            let loadedTags = rows.map { row -> Tag in
+            // v286：分组先行（标签按组排序展示），旧库无 group_id 列时已由迁移补上。
+            let groupRows = try db.query("SELECT id, name, color_hex, sort_order, created_at, updated_at FROM tag_groups ORDER BY sort_order, created_at")
+            let loadedGroups = groupRows.map { row -> TagGroup in
+                TagGroup(id: row.string("id") ?? UUID().uuidString,
+                         name: row.string("name") ?? "",
+                         colorHex: row.string("color_hex") ?? "#8E8E93",
+                         sortOrder: Int(row.int("sort_order")),
+                         createdAt: Date(timeIntervalSince1970: row.real("created_at")),
+                         updatedAt: Date(timeIntervalSince1970: row.real("updated_at")))
+            }
+            let rows = try db.query("SELECT id, name, color_hex, created_at, updated_at, group_id, sort_order FROM tags")
+            var loadedTags = rows.map { row -> Tag in
                 Tag(id: row.string("id") ?? UUID().uuidString,
                     name: row.string("name") ?? "",
                     colorHex: row.string("color_hex") ?? "#8E8E93",
                     createdAt: Date(timeIntervalSince1970: row.real("created_at")),
-                    updatedAt: Date(timeIntervalSince1970: row.real("updated_at")))
+                    updatedAt: Date(timeIntervalSince1970: row.real("updated_at")),
+                    groupID: row.string("group_id"),
+                    sortOrder: Int(row.int("sort_order")))
+            }
+            // 组内按 sort_order，无组的排最后按更新时间（展示口径，原始 tags 数组顺序即 UI 顺序）
+            let groupRank = Dictionary(uniqueKeysWithValues: loadedGroups.enumerated().map { ($1.id, $0) })
+            loadedTags.sort {
+                let l = $0.groupID.map { groupRank[$0] ?? Int.max } ?? Int.max
+                let r = $1.groupID.map { groupRank[$0] ?? Int.max } ?? Int.max
+                if l != r { return l < r }
+                if $0.groupID != nil, $0.sortOrder != $1.sortOrder { return $0.sortOrder < $1.sortOrder }
+                return $0.updatedAt > $1.updatedAt
             }
             let linkRows = try db.query(#"SELECT item_dedupe_key, tag_id FROM clipboard_item_tags"#)
             var loadedMapping: [String: [String]] = [:]
@@ -44,6 +67,7 @@ public final class TagStore: ObservableObject {
             lock.unlock()
             let publish = { [weak self] in
                 guard let self else { return }
+                self.groups = loadedGroups
                 self.tags = loadedTags
                 if notifying { self.postChange(["mappingReplaced": true]) }
             }
@@ -103,7 +127,7 @@ public final class TagStore: ObservableObject {
                 guard let index = tags.firstIndex(where: { $0.id == id }) else { return }
                 tags[index].name = trimmed
                 tags[index].updatedAt = updatedAt
-                tags.sort { $0.updatedAt > $1.updatedAt }
+                self.sortInPlace(&tags)
             }
             return true
         } catch {
@@ -112,6 +136,20 @@ public final class TagStore: ObservableObject {
         }
     }
 
+
+    /// 改标签颜色（只动 color_hex，不影响归属与排序）
+    public func setColor(id: String, colorHex: String) {
+        do {
+            try db.run("UPDATE tags SET color_hex = ?, updated_at = ? WHERE id = ?",
+                       [.text(colorHex), .real(Date().timeIntervalSince1970), .text(id)])
+            publishTags { tags in
+                guard let index = tags.firstIndex(where: { $0.id == id }) else { return }
+                tags[index].colorHex = colorHex
+            }
+        } catch {
+            Log.error("clipboard", "标签颜色保存失败: \(error)")
+        }
+    }
 
     public func delete(id: String) {
         do {
@@ -195,6 +233,131 @@ public final class TagStore: ObservableObject {
     public func tagIDs(forDedupeKey key: String) -> [String] {
         lock.lock(); defer { lock.unlock() }
         return mapping[key] ?? []
+    }
+
+    // MARK: 分组（v286 剪贴板三栏）
+
+    @discardableResult
+    public func createGroup(name: String, colorHex: String = "#8E8E93") -> TagGroup? {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        let group = TagGroup(name: trimmed, colorHex: colorHex,
+                             sortOrder: (groups.map(\.sortOrder).max() ?? -1) + 1)
+        do {
+            try db.run("INSERT INTO tag_groups(id,name,color_hex,sort_order,created_at,updated_at) VALUES(?,?,?,?,?,?)",
+                       [.text(group.id), .text(group.name), .text(group.colorHex), .int(Int64(group.sortOrder)),
+                        .real(group.createdAt.timeIntervalSince1970), .real(group.updatedAt.timeIntervalSince1970)])
+            publishTags(["groupsChanged": true]) { _ in }
+            refresh()
+            return group
+        } catch {
+            Log.error("clipboard", "分组创建失败: \(error)")
+            return nil
+        }
+    }
+
+    public func renameGroup(id: String, name: String) -> Bool {
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return false }
+        do {
+            try db.run("UPDATE tag_groups SET name=?, updated_at=? WHERE id=?",
+                       [.text(trimmed), .real(Date().timeIntervalSince1970), .text(id)])
+            publishTags(["groupsChanged": true]) { _ in }
+            refresh()
+            return true
+        } catch {
+            Log.error("clipboard", "分组重命名失败: \(error)")
+            return false
+        }
+    }
+
+    public func setGroupColor(id: String, colorHex: String) {
+        do {
+            try db.run("UPDATE tag_groups SET color_hex=?, updated_at=? WHERE id=?",
+                       [.text(colorHex), .real(Date().timeIntervalSince1970), .text(id)])
+            publishTags(["groupsChanged": true]) { _ in }
+            refresh()
+        } catch {
+            Log.error("clipboard", "分组颜色保存失败: \(error)")
+        }
+    }
+
+    /// 删组：只把成员标签解绑（group_id → NULL），剪贴板记录与标签本身全部保留。
+    public func deleteGroup(id: String) {
+        do {
+            try db.transaction { db in
+                try db.run("UPDATE tags SET group_id=NULL, sort_order=0, updated_at=? WHERE group_id=?",
+                           [.real(Date().timeIntervalSince1970), .text(id)])
+                try db.run("DELETE FROM tag_groups WHERE id=?", [.text(id)])
+            }
+            publishTags(["groupsChanged": true, "groupRemoved": id]) { _ in }
+            refresh()
+        } catch {
+            Log.error("clipboard", "分组删除失败: \(error)")
+        }
+    }
+
+    /// 移动标签到分组（nil = 移出分组）。不动标签名与关联记录。
+    public func setGroup(tagID: String, groupID: String?) {
+        do {
+            try db.run("UPDATE tags SET group_id=?, updated_at=? WHERE id=?",
+                       [groupID.map { SQLiteValue.text($0) } ?? .null,
+                        .real(Date().timeIntervalSince1970), .text(tagID)])
+            publishTags(["tagsChanged": true, "tagID": tagID]) { tags in
+                guard let index = tags.firstIndex(where: { $0.id == tagID }) else { return }
+                tags[index].groupID = groupID
+                self.sortInPlace(&tags)
+            }
+        } catch {
+            Log.error("clipboard", "标签分组移动失败: \(error)")
+        }
+    }
+
+    /// 组内/全局标签排序（按给定 id 顺序重写 sort_order）。
+    public func reorderTags(_ orderedTagIDs: [String]) {
+        do {
+            try db.transaction { db in
+                for (index, tagID) in orderedTagIDs.enumerated() {
+                    try db.run("UPDATE tags SET sort_order=? WHERE id=?", [.int(Int64(index)), .text(tagID)])
+                }
+            }
+            publishTags(["tagsChanged": true]) { tags in
+                let rank = Dictionary(uniqueKeysWithValues: orderedTagIDs.enumerated().map { ($1, $0) })
+                for index in tags.indices where rank[tags[index].id] != nil {
+                    tags[index].sortOrder = rank[tags[index].id]!
+                }
+                self.sortInPlace(&tags)
+            }
+        } catch {
+            Log.error("clipboard", "标签排序失败: \(error)")
+        }
+    }
+
+    /// 分组排序（按给定 id 顺序重写 sort_order）。
+    public func reorderGroups(_ orderedGroupIDs: [String]) {
+        do {
+            try db.transaction { db in
+                for (index, groupID) in orderedGroupIDs.enumerated() {
+                    try db.run("UPDATE tag_groups SET sort_order=? WHERE id=?", [.int(Int64(index)), .text(groupID)])
+                }
+            }
+            publishTags(["groupsChanged": true]) { _ in }
+            refresh()
+        } catch {
+            Log.error("clipboard", "分组排序失败: \(error)")
+        }
+    }
+
+    /// 分组顺序 + 组内 sortOrder（refresh 的口径），供就地变更后复用
+    private func sortInPlace(_ list: inout [Tag]) {
+        let rank = Dictionary(uniqueKeysWithValues: groups.enumerated().map { ($1.id, $0) })
+        list.sort {
+            let l = $0.groupID.map { rank[$0] ?? Int.max } ?? Int.max
+            let r = $1.groupID.map { rank[$0] ?? Int.max } ?? Int.max
+            if l != r { return l < r }
+            if $0.groupID != nil, $0.sortOrder != $1.sortOrder { return $0.sortOrder < $1.sortOrder }
+            return $0.updatedAt > $1.updatedAt
+        }
     }
 
     private func publishTags(_ info: [String: Any] = ["tagsChanged": true],

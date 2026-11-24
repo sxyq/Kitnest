@@ -87,6 +87,8 @@ public final class FloatingBallController: NSObject, ObservableObject, NSWindowD
     private var activeDisplayID: String?
     private var ballOrigin = NSPoint.zero
     private var dragOffset: NSPoint?
+    /// 拖动中（DesktopPetView 据此暂停装饰动画）
+    var isDragging: Bool { dragOffset != nil }
 
     private var ballSize: CGFloat {
         CGFloat(UserDefaults.standard.double(forKey: FloatingBallSettings.sizeKey)).clamped(to: 40...72, fallback: 48)
@@ -276,6 +278,31 @@ public final class FloatingBallController: NSObject, ObservableObject, NSWindowD
         }
     }
 
+    // MARK: - 海豚桌面精灵
+
+    /// 双击海豚：执行自定义动作（默认 = 展开面板）
+    func petDoubleTap() {
+        let action = DesktopPetSettings.doubleClickAction
+        if action.isEmpty || action == "expand" {
+            toggleExpanded()
+        } else {
+            run(action)
+        }
+    }
+
+    /// 隐藏精灵（收起并隐藏面板）
+    func hidePet() {
+        collapse()
+        panel?.orderOut(nil)
+    }
+
+    /// 退出精灵（关闭桌面精灵功能，回退普通悬浮球）
+    func quitPet() {
+        UserDefaults.standard.set(false, forKey: DesktopPetSettings.enabledKey)
+        applyConfiguration()
+        objectWillChange.send()
+    }
+
     private func parkBall(halfHidden: Bool) {
         guard let panel else { return }
         let screen = displayScreen
@@ -459,6 +486,25 @@ private struct FloatingBallView: View {
                             .disabled(controller.page + 1 == controller.pageCount).help("下一页")
                     }.buttonStyle(.plain).frame(height: 24)
                 }
+            } else if DesktopPetSettings.isEnabled {
+                // 海豚精灵模式：实体 Sprite，不套玻璃材质
+                DesktopPetView(
+                    appearance: DesktopPetSettings.appearance,
+                    isDragging: controller.isDragging,
+                    onTap: { controller.toggleExpanded() },
+                    onDoubleTap: { controller.petDoubleTap() },
+                    onOpenSettings: {
+                        controller.collapse()
+                        SettingsWindowController.shared.open(pane: "floatingBall")
+                    },
+                    onHide: { controller.hidePet() },
+                    onQuit: { controller.quitPet() }
+                )
+                .frame(width: size, height: size)
+                .contentShape(Rectangle())
+                .simultaneousGesture(DragGesture(minimumDistance: 4)
+                    .onChanged { _ in controller.dragChanged() }
+                    .onEnded { _ in controller.dragEnded() })
             } else {
                 Button(action: controller.toggleExpanded) {
                     VStack(spacing: 2) {
@@ -475,14 +521,12 @@ private struct FloatingBallView: View {
         }
         .padding(controller.expanded ? 8 : 0)
         .foregroundStyle(.primary)
-        // 2026-11-23（需求 B：悬浮球与快捷小窗统一表面）：
-        // 原来是 SwiftUI .regularMaterial + 手写白 18% 描边（第二种玻璃实现，R2 违规）。
-        // 收敛到统一玻璃面 glassPlate——真玻璃（26+ NSGlassEffectView）+ 通透度/磨砂
-        // 滑块生效 + cardStroke 发丝边；阴影由窗口级 hasShadow 承担（球窗边框正好贴着
-        // 球缘，视图级阴影会被窗口裁掉，且与系统窗口阴影双份——故这里用 glassPlate
-        // 而不是 .surface(.floatingGlass) 的「玻璃 + 视图阴影」组合）。
-        // 壳圆角是球体几何（收起 = size/2 正圆、展开 22 与球缘连续），不属表面令牌档位。
-        .glassPlate(radius: controller.expanded ? 22 : size / 2)
+        // 统一玻璃面 glassPlate；海豚精灵是实体 Sprite 不套玻璃（R2：不混第二种玻璃实现）。
+        // 展开面板 / 普通悬浮球仍走 glassPlate——真玻璃 + cardStroke 发丝边；
+        // 阴影由窗口级 hasShadow 承担。壳圆角：收起 = size/2 正圆、展开 22 与球缘连续。
+        .modifier(ConditionalGlassPlate(
+            active: controller.expanded || !DesktopPetSettings.isEnabled,
+            radius: controller.expanded ? 22 : size / 2))
         .onHover { $0 ? controller.pointerEntered() : controller.pointerLeft() }
         .onExitCommand { controller.collapse() }
     }
@@ -563,5 +607,19 @@ private final class FloatingBallPanel: NSPanel {
 private extension CGFloat {
     func clamped(to range: ClosedRange<CGFloat>, fallback: CGFloat) -> CGFloat {
         self == 0 ? fallback : Swift.min(Swift.max(self, range.lowerBound), range.upperBound)
+    }
+}
+
+/// 条件玻璃：海豚精灵（实体 Sprite）不套 glassPlate，展开面板 / 普通球仍走统一玻璃面。
+private struct ConditionalGlassPlate: ViewModifier {
+    let active: Bool
+    let radius: CGFloat
+    @ViewBuilder
+    func body(content: Content) -> some View {
+        if active {
+            content.glassPlate(radius: radius)
+        } else {
+            content
+        }
     }
 }

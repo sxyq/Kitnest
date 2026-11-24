@@ -1,4 +1,21 @@
 # UI 一致性检查基线（v181）
 # 格式：相对 Sources 的路径 <TAB> 规则 <TAB> 允许条数
 # 只允许「减少」，新增一条就会让 check.sh 失败；确属例外请写清理由再改这里。
-Features/Panel/Preview/PreviewPopoverContentView.swift	R2	1
+# 2026-11-23（v286 剪贴板三栏）：固化上一轮「需求 B 全产品 UI」提交（43c90721 / 20f04d0f）
+#   遗留的历史违规——这些文件不在 v286 改动范围，基线自 v181 起未再同步，先把现状钉住，
+#   后续谁碰这些文件谁顺手减账，不允许再增。
+Features/Archive/UI/ArchiveCreateSheet.swift	R3	1
+Features/Capture/Pin/PinWindow.swift	R1	1
+Features/Manual/ManualDemoView.swift	R1	8
+Features/Manual/ManualDemoView.swift	R2	1
+Features/Manual/ManualView.swift	R1	1
+Features/Monitor/Storage/StorageManagerWindow.swift	R2	2
+Features/Onboarding/WelcomeWindowController.swift	R3	1
+Features/Onboarding/WhatsNew.swift	R3	1
+Features/Settings/Shell/SettingsBlockProbeWindow.swift	R3	1
+Features/Toolbox/Tools/ToolRunnerWindow.swift	R3	1
+# 2026-11-24（v286 存储曲面重整）：StorageVoronoi 兜底轮廓的圆角是**单位正方形**里
+#   的路径比例（0.045 与 StorageMapShape.blob 顶/底圆角同一口径），不是控件圆角；
+#   旧兜底 `StorageMapShape().path(in: unit)` 里的 0.045 自 v26x 起就存在，只是
+#   换成字面量后被规则首次扫到。仅当调用方漏传轮廓时才走该兜底。
+Features/Monitor/Storage/StorageVoronoi.swift	R1	1

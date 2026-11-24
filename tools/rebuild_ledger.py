@@ -3112,5 +3112,179 @@ EVIDENCE.update({
         "存储清理提示复用索引快照，递归前4层后按大小取12个目录；snapshot变化时由属性观察清除缓存",
 })
 
+EVIDENCE.update({
+    # v287 剪贴板三栏工作台 / 分级收藏 / 海豚精灵（2026-11-23）
+    ("Core/UI/Support.swift", "readingBase"):
+        "预览/阅读面用不透明底（与窗口同源色），切断玻璃透射；壁纸不会再从正文底下透出，小字号对比度稳定",
+    ("Core/UI/Support.swift", "sidebarFill"):
+        "第五类表面「侧栏」的微暗底衬：浅色压暗、深色提亮，与中间卡片区做出层次；跟随个性化强调色与暗色主题",
+    ("Core/UI/Support.swift", "sidebarFrost"):
+        "侧栏霜感薄雾（强度为窗口级 glassFrost 的一半，跟随磨砂滑块）；不另加模糊，避免采样层叠加掉帧",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "clearHover"):
+        "hover 预览结束/键盘移动时清掉悬停项并恢复预览到主动选中项，避免悬停反复夺走选中状态",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "currentFilterState"):
+        "把当前筛选（类型/收藏等级/最近/已存/分组/标签/搜索词/选中项）打成快照，供返回栈记录",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "pushFilterSnapshot"):
+        "侧栏切分类前压栈（上限 30），实现「点击返回恢复上一级筛选与搜索词」；只在用户主动切分类时调用",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "goBackFilter"):
+        "弹栈恢复上一级筛选与选中项；Esc/返回按钮共用，栈空返回 false 交给逐维退让与窗口收起",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "refreshCounts"):
+        "侧栏各入口条目数走后台 COUNT 聚合并合并 200ms 重复请求，避免切筛选时主线程查库",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "closeDrawerIfNeeded"):
+        "窄窗分类抽屉在选中分类后自动收起，避免遮住卡片区",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "iconRailButton"):
+        "窄窗图标列按钮（图标+悬停名称+选中底），保持分类在 52pt 列内可用",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "sidebarSectionHeader"):
+        "侧栏分区标题（记录/收藏/项目/标签分组），统一字号与缩进",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "sidebarRow"):
+        "侧栏分类行（图标/名称/条目数/选中底），并承载「拖卡到分类」落点：收藏等级行设等级、已存行存项目",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "sidebarTagGroup"):
+        "侧栏标签分组行：展开折叠、显示归属条目数、双击按分组筛选；删组不删标签与记录由 TagStore 保证",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "sidebarTagRow"):
+        "侧栏标签行：单击按标签筛选、拖卡片到标签即打标签（走自定义 dedupeKey 表示）",
+    ("Features/Clipboard/Floating/FloatingClipboardDesk.swift", "handle"):
+        "统一解析卡片拖拽载荷（com.sxyq.frsetnext.dedupekey），侧栏各落点共用一份实现",
+    ("Features/Clipboard/Store/ClipboardRepository.swift", "sidebarCounts"):
+        "侧栏计数：6 条 COUNT/GROUP BY 一次取齐（总数/24h/收藏分级/已存/每标签/每分组），不把历史载入内存",
+    ("Features/Clipboard/Store/FavoritesStore.swift", "level"):
+        "读取某资源的收藏等级（0 未收藏/1 普通/2 重要/3 置顶），供菜单打勾与侧栏判定",
+    ("Features/Clipboard/Store/TagStore.swift", "setColor"):
+        "只改标签颜色不动归属与排序；写入后按分组顺序重排内存数组",
+    ("Features/Clipboard/Store/TagStore.swift", "createGroup"):
+        "新建标签分组（排序取当前最大值+1），写入后 refresh 让侧栏立即看到新组",
+    ("Features/Clipboard/Store/TagStore.swift", "renameGroup"):
+        "重命名分组；同名/空名拒绝，成功后 refresh 同步",
+    ("Features/Clipboard/Store/TagStore.swift", "setGroupColor"):
+        "分组颜色持久化（侧栏组图标与颜色选择器共用），refresh 保证另一入口同步",
+    ("Features/Clipboard/Store/TagStore.swift", "deleteGroup"):
+        "删组事务内先把成员标签 group_id 置空再删组行：标签与剪贴板记录全部保留",
+    ("Features/Clipboard/Store/TagStore.swift", "setGroup"):
+        "标签移入/移出分组；不动标签名与关联记录，移动后按分组顺序重排内存数组",
+    ("Features/Clipboard/Store/TagStore.swift", "reorderTags"):
+        "按给定 id 顺序重写 sort_order（组内上下移与拖拽排序共用），成功后就地重排",
+    ("Features/Clipboard/Store/TagStore.swift", "reorderGroups"):
+        "分组排序落库（上下移/拖拽共用），refresh 后侧栏顺序稳定",
+    ("Features/Clipboard/Store/TagStore.swift", "sortInPlace"):
+        "内存标签数组的统一排序：分组序号 → 组内 sort_order → 更新时间；避免改名/移动后顺序跳变",
+    ("Features/Clipboard/UI/ClipboardSectionView.swift", "favoriteLevelRow"):
+        "右键菜单单个收藏等级项：当前等级打勾，点击写入等级（不改正文与标签）",
+    ("Features/FloatingBall/DesktopPetView.swift", "petContent"):
+        "海豚单帧内容：自定义 PNG 优先、否则内置矢量；静态模式与拖动中传 t=0 不跑时钟",
+    ("Features/FloatingBall/DesktopPetView.swift", "dolphinBody"):
+        "矢量海豚合成（尾鳍/背鳍/身体/腹部/胸鳍/眼睛/嘴线），支持眨眼状态",
+    ("Features/FloatingBall/DesktopPetView.swift", "path"):
+        "海豚各部件 Shape 的路径定义；尾/背/胸鳍/腹/嘴分别成形，保证纯代码绘制零图片资源",
+    ("Features/FloatingBall/FloatingBallController.swift", "petDoubleTap"):
+        "海豚双击动作：默认展开面板，也可执行用户配置的快捷动作",
+    ("Features/FloatingBall/FloatingBallController.swift", "hidePet"):
+        "隐藏精灵（收起并 orderOut），可从右键菜单触发，保留再次启用入口",
+    ("Features/FloatingBall/FloatingBallController.swift", "quitPet"):
+        "退出精灵：关闭 desktopPet.enabled 并刷新配置，恢复为普通悬浮球形态",
+    ("Features/FloatingBall/FloatingBallController.swift", "body"):
+        "ConditionalGlassPlate：普通球/展开面板走玻璃，海豚本体不套玻璃（保持清晰不整图模糊）",
+    ("Features/Settings/Panes/FloatingBallSettingsPane.swift", "pickCustomPetImage"):
+        "选择自定义海豚 PNG：复制到应用支持目录后存路径，避免原文件移动导致形象失效",
+    ("Features/Settings/Shell/SettingsPanes.swift", "groupSection"):
+        "标签管理里的分组区：颜色/重命名/上下移/解散 + 组内标签列表；解散只解绑不删记录",
+    ("Features/Settings/Shell/SettingsPanes.swift", "tagRow"):
+        "标签行：颜色、重命名、移动到分组菜单、上下移、删除；删除标签不影响剪贴板条目",
+    ("Features/Settings/Shell/SettingsPanes.swift", "createGroup"):
+        "从设置页新建分组，空名拒绝",
+    ("Features/Settings/Shell/SettingsPanes.swift", "saveGroupRename"):
+        "分组重命名提交；名称无效或重复时提示并保留编辑态",
+    ("Features/Settings/Shell/SettingsPanes.swift", "moveGroup"):
+        "分组上移/下移：交换后整体重写 sort_order，保证顺序稳定",
+    ("Features/Settings/Shell/SettingsPanes.swift", "moveTag"):
+        "标签在所属分组内上移/下移：只重写同组 id 顺序，不跨组移动",
+    ("Features/Settings/Shell/SettingsPanes.swift", "hexString"):
+        "Color→#RRGGBB 转换，供分组/标签颜色选择器落库（sRGB 取整避免偏色）",
+    ("Models/Models.swift", "init"):
+        "TagGroup 初始化（id/名称/颜色/排序/时间戳），侧栏与设置页共用同一模型",
+})
+
+EVIDENCE.update({
+    # 2026-11-23 GenieWarp 分阶段实测补测（神灯动画）
+    ("Core/Motion/GenieWarp.swift", "record"):
+        "显示链路回调打点：只把 CACurrentMediaTime 追加进数组（加锁），不做任何计算/绘制，回调里零分配",
+    ("Core/Motion/GenieWarp.swift", "start"):
+        "一腿动画开始时建 CVDisplayLink 并每帧记时；refresh 取实际刷新率、declaredFrames 用于反推「帧序列需要多少 fps」",
+    ("Core/Motion/GenieWarp.swift", "finish"):
+        "收尾停表并结算：实测 fps、p50/p95/max 回调间隔、按刷新率推算的缺失回调数，一条日志说明「合成链路有没有被抢占」",
+    ("Core/Motion/GenieWarp.swift", "cancel"):
+        "停 CVDisplayLink 并释放；finish/cancel/teardown 都会走到，保证探针不常驻、不制造持续开销",
+    # 2026-11-23 存储地图录屏/排障
+    ("Features/Monitor/Storage/StorageTreemap.swift", "startScriptedHoverIfNeeded"):
+        "仅当 probe.storageHover=1（或深链 ?hover=1）时，按面积最大的几块中心生成巡航路线并驱动同一个 hover 状态；默认不启用，真实鼠标交互与产品行为不变",
+    ("Features/Monitor/Storage/StorageTreemap.swift", "start"):
+        "30Hz 定时器沿「A→B→C→B→A」线性插值移动压力中心，仍走同一条压力场与 0.26/0.86 弹簧，因此录到的是真实形变与回弹（只是输入源非鼠标）",
+    ("Features/Monitor/Storage/StorageTreemap.swift", "stop"):
+        "停表并置 nil；到时自动停、onDisappear 也停，不留下常驻定时器",
+})
+
+EVIDENCE.update({
+    # 2026-11-23 触觉遗留项补验：外接板选择逻辑 / 符号缺失回落
+    ("Features/Haptics/TrackpadActuator.swift", "selectDeviceID"):
+        "纯选择逻辑（不碰 IOKit）：ActuationSupported 且有 Multitouch ID 才是候选，内建优先、外接 Magic Trackpad 兜底；抽成纯函数后可用合成字典验证「仅内建/内建+外接/仅外接/不支持/缺 ID/空表」六种情况，真实枚举仍只读设备属性",
+    ("Features/Haptics/TrackpadActuator.swift", "frameworkPath"):
+        "私有框架路径，默认永远是系统真实路径；只有排障参数 --haptic-framework=<path> 才指向别处，用于在真实进程里走到「系统移除 MTActuator 符号」分支，业务调用不带该参数",
+})
+
+
+EVIDENCE.update({
+    # 2026-11-23 ArcZip 1.2.5 工作区外观对齐
+    ("Features/Archive/UI/ArchiveWorkspaceChrome.swift", "navButton"):
+        "路径胶囊里的 ‹ › ↑ 单钮：禁用态变淡且不可点，不占 Tab 焦点，命中区固定 22×22",
+    ("Features/Archive/UI/ArchiveWorkspaceChrome.swift", "previewCanvas"):
+        "检查器预览画布：固定 180pt、圆角用 Theme.Radius.card；有内容才显示展开角标，点开走原大预览 sheet（文本编辑仍在 sheet）",
+    ("Features/Archive/UI/ArchiveWorkspaceChrome.swift", "metadata"):
+        "元信息行：左标签 58pt 宽灰字 11pt、右值 11pt 截断中间，行高 26 加一条发丝线；压缩包态与条目态共用",
+    ("Features/Archive/UI/ArchiveWorkspaceChrome.swift", "init"):
+        "PDF 首页缩略：按画布宽度等比生成 NSImage，检查器只放缩略图不嵌完整 PDFView，避免小面板里加载整份文档",
+    ("Features/Archive/UI/ArchiveWorkspaceChrome.swift", "describe"):
+        "按扩展名给检查器类型说明（ZIP/7Z/TAR.GZ/TAR/RAR 压缩包、DMG/ISO 磁盘映像），不读文件内容",
+    ("Features/Archive/UI/ArchiveWorkspaceChrome.swift", "fileType"):
+        "条目态副标题：文件夹显示「文件夹」，文件按扩展名显示「PDF 文件」等；空扩展名回落「文件」",
+    ("Features/Archive/UI/ArchiveWorkspaceChrome.swift", "symbol"):
+        "没有缩略图时按扩展名选 SF Symbol（图片/视频/音频/表格/文档/应用），只在检查器预览画布用",
+})
+
+
+EVIDENCE.update({
+    # 2026-11-24 玻璃材质分层收口（底衬+霜感预合成 / 岛取样面解耦）
+    ("Core/UI/Support.swift", "glassTint"):
+        "结构面单层着色：把「通透度底衬」与「磨砂霜感」按 alpha 合成公式离线算成一层，四个滑块仍全部生效；旧实现两个全尺寸 fill/subview 叠着铺，每窗每帧多一次整窗合成",
+    ("Core/UI/Support.swift", "cachedDynamicColor"):
+        "带自定义 alpha 的动态色缓存：预合成结果的 alpha 由公式给出，不能再走「基色 + 常量 alpha」的 cachedSurface；按 (通透度,磨砂,midnight) 键复用同一个 Color 实例，面板每秒重算时不新建 NSColor 观察者",
+    ("Core/UI/Support.swift", "composite"):
+        "纯色叠合：A=a1+a2(1-a1)、C=(C1·a1+C2·a2(1-a1))/A；两色都是纯色 + 常量 alpha，所以结果可缓存，运行期零计算",
+    ("Features/Island/IslandSurface.swift", "targetSize"):
+        "玻璃取样面只认展开/收起两个最终尺寸：形变途中 SwiftUI 每帧都会 updateNSView，取样面若跟插值走，NSGlassEffectView 每帧重算背景采样",
+    ("Features/Island/IslandSurface.swift", "applyGeometry"):
+        "岛材质唯一几何入口：插值尺寸只喂 CAShapeLayer 遮罩，取样面在展开开始时放大一次、收起收尾时缩回一次；实测玻璃重建 12–16 次/次开合 → 2 次（展开）/0 次（收起）",
+    ("Features/Island/IslandSurface.swift", "flushStats"):
+        "形变收尾结算：几何更新次数、玻璃重建次数、遮罩重算次数与 layout p50/p95/max 一行日志（只记毫秒与次数，不记画面）",
+})
+
+
+EVIDENCE.update({
+    # 2026-11-24 开合帧节奏探针
+    ("Core/Motion/MotionPacingProbe.swift", "run"):
+        "起一腿并按 duration 预约收尾；只在展开/收起那一腿存在，到点自动 finish，不常驻轮询（不为测量本身制造开销）",
+    ("Core/Motion/MotionPacingProbe.swift", "start"):
+        "新建 CVDisplayLink 抓显示链路回调；先 stop 旧的，避免两腿动画叠出两条链路",
+    ("Core/Motion/MotionPacingProbe.swift", "record"):
+        "回调线程只做「加锁 append 时间戳」，不碰主线程、不分配图像（复刻神灯播放节奏探针的口径）",
+    ("Core/Motion/MotionPacingProbe.swift", "stop"):
+        "停表并释放 link；finish/cancel 路径都走它，保证不留下常驻 display link",
+    ("Core/Motion/MotionPacingProbe.swift", "finish"):
+        "结算 p50/p95/max 与缺失回调并打一行日志：量的是合成链路回调节奏，不是主线程每帧耗时",
+    ("Core/Motion/MotionPacingProbe.swift", "displayRefresh"):
+        "刷新率取当前主屏 maximumFramesPerSecond（60–120Hz），用于算「应有回调数」与缺失数",
+    ("Core/Motion/MotionPacingProbe.swift", "init"):
+        "单例私有初始化：探针只有一份，避免多腿动画各起一条 display link",
+    ("Core/Motion/MotionPacingProbe.swift", "deinit"):
+        "析构兜底停表（单例不会走到，但保留以防将来改成实例持有）",
+})
+
 if __name__ == "__main__":
     sys.exit(main())

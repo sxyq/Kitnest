@@ -1,4 +1,5 @@
 import AppKit
+import CoreVideo
 import QuartzCore
 
 // MARK: - 窗口开合：神灯（Genie）漏斗动画
@@ -217,6 +218,12 @@ final class GenieWarp {
     private var legSpeed: Float = 1
     private var legAnim: CAKeyframeAnimation?
 
+    /// 2026-11-23 补测：播放节奏探针（只在一腿动画期间跑，结束即停，不常驻）
+    private let pacer = GenieFramePacer()
+    /// 内存三段采样：动画前基线 / 帧序列就绪（峰值）/ 收尾回落
+    private var memBase: Double = 0
+    private var memPeak: Double = 0
+
     /// 菜单栏点击后的展开更短促；三档映射为 280 / 320 / 380ms，开合共用同一时长。
     static func duration(for configured: TimeInterval) -> TimeInterval {
         min(0.44, max(0.28, 0.28 + (configured - 0.18)))
@@ -256,6 +263,7 @@ final class GenieWarp {
         guard running else { return }
         let win = targetWindow
         stopWatchdog()
+        pacer.cancel()
         teardownOverlay()
         if restoreWindow, let win, win.isVisible { win.alphaValue = 1 }
         targetWindow = nil
@@ -282,6 +290,8 @@ final class GenieWarp {
         // 以及主线程一共被占多久、帧序列持有多大内存。只记毫秒与 MB，不记画面内容。
         let tEnter = CFAbsoluteTimeGetCurrent()
         let memBefore = Self.footprintMB()
+        memBase = memBefore
+        memPeak = memBefore
 
         // v244（用户：「随点随停，可以打断」）：动画在跑、而且是同一个窗口，
         // 就直接复用上一腿的帧序列反向播——不重抓快照、不重渲染、不动真窗 alpha。
@@ -327,6 +337,8 @@ final class GenieWarp {
             return false
         }
         let tSnapshot = CFAbsoluteTimeGetCurrent()
+        // 快照本身也是一大块位图（720 宽 @2x），单独采一次，别把它的峰值漏掉
+        memPeak = max(memPeak, Self.footprintMB())
 
         if running { cancel(restoreWindow: false) }
 
@@ -338,6 +350,9 @@ final class GenieWarp {
         } else if opening {
             window.alphaValue = 0
         }
+        // 2026-11-23 补测：窗口落位（setFrameOrigin + alpha）单独计一段，
+        // 它与「显示准备」「快照」不是同一件事，混在总计里会看不出是移动贵还是抓图贵。
+        let tPlaced = CFAbsoluteTimeGetCurrent()
 
         self.targetWindow = window
         self.completion = completion
@@ -370,6 +385,7 @@ final class GenieWarp {
         let ratio = shot.width > 0 ? targetSourceWidth / CGFloat(shot.width) : 1
         let renderShot = ratio < 0.95 ? (Self.downscale(shot, ratio: ratio) ?? shot) : shot
         let tDownscale = CFAbsoluteTimeGetCurrent()
+        memPeak = max(memPeak, Self.footprintMB())
 
         let showsMesh = UserDefaults.standard.bool(forKey: "probe.genieMesh")
         let showsGuides = UserDefaults.standard.bool(forKey: "probe.genieDebug")
@@ -413,6 +429,11 @@ final class GenieWarp {
             frames = slots.compactMap { $0 }
         }
         let buildMs = (CFAbsoluteTimeGetCurrent() - t0) * 1000
+        // 2026-11-23 补测：真正的内存峰值在「整条帧序列刚渲染完」这一刻——
+        // 48 张位图同时在手，之后释放到动画结束。基线/峰值/收尾三段都要有。
+        let memAfterFrames = Self.footprintMB()
+        let frameBytes = frames.reduce(0) { $0 + $1.bytesPerRow * $1.height }
+        memPeak = max(memPeak, memAfterFrames)
         guard !frames.isEmpty else {
             Log.warn("Motion", "genie：帧渲染失败，退回缩放动画")
             running = false
@@ -459,7 +480,13 @@ final class GenieWarp {
         host.layer?.addSublayer(frameLayer)
 
         panel.orderFrontRegardless()
-        let tOverlay = CFAbsoluteTimeGetCurrent()
+        // 2026-11-23 补测「第一帧」：orderFront 只是把窗口登记进窗口服务器，
+        // 真正把首帧提交给渲染服务器要等一次 display + CATransaction.flush。
+        // 这一下之后到下一 vsync 就会出像素（120Hz 屏 ≤8.3ms），日志按「提交时刻」记。
+        panel.displayIfNeeded()
+        CATransaction.flush()
+        let tFirstFrame = CFAbsoluteTimeGetCurrent()
+        memPeak = max(memPeak, Self.footprintMB())
         overlay = panel
 
         // 真窗退到幕后：动画期间由覆盖窗上的帧序列代替。
@@ -477,15 +504,21 @@ final class GenieWarp {
                                   frames.count, bbox.width, bbox.height, pixelScale, buildMs,
                                   refresh, Double(Self.easeExponent())))
         let memAfter = Self.footprintMB()
-        Log.info("Motion", String(format: "genie 阶段：显示准备 %.0fms · 快照 %.0fms · 降采样 %.0fms · 帧构建 %.0fms · 上屏 %.0fms · 主线程总计 %.0fms · 动画 %.0fms · 内存 %.0f→%.0fMB",
+        Log.info("Motion", String(format: "genie 阶段：显示准备 %.0fms · 快照 %.0fms · 落位 %.0fms · 降采样 %.0fms · 帧构建 %.0fms · 首帧上屏 %.0fms · 主线程总计 %.0fms · 动画 %.0fms",
                                   (tPrepared - tEnter) * 1000,
                                   (tSnapshot - tPrepared) * 1000,
-                                  (tDownscale - tSnapshot) * 1000,
+                                  (tPlaced - tSnapshot) * 1000,
+                                  (tDownscale - tPlaced) * 1000,
                                   buildMs,
-                                  max(0, (tOverlay - tDownscale) * 1000 - buildMs),
-                                  (tOverlay - tEnter) * 1000,
-                                  self.duration * 1000,
-                                  memBefore, memAfter))
+                                  (tFirstFrame - tDownscale) * 1000 - buildMs,
+                                  (tFirstFrame - tEnter) * 1000,
+                                  self.duration * 1000))
+        // 内存三段：基线（进函数）/ 帧序列就绪（峰值）/ 首帧后。帧字节数按位图实算，
+        // 用来核对 phys_footprint 的增量是不是就是这批图。
+        Log.info("Motion", String(format: "genie 内存：基线 %.1fMB → 帧序列 %.1fMB（%d 帧 %.1fMB）→ 峰值 %.1fMB（+%.1f）· 首帧后 %.1fMB",
+                                  memBefore, memAfterFrames, frames.count,
+                                  Double(frameBytes) / (1024 * 1024),
+                                  memPeak, memPeak - memBefore, memAfter))
 
         // 排障：定格模式停在第一张，交给截图核对
         if hold != nil { return true }
@@ -493,6 +526,9 @@ final class GenieWarp {
         // 把这一腿的帧序列留给「反向播放」用（见 switchDirection）
         self.frames = frames
         self.frameLayer = frameLayer
+        // 2026-11-23 补测：只在这一腿真正开播时启动显示链路探针；
+        // 掉头（switchDirection）沿用同一个探针，因为帧序列没变、仍是同一次播放会话。
+        pacer.start(refresh: refresh, frames: frames.count, duration: self.duration)
         startLeg(at: 0, speed: 1, duration: self.duration)
         return true
     }
@@ -610,6 +646,22 @@ final class GenieWarp {
         legPos = 0
         legSpeed = 1
         legDuration = 0
+        // 2026-11-23 补测：播放节奏在收尾前结算（探针随之停掉，不常驻），
+        // 内存回落放在帧序列释放之后采一次，验证「峰值确实能还回去」。
+        pacer.finish()
+        if memBase > 0 {
+            let memEnd = Self.footprintMB()
+            let delta = memEnd - memPeak
+            // phys_footprint 是整进程口径：可能因为系统未回收页、其他子系统（网络/图片解码）
+            // 同时在分配而高于峰值。只如实报采样值，不用「回落」这种结论性措辞。
+            Log.info("Motion", String(format: "genie 收尾：峰值采样 %.1fMB（基线 %.1f，+%.1f）· 收尾采样 %.1fMB（%@）",
+                                      memPeak, memBase, memPeak - memBase, memEnd,
+                                      delta <= 0
+                                        ? String(format: "低于峰值 %.1f", -delta)
+                                        : String(format: "高于峰值 %.1f（系统未回收或其他子系统）", delta)))
+            memBase = 0
+            memPeak = 0
+        }
         done?()
     }
 
@@ -722,5 +774,86 @@ final class GenieWarp {
                   y: screen.maxY - rect.maxY,
                   width: rect.width,
                   height: rect.height)
+    }
+}
+
+// MARK: - 播放节奏探针（2026-11-23 补测）
+
+/// 只在一腿神灯动画期间记录显示链路回调时刻，收尾时结算 p50/p95/max 与缺失回调。
+///
+/// 口径说明（避免把数字读错）：
+/// - 这里量的是**显示链路回调节奏**，不是「主线程每帧画了多久」——后者由 genie 阶段日志给出。
+/// - 帧序列由 Core Animation 在渲染服务器按 `contents` 关键帧播放，回调若稳定在刷新率，
+///   说明合成链路没被抢占；主线程同步段再长，也只影响「开播前的那一下」，不影响已开播的帧。
+/// - 掉头会延续同一个探针（帧序列未变、仍是同一次播放会话）；`finish`/`cancel` 立即停表，
+///   不做常驻轮询，符合「不为测量本身制造持续开销」。
+private final class GenieFramePacer {
+
+    private var link: CVDisplayLink?
+    private var stamps: [CFTimeInterval] = []
+    private let lock = NSLock()
+    private var expectedRefresh = 60
+    private var declaredFrames = 0
+    private var declaredDuration: TimeInterval = 0
+
+    func record(at time: CFTimeInterval = CACurrentMediaTime()) {
+        lock.lock()
+        stamps.append(time)
+        lock.unlock()
+    }
+
+    func start(refresh: Int, frames: Int, duration: TimeInterval) {
+        cancel()
+        expectedRefresh = max(30, refresh)
+        declaredFrames = frames
+        declaredDuration = max(0.001, duration)
+        lock.lock()
+        stamps.removeAll(keepingCapacity: true)
+        lock.unlock()
+
+        var newLink: CVDisplayLink?
+        guard CVDisplayLinkCreateWithActiveCGDisplays(&newLink) == kCVReturnSuccess,
+              let newLink else { return }
+        let context = Unmanaged.passUnretained(self).toOpaque()
+        CVDisplayLinkSetOutputCallback(newLink, { _, _, _, _, _, ctx in
+            guard let ctx else { return kCVReturnSuccess }
+            Unmanaged<GenieFramePacer>.fromOpaque(ctx).takeUnretainedValue().record()
+            return kCVReturnSuccess
+        }, context)
+        guard CVDisplayLinkStart(newLink) == kCVReturnSuccess else { return }
+        link = newLink
+    }
+
+    func finish() {
+        guard link != nil else { return }
+        cancel()
+        lock.lock()
+        let list = stamps
+        stamps.removeAll()
+        lock.unlock()
+        guard list.count > 6, let first = list.first, let last = list.last, last > first else { return }
+
+        let intervals: [Double] = zip(list.dropFirst(), list).map { pair in
+            (pair.0 - pair.1) * 1000
+        }
+        let sorted = intervals.sorted()
+        let p50 = sorted[sorted.count / 2]
+        let p95 = sorted[min(sorted.count - 1, Int(Double(sorted.count) * 0.95))]
+        let elapsed = last - first
+        let actualFPS = Double(list.count - 1) / elapsed
+        let expectedTicks = Int((elapsed * Double(expectedRefresh)).rounded()) + 1
+        let missing = max(0, expectedTicks - list.count)
+        let neededFPS = Double(declaredFrames) / declaredDuration
+        Log.info("Motion", String(format: "genie 播放节奏：%.0fms · 刷新 %dHz · 实测回调 %d 次 ≈ %.1ffps（p50 %.1fms · p95 %.1fms · max %.1fms）· 帧序列 %d 帧需 %.0ffps · 缺失回调 %d",
+                                  elapsed * 1000, expectedRefresh, list.count, actualFPS,
+                                  p50, p95, sorted.last ?? 0,
+                                  declaredFrames, neededFPS, missing))
+    }
+
+    func cancel() {
+        if let link {
+            CVDisplayLinkStop(link)
+        }
+        link = nil
     }
 }

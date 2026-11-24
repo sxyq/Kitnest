@@ -1,4 +1,6 @@
+import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct FloatingBallSettingsPane: View {
     @Stored private var revision = 0
@@ -26,6 +28,79 @@ struct FloatingBallSettingsPane: View {
                 SettingsRow(title: "启用悬浮球", subtitle: "默认关闭；点击球面展开，按住拖动后左右贴边") {
                     Toggle("启用悬浮球", isOn: Binding(get: { enabled }, set: { enabled = $0 }))
                         .labelsHidden().toggleStyle(.switch)
+                }
+                SettingsDivider()
+                SettingsRow(title: "海豚桌面精灵", subtitle: "默认关闭；球面换成小海豚，单击展开、双击自定义动作、右键菜单") {
+                    Toggle("海豚桌面精灵", isOn: Binding(
+                        get: { DesktopPetSettings.isEnabled },
+                        set: {
+                            UserDefaults.standard.set($0, forKey: DesktopPetSettings.enabledKey)
+                            FloatingBallController.shared.applyConfiguration()
+                            revision &+= 1
+                        }
+                    )).labelsHidden().toggleStyle(.switch)
+                }
+                if DesktopPetSettings.isEnabled {
+                    SettingsDivider()
+                    SettingsRow(title: "精灵大小", subtitle: "小 / 中 / 大三档，影响海豚显示尺寸") {
+                        Picker("", selection: Binding(
+                            get: { DesktopPetSettings.appearance.sizeMode },
+                            set: { mode in
+                                UserDefaults.standard.set(mode.rawValue, forKey: DesktopPetSettings.sizeModeKey)
+                                FloatingBallController.shared.applyConfiguration()
+                                revision &+= 1
+                            }
+                        )) {
+                            ForEach(DesktopPetAppearance.SizeMode.allCases) { mode in
+                                Text(mode.title).tag(mode)
+                            }
+                        }
+                        .labelsHidden().pickerStyle(.segmented).frame(width: 160)
+                    }
+                    SettingsDivider()
+                    SettingsRow(title: "动态模式", subtitle: "静态 = 不跑动画时钟（零重绘）；轻动 = 约 3fps 呼吸漂浮") {
+                        Picker("", selection: Binding(
+                            get: { DesktopPetSettings.appearance.motionMode },
+                            set: { mode in
+                                UserDefaults.standard.set(mode.rawValue, forKey: DesktopPetSettings.motionModeKey)
+                                FloatingBallController.shared.applyConfiguration()
+                                revision &+= 1
+                            }
+                        )) {
+                            ForEach(DesktopPetAppearance.MotionMode.allCases) { mode in
+                                Text(mode.title).tag(mode)
+                            }
+                        }
+                        .labelsHidden().pickerStyle(.segmented).frame(width: 120)
+                    }
+                    SettingsDivider()
+                    SettingsRow(title: "自定义形象", subtitle: "选择一张 PNG 替换内置矢量海豚；透明背景效果最佳") {
+                        HStack(spacing: 8) {
+                            Button("选择 PNG…") {
+                                pickCustomPetImage()
+                            }
+                            .controlSize(.small)
+                            if DesktopPetSettings.appearance.customImagePath != nil {
+                                Button("恢复内置") {
+                                    UserDefaults.standard.removeObject(forKey: DesktopPetSettings.customImagePathKey)
+                                    FloatingBallController.shared.applyConfiguration()
+                                    revision &+= 1
+                                }
+                                .controlSize(.small)
+                            }
+                        }
+                    }
+                    SettingsDivider()
+                    SettingsRow(title: "悬停气泡", subtitle: "悬停时显示轻量气泡提示") {
+                        Toggle("悬停气泡", isOn: Binding(
+                            get: { DesktopPetSettings.appearance.showsBubble },
+                            set: { value in
+                                UserDefaults.standard.set(value, forKey: DesktopPetSettings.showsBubbleKey)
+                                FloatingBallController.shared.applyConfiguration()
+                                revision &+= 1
+                            }
+                        )).labelsHidden().toggleStyle(.switch)
+                    }
                 }
                 SettingsDivider()
                 VStack(alignment: .leading, spacing: 6) {
@@ -129,5 +204,28 @@ struct FloatingBallSettingsPane: View {
                 revision &+= 1
             }
         )).toggleStyle(.checkbox)
+    }
+
+    /// 选择自定义海豚 PNG（复制到应用支持目录，避免原文件被移动后失效）
+    private func pickCustomPetImage() {
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.png]
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.message = "选择一张 PNG 作为海豚精灵形象（建议透明背景）"
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("FrsetNext/pet", isDirectory: true)
+        try? FileManager.default.createDirectory(at: support, withIntermediateDirectories: true)
+        let dest = support.appendingPathComponent("custom-pet.png")
+        try? FileManager.default.removeItem(at: dest)
+        do {
+            try FileManager.default.copyItem(at: url, to: dest)
+            UserDefaults.standard.set(dest.path, forKey: DesktopPetSettings.customImagePathKey)
+            FloatingBallController.shared.applyConfiguration()
+            revision &+= 1
+        } catch {
+            Toast.show("形象导入失败：\(error.localizedDescription)", icon: "exclamationmark.triangle", isWarning: true)
+        }
     }
 }

@@ -240,6 +240,7 @@ extension ClipboardItem {
 public struct ClipboardRowMenuContent: View {
 
     @ObservedObject private var tagStore = TagStore.shared
+    @ObservedObject private var favoritesStore = FavoritesStore.shared
     public let item: ClipboardItem
     private let managementSource: String
     private let onPreview: (() -> Void)?
@@ -280,10 +281,38 @@ public struct ClipboardRowMenuContent: View {
 
     private var actionsView: some View {
         ForEach(actions) { action in
-            Button(action: action.action) {
-                Label(action.title, systemImage: action.systemImage)
+            if action.id == "favorite" {
+                favoriteLevelMenu
+            } else {
+                Button(action: action.action) {
+                    Label(action.title, systemImage: action.systemImage)
+                }
+                .disabled(!action.isEnabled)
             }
-            .disabled(!action.isEnabled)
+        }
+    }
+
+    /// v286 分级收藏子菜单：⭐普通收藏 / ⭐⭐重要收藏 / ⭐⭐⭐置顶收藏 / 取消收藏。
+    /// 当前等级打勾（FavoritesStore 发布 levels 变化后自动刷新）；直接写
+    /// FavoritesStore.setClipboard（事务内双写 is_favorite 兼容字段）。
+    private var favoriteLevelMenu: some View {
+        let current = favoritesStore.level(.clipboard, id: item.dedupeKey)
+        return Menu {
+            favoriteLevelRow(.normal, title: "⭐ \(FavoriteLevel.normal.title)", current: current)
+            favoriteLevelRow(.important, title: "⭐⭐ \(FavoriteLevel.important.title)", current: current)
+            favoriteLevelRow(.pinned, title: "⭐⭐⭐ \(FavoriteLevel.pinned.title)", current: current)
+            Divider()
+            favoriteLevelRow(.none, title: "取消收藏", current: current)
+        } label: {
+            Label(current == .none ? "收藏" : current.title, systemImage: current.symbolName)
+        }
+    }
+
+    private func favoriteLevelRow(_ level: FavoriteLevel, title: String, current: FavoriteLevel) -> some View {
+        Button {
+            FavoritesStore.shared.setClipboard(dedupeKey: item.dedupeKey, level: level)
+        } label: {
+            Label(title, systemImage: current == level ? "checkmark" : (level == .none ? "star.slash" : level.symbolName))
         }
     }
 

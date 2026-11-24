@@ -36,7 +36,11 @@ enum VoronoiTreemap {
         // 实测同样的增益下最大误差高达 17 个百分点，最大块被压到目标的一半。
         // 归一化后 k=0.3 只要 17 轮就把误差压到 0.3%（实测）。
         let unit = CGRect(x: 0, y: 0, width: 1, height: 1)
-        let outline = override ?? StorageMapShape().path(in: unit)
+        // v286：调用方（StorageTreemap）总是显式传几何推导的轮廓；
+        // 这里只做兜底——圆角矩形，绝不再用旧的列内矩形轮廓。
+        let fallback = Path(roundedRect: CGRect(x: 0, y: 0, width: 1, height: 1),
+                            cornerRadius: 0.045)
+        let outline = override ?? fallback
         let base = sampledPoints(outline, spacing: 0.035)
         let triangles = triangulate(base)
         let baseArea = area(base)

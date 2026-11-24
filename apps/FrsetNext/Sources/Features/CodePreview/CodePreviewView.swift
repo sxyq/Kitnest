@@ -705,6 +705,14 @@ private struct WindowThemeSync: NSViewRepresentable {
     let isDark: Bool
     let background: NSColor
 
+    /// 记住宿主窗口的原始外观状态；代码预览移出视图树时按此还原。
+    final class Coordinator {
+        weak var window: NSWindow?
+        var saved: (appearance: NSAppearance?, isOpaque: Bool, backgroundColor: NSColor)?
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
     func makeNSView(context: Context) -> NSView {
         let view = NSView(frame: .zero)
         view.alphaValue = 0
@@ -714,6 +722,10 @@ private struct WindowThemeSync: NSViewRepresentable {
     func updateNSView(_ nsView: NSView, context: Context) {
         DispatchQueue.main.async {
             guard let window = nsView.window else { return }
+            if context.coordinator.saved == nil {
+                context.coordinator.saved = (window.appearance, window.isOpaque, window.backgroundColor)
+            }
+            context.coordinator.window = window
             let name: NSAppearance.Name = isDark ? .darkAqua : .aqua
             if window.appearance?.name != name {
                 window.appearance = NSAppearance(named: name)
@@ -724,6 +736,22 @@ private struct WindowThemeSync: NSViewRepresentable {
             if window.backgroundColor != background {
                 window.backgroundColor = background
             }
+        }
+    }
+
+    /// 代码预览移出视图树（切换到其他类型 / 关闭条目）时，把宿主窗口的外观、
+    /// 不透明度与底色还原。否则玻璃窗（悬浮剪贴板工作台、面板预览）会一直停在
+    /// 代码主题的暗色不透明底上——2026-11-24 工作台实测：选中代码卡整窗翻暗
+    /// 属 f85643d7 的设计（标题栏跟随代码主题），但切回富文本后窗口停在
+    /// (26,26,29) 不透明底、无人恢复，玻璃材质被永久覆盖。
+    static func dismantleNSView(_ nsView: NSView, coordinator: Coordinator) {
+        DispatchQueue.main.async {
+            guard let window = coordinator.window,
+                  let saved = coordinator.saved else { return }
+            window.appearance = saved.appearance
+            window.isOpaque = saved.isOpaque
+            window.backgroundColor = saved.backgroundColor
+            coordinator.saved = nil
         }
     }
 }

@@ -86,7 +86,8 @@ private struct IslandGlow: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
         let point = pointer.value.location
-        let visible = pointer.value.active && !reduceMotion
+        // 指针流光同样属于直接操作：减弱动态时只把淡入压成瞬时，不整段关掉。
+        let visible = pointer.value.active
         let color = Color(red: 1, green: 244.0 / 255, blue: 227.0 / 255)
         let radius: CGFloat = 180
         Canvas { context, _ in
