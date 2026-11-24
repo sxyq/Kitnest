@@ -524,8 +524,9 @@ public final class StatisticsManager {
         set { UserDefaults.standard.set(newValue, forKey: "analyticsEnabled") }
     }
 
-    /// 全部已跟踪事件名（54 枚举 + 5 裸串 = 59，spec 17 §4）
-    public var trackedEventNames: Set<String> {
+    /// 全部已跟踪事件名（54 枚举 + 5 裸串 = 59，spec 17 §4）。
+    /// 统计页会在每次刷新时读取，集合内容只由静态事件定义组成，初始化一次即可。
+    private static let allTrackedEventNames: Set<String> = {
         var names = Set(AnalyticsEvent.allCases.map { $0.eventName })
         names.formUnion(Self.bareStringEvents)
         // 重建扩展事件：ai_request_count 由旧 bumpStat("ai_request_count") 路径写入
@@ -534,7 +535,9 @@ public final class StatisticsManager {
         // 原作 53 事件中无此项，属重建的有意扩展（见 specs/17 §4 注释），故在此显式并入。
         names.insert("ai_request_count")
         return names
-    }
+    }()
+
+    public var trackedEventNames: Set<String> { Self.allTrackedEventNames }
     /// 裸串事件（主面板 4 个 + 权限 1 个）
     public static let bareStringEvents: Set<String> = [
         "main_panel_item", "main_panel_preview", "main_panel_search_result",

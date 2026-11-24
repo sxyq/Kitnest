@@ -3927,14 +3927,14 @@ Storage,Storage/Database.swift,DatabaseManager,migrate,func,225,KEEP,2026-11-17�
 Storage,Storage/Database.swift,DatabaseManager,migrateLegacyDailyStats,func,403,KEEP,2026-11-17：migrate调用；旧表读取计数合并与DROP在同一原SQLite事务内；查询或写入失败回滚并向原迁移错误日志抛出；旧表保留避免数据丢失
 Storage,Storage/Database.swift,DatabaseManager,normalizedDay,func,424,KEEP,2026-11-17：旧统计迁移与bumpStat日期入口共用；仅将8位日期数值改成yyyy-MM-dd其余原样；保留既有历史日期兼容
 Storage,Storage/Database.swift,DatabaseManager,bumpStat,func,443,KEEP,2026-11-17：ClipboardManager与AppBootstrap历史事件入口；旧列名映射5种事件后交StatisticsManager；未引入第二统计写入链
-Storage,Storage/Database.swift,StatisticsManager,init,init,544,KEEP,2026-11-17：shared唯一创建；取得既有statistics连接并异步ensureInstallDate；不在初始化读取全量统计
-Storage,Storage/Database.swift,StatisticsManager,record,func,552,KEEP,2026-11-17：字符串入口及枚举转发调用；按用户开关和现有1秒操作去重窗口在串行队列写窄表；计数不低于0后加1
-Storage,Storage/Database.swift,StatisticsManager,record,func,569,KEEP,2026-11-17：模块埋点使用枚举入口；eventName转字符串后复用同一record；无重复持久化
-Storage,Storage/Database.swift,StatisticsManager,totalCounts,func,575,KEEP,2026-11-17：StatisticsRootView后台refresh调用；SQL按事件聚合非负值；只物化聚合行而不读取逐日明细
-Storage,Storage/Database.swift,StatisticsManager,todayCounts,func,587,KEEP,2026-11-17：StatisticsRootView日卡调用；日期和事件全用绑定；空事件集早退；只读取当天指定事件
-Storage,Storage/Database.swift,StatisticsManager,activeDaysCount,func,602,KEEP,2026-11-17：统计主面板与设置刷新调用；SQL COUNT DISTINCT day且count为正；返回整数不创建日期记录模型
-Storage,Storage/Database.swift,StatisticsManager,dailyTotals,func,614,KEEP,2026-11-17：StatisticsRootView活动矩阵调用；SQL按指定起日及事件聚合再排序；仅返回日总量
-Storage,Storage/Database.swift,StatisticsManager,dailyBreakdowns,func,627,KEEP,2026-11-17：StatisticsRootView最近30日柱图调用；沿SQL日期与事件条件读取窄表；不重复按事件查询每一天
-Storage,Storage/Database.swift,StatisticsManager,exportAll,func,644,KEEP,2026-11-17：DiagnosticsExporter仍消费全量统计；当前配置导出已不含统计；按day排序返回原三字段；原台账所称设置导出消费者已变更
-Storage,Storage/Database.swift,StatisticsManager,ensureInstallDate,func,657,KEEP,2026-11-17：init调用；在既有队列按需INSERT OR IGNORE安装日；已有记录只读单行
-Storage,Storage/Database.swift,StatisticsManager,dayString,func,686,KEEP,2026-11-17：统计写入与查询范围共用；共享DateFormatter；时区变化时当前实现每次重建formatter的代价待按真实切区场景处理
+Storage,Storage/Database.swift,StatisticsManager,init,init,547,KEEP,2026-11-17：shared唯一创建；取得既有statistics连接并异步ensureInstallDate；不在初始化读取全量统计
+Storage,Storage/Database.swift,StatisticsManager,record,func,555,KEEP,2026-11-17：字符串入口及枚举转发调用；按用户开关和现有1秒操作去重窗口在串行队列写窄表；计数不低于0后加1
+Storage,Storage/Database.swift,StatisticsManager,record,func,572,KEEP,2026-11-17：模块埋点使用枚举入口；eventName转字符串后复用同一record；无重复持久化
+Storage,Storage/Database.swift,StatisticsManager,totalCounts,func,578,KEEP,2026-11-17：StatisticsRootView后台refresh调用；SQL按事件聚合非负值；只物化聚合行而不读取逐日明细
+Storage,Storage/Database.swift,StatisticsManager,todayCounts,func,590,KEEP,2026-11-17：StatisticsRootView日卡调用；日期和事件全用绑定；空事件集早退；只读取当天指定事件
+Storage,Storage/Database.swift,StatisticsManager,activeDaysCount,func,605,KEEP,2026-11-17：统计主面板与设置刷新调用；SQL COUNT DISTINCT day且count为正；返回整数不创建日期记录模型
+Storage,Storage/Database.swift,StatisticsManager,dailyTotals,func,617,KEEP,2026-11-17：StatisticsRootView活动矩阵调用；SQL按指定起日及事件聚合再排序；仅返回日总量
+Storage,Storage/Database.swift,StatisticsManager,dailyBreakdowns,func,630,KEEP,2026-11-17：StatisticsRootView最近30日柱图调用；沿SQL日期与事件条件读取窄表；不重复按事件查询每一天
+Storage,Storage/Database.swift,StatisticsManager,exportAll,func,647,KEEP,2026-11-17：DiagnosticsExporter仍消费全量统计；当前配置导出已不含统计；按day排序返回原三字段；原台账所称设置导出消费者已变更
+Storage,Storage/Database.swift,StatisticsManager,ensureInstallDate,func,660,KEEP,2026-11-17：init调用；在既有队列按需INSERT OR IGNORE安装日；已有记录只读单行
+Storage,Storage/Database.swift,StatisticsManager,dayString,func,689,KEEP,2026-11-17：统计写入与查询范围共用；共享DateFormatter；时区变化时当前实现每次重建formatter的代价待按真实切区场景处理
