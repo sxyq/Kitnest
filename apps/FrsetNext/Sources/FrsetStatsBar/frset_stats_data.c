@@ -724,6 +724,7 @@ int frset_proc_top(int kind, frset_proc_t *out, int max) {
         out[i].disk_r = r->dr;
         out[i].disk_w = r->dw;
         if (!g_scanCachePathLoaded[r->scan_index]) {
+            g_scanCachePathLoaded[r->scan_index] = 1;
             char path[4096] = {0};
             if (proc_pidpath(r->pid, path, sizeof(path)) > 0) {
                 strncpy(g_scanCachePath[r->scan_index], path,
