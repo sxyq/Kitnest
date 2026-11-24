@@ -227,8 +227,8 @@ final class LongScreenshotCoordinator: NSObject {
         // v176（用户：「长截图需要预览，像原版一样」）：每追加一段就刷新预览卡
         let preview = LongScreenshotLivePreviewPanel()
         livePreview = preview
-        session.onPreview = { [weak preview] image in
-            preview?.update(image: image, near: appKit)
+        session.onPreview = { [weak preview] image, canvasSize in
+            preview?.update(image: image, canvasSize: canvasSize, near: appKit)
         }
         self.session = session
         stream.start(session: session)

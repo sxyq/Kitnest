@@ -459,7 +459,7 @@ final class LongScreenshotLivePreviewPanel: NSPanel {
     }
 
     /// 更新预览（`selection` 是 AppKit 坐标下的选区，用来定位）
-    func update(image: CGImage, near selection: NSRect) {
+    func update(image: CGImage, canvasSize: CGSize? = nil, near selection: NSRect) {
         guard let placement = resolveSlot(near: selection) else {
             if !suppressed {
                 suppressed = true
@@ -489,7 +489,8 @@ final class LongScreenshotLivePreviewPanel: NSPanel {
                                     width: 60, height: 13)
         sizeLabel.frame = NSRect(x: cardW - padding - 90, y: padding + displayH + 1,
                                  width: 90, height: 13)
-        sizeLabel.stringValue = "\(image.width)×\(image.height)"
+        let size = canvasSize ?? CGSize(width: image.width, height: image.height)
+        sizeLabel.stringValue = "\(Int(size.width))×\(Int(size.height))"
 
         let target = NSRect(origin: slotOrigin(slot, size: NSSize(width: cardW, height: cardH)),
                             size: NSSize(width: cardW, height: cardH))

@@ -29,22 +29,21 @@ struct LongShotRGBA {
     /// 等于把 P3/显示器 profile 的数值当 sRGB 用——成图整体偏灰/偏艳。
     let colorSpace: CGColorSpace
 
-    /// 用 malloc 分配上下文内存（&array 桥接指针生命周期不保证，合成后内容会脱节）
+    /// 在数组缓冲的有效生命周期内绘制，避免临时像素缓冲再复制一次。
     private static func drawToBuffer(_ image: CGImage, w: Int, h: Int,
                                      space: CGColorSpace) -> [UInt8] {
         let count = w * h * 4
-        let ptr = UnsafeMutableRawPointer.allocate(byteCount: count, alignment: 64)
-        defer { ptr.deallocate() }
-        memset(ptr, 0, count)
-        if let ctx = CGContext(data: ptr, width: w, height: h,
-                               bitsPerComponent: 8, bytesPerRow: w * 4,
-                               space: space,
-                               bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) {
-            // 1:1 搬运不需要插值；只有宽度修正那条路径才需要 .high。
+        var bytes = [UInt8](repeating: 0, count: count)
+        bytes.withUnsafeMutableBytes { buffer in
+            guard let data = buffer.baseAddress,
+                  let ctx = CGContext(data: data, width: w, height: h,
+                                      bitsPerComponent: 8, bytesPerRow: w * 4,
+                                      space: space,
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return }
             ctx.interpolationQuality = .none
             ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
         }
-        return Array(UnsafeRawBufferPointer(start: ptr, count: count))
+        return bytes
     }
 
     init(image: CGImage) {
@@ -159,6 +158,19 @@ final class LongScreenshotStitcher {
         cachedImage = img
         cachedHeight = canvasHeight
         return img
+    }
+
+    /// 实时预览只显示画布顶部至多 500 行，不复制其余拼接内容。
+    var preview: CGImage? {
+        let height = min(canvasHeight, 500)
+        guard canvasWidth > 0, height > 0 else { return nil }
+        let count = canvasWidth * height * 4
+        var copy = Array(bytes.prefix(count))
+        let ctx = CGContext(data: &copy, width: canvasWidth, height: height,
+                            bitsPerComponent: 8, bytesPerRow: canvasWidth * 4,
+                            space: canvasColorSpace,
+                            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+        return ctx?.makeImage()
     }
 
     // MARK: - 灰度签名（恒等帧判定用）
