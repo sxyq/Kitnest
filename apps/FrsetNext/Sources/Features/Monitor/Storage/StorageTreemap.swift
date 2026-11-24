@@ -154,30 +154,39 @@ private final class DiskLayoutCache {
     static let shared = DiskLayoutCache()
     private var key = ""
     private var tiles: [DiskTile] = []
+    private var hitPath = Path()
+    private var hitPathSize = CGSize.zero
+    private var hitPathGeometry: StorageSurfaceGeometry?
 
     func tiles(for node: DiskNode, size: CGSize, freeSpace: Int64? = nil,
                indexRevision: Int, contentTopRatio: CGFloat = 0,
-               geometry: StorageSurfaceGeometry = StorageSurfaceGeometry()) -> [DiskTile] {
+               geometry: StorageSurfaceGeometry = StorageSurfaceGeometry()) -> (tiles: [DiskTile], hitPath: Path) {
         // v286：外轮廓改由整窗画布推导，缓存键必须带上画布口径
         //（画布宽/顶带高度/图块画布左缘任一变化都要重切）。
         let k = "\(node.id)|\(size.width)×\(size.height)|\(node.children.count)|\(node.size)"
             + "|\(freeSpace ?? 0)|\(indexRevision)|\(contentTopRatio)"
             + "|\(Int(geometry.canvas.width))×\(Int(geometry.canvas.height))"
             + "|\(Int(geometry.tileFrame.minX))|\(Int(geometry.surfaceTop))|\(Int(geometry.sweepEnd))"
-        if k == key { return tiles }
-        var nodes = node.children
-        if node.isDirectory, node.ownSize > 0 {
-            nodes.append(DiskNode(path: "disk-files:" + node.path, name: "其余直接文件",
-                                  isDirectory: false, size: node.ownSize, ownSize: node.ownSize,
-                                  foldedCount: 0, children: [], isAggregate: true))
+        if k != key {
+            var nodes = node.children
+            if node.isDirectory, node.ownSize > 0 {
+                nodes.append(DiskNode(path: "disk-files:" + node.path, name: "其余直接文件",
+                                      isDirectory: false, size: node.ownSize, ownSize: node.ownSize,
+                                      foldedCount: 0, children: [], isAggregate: true))
+            }
+            tiles = DiskVoronoiLayout.make(nodes: nodes, in: size,
+                                           parentPath: node.path, freeSpace: freeSpace,
+                                           contentTopRatio: contentTopRatio,
+                                           geometry: geometry)
+            key = k
         }
-        let made = DiskVoronoiLayout.make(nodes: nodes, in: size,
-                                          parentPath: node.path, freeSpace: freeSpace,
-                                          contentTopRatio: contentTopRatio,
-                                          geometry: geometry)
-        key = k
-        tiles = made
-        return made
+        if hitPathSize != size || hitPathGeometry != geometry {
+            hitPath = StorageMapShape(geometry: geometry)
+                .path(in: CGRect(origin: .zero, size: size))
+            hitPathSize = size
+            hitPathGeometry = geometry
+        }
+        return (tiles, hitPath)
     }
 }
 
@@ -435,11 +444,12 @@ struct StorageTreemap: View {
 
     var body: some View {
         GeometryReader { geo in
-            let tiles = DiskLayoutCache.shared.tiles(for: node, size: geo.size,
-                                                     freeSpace: freeSpace, indexRevision: indexRevision,
-                                                     contentTopRatio: geo.size.height > 0
-                                                        ? contentTop / geo.size.height : 0,
-                                                     geometry: geometry)
+            let layout = DiskLayoutCache.shared.tiles(for: node, size: geo.size,
+                                                      freeSpace: freeSpace, indexRevision: indexRevision,
+                                                      contentTopRatio: geo.size.height > 0
+                                                         ? contentTop / geo.size.height : 0,
+                                                      geometry: geometry)
+            let tiles = layout.tiles
             if tiles.isEmpty {
                 VStack(spacing: 6) {
                     Image(systemName: "square.dashed")
@@ -495,15 +505,13 @@ struct StorageTreemap: View {
                     }
                 }
                 .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
-                .contentShape(StorageMapShape(geometry: geometry))
+                // 矩形仅负责派发悬停；曲面边界由下方共享缓存路径判定，
+                // 避免 SwiftUI 每次指针命中都再走一遍多边形路径。
+                .contentShape(Rectangle())
                 .onContinuousHover { phase in
                     switch phase {
                     case .active(let location):
-                        // v286：逆映射到共享画布，避免每次指针事件都求轮廓交集。
-                        let hitPoint = CGPoint(x: geometry.tileFrame.minX + location.x * geometry.tileFrame.width / geo.size.width,
-                                               y: geometry.tileFrame.minY + location.y * geometry.tileFrame.height / geo.size.height)
-                        let inside = StorageMapShape.blob(in: geometry).contains(hitPoint)
-                        // 同上：位置与活跃态始终跟随真实指针，减弱动态只影响过渡曲线。
+                        let inside = layout.hitPath.contains(location)
                         let nextPoint = inside ? location : hover.point
                         let nextID = inside ? tiles.first { $0.frame.contains(location) && $0.hitPath.contains(location) }?.id : nil
                         let active = inside

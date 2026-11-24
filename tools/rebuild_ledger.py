@@ -2646,6 +2646,9 @@ EVIDENCE.update({
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "handleIndexRevisionChange"):
         "2026-11-23：索引换代后的状态收拢（刷新磁盘容量/导航节点重锚/所选过滤/详情刷新/挂起下钻），"
         "从 body 的 onChange 回调抽出为独立函数（打断 ViewBuilder 修饰链的类型检查超时）；行为与原回调一致",
+    ("Features/Monitor/Storage/StorageTreemap.swift", "tiles"):
+        "StorageTreemap.body 按节点、尺寸和索引版本复用 Voronoi 图块；同时缓存曲面命中路径，"
+        "contentShape 与连续悬停共用，仅画布几何或尺寸变化时重建",
 })
 
 # ── 2026-11-23 需求 B：四类表面与交互状态令牌 ──
