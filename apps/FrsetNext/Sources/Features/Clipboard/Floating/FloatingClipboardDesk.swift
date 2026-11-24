@@ -1696,8 +1696,11 @@ public struct FloatingClipboardDeskView: View {
         case .image:
             if let path = item.imagePath {
                 let url = ClipboardFileStore.url(forRelativePath: path)
-                if NSItemProvider(contentsOf: url) != nil {
-                    provider = NSItemProvider(contentsOf: url)!
+                // 2026-11-25（函数审查 NEEDS_FIX 落实）：旧实现先 NSItemProvider(contentsOf:)
+                // 判 nil 再对同一 URL 强解包重建——同一张图被完整读取/解码两次，
+                // 大图拖拽起手翻倍内存。改为建一次、判 nil 直接回退文本。
+                if let imageProvider = NSItemProvider(contentsOf: url) {
+                    provider = imageProvider
                 } else {
                     provider = NSItemProvider(object: item.displayTitle as NSString)
                 }

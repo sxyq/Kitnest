@@ -40,6 +40,12 @@
 - **逐函数审查状态来自 `函数审查记录.csv`，不是生成器开关**：没有记录的声明一律
   `NOT_REVIEWED`；`REVIEWED_OK / FIXED / VERIFIED` 必须有人读过函数体并写下结论。
   `VERIFIED` 另需实际运行/测量证据，编译通过不算。
+- **2026-11-25 全量里程碑**：4,542 条函数类声明全部读过（主线 200 条 + 21 个审查子代理
+  4,342 条，子代理结论经主线抽查对质后合并）；`REVIEWED_OK 4,406 / NEEDS_FIX 15 /
+  NEEDS_MEASUREMENT 48 / FIXED 73`。合并口径：主线已写结论的条目优先，片段按
+  `file+owner+name+signature` 精确对号（同名多行禁止按名字回退）。非 Swift 348 条
+  声明亦在记录里（signature 为空、按 file+owner+name 对应）。抽查方式：随机取记录
+  与源码对质（本轮抽 4+5 条全对上）。
 - 三方对账：`python3 tools/rebuild_ledger.py --strict` → `python3 tools/reconcile.py`（函数清单 ↔ 台账 ↔ 符号索引/依赖图数字全部一致为全绿）。
 - `feature_id`/`doc_path` 两列由 `func_table.py` 按 `源码与文档映射.csv` 的**最长前缀匹配**自动填入；
   匹配不到的声明两列填 `未映射`（明确标注，不生成不存在的链接）。

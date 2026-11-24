@@ -48,35 +48,53 @@ PY_CLASS = re.compile(r"^(\s*)class\s+([A-Za-z_]\w*)")
 
 
 def scan_objc(lines: list[str]) -> list[dict]:
+    """ObjC 方法索引。
+
+    2026-11-25 修（函数审查 NEEDS_FIX 落实）：旧实现从方法声明行开始无差别累加
+    花括号深度，遇到 `@interface` 里以 `;` 结尾的**纯声明**（如 `- (void)stopPreview;`）
+    永远等不到配对 `}`，body 扫描一路吞到文件尾，行数记成几百行、还会把后面的方法
+    全部跳掉。现在：① `;` 结尾的声明直接跳过；② 找到第一个 `{` 才开始配对计数；
+    ③ 深度回到 0 即止。
+    """
     owner = "-"
     rows = []
-    depth = 0
     i = 0
-    while i < len(lines):
+    n = len(lines)
+    while i < n:
         line = lines[i]
         m = OBJC_TYPE.match(line)
         if m:
             owner = m.group(1)
-        m = OBJC_METHOD.match(line)
-        if m and depth == 0:
-            start = i
-            body = 0
-            j = i
-            while j < len(lines):
-                body += lines[j].count("{") - lines[j].count("}")
-                if "{" in lines[j] and body <= 0:
-                    break
-                if body > 0 and body <= 0:
-                    break
-                j += 1
-            rows.append({"owner": owner, "name": m.group(3).rstrip(":"),
-                         "kind": "method", "line": start + 1,
-                         "lines": max(1, j - start + 1)})
-            i = j + 1
+            i += 1
             continue
-        depth += line.count("{") - line.count("}")
-        depth = max(0, depth)
-        i += 1
+        m = OBJC_METHOD.match(line)
+        if not m or line.rstrip().endswith(";"):
+            i += 1
+            continue
+        # 找方法体的第一个 `{`（最多向后看 8 行；再远就不是本方法的开头了）
+        open_line = None
+        j = i
+        while j < min(n, i + 8):
+            if "{" in lines[j]:
+                open_line = j
+                break
+            if lines[j].rstrip().endswith(";"):
+                break
+            j += 1
+        if open_line is None:
+            i += 1
+            continue
+        k = open_line
+        bal = 0
+        while k < n:
+            bal += lines[k].count("{") - lines[k].count("}")
+            if bal <= 0:
+                break
+            k += 1
+        rows.append({"owner": owner, "name": m.group(3).rstrip(":"),
+                     "kind": "method", "line": i + 1,
+                     "lines": max(1, k - i + 1)})
+        i = k + 1
     return rows
 
 

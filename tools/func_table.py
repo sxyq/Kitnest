@@ -422,7 +422,15 @@ def apply_reviews(rows: list) -> Counter:
     # 否则一条记录会被同名的另一条重载共用，等于虚报已读。
     row_count = Counter((r["file"], r["owner"], r["name"]) for r in rows)
     stats = Counter()
+    func_kinds = ("func", "init", "deinit", "subscript")
     for r in rows:
+        if r["kind"] not in func_kinds:
+            # 审查记录只针对函数类声明；属性/let 不参与（同名属性不得借函数结论）
+            r["review_status"] = "NOT_REVIEWED"
+            for f in REVIEW_FIELDS[1:]:
+                r[f] = ""
+            stats["NOT_REVIEWED"] += 1
+            continue
         rec = reviews.get((r["file"], r["owner"], r["name"], r.get("signature", "")))
         if rec is None:
             key = (r["file"], r["owner"], r["name"])
@@ -477,8 +485,11 @@ def main() -> int:
     modules = Counter(r["module"] for r in all_rows if r["kind"] != "var" and r["kind"] != "let")
 
     print(f"文件 {files}；声明 {len(all_rows)}；函数 {len(funcs)}")
-    total_reviewed = sum(v for k, v in review_stats.items() if k != "NOT_REVIEWED")
-    print("逐函数审查：" + " · ".join(f"{k} {review_stats.get(k, 0)}"
+    func_review = Counter()
+    for r in funcs:
+        func_review[r.get("review_status", "NOT_REVIEWED")] += 1
+    total_reviewed = sum(v for k, v in func_review.items() if k != "NOT_REVIEWED")
+    print("逐函数审查（仅函数类声明）：" + " · ".join(f"{k} {func_review.get(k, 0)}"
                                     for k in REVIEW_STATUSES)
           + f"（已读 {total_reviewed}/{len(funcs)}）")
     print("kind:", dict(kinds))
