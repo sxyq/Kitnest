@@ -328,6 +328,11 @@ enum ScreenSnapshot {
         }
         if shouldCancel() { return nil }
         let sck: CGImage?
+        // 预算不足时不要再起一条 4s 的 SCK 等待（旧实现会在原生失败后无条件下一条通道）。
+        if let budget, budget.remaining < 0.2 {
+            Log.warn("Capture", "抓帧预算用尽，跳过 SCK 回退")
+            return finish(nil, "冻结帧预算用尽")
+        }
         if toastVisible {
             if #available(macOS 14.0, *), let displayID {
                 sck = await Task.detached(priority: .userInitiated) {
@@ -458,7 +463,19 @@ enum ScreenSnapshot {
 
     /// v162：legacy 通道运行时存活探针（逐帧采捕等高频路径用）。nil=未探测；
     /// false=该系统上已失效（返回 nil，如 macOS 26/27）；true=可用（如 ≤15）。
-    private static var legacyAlive: Bool?
+    ///
+    /// 2026-11-24 v293：读写都在后台线程上，原先裸 `static var` 是数据竞争（虽然只是
+    /// 提示性缓存）。改成锁保护的槽位，语义不变。
+    private final class LegacyProbeState: @unchecked Sendable {
+        private let lock = NSLock()
+        private var alive: Bool?
+        var value: Bool? {
+            get { lock.lock(); defer { lock.unlock() }; return alive }
+            set { lock.lock(); alive = newValue; lock.unlock() }
+        }
+    }
+
+    private static let legacyProbe = LegacyProbeState()
 
     /// 带存活记账的 legacy 抓屏：首次 nil 记「该系统 legacy 已废」，此后调用方可直接换通道
     static func legacyCaptureProbed(rect: CGRect,
@@ -467,15 +484,15 @@ enum ScreenSnapshot {
                                     imageOption: CGWindowImageOption = [.bestResolution]) -> CGImage? {
         let img = legacyCapture(rect: rect, option: option, windowID: windowID, imageOption: imageOption)
         if img != nil {
-            legacyAlive = true
-        } else if legacyAlive == nil {
-            legacyAlive = false
+            legacyProbe.value = true
+        } else if legacyProbe.value == nil {
+            legacyProbe.value = false
         }
         return img
     }
 
     /// legacy 是否已被运行时证实失效（false = 未探测或仍可用）
-    static var isLegacyKnownDead: Bool { legacyAlive == false }
+    static var isLegacyKnownDead: Bool { legacyProbe.value == false }
 
     /// 同步版 ScreenCaptureKit 抓整屏（v108：长截图采帧用）。
     /// legacy dlsym 路径在 macOS 15+ 被移除后返回 nil（实测 macOS 27 采帧

@@ -230,15 +230,15 @@ Core,Core/UI/LiquidGlassMaterial.swift,GlassHost,makeBackend,func,340,KEEP,唯�
 Core,Core/UI/LiquidGlassMaterial.swift,GlassHost,apply,func,363,KEEP,着色层唯一写入口：颜色相同直接短路（动态色每次解析都是新对象，必须比值不比其他）
 Core,Core/UI/LiquidGlassMaterial.swift,GlassHost,configureBackend,func,389,KEEP,毛玻璃三分支先比较再赋值（material/blending/state 任一不同才在隐式动画里切），系统玻璃只同步 tintColor/cornerRadius；这是「失焦闪一下」与拖滑块重采样的直接修复点
 Core,Core/UI/LiquidGlassMaterial.swift,GlassHost,applyTint,func,413,KEEP,两条后端语义对齐：系统玻璃给 tintColor，毛玻璃交给同色着色层；系统玻璃时隐藏着色层，避免同一块玻璃被着色两次
-Core,Core/UI/LiquidGlassMaterial.swift,GlassHost,applyCorner,func,422,KEEP,圆角只在真变时赋值；radius==0 时关闭 masksToBounds，省掉整窗一次离屏合成
-Core,Core/UI/LiquidGlassMaterial.swift,GlassHost,setCornerRadius,func,434,KEEP,工厂、重套样式与刘海layout共用几何更新，真玻璃设cornerRadius，其余CALayer设连续圆角，不重设材质
-Core,Core/UI/LiquidGlassMaterial.swift,GlassHost,layout,func,445,KEEP,只在 frame 真变时同步底层与着色层尺寸：逐帧插值的岛只更新遮罩，不重设取样面
-Core,Core/UI/LiquidGlassMaterial.swift,GlassHost,viewDidChangeEffectiveAppearance,func,452,KEEP,外观切换时重解析动态 tint 并更新签名；材质本身由 AppKit 自适应，不重建对象
-Core,Core/UI/LiquidGlassMaterial.swift,GlassTintLayerView,init,init,464,KEEP,玻璃宿主初始化：按解析结果建底层对象（NSGlassEffectView/NSVisualEffectView），再叠着色层；内容由 embed 后加，层序固定为 玻璃→着色→内容
-Core,Core/UI/LiquidGlassMaterial.swift,GlassTintLayerView,init,init,470,KEEP,玻璃宿主初始化：按解析结果建底层对象（NSGlassEffectView/NSVisualEffectView），再叠着色层；内容由 embed 后加，层序固定为 玻璃→着色→内容
-Core,Core/UI/LiquidGlassMaterial.swift,GlassTintLayerView,apply,func,472,KEEP,着色层唯一写入口：颜色相同直接短路（动态色每次解析都是新对象，必须比值不比其他）
-Core,Core/UI/LiquidGlassMaterial.swift,GlassTintLayerView,hitTest,func,478,KEEP,着色层恒不接事件：覆盖层/面板的首次点击必须落到内容或宿主上
-Core,Core/UI/LiquidGlassMaterial.swift,View,glassCard,func,484,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；正式GlassCard修饰器和刘海格共用传入fill/stroke的连续圆角裁剪、背景及hairline描边，描边不接鼠标事件
+Core,Core/UI/LiquidGlassMaterial.swift,GlassHost,applyCorner,func,428,KEEP,圆角只在真变时赋值；radius==0 时关闭 masksToBounds，省掉整窗一次离屏合成
+Core,Core/UI/LiquidGlassMaterial.swift,GlassHost,setCornerRadius,func,451,KEEP,工厂、重套样式与刘海layout共用几何更新，真玻璃设cornerRadius，其余CALayer设连续圆角，不重设材质
+Core,Core/UI/LiquidGlassMaterial.swift,GlassHost,layout,func,462,KEEP,只在 frame 真变时同步底层与着色层尺寸：逐帧插值的岛只更新遮罩，不重设取样面
+Core,Core/UI/LiquidGlassMaterial.swift,GlassHost,viewDidChangeEffectiveAppearance,func,469,KEEP,外观切换时重解析动态 tint 并更新签名；材质本身由 AppKit 自适应，不重建对象
+Core,Core/UI/LiquidGlassMaterial.swift,GlassTintLayerView,init,init,481,KEEP,玻璃宿主初始化：按解析结果建底层对象（NSGlassEffectView/NSVisualEffectView），再叠着色层；内容由 embed 后加，层序固定为 玻璃→着色→内容
+Core,Core/UI/LiquidGlassMaterial.swift,GlassTintLayerView,init,init,487,KEEP,玻璃宿主初始化：按解析结果建底层对象（NSGlassEffectView/NSVisualEffectView），再叠着色层；内容由 embed 后加，层序固定为 玻璃→着色→内容
+Core,Core/UI/LiquidGlassMaterial.swift,GlassTintLayerView,apply,func,489,KEEP,着色层唯一写入口：颜色相同直接短路（动态色每次解析都是新对象，必须比值不比其他）
+Core,Core/UI/LiquidGlassMaterial.swift,GlassTintLayerView,hitTest,func,495,KEEP,着色层恒不接事件：覆盖层/面板的首次点击必须落到内容或宿主上
+Core,Core/UI/LiquidGlassMaterial.swift,View,glassCard,func,501,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；正式GlassCard修饰器和刘海格共用传入fill/stroke的连续圆角裁剪、背景及hairline描边，描边不接鼠标事件
 Core,Core/UI/OfficialWindowChrome.swift,NSWindow,applyOfficialChrome,func,76,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；StatisticsWindowController:37 等 6 处窗口
 Core,Core/UI/OfficialWindowChrome.swift,NSWindow,applyOfficialBackground,func,104,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；窗口设为透明底色，由统一玻璃容器提供可见背景
 Core,Core/UI/OfficialWindowChrome.swift,NSWindow,setOfficialContent,func,114,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；替换 NSView/NSViewController 内容后重挂统一玻璃底，避免底层仍附着在旧 contentView
@@ -1811,14 +1811,14 @@ Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,sameColo
 Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,averageDifference,func,233,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
 Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,pixelColor,func,256,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
 Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,captureScreenForScreenshot,func,275,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
-Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,displayID,func,391,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
-Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,screencaptureDisplayIndex,func,396,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
-Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,captureScreenAdaptive,func,437,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
-Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,legacyCaptureProbed,func,464,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
-Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,sckCaptureSync,func,485,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
-Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,sckCaptureWindowSync,func,501,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
-Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,sckCapture,func,521,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
-Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,sckCapture,func,548,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,displayID,func,396,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,screencaptureDisplayIndex,func,401,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,captureScreenAdaptive,func,442,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,legacyCaptureProbed,func,481,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,sckCaptureSync,func,502,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,sckCaptureWindowSync,func,518,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,sckCapture,func,538,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,sckCapture,func,565,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
 Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,init,init,66,KEEP,2026-11-20：单例初始化读最近图及preflight，只有显式诊断标记才请求权限。
 Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,refreshPermission,func,155,KEEP,2026-11-20：截图面板出现更新权限展示，不主动请求授权。
 Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,probePermission,func,177,KEEP,2026-11-20：实际preflight/SCK能力探测；重入返回旧hasPermission会提前失败，permissionProbed只写无读。

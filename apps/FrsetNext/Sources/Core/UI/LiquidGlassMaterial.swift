@@ -419,15 +419,32 @@ final class GlassHost: NSView {
         tintView.apply(tint)
     }
 
+    /// 圆角只作用在**底层材质与着色层**上，不给宿主开 masksToBounds。
+    ///
+    /// 为什么（2026-11-24 复核）：岛的取样面比宿主大（上角移到屏幕外 12pt），
+    /// 若在宿主上开 masksToBounds，玻璃顶部会被宿主 bounds 裁掉一条 —— 展开态
+    /// 顶部直接缺一层模糊。旧实现也是把圆角设在 NSVisualEffectView 自身上
+    /// （`masksToBounds` 在 makeView 里给材质视图），语义一致。
     private func applyCorner(_ radius: CGFloat) {
-        guard layer?.cornerRadius != radius else {
-            // 圆角为 0 时不要留 masksToBounds（会让整窗多一次离屏合成）
-            if radius == 0, layer?.masksToBounds == true { layer?.masksToBounds = false }
-            return
+        if #available(macOS 26.0, *), let glass = backendView as? NSGlassEffectView {
+            if glass.cornerRadius != radius { glass.cornerRadius = radius }
+        } else if let effect = backendView as? NSVisualEffectView {
+            if effect.layer?.cornerRadius != radius {
+                effect.layer?.cornerRadius = radius
+                effect.layer?.cornerCurve = .continuous
+            }
+            if effect.layer?.masksToBounds != true { effect.layer?.masksToBounds = true }
         }
-        layer?.cornerRadius = radius
-        layer?.cornerCurve = .continuous
-        layer?.masksToBounds = radius > 0
+        if tintView.layer?.cornerRadius != radius {
+            tintView.layer?.cornerRadius = radius
+            tintView.layer?.cornerCurve = .continuous
+            tintView.layer?.masksToBounds = radius > 0
+        }
+        if layer?.cornerRadius != radius {
+            layer?.cornerRadius = radius
+            layer?.cornerCurve = .continuous
+        }
+        if radius == 0, layer?.masksToBounds == true { layer?.masksToBounds = false }
     }
 
     /// 几何专用入口（动画里只更新圆角，不重设材质）。
