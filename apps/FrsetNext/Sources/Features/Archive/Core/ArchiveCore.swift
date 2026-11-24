@@ -515,32 +515,11 @@ public enum ArchiveCore {
         var entries: [ArchiveEntry] = []
         var fields: [String: String] = [:]
 
+        // v290：字段映射抽到 makeEntry(fields:unnamedPath:)，与流式解析共用一份
         func flush() {
-            let entryPath = fields["Path"] ?? (fields["Size"] != nil ? unnamedPath : nil)
-            guard let path = entryPath, !path.isEmpty else { fields = [:]; return }
-            let isDir = (fields["Folder"] == "+") || path.hasSuffix("/")
-            let name = isDir
-                ? String(path.split(separator: "/").last ?? "")
-                : (path as NSString).lastPathComponent
-            var parent = ""
-            if let slash = path.lastIndex(of: "/") {
-                parent = String(path[..<slash])
+            if let entry = makeEntry(fields: fields, unnamedPath: unnamedPath) {
+                entries.append(entry)
             }
-            entries.append(ArchiveEntry(
-                path: path.hasSuffix("/") ? String(path.dropLast()) : path,
-                name: name,
-                size: Int64(fields["Size"] ?? "0") ?? 0,
-                packedSize: Int64(fields["Packed Size"] ?? "0") ?? 0,
-                modified: fields["Modified"] ?? "",
-                method: fields["Method"] ?? "",
-                isDirectory: isDir,
-                parent: parent,
-                isEncrypted: fields["Encrypted"] == "+",
-                // v127（ArcZip P2）：不安全路径打标（UI 警告 + 解压时跳过）
-                isUnsafe: isUnsafeEntryPath(path),
-                isLink: fields["Symbolic Link"] != nil || fields["Hard Link"] != nil
-                    || (fields["Mode"] ?? "").hasPrefix("l")
-                    || (fields["Attributes"] ?? "").split(separator: " ").contains(where: { $0.hasPrefix("l") })))
             fields = [:]
         }
 
@@ -575,6 +554,218 @@ public enum ArchiveCore {
         run(args, timeout: 60) { code, data, err in
             if code == 0 { completion(data, nil) }
             else { completion(nil, err.isEmpty ? "读取失败" : err) }
+        }
+    }
+
+    // MARK: 解压（FR-206）
+
+    // MARK: 渐进式列表（v290，ArcZip preliminary* 对齐）
+
+    /// 单块 `Key = Value` 字段 → ArchiveEntry（流式与全量共用同一映射，防两处漂移）
+    static func makeEntry(fields: [String: String], unnamedPath: String?) -> ArchiveEntry? {
+        let entryPath = fields["Path"] ?? (fields["Size"] != nil ? unnamedPath : nil)
+        guard let path = entryPath, !path.isEmpty else { return nil }
+        let isDir = (fields["Folder"] == "+") || path.hasSuffix("/")
+        let name = isDir
+            ? String(path.split(separator: "/").last ?? "")
+            : (path as NSString).lastPathComponent
+        var parent = ""
+        if let slash = path.lastIndex(of: "/") {
+            parent = String(path[..<slash])
+        }
+        return ArchiveEntry(
+            path: path.hasSuffix("/") ? String(path.dropLast()) : path,
+            name: name,
+            size: Int64(fields["Size"] ?? "0") ?? 0,
+            packedSize: Int64(fields["Packed Size"] ?? "0") ?? 0,
+            modified: fields["Modified"] ?? "",
+            method: fields["Method"] ?? "",
+            isDirectory: isDir,
+            parent: parent,
+            isEncrypted: fields["Encrypted"] == "+",
+            // v127（ArcZip P2）：不安全路径打标（UI 警告 + 解压时跳过）
+            isUnsafe: isUnsafeEntryPath(path),
+            isLink: fields["Symbolic Link"] != nil || fields["Hard Link"] != nil
+                || (fields["Mode"] ?? "").hasPrefix("l")
+                || (fields["Attributes"] ?? "").split(separator: " ").contains(where: { $0.hasPrefix("l") }))
+    }
+
+    /// `7zz l -slt` 流式解析器：readabilityHandler 边读边喂，块（空行分隔）完成即成条目。
+    /// 与 parseListOutput 的字段映射逐行一致（共用 makeEntry）。
+    final class ListOutputStreamer {
+        private let unnamedPath: String?
+        /// readabilityHandler 不保证串行回调——buf/scan/entries 全部走锁内访问，
+        /// 否则 2 万条大包并发喂入直接数组越界 SIGTRAP（实测崩溃）。
+        private let lock = NSLock()
+        /// 字节缓冲：7zz 输出的 UTF-8 可能被管道 chunk 从多字节字符中间切开，
+        /// 按 String 转 chunk 会丢字进而丢整条块（实测 3019 条只剩 2796）；
+        /// 只把**完整行**（0x0A 终止）转 String 才安全。
+        private var buf: [UInt8] = []
+        private var scan = 0
+        private var entries: [ArchiveEntry] = []
+        private var fields: [String: String] = [:]
+
+        init(unnamedPath: String?) { self.unnamedPath = unnamedPath }
+
+        /// 当前已解析条目快照（锁内拷贝，供节流发射）
+        var snapshot: [ArchiveEntry] {
+            lock.lock(); defer { lock.unlock() }
+            return entries
+        }
+
+        /// 节流闸：距上次发射 ≥ minInterval 才放行（时间戳也在锁内，消掉跨线程竞态）
+        private var lastEmit = Date.distantPast
+        func shouldEmit(now: Date, minInterval: TimeInterval = 0.15) -> Bool {
+            lock.lock(); defer { lock.unlock() }
+            guard now.timeIntervalSince(lastEmit) >= minInterval else { return false }
+            lastEmit = now
+            return true
+        }
+
+        /// 喂入新数据；返回自上次调用后新增的条目数
+        @discardableResult
+        func feed(_ data: Data) -> Int {
+            lock.lock()
+            defer { lock.unlock() }
+            buf.append(contentsOf: [UInt8](data))
+            let before = entries.count
+            while let idx = buf[scan...].firstIndex(of: 0x0A) {
+                let line = decode(buf[scan..<idx])
+                scan = idx + 1
+                consume(line)
+            }
+            // 定期丢弃已消费前缀，防止大包长驻内存翻倍
+            if scan > 4_000_000 {
+                buf.removeFirst(scan)
+                scan = 0
+            }
+            return entries.count - before
+        }
+
+        /// 流结束：冲掉残行（无尾换行）与最后一个块
+        @discardableResult
+        func finish() -> [ArchiveEntry] {
+            lock.lock()
+            defer { lock.unlock() }
+            if scan < buf.count {
+                consume(decode(buf[scan...]))
+                buf.removeAll(keepingCapacity: false)
+                scan = 0
+            }
+            consume("")
+            return entries
+        }
+
+        private func decode(_ bytes: ArraySlice<UInt8>) -> String {
+            let arr = Array(bytes)
+            return String(bytes: arr, encoding: .utf8)
+                ?? String(bytes: arr, encoding: .isoLatin1)
+                ?? ""
+        }
+
+        private func consume(_ line: String) {
+            if line.trimmingCharacters(in: .whitespaces).isEmpty {
+                flush()
+                return
+            }
+            guard let eq = line.range(of: " = ") else { return }
+            let key = String(line[..<eq.lowerBound]).trimmingCharacters(in: .whitespaces)
+            fields[key] = String(line[eq.upperBound...])
+        }
+
+        private func flush() {
+            if let entry = ArchiveCore.makeEntry(fields: fields, unnamedPath: unnamedPath) {
+                entries.append(entry)
+            }
+            fields = [:]
+        }
+    }
+
+    /// 渐进式列表（ArcZip「先出根目录、后台补全索引」同款）：
+    /// 同一个 `7zz l -slt` 进程，stdout 以 readabilityHandler 边读边解析；
+    /// 每累计 150ms 把**部分条目**回吐 `onPreliminary`（根目录先可见、可浏览可全部解压），
+    /// 进程结束后 `completion` 给全量列表（与 list() 完全同口径：过滤/排序/无名条目）。
+    public static func listStreaming(url: URL, password: String? = nil,
+                                     includeAuxiliary: Bool = false,
+                                     onPreliminary: @escaping ([ArchiveEntry]) -> Void,
+                                     completion: @escaping ([ArchiveEntry], String?) -> Void) {
+        guard let bin = sevenZipPath else {
+            DispatchQueue.main.async { completion([], "未找到 7zz") }
+            return
+        }
+        var args = ["l", "-slt", "-ba"]
+        args += passwordArg(password ?? ArchivePasswords.get(url))
+        args += [url.path]
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: bin)
+            task.arguments = args
+            let outPipe = Pipe(), errPipe = Pipe()
+            task.standardOutput = outPipe
+            task.standardError = errPipe
+
+            var stderrData = Data()
+            errPipe.fileHandleForReading.readabilityHandler = { handle in
+                let chunk = handle.availableData
+                if chunk.isEmpty { handle.readabilityHandler = nil; return }
+                stderrData.append(chunk)
+            }
+
+            // 单文件流无名条目的兜底名——与 list() 同规则
+            var unnamedPath = url.deletingPathExtension().lastPathComponent
+            if ["tgz", "tbz", "tbz2", "txz"].contains(url.pathExtension.lowercased()) {
+                unnamedPath += ".tar"
+            } else if url.pathExtension.lowercased() == "swf" {
+                unnamedPath += "~.swf"
+            }
+            let streamer = ListOutputStreamer(unnamedPath: unnamedPath)
+            outPipe.fileHandleForReading.readabilityHandler = { handle in
+                let chunk = handle.availableData
+                if chunk.isEmpty { handle.readabilityHandler = nil; return }
+                streamer.feed(chunk)
+                // 节流时间戳在 streamer 锁内（readabilityHandler 可能并发回调）
+                guard streamer.shouldEmit(now: Date()) else { return }
+                let snapshot = streamer.snapshot
+                let partial = includeAuxiliary ? snapshot
+                    : snapshot.filter { !isAuxiliary($0.path) }
+                guard !partial.isEmpty else { return }
+                DispatchQueue.main.async { onPreliminary(partial) }
+            }
+
+            // 看门狗：120s 未结束按超时收尾（与 list 的 60s 同量级，大包放宽）
+            let watchdog = DispatchWorkItem { task.terminate() }
+            DispatchQueue.global().asyncAfter(deadline: .now() + 120, execute: watchdog)
+
+            do { try task.run() } catch {
+                watchdog.cancel()
+                DispatchQueue.main.async { completion([], "无法启动 7zz：\(error.localizedDescription)") }
+                return
+            }
+            task.waitUntilExit()
+            watchdog.cancel()
+            errPipe.fileHandleForReading.readabilityHandler = nil
+            stderrData.append(errPipe.fileHandleForReading.readDataToEndOfFile())
+
+            // 关键：waitUntilExit 不保证 readabilityHandler 已排空管道——
+            // 进程退出与最后一个 handler 回调是并发的，直接 finish() 会丢尾部条目
+            // （实测 20020 条只剩 19960）。关掉 stdout handler 后把残余一次读完再喂。
+            outPipe.fileHandleForReading.readabilityHandler = nil
+            let tail = outPipe.fileHandleForReading.readDataToEndOfFile()
+            if !tail.isEmpty { streamer.feed(tail) }
+
+            let code = task.terminationStatus
+            guard code == 0 else {
+                let msg = (String(data: stderrData, encoding: .utf8) ?? "")
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                DispatchQueue.main.async {
+                    completion([], msg.isEmpty ? "无法读取归档（可能需要密码）" : msg)
+                }
+                return
+            }
+            let all = streamer.finish()
+            let filtered = includeAuxiliary ? all : all.filter { !isAuxiliary($0.path) }
+            DispatchQueue.main.async { completion(filtered, nil) }
         }
     }
 

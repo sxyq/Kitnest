@@ -24,3 +24,6 @@ apps/FrsetNext/tools/**/amd_mcpui
 # 38 MB 已在仓库里存了一份，官网这份不再入库（避免翻倍）。
 FRONT/manual/gifs/
 ._*
+
+# 随包 scrcpy/adb 官方 release 产物（v291，tools/bundle_scrcpy.sh 生成，不入库）
+apps/FrsetNext/Resources/bin/scrcpy/

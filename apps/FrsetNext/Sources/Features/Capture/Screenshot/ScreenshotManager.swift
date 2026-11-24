@@ -373,7 +373,9 @@ public final class ScreenshotManager: ObservableObject {
                 shown += 1
                 if shown == 1 {
                     let ms = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000
-                    Log.info("Capture", String(format: "首块覆盖层可交互 %.0fms", ms))
+                    let selfLabel = ScreenSnapshot.displayID(of: screen).map { "D\($0)" } ?? "?"
+                    let priorityLabel = priority.flatMap { ScreenSnapshot.displayID(of: $0) }.map { "D\($0)" } ?? "无"
+                    Log.info("Capture", String(format: "首块覆盖层可交互 %.0fms（%@，光标屏 %@）", ms, selfLabel, priorityLabel))
                 }
             }
             if mirrored {
@@ -438,13 +440,26 @@ public final class ScreenshotManager: ObservableObject {
         }
         window.overlayView.onCancel = { [weak self] in self?.cancelCapture() }
         overlays.append(window)
+        // v292 B1：给首次真实输入事件留时间锚点（mouseDown/mouseMoved 首次触发时记一行）
+        window.overlayView.presentedAt = t0
+        let tConfig = DispatchTime.now().uptimeNanoseconds
         if activate { NSApp.activate(ignoringOtherApps: true) }
-        window.makeKeyAndOrderFront(nil)
+        let tActivate = DispatchTime.now().uptimeNanoseconds
+        if activate {
+            window.makeKeyAndOrderFront(nil)
+        } else {
+            // v292 B2：后续屏幕的覆盖层不再 makeKey——旧实现每块都 makeKeyAndOrderFront，
+            // 会把键盘焦点从光标屏（第一块）抢到后铺的屏幕上。鼠标点击仍可直接操作该屏。
+            window.orderFront(nil)
+        }
         let t2 = DispatchTime.now().uptimeNanoseconds
-        Log.info("Capture", String(format: "覆盖层上屏：%@ 建窗%.0fms 上屏%.0fms",
+        // 口径：这里是窗口服务器「orderFront 返回」耗时，不代表真实上屏/可交互。
+        Log.info("Capture", String(format: "覆盖层上屏：%@ 建窗%.0fms · 状态%.0fms · 激活%.0fms · orderFront返回%.0fms",
                                    ScreenSnapshot.displayID(of: screen).map { "D\($0)" } ?? "?",
                                    Double(t1 - t0) / 1_000_000,
-                                   Double(t2 - t1) / 1_000_000))
+                                   Double(tConfig - t1) / 1_000_000,
+                                   Double(tActivate - tConfig) / 1_000_000,
+                                   Double(t2 - tActivate) / 1_000_000))
     }
 
     private final class ScreenListBox: @unchecked Sendable {
@@ -465,33 +480,60 @@ public final class ScreenshotManager: ObservableObject {
         guard !screens.isEmpty else { return [] }
         let ordered = orderedScreens(screens, priority: priority)
         let box = ScreenListBox(ordered)
+        let streamStart = DispatchTime.now().uptimeNanoseconds
+        let priorityLabel = priority.flatMap { ScreenSnapshot.displayID(of: $0) }.map { "D\($0)" } ?? "无"
         let toastFrame = await MainActor.run { MenuBarToastManager.shared.captureExcludedWindowFrame }
         let exclusion: ScreenSnapshot.ToastExclusion = toastFrame.map { .visible($0) } ?? .none
         var collected: [(index: Int, image: CGImage?)] = []
-        await withTaskGroup(of: (Int, CGImage?).self) { group in
+        // v292（性能第二轮 B1/B2）：
+        // · 子任务实际完成耗时单独记（含通道选择），与主线程回调等待分开；
+        // · 父任务取消或代次过期后不再为后续屏幕派发子任务；已派发的由 epoch 轮询快速终止，
+        //   结果一律丢弃，不回主线程建覆盖层（旧实现取消后仍会 addTask 剩余屏幕）。
+        await withTaskGroup(of: (Int, CGImage?, Double).self) { group in
             var next = 0
             let limit = min(2, ordered.count)
             while next < limit {
                 let index = next
                 next += 1
+                let displayID = ScreenSnapshot.displayID(of: box.screens[index])
                 group.addTask {
+                    let t0 = DispatchTime.now().uptimeNanoseconds
                     let image = await ScreenSnapshot.captureScreenForScreenshot(box.screens[index],
                                                                                 epoch: epoch,
                                                                                 toast: exclusion)
-                    return (index, image)
+                    let ms = Double(DispatchTime.now().uptimeNanoseconds - t0) / 1_000_000
+                    Log.info("Capture", String(format: "流式子任务 %@ 完成 %.0fms",
+                                               displayID.map { "D\($0)" } ?? "?", ms))
+                    return (index, image, ms)
                 }
             }
-            while let (index, image) = await group.next() {
+            while let (index, image, taskMs) = await group.next() {
+                if Task.isCancelled || (epoch.map { !ScreenSnapshot.isCurrentEpoch($0) } ?? false) {
+                    group.cancelAll()
+                    continue
+                }
                 collected.append((index, image))
+                let waitStart = DispatchTime.now().uptimeNanoseconds
                 await onReady(box.screens[index], image)
+                let readyMs = Double(DispatchTime.now().uptimeNanoseconds - waitStart) / 1_000_000
+                let sinceStart = Double(DispatchTime.now().uptimeNanoseconds - streamStart) / 1_000_000
+                let idLabel = ScreenSnapshot.displayID(of: box.screens[index]).map { "D\($0)" } ?? "?"
+                Log.info("Capture", String(format: "流式快照 %@：子任务 %.0fms · 主线程回调 %.0fms · 至今 %.0fms（光标屏 %@）",
+                                           idLabel, taskMs, readyMs, sinceStart, priorityLabel))
                 if next < ordered.count {
+                    if Task.isCancelled { group.cancelAll(); continue }
                     let index = next
                     next += 1
+                    let displayID = ScreenSnapshot.displayID(of: box.screens[index])
                     group.addTask {
+                        let t0 = DispatchTime.now().uptimeNanoseconds
                         let image = await ScreenSnapshot.captureScreenForScreenshot(box.screens[index],
                                                                                     epoch: epoch,
                                                                                     toast: exclusion)
-                        return (index, image)
+                        let ms = Double(DispatchTime.now().uptimeNanoseconds - t0) / 1_000_000
+                        Log.info("Capture", String(format: "流式子任务 %@ 完成 %.0fms",
+                                                   displayID.map { "D\($0)" } ?? "?", ms))
+                        return (index, image, ms)
                     }
                 }
             }

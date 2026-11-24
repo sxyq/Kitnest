@@ -1,0 +1,840 @@
+import AppKit
+import Combine
+
+// MARK: - 传输与投屏 引擎层（v103 重构，2026-10-21）
+//
+// 需求：中转站彻底重构——旧 OPPO 云端桥接 / 局域网扫码直传全部下线；
+//   传输走「原生互传」路线（omdrop-owl 的思路：对端零安装——macOS 上即
+//   系统级隔空投送 NSSharingService，iPhone 零安装收发）；
+//   投屏走「AndroMeld 同实现方式」（商业闭源不可接，其底座=scrcpy 式
+//   ADB 镜像——我们按同路线自研，Android 侧同样零安装，ADB 授权即用）。
+// 方案与调研结论见 docs/传输与投屏-重构方案.md。
+
+// MARK: ① 隔空投送发送（NSSharingService 系统面板，对端 iPhone 零安装）
+
+/// 跨模块空投请求（v112；对标报告第一批 P1「空投联动」）：
+/// 剪贴板历史条目 / 截图动作链等非 Transfer 模块通过此通知请求空投，
+/// 由 App 层接线到 AirDropSendEngine（模块间不互相引用具体类型，CONTRACT §1.3）。
+/// userInfo: `urls` = [URL]（必须已存在磁盘上）
+public extension Notification.Name {
+    static let frsetAirDropFiles = Notification.Name("frset.airDropFiles")
+}
+
+public enum AirDropSendEngine {
+
+    /// 系统空投服务是否可用（老系统/被 MDM 禁用时为 false）
+    public static var isAvailable: Bool { cachedService != nil }
+
+    // MARK: v120 修复「点了没显示 + 卡顿」
+    //
+    // 两个真根因（用户实测：「隔空投送的 UI 没有显示，点击还十分卡顿」）：
+    //  ① 面板是 FloatingPanel（styleMask 含 .nonactivatingPanel）——**点击不会激活本 app**。
+    //     而 NSSharingService.perform(withItems:) 在 app 未激活时不会显示系统分享面板，
+    //     于是表现为"点了没反应"。
+    //  ② NSSharingService(named:.sendViaAirDrop) 首次实例化要同步初始化 AWDL/网络栈，
+    //     实测阻塞主线程 1~3s → 点下去先卡住，之后面板才"突然"冒出来。
+    //
+    // 处置：实例缓存 5 分钟（warmUp 在页面出现时预热）+ 先激活 app 再异步 perform。
+
+    private static var _service: NSSharingService?
+    private static var _stamp: TimeInterval = 0
+    private static let lock = NSLock()
+    private static let feedbackDelegate = FeedbackDelegate()
+
+    private final class FeedbackDelegate: NSObject, NSSharingServiceDelegate {
+        func sharingService(_ sharingService: NSSharingService, didShareItems items: [Any]) {
+            HapticService.shared.perform(.transferCompleted)
+            let paths = items.compactMap { ($0 as? URL)?.path }
+            NotificationCenter.default.post(name: .tutorialFileTransferCompleted, object: nil,
+                                            userInfo: ["paths": paths])
+        }
+        func sharingService(_ sharingService: NSSharingService, didFailToShareItems items: [Any], error: Error) {
+            if (error as NSError).code != NSUserCancelledError { HapticService.shared.perform(.transferFailed) }
+        }
+    }
+
+    private static var cachedService: NSSharingService? {
+        lock.lock(); defer { lock.unlock() }
+        let now = Date().timeIntervalSince1970
+        if let s = _service, now - _stamp < 300 { return s }
+        let s = NSSharingService(named: .sendViaAirDrop)
+        _service = s
+        _stamp = now
+        return s
+    }
+
+    /// 预热：把首次实例化的 1~3s 挪到用户点击之前（页面 onAppear 调一次即可）
+    public static func warmUp() {
+        DispatchQueue.global(qos: .utility).async {
+            _ = cachedService
+            Log.info("Transfer", "隔空投送已预热")
+        }
+    }
+
+    /// 调起系统「隔空投送」面板发送文件
+    /// - Returns: 是否成功发起（服务不可用/无文件时 false 并提示）
+    @discardableResult
+    public static func send(urls: [URL], relativeTo view: NSView? = nil) -> Bool {
+        guard !urls.isEmpty else {
+            Toast.show("没有可发送的文件", icon: "exclamationmark.triangle", isWarning: true)
+            return false
+        }
+        guard let service = cachedService else {
+            HapticService.shared.perform(.transferFailed)
+            Toast.show("本机隔空投送不可用（检查系统设置）", icon: "exclamationmark.triangle", isWarning: true)
+            return false
+        }
+        // ① 先把本 app 激活（nonactivating 面板不会自己激活），否则系统面板不出现。
+        //    面板 hidesOnDeactivate=false 且 canBecomeKey=true，激活后仍是 key，不会自己收起。
+        NSApp.activate(ignoringOtherApps: true)
+        // ② 异步 perform：让按钮的按压态先画出来，避免"点下去像卡死"
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+            service.delegate = feedbackDelegate
+            service.perform(withItems: urls)
+            Log.info("Transfer", "隔空投送发起：\(urls.count) 个文件")
+        }
+        return true
+    }
+}
+
+// MARK: ② 隔空投送接收（系统落盘 ~/Downloads → 自动入库本地暂存）
+
+/// macOS 系统收空投默认落 ~/Downloads。监听新增完整文件 → 回调入库。
+public final class AirDropReceiveWatcher {
+    public static let shared = AirDropReceiveWatcher()
+
+    /// 收到新文件（主线程回调）
+    public var onFileReceived: ((URL) -> Void)?
+
+    private var source: DispatchSourceFileSystemObject?
+    private let queue = DispatchQueue(label: "com.frset.airdrop.receive")
+    private var seen: Set<String> = []
+    private var started = false
+
+    private var downloadsDir: URL {
+        FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
+    }
+
+    public func start() {
+        guard !started else { return }
+        started = true
+        // v105（2026-10-21 卡死根因，sample 栈实锤）：此处在**主线程**做
+        // contentsOfDirectory + open(dir)——~/Downloads 枚举被文件系统/同步盘
+        // 挂起时主线程整体冻结（实测 236s 完整卡死）。全部移后台队列执行。
+        queue.async { [weak self] in
+            guard let self else { return }
+            let dir = self.downloadsDir
+            self.seen = Set((try? FileManager.default.contentsOfDirectory(atPath: dir.path)) ?? [])
+            let fd = open(dir.path, O_EVTONLY)
+            guard fd >= 0 else {
+                Log.warn("Transfer", "Downloads 目录监听打开失败")
+                return
+            }
+            let src = DispatchSource.makeFileSystemObjectSource(
+                fileDescriptor: fd, eventMask: [.write, .extend], queue: self.queue)
+            src.setEventHandler { [weak self] in self?.scan() }
+            src.setCancelHandler { close(fd) }
+            src.resume()
+            self.source = src
+            Log.info("Transfer", "空投接收监听已启动（~/Downloads）")
+        }
+    }
+
+    /// 扫描新落盘的完整文件（跳过 .download 等未完成文件）
+    private func scan() {
+        let dir = downloadsDir
+        guard let names = try? FileManager.default.contentsOfDirectory(atPath: dir.path) else { return }
+        for name in names where !seen.contains(name) {
+            let url = dir.appendingPathComponent(name)
+            var isDir: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir),
+                  !isDir.boolValue,
+                  !name.hasSuffix(".download"),
+                  !name.hasPrefix(".") else { continue }
+            seen.insert(name)
+            // 稳定性小等待（拷贝刚完成的文件偶尔仍在收尾）
+            queue.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+                guard FileManager.default.fileExists(atPath: url.path) else { return }
+                Log.info("Transfer", "空投接收：\(name)")
+                DispatchQueue.main.async { self?.onFileReceived?(url) }
+            }
+        }
+    }
+}
+
+// MARK: ③ 投屏（scrcpy 引擎——AndroMeld 同实现路线：ADB + 视频流镜像）
+
+public enum ScreenCastEngine {
+
+    /// scrcpy 可执行文件探测（随包 → 工程目录 → PATH / Homebrew / 手动放置）
+    ///
+    /// v291（立项 v2 P0「捆绑 scrcpy」）：官方 release 目录整体随包在
+    /// `Resources/bin/scrcpy/`（scrcpy + scrcpy-server + adb 同目录，由
+    /// tools/bundle_scrcpy.sh 在构建期填充，产物不入库）。官方构建只链系统
+    /// 框架，整目录拷贝即可运行；server 与二进制同目录时 scrcpy 自行找到。
+    public static func findScrcpy() -> String? {
+        if let bundled = Bundle.main.url(forResource: "scrcpy", withExtension: nil,
+                                         subdirectory: "bin/scrcpy")?.path,
+           FileManager.default.isExecutableFile(atPath: bundled) {
+            return bundled
+        }
+        // 开发机：工程目录里的随包副本（build.sh 部署时随 Resources 一起进 .app）
+        let dev = "/Users/sunyiyang/Desktop/Project/frset-rebuild/apps/FrsetNext/Resources/bin/scrcpy/scrcpy"
+        if FileManager.default.isExecutableFile(atPath: dev) { return dev }
+        let candidates = [
+            "\(NSHomeDirectory())/.local/bin/scrcpy",   // v115：实测本机装在这里
+            "/opt/homebrew/bin/scrcpy",
+            "/usr/local/bin/scrcpy",
+            "/usr/bin/scrcpy",
+        ]
+        for p in candidates where FileManager.default.isExecutableFile(atPath: p) {
+            return p
+        }
+        for directory in ProcessInfo.processInfo.environment["PATH", default: ""].components(separatedBy: ":") {
+            let path = (directory.isEmpty ? "." : directory) + "/scrcpy"
+            if FileManager.default.isExecutableFile(atPath: path) { return path }
+        }
+        return nil
+    }
+
+    /// adb 可执行文件探测（随包 → 工程目录 → PATH / Homebrew / SDK）
+    public static func findADB() -> String? {
+        if let bundled = Bundle.main.url(forResource: "adb", withExtension: nil,
+                                         subdirectory: "bin/scrcpy")?.path,
+           FileManager.default.isExecutableFile(atPath: bundled) {
+            return bundled
+        }
+        let dev = "/Users/sunyiyang/Desktop/Project/frset-rebuild/apps/FrsetNext/Resources/bin/scrcpy/adb"
+        if FileManager.default.isExecutableFile(atPath: dev) { return dev }
+        let candidates = [
+            "\(NSHomeDirectory())/.local/bin/adb",   // v115：实测本机 adb 装在这里（应用 PATH 看不到）
+            "/opt/homebrew/bin/adb",
+            "/usr/local/bin/adb",
+            "\(NSHomeDirectory())/Library/Android/sdk/platform-tools/adb",
+        ]
+        for p in candidates where FileManager.default.isExecutableFile(atPath: p) {
+            return p
+        }
+        return nil
+    }
+
+    private static var knownDevices: Set<String>?
+
+    /// 只在真实设备集合变化时反馈；初次读取不把已有连接当成新连接。
+    static func deviceConnectionChanged(_ serial: String, connected: Bool) {
+        if let knownDevices, knownDevices.contains(serial) == connected { return }
+        if knownDevices != nil {
+            if connected { knownDevices?.insert(serial) } else { knownDevices?.remove(serial) }
+        }
+        HapticService.shared.perform(connected ? .deviceConnected : .deviceDisconnected)
+    }
+
+    /// 已连接设备列表（后台执行——adb 挂起不得卡主线程，v105 卡死教训）
+    public static func connectedDevices(completion: @escaping ([(serial: String, state: String)]?) -> Void) {
+        guard let adb = findADB() else { completion(nil); return }
+        DispatchQueue.global(qos: .userInitiated).async {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: adb)
+            task.arguments = ["devices"]
+            let pipe = Pipe()
+            task.standardOutput = pipe
+            task.standardError = FileHandle.nullDevice
+            do { try task.run() }
+            catch { DispatchQueue.main.async { completion(nil) }; return }
+            task.waitUntilExit()
+            guard task.terminationStatus == 0 else {
+                DispatchQueue.main.async { completion(nil) }
+                return
+            }
+            let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(),
+                             encoding: .utf8) ?? ""
+            var result: [(String, String)] = []
+            for line in out.split(separator: "\n").dropFirst() {
+                let parts = line.split(separator: "\t")
+                if parts.count >= 2 {
+                    // v159：state 可能带附加信息（`device product:xxx model:yyy`），
+                    // 只取第一个词——否则 `== "device"` 的判断会漏掉新版本 adb 的输出。
+                    let state = String(parts[1].split(separator: " ").first ?? parts[1])
+                    result.append((String(parts[0]), state))
+                }
+            }
+            DispatchQueue.main.async {
+                let current = Set(result.filter { $0.1 == "device" }.map { $0.0 })
+                if let previous = knownDevices {
+                    if !current.subtracting(previous).isEmpty { HapticService.shared.perform(.deviceConnected) }
+                    if !previous.subtracting(current).isEmpty { HapticService.shared.perform(.deviceDisconnected) }
+                }
+                knownDevices = current
+                completion(result)
+            }
+        }
+    }
+
+    /// 投屏窗口的对外名字（用户要求：不出现 scrcpy 字样）
+    public static let castAppName = "Kitnest 投屏"
+
+    /// 把 scrcpy 复制成「我们自己的可执行名」再启动。
+    ///
+    /// 用户要求（2026-10-30）：「不能写出 SCRCPY 这种字样，应该是使用我们的名字命名的窗口」。
+    /// macOS 的菜单栏 / 任务栏 / 活动监视器显示的是**可执行文件名**，直接跑 scrcpy 就一定是
+    /// "scrcpy"。所以把它（连同 server jar）复制到 App 数据目录下、改名为 `Kitnest 投屏`，
+    /// 再设置 `SCRCPY_SERVER_PATH` 指向同一份 jar，避免它按可执行文件目录找不到 server。
+    private static func brandedLauncher(_ real: String) -> (exe: String, server: String?) {
+        let fm = FileManager.default
+        let realURL = URL(fileURLWithPath: real).resolvingSymlinksInPath()
+        let dir = AppDirectories.sub("bin")
+        let exeURL = dir.appendingPathComponent(castAppName)
+
+        func needsCopy(_ dst: URL, from src: URL) -> Bool {
+            guard fm.fileExists(atPath: dst.path) else { return true }
+            let a = (try? fm.attributesOfItem(atPath: dst.path))?[.modificationDate] as? Date ?? .distantPast
+            let b = (try? fm.attributesOfItem(atPath: src.path))?[.modificationDate] as? Date ?? .distantFuture
+            return a < b
+        }
+
+        if needsCopy(exeURL, from: realURL) {
+            try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            try? fm.removeItem(at: exeURL)
+            do { try fm.copyItem(at: realURL, to: exeURL) } catch {
+                Log.warn("Transfer", "投屏组件改名失败，回退原名：\(error.localizedDescription)")
+                return (real, nil)
+            }
+            try? fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: exeURL.path)
+        }
+
+        // server jar 与可执行文件同目录（本机实测 ~/.local/share/scrcpy/scrcpy-server）
+        var server: String?
+        let srcServer = realURL.deletingLastPathComponent().appendingPathComponent("scrcpy-server")
+        if fm.fileExists(atPath: srcServer.path) {
+            let dstServer = dir.appendingPathComponent("scrcpy-server")
+            if needsCopy(dstServer, from: srcServer) {
+                try? fm.removeItem(at: dstServer)
+                try? fm.copyItem(at: srcServer, to: dstServer)
+            }
+            if fm.fileExists(atPath: dstServer.path) { server = dstServer.path }
+        }
+        // 图标也一并复制，否则 scrcpy 会报 "Could not load icon"（只是 Dock 图标，不影响功能）
+        let srcIcon = realURL.deletingLastPathComponent().appendingPathComponent("scrcpy.png")
+        if fm.fileExists(atPath: srcIcon.path),
+           needsCopy(dir.appendingPathComponent("scrcpy.png"), from: srcIcon) {
+            try? fm.removeItem(at: dir.appendingPathComponent("scrcpy.png"))
+            try? fm.copyItem(at: srcIcon, to: dir.appendingPathComponent("scrcpy.png"))
+        }
+        return (exeURL.path, server)
+    }
+
+    /// 启动投屏镜像（scrcpy 独立进程；等 ADB 连真机后实测调参）
+    /// - Parameter serial: 指定设备（多设备时必填）
+    public static func startMirror(serial: String? = nil,
+                                   maxSize: Int? = nil,
+                                   bitRateMbps: Int? = nil) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            guard let scrcpy = findScrcpy() else {
+                DispatchQueue.main.async {
+                    Toast.show("未找到投屏组件", icon: "exclamationmark.triangle", isWarning: true)
+                }
+                return
+            }
+            let launcher = prepareLaunch(scrcpy)
+            let adb = findADB()
+            DispatchQueue.main.async {
+                runMirror(launcher, adb: adb, serial: serial, maxSize: maxSize, bitRateMbps: bitRateMbps)
+            }
+        }
+    }
+
+    private static func runMirror(_ launcher: (exe: String, server: String?, clipboard: [String]),
+                                  adb: String?, serial: String?, maxSize: Int?, bitRateMbps: Int?) {
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: launcher.exe)
+        // v117：画质走「设置 → 文件中转 → 投屏画质」（默认 1920p / 16Mbps / 60fps）
+        var args: [String] = ["--stay-awake", "--no-power-on"]
+        // v130（AndroMeld/AgentHUD）：显式剪贴板参数（AndroMeld P0-2），不再依赖默认值
+        args += launcher.clipboard
+        let size = maxSize ?? TransferDockPref.CastQuality.maxSize
+        if size > 0 { args += ["--max-size", "\(size)"] }
+        args += ["--video-bit-rate", "\(bitRateMbps ?? TransferDockPref.CastQuality.bitrate)M"]
+        let fps = TransferDockPref.CastQuality.fps
+        if fps > 0 { args += ["--max-fps", "\(fps)"] }
+        if let serial { args += ["--serial", serial] }
+        // 窗口标题也用我们的名字（默认是设备型号）
+        args += ["--window-title", castAppName]
+        task.arguments = args
+        // v166.1：**必须显式把 ADB 指给我们自己在用的那个**。
+        // GUI 进程的 PATH 与终端不同，scrcpy 会去找别的 adb / 起第二个 server，
+        // 结果 `adb reverse` 落到另一个 server 上 → 报 `ERROR: Server connection failed`
+        // （真机实测：终端里手动跑正常，App 拉起就必失败）。
+        var env = ProcessInfo.processInfo.environment
+        if let adb {
+            env["ADB"] = adb
+            env["PATH"] = (adb as NSString).deletingLastPathComponent + ":" + (env["PATH"] ?? "/usr/bin:/bin")
+        }
+        // 改名后的可执行文件不在原目录，server jar 必须显式指路
+        if let server = launcher.server { env["SCRCPY_SERVER_PATH"] = server }
+        task.environment = env
+        // v166.1：把 scrcpy 的 stderr 收进日志。以前它带窗口一起消失时我们什么都看不到，
+        // 只能看到「投屏已启动」然后窗口没了（本次排障就卡在这）。
+        let errPipe = Pipe()
+        task.standardError = errPipe
+        task.standardOutput = FileHandle.nullDevice
+        let reading = DispatchGroup()
+        let errorTail = NSMutableData()
+        reading.enter()
+        // v165：scrcpy 退出 → 摘掉贴在它窗口上的控制条
+        task.terminationHandler = { proc in
+            reading.wait()
+            let text = String(decoding: errorTail as Data, as: UTF8.self)
+            let tail = text.split(separator: "\n").suffix(6).joined(separator: " | ")
+            Log.info("Transfer", "scrcpy 退出 status=\(proc.terminationStatus) err=\(tail)")
+            DispatchQueue.main.async {
+                if ScrcpyControlBarController.shared.isAttached(to: proc.processIdentifier) {
+                    ScrcpyControlBarController.shared.detach()
+                }
+            }
+        }
+        do {
+            try task.run()
+            DispatchQueue.global(qos: .utility).async {
+                defer {
+                    errPipe.fileHandleForReading.closeFile()
+                    reading.leave()
+                }
+                var tail = Data()
+                while true {
+                    let data = errPipe.fileHandleForReading.readData(ofLength: 4096)
+                    guard !data.isEmpty else { break }
+                    tail.append(data)
+                    // 按原始字节保留末六行，跨读取块的 UTF-8 和未结束行继续拼接。
+                    let endedLine = tail.last == 10
+                    tail = Data(tail.split(separator: 10).suffix(6).joined(separator: [UInt8(10)]))
+                    if endedLine, !tail.isEmpty { tail.append(10) }
+                }
+                errorTail.append(tail)
+            }
+            // v166.1：把镜像窗带到前台。我们是 LSUIElement（无 Dock），系统不会自动激活
+            // 子进程的窗口；不激活就会出现「点了投屏，画面在别的窗口后面」。
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                NSRunningApplication(processIdentifier: task.processIdentifier)?
+                    .activate(options: [.activateIgnoringOtherApps])
+            }
+            Log.info("Transfer", "投屏启动：scrcpy \(args.joined(separator: " "))")
+            // v165（用户要求）：按钮要贴在 **scrcpy 外部窗口** 底部，不在我们面板里
+            ScrcpyControlBarController.shared.attach(serial: serial, processID: task.processIdentifier)
+            // v166.3：手机熄屏后 scrcpy 只能拿黑帧——检测休眠就唤醒到锁屏，保证镜像可用
+            CastScreenKeeper.shared.start(serial: serial)
+            Toast.show(launcher.clipboard.contains("--no-clipboard-autosync")
+                       ? "投屏已启动（双向剪贴板：已关闭）"
+                       : "投屏已启动（镜像窗 · 双向剪贴板：已开启）", icon: "display")
+        } catch {
+            task.terminationHandler = nil
+            errPipe.fileHandleForReading.closeFile()
+            errPipe.fileHandleForWriting.closeFile()
+            reading.leave()
+            Toast.show("投屏启动失败：\(error.localizedDescription)",
+                       icon: "exclamationmark.triangle", isWarning: true)
+        }
+    }
+
+    // MARK: v130（AndroMeld/AgentHUD）：显式剪贴板参数（AndroMeld P0-2）
+    //
+    // 开关：TransferDockPref.CastQuality.clipboardAutoSync（默认开），
+    // UI 明示「双向剪贴板：已开启」；关掉就不传同步参数。
+    // scrcpy 版本差异（本机 4.1 实测）：
+    //   · 4.x：只有 `--no-clipboard-autosync`，默认即双向同步 → 开=不传（即默认开），
+    //     关=传 --no-clipboard-autosync。**4.1 不认识 --clipboard-autosync**（实测退出码 1）。
+    //   · 2.x/3.x：有 `--clipboard-autosync` / `--no-clipboard-autosync` 一对。
+    // 所以按 scrcpy --help 探测支持集，开时能显式传就显式传（保证「显式」语义），
+    // 不支持显式开参数的版本回落「不传 = 默认开启」。
+    private static let launchPreparation = DispatchQueue(label: "com.sxyq.kitnest.cast.prepare")
+
+    static func prepareLaunch(_ path: String) -> (exe: String, server: String?, clipboard: [String]) {
+        launchPreparation.sync {
+            let launcher = brandedLauncher(path)
+            let clipboard: [String]
+            if TransferDockPref.CastQuality.clipboardAutoSync {
+                clipboard = clipboardExplicitOnSupported(launcher.exe) ? ["--clipboard-autosync"] : []
+            } else {
+                clipboard = ["--no-clipboard-autosync"]
+            }
+            return (launcher.exe, launcher.server, clipboard)
+        }
+    }
+
+    /// scrcpy 是否支持显式 `--clipboard-autosync`（探测结果缓存 10 分钟）
+    /// 注：`--no-clipboard-autosync` 不含子串 `--clipboard-autosync`（中间隔着 "no"），
+    /// 直接 contains 判正参数即可。
+    private static var clipProbe: (path: String, modified: Date?, stamp: Date, supported: Bool)?
+    private static func clipboardExplicitOnSupported(_ scrcpy: String) -> Bool {
+        let modified = (try? FileManager.default.attributesOfItem(atPath: scrcpy)[.modificationDate]) as? Date
+        if let cached = clipProbe, cached.path == scrcpy, cached.modified == modified,
+           Date().timeIntervalSince(cached.stamp) < 600 { return cached.supported }
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: scrcpy)
+        task.arguments = ["--help"]
+        let pipe = Pipe()
+        task.standardOutput = pipe
+        task.standardError = FileHandle.nullDevice
+        do { try task.run() } catch { return false }
+        let help = String(decoding: pipe.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+        task.waitUntilExit()
+        guard task.terminationStatus == 0 else { return false }
+        let supported = help.contains("--clipboard-autosync")
+        clipProbe = (scrcpy, modified, Date(), supported)
+        return supported
+    }
+}
+
+// MARK: ④ 无线配对（v112；对标报告第一批 P0——AndroMeld「随叫随到」的主路径）
+//
+// Android 11+ 无线调试流程：开发者选项 → 无线调试 → 「使用配对码配对设备」
+// 得到 ip:port + 6 位配对码 → `adb pair ip:port code`（一次性）→
+// 之后 `adb connect ip:port` 随连随用（无线调试页显示的端口是 connect 端口，
+// 与 pair 端口不同）。局域网发现用 `adb mdns services`（adb 自带 mDNS，
+// 比自写 NWBrowser 少一层解析，且能同时发现 pairing/connecting 两类服务）。
+
+public enum ADBWirelessEngine {
+
+    /// 一条 mDNS 发现结果
+    public struct DiscoveredService: Identifiable {
+        public let id: String          // name+target 组合
+        public let name: String        // 服务名（adb-xxx-yyy 或设备名）
+        public let target: String      // ip:port
+        public let needsPairing: Bool  // _adb-tls-pairing = 需要配对码
+    }
+
+    /// 上一次发现结果的签名（只在变化时打日志，避免每 1.2s 刷屏）
+    private static var lastDiscoverySignature = ""
+
+    /// 进程内 Bonjour 浏览器（复用同一实例，避免每次轮询新建）
+    private static let bonjour = AdbBonjour()
+
+    /// 发现 adb 无线调试服务。
+    ///
+    /// v164（2026-10-29，用户「扫码后连不上」）：**先走系统 Bonjour，adb 解析降为兜底**。
+    /// 依据见 `AdbBonjour.swift` 头注：`adb mdns services` 的列表会周期性变空
+    /// （实测 2~14s 一次，同一时刻 `dns-sd` 一直能看到），依赖它就会「等不到手机」。
+    ///
+    /// 同时修了输出解析：adb 37 给的是**三列**（实例名 / 服务类型 / ip:port），
+    /// 旧代码按两列读，把服务类型当成 ip:port，`contains(":")` 全部 continue ——
+    /// 即使手机广播了也永远发现不了。
+    public static func discoverServices(completion: @escaping ([DiscoveredService]?) -> Void) {
+        bonjour.browse { hits in
+            if !hits.isEmpty {
+                let result = hits.map {
+                    DiscoveredService(id: "\($0.name)@\($0.host):\($0.port)",
+                                      name: $0.name,
+                                      target: "\($0.host):\($0.port)",
+                                      needsPairing: $0.pairing)
+                }
+                Self.emit(result, completion: completion)
+                return
+            }
+            Self.discoverViaADB(completion: completion)
+        }
+    }
+
+    /// 兜底：解析 `adb mdns services`（旧版 adb / Bonjour 被防火墙拦时）
+    private static func discoverViaADB(completion: @escaping ([DiscoveredService]?) -> Void) {
+        ADBExtrasEngine.run(["mdns", "services"], timeout: nil) { out, _ in
+            guard let out, !out.isEmpty else { emit([], completion: completion); return }
+            var result: [DiscoveredService] = []
+            var seen = Set<String>()
+            for line in out.split(separator: "\n") {
+                let l = line.trimmingCharacters(in: .whitespaces)
+                let parts = l.split(separator: "\t").map { String($0) }
+                var instance = ""
+                var serviceType = ""
+                var target = ""
+                if parts.count >= 3 {
+                    // 新格式：实例名 / 服务类型 / ip:port
+                    instance = parts[0]
+                    serviceType = parts[1]
+                    target = parts[2]
+                } else if parts.count == 2 {
+                    // 旧格式：`<实例>._adb-tls-xxx._tcp` + ip:port
+                    serviceType = parts[0]
+                    target = parts[1]
+                    instance = parts[0]
+                        .replacingOccurrences(of: "._adb-tls-connect._tcp", with: "")
+                        .replacingOccurrences(of: "._adb-tls-pairing._tcp", with: "")
+                } else {
+                    continue
+                }
+                guard target.contains(":") else { continue }
+                let needsPairing = serviceType.contains("_adb-tls-pairing")
+                    || instance.contains("_adb-tls-pairing")
+                let id = instance + "@" + target
+                guard !seen.contains(id) else { continue }
+                seen.insert(id)
+                result.append(DiscoveredService(id: id, name: instance,
+                                                target: target, needsPairing: needsPairing))
+            }
+            emit(result, completion: completion)
+        }
+    }
+
+    /// 统一下发：切主线程 + 结果变化时才打日志
+    private static func emit(_ result: [DiscoveredService],
+                             completion: @escaping ([DiscoveredService]?) -> Void) {
+        DispatchQueue.main.async {
+            // v164 排障：发现结果「变化时」才打一条。扫码卡住时，这条日志能区分
+            // 「手机根本没广播」与「广播了但我们解析不出来」——本次故障就是后者。
+            let sig = result
+                .map { "\($0.name)|\($0.target)|\($0.needsPairing ? "pair" : "conn")" }
+                .sorted().joined(separator: "，")
+            if sig != lastDiscoverySignature {
+                lastDiscoverySignature = sig
+                Log.info("Transfer", "mDNS 发现 \(result.count) 条：\(sig.isEmpty ? "（无）" : sig)")
+            }
+            completion(result)
+        }
+    }
+
+    /// `adb pair ip:port code`（后台执行；输出如 "Successfully paired to ..."）
+    public static func pair(host: String, port: String, code: String,
+                            completion: @escaping (String) -> Void) {
+        ADBExtrasEngine.run(["pair", "\(host):\(port)", code], timeout: nil) { out, _ in
+            DispatchQueue.main.async { completion(out ?? "adb 不可用") }
+        }
+    }
+
+    /// `adb connect ip:port`（后台执行；输出如 "connected to ..." / "already connected"）
+    /// - Parameter timeout: 超时秒数。**必须给**：`adb connect` 打到不可达地址时
+    ///   自身要等满 75 秒 TCP 超时才返回（实测 10.255.255.1 精确 75s），
+    ///   不给超时的话「重连上次设备」会转圈一分多钟。
+    public static func connect(host: String, port: String,
+                               timeout: TimeInterval? = nil,
+                               completion: @escaping (String) -> Void) {
+        ADBExtrasEngine.run(["connect", "\(host):\(port)"], timeout: timeout) { out, status in
+            if status == 0, out?.lowercased().hasPrefix("connected to ") == true {
+                ScreenCastEngine.deviceConnectionChanged("\(host):\(port)", connected: true)
+            }
+            DispatchQueue.main.async { completion(out ?? "adb 不可用") }
+        }
+    }
+
+    /// 断开一条连接。
+    ///
+    /// v166.4：用于「未授权（unauthorized）」自救——adb 对已记录但未授权的传输**不会**
+    /// 自己重新握手，只有 disconnect 之后再 connect 才会重新向手机发起授权请求，
+    /// 手机上才会重新弹出「允许 USB 调试吗」。
+    public static func disconnect(_ serial: String, completion: (() -> Void)? = nil) {
+        ADBExtrasEngine.run(["disconnect", serial], timeout: 5) { out, status in
+            if status == 0, out?.lowercased().hasPrefix("disconnected ") == true {
+                ScreenCastEngine.deviceConnectionChanged(serial, connected: false)
+            }
+            DispatchQueue.main.async { completion?() }
+        }
+    }
+
+}
+
+// MARK: ⑤ ADB 文件桥（v112；对标报告第一批 P1——暂存区 ↔ 手机，扫码直传的 Android 侧替代）
+
+public enum ADBFileBridge {
+
+    // MARK: 带进度的推送（v122；用户：「数据也要显示」）
+
+    /// 传输进度快照（整个批次，不是单文件）
+    public struct PushProgress {
+        public var currentFile: String = ""
+        public var fileIndex: Int = 0
+        public var fileCount: Int = 0
+        public var bytesDone: Int64 = 0
+        public var bytesTotal: Int64 = 0
+        public var bytesPerSecond: Double = 0
+
+        public init() {}
+
+        public var fraction: Double {
+            bytesTotal > 0 ? min(1, Double(bytesDone) / Double(bytesTotal)) : 0
+        }
+        public var speedText: String {
+            guard bytesPerSecond > 1024 else { return "" }
+            return ByteCountFormatter.string(fromByteCount: Int64(bytesPerSecond), countStyle: .file) + "/s"
+        }
+        public var etaText: String {
+            guard bytesPerSecond > 1024, bytesTotal > bytesDone else { return "" }
+            let secs = Double(bytesTotal - bytesDone) / bytesPerSecond
+            if secs < 60 { return String(format: "%.0fs", secs) }
+            return String(format: "%.0fm%.0fs", floor(secs / 60), secs.truncatingRemainder(dividingBy: 60))
+        }
+        public var doneText: String {
+            ByteCountFormatter.string(fromByteCount: bytesDone, countStyle: .file)
+                + " / " + ByteCountFormatter.string(fromByteCount: bytesTotal, countStyle: .file)
+        }
+    }
+
+    final class PushTracker {
+        var fileCount = 0
+        var bytesDone: Int64 = 0
+        var bytesTotal: Int64 = 0
+        var start = Date()
+        var log = ""
+    }
+
+    /// 带进度推送：`adb push -p` 会在 stderr 打 `[ 42%] /path`，逐块解析换算成整体进度与速率
+    public static func push(urls: [URL],
+                            remoteDir: String = "/sdcard/Download/Kitnest",
+                            progress: @escaping (PushProgress) -> Void,
+                            completion: @escaping (Int, String) -> Void) {
+        guard !urls.isEmpty else {
+            DispatchQueue.main.async { completion(0, "没有要推送的文件") }
+            return
+        }
+        let fm = FileManager.default
+        let sizes: [Int64] = urls.map {
+            ((try? fm.attributesOfItem(atPath: $0.path))?[.size] as? Int64) ?? 0
+        }
+        let tracker = PushTracker()
+        tracker.fileCount = urls.count
+        tracker.bytesTotal = sizes.reduce(0, +)
+        tracker.start = Date()
+
+        ADBExtrasEngine.run(["shell", "mkdir", "-p", remoteDir], timeout: nil) { output, status in
+            guard status == 0 else {
+                HapticService.shared.perform(.transferFailed)
+                completion(0, output ?? "adb 不可用")
+                return
+            }
+            pushOne(urls: urls, sizes: sizes, remoteDir: remoteDir, index: 0,
+                    sent: 0, tracker: tracker, progress: progress) { sent, log in
+                HapticService.shared.perform(sent == urls.count ? .transferCompleted : .transferFailed)
+                completion(sent, log)
+            }
+        }
+    }
+
+    private static func pushOne(urls: [URL], sizes: [Int64], remoteDir: String,
+                                index: Int, sent: Int,
+                                tracker: PushTracker,
+                                progress: @escaping (PushProgress) -> Void,
+                                completion: @escaping (Int, String) -> Void) {
+        guard index < urls.count else {
+            DispatchQueue.main.async { completion(sent, tracker.log) }
+            return
+        }
+        let url = urls[index]
+        let size = sizes[index]
+        let baseDone = tracker.bytesDone
+        guard let adb = ScreenCastEngine.findADB() else {
+            DispatchQueue.main.async { completion(sent, "未找到 adb") }
+            return
+        }
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: adb)
+            let serial = ADBExtrasEngine.activeSerial
+            var args: [String] = []
+            if let serial, !serial.isEmpty { args += ["-s", serial] }
+            args += ["push", url.path, remoteDir + "/"]
+            task.arguments = args
+            let outPipe = Pipe()
+            let errPipe = Pipe()
+            task.standardOutput = outPipe
+            task.standardError = errPipe
+
+            // v122 实测结论：adb 在管道（非 tty）里**不输出百分比**，
+            // 只会在结束时给一行「1 file pushed ... 38.2 MB/s」。
+            // 所以进度改用「轮询手机端文件大小」：每 0.7s 跑一次 stat -c %s。
+            let remotePath = remoteDir + "/" + url.lastPathComponent
+            do {
+                try task.run()
+            } catch {
+                DispatchQueue.main.async {
+                    completion(sent, "adb 启动失败：\(error.localizedDescription)")
+                }
+                return
+            }
+
+            while task.isRunning {
+                usleep(700_000)
+                guard task.isRunning else { break }
+                guard let size = remoteFileSize(adb: adb, serial: serial, path: remotePath),
+                      size > 0 else { continue }
+                var p = PushProgress()
+                p.currentFile = url.lastPathComponent
+                p.fileIndex = index
+                p.fileCount = tracker.fileCount
+                p.bytesDone = min(tracker.bytesTotal, baseDone + size)
+                p.bytesTotal = tracker.bytesTotal
+                let elapsed = max(0.1, Date().timeIntervalSince(tracker.start))
+                p.bytesPerSecond = Double(p.bytesDone) / elapsed
+                DispatchQueue.main.async { progress(p) }
+            }
+
+            task.waitUntilExit()
+            let errText = String(data: errPipe.fileHandleForReading.readDataToEndOfFile(),
+                                 encoding: .utf8) ?? ""
+            let outText = String(data: outPipe.fileHandleForReading.readDataToEndOfFile(),
+                                 encoding: .utf8) ?? ""
+            let combined = (outText + errText).trimmingCharacters(in: .whitespacesAndNewlines)
+            let ok = task.terminationStatus == 0 && !combined.lowercased().contains("adb: error")
+            tracker.bytesDone = baseDone + (ok ? size : 0)
+            tracker.log += "\(url.lastPathComponent)：\(ok ? "✓ " + speedHint(combined) : "✗ " + String(combined.prefix(80)))\n"
+
+            pushOne(urls: urls, sizes: sizes, remoteDir: remoteDir, index: index + 1,
+                    sent: sent + (ok ? 1 : 0), tracker: tracker,
+                    progress: progress, completion: completion)
+        }
+    }
+
+    /// 手机端文件当前大小（进度轮询用）
+    private static func remoteFileSize(adb: String, serial: String?, path: String) -> Int64? {
+        let t = Process()
+        t.executableURL = URL(fileURLWithPath: adb)
+        var a: [String] = []
+        if let serial, !serial.isEmpty { a += ["-s", serial] }
+        a += ["shell", "stat", "-c", "%s", path]
+        t.arguments = a
+        let pipe = Pipe()
+        t.standardOutput = pipe
+        t.standardError = FileHandle.nullDevice
+        guard (try? t.run()) != nil else { return nil }
+        t.waitUntilExit()
+        let out = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        return Int64(out)
+    }
+
+    /// 从 adb 汇总行里抽速率（「… 38.2 MB/s (125829120 bytes in 3.140s)」）
+    private static func speedHint(_ text: String) -> String {
+        guard let r = text.range(of: #"[\d.]+ ?[KMG]B/s"#, options: .regularExpression) else { return "" }
+        return String(text[r])
+    }
+
+    /// 拉取手机目录下全部文件到本次接收目录。
+    /// - completion: (成功数, 输出文本)
+    public static func pull(remoteDir: String = "/sdcard/Download/Kitnest",
+                            into stagingDir: URL,
+                            completion: @escaping (Int, String) -> Void) -> Void {
+        let fm = FileManager.default
+        try? fm.createDirectory(at: stagingDir, withIntermediateDirectories: true)
+        ADBExtrasEngine.run(["pull", remoteDir + "/.", stagingDir.path], timeout: nil) { out, status in
+            guard let out else {
+                HapticService.shared.perform(.transferFailed)
+                DispatchQueue.main.async { completion(0, "adb 不可用") }
+                return
+            }
+            guard status == 0 else {
+                HapticService.shared.perform(.transferFailed)
+                completion(0, out)
+                return
+            }
+            // 输出形如 "N files pulled, 0 skipped."
+            let count = out.range(of: #"\d+(?= files? pulled)"#, options: .regularExpression)
+                .flatMap { Int(out[$0]) } ?? 0
+            if count > 0 { HapticService.shared.perform(.transferCompleted) }
+            DispatchQueue.main.async { completion(count, out) }
+        }
+    }
+
+    /// 每批接收使用独立目录，旧版暂存链接指向的内容继续保留。
+    public static var stagingDirectory: URL {
+        AppDirectories.base
+            .appendingPathComponent("TransferStaging", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+    }
+
+}

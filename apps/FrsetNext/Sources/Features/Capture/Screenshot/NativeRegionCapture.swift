@@ -104,15 +104,26 @@ enum NativeRegionCapture {
             Log.warn("Capture", "原生像素截图：screencapture 退出码 \(task.terminationStatus)")
             return nil
         }
-        guard let data = try? Data(contentsOf: tmp),
-              let src = CGImageSourceCreateWithData(data as CFData, nil),
-              let img = CGImageSourceCreateImageAtIndex(src, 0, nil) else {
-            Log.warn("Capture", "原生像素截图：输出图像无法读取")
+        // v292（性能第二轮 B1）：拆开「进程退出 → 文件读取 → 解码」三段。
+        // 旧日志把整段都算作抓取耗时，容易把 BMP 文件读取/解码误归因为 screencapture 本身。
+        let procMs = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000
+        let readStart = DispatchTime.now().uptimeNanoseconds
+        guard let data = try? Data(contentsOf: tmp) else {
+            Log.warn("Capture", "原生像素截图：输出文件无法读取")
             return nil
         }
+        let readMs = Double(DispatchTime.now().uptimeNanoseconds - readStart) / 1_000_000
+        let fileMB = Double(data.count) / 1_048_576
+        let decodeStart = DispatchTime.now().uptimeNanoseconds
+        guard let src = CGImageSourceCreateWithData(data as CFData, nil),
+              let img = CGImageSourceCreateImageAtIndex(src, 0, nil) else {
+            Log.warn("Capture", "原生像素截图：输出图像解码失败")
+            return nil
+        }
+        let decodeMs = Double(DispatchTime.now().uptimeNanoseconds - decodeStart) / 1_000_000
         let ms = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000
-        Log.info("Capture", String(format: "原生像素截图：%@ %.0fms %d×%dpx",
-                                   (tmp.pathExtension), ms, img.width, img.height))
+        Log.info("Capture", String(format: "原生像素截图：%@ 进程 %.0fms · 文件 %.1fMB 读取 %.1fms · 解码 %.1fms · 总计 %.0fms %d×%dpx",
+                                   (tmp.pathExtension), procMs, fileMB, readMs, decodeMs, ms, img.width, img.height))
         return img
     }
 }

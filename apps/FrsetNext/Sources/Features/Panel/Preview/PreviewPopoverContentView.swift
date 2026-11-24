@@ -1034,7 +1034,9 @@ struct PreviewFileView: View {
 
     var body: some View {
         if !isSettingsPreview, let url = model.fileURL,
-           model.fileIsDirectory || isArchivePath(url.path) || model.fileText != .idle || model.fileImage != nil || isDocumentPath(url.path) {
+           model.fileIsDirectory || isArchivePath(url.path) || model.fileText != .idle || model.fileImage != nil || isDocumentPath(url.path)
+               // v290：媒体文件（视频/音频）走内联播放器分支
+               || (PreviewMediaSupport.isMediaFile(url) && !isMediaBlocked(url)) {
             VStack(alignment: .leading, spacing: 0) {
                 fileContent(url)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -1050,6 +1052,11 @@ struct PreviewFileView: View {
                 fileList
             }.padding(12)
         }
+    }
+
+    /// v290：视频被设置关闭时不走播放器（落回文档分支），音频始终可试听
+    private func isMediaBlocked(_ url: URL) -> Bool {
+        PreviewMediaSupport.isVideoFile(url) && !PreviewMediaSupport.videoEnabled
     }
 
     @ViewBuilder
@@ -1069,6 +1076,14 @@ struct PreviewFileView: View {
             Text(message).foregroundStyle(.secondary)
         } else if let image = model.fileImage {
             PreviewImageContent(image: image)
+        } else if PreviewMediaSupport.isVideoFile(url), PreviewMediaSupport.videoEnabled {
+            // v290（ArcZip ArchiveHoverVideoPlayerView 同位）：默认静音自动播放
+            PreviewMediaVideoPlayerView(url: url, muted: PreviewMediaSupport.videoMuted)
+                .padding(8)
+        } else if PreviewMediaSupport.isAudioFile(url) {
+            // v290（ArcZip hover.audio.play 同位）：自动播放受设置控制
+            PreviewMediaAudioPlayerView(url: url, autoplay: PreviewMediaSupport.audioAutoplay)
+                .padding(8)
         } else {
             DocumentInlinePreview(url: url)
         }
