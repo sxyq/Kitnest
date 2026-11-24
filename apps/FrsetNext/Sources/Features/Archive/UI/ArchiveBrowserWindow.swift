@@ -314,12 +314,16 @@ public final class ArchiveBrowserModel: ObservableObject {
                 selection.insert(entry.path)
             }
             selectionAnchor = entry.path
-        } else if flags.contains(.shift), let anchor = selectionAnchor,
-                  let from = visibleEntries.firstIndex(where: { $0.path == anchor }),
-                  let to = visibleEntries.firstIndex(where: { $0.path == entry.path }) {
+        } else if flags.contains(.shift), let anchor = selectionAnchor {
             let list = visibleEntries
-            let lo = min(from, to), hi = max(from, to)
-            selection = Set(list[lo...hi].map { $0.path })
+            if let from = list.firstIndex(where: { $0.path == anchor }),
+               let to = list.firstIndex(where: { $0.path == entry.path }) {
+                let lo = min(from, to), hi = max(from, to)
+                selection = Set(list[lo...hi].map { $0.path })
+            } else {
+                selection = [entry.path]
+                selectionAnchor = entry.path
+            }
         } else {
             selection = [entry.path]
             selectionAnchor = entry.path
