@@ -2904,7 +2904,7 @@ Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskVoronoiLayout,make,fun
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskVoronoiLayout,inradius,func,136,KEEP,DiskVoronoiLayout.make 在布局时计算标签质心到各边的最小距离，供标签档位和宽度复用；悬停不再求内切圆半径
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskLayoutCache,tiles,func,158,KEEP,StorageTreemap.body:171
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,TilePressStyle,makeBody,func,263,KEEP,2026-11-21：v267 按压反馈——ButtonStyle 把 isPressed 经 onChange 透传给 onPress，外观保持 plain；调用点 tileView 按钮:308
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageMapShape,blob,func,301,KEEP,待补证据：新增函数，尚未逐个读源码填写
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageMapShape,blob,func,301,KEEP,背景与图块路径共用整窗画布几何；StorageTreemap.body 将指针位置逆映射至 geometry.canvas 后直接调用 blob.contains，省去事件内 CGPath 求交和路径变换
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageMapShape,path,func,356,KEEP,StorageManagerRootView.rightPane 以 StorageMapShape 裁剪整栏，左缘曲线从左下连续接到上缘内收点
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTileShape,path,func,383,KEEP,StorageManagerRootView.rightPane 以 StorageMapShape 裁剪整栏，左缘曲线从左下连续接到上缘内收点
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,startScriptedHoverIfNeeded,func,422,KEEP,仅当 probe.storageHover=1（或深链 ?hover=1）时，按面积最大的几块中心生成巡航路线并驱动同一个 hover 状态；默认不启用，真实鼠标交互与产品行为不变

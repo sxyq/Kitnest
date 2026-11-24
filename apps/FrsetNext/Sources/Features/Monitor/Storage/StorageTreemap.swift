@@ -499,10 +499,10 @@ struct StorageTreemap: View {
                 .onContinuousHover { phase in
                     switch phase {
                     case .active(let location):
-                        // v286：命中判定与裁切/手势共用同一份几何推导的图块外轮廓。
-                        let inside = StorageMapShape(geometry: geometry)
-                            .path(in: CGRect(origin: .zero, size: geo.size))
-                            .contains(location)
+                        // v286：逆映射到共享画布，避免每次指针事件都求轮廓交集。
+                        let hitPoint = CGPoint(x: geometry.tileFrame.minX + location.x * geometry.tileFrame.width / geo.size.width,
+                                               y: geometry.tileFrame.minY + location.y * geometry.tileFrame.height / geo.size.height)
+                        let inside = StorageMapShape.blob(in: geometry).contains(hitPoint)
                         // 同上：位置与活跃态始终跟随真实指针，减弱动态只影响过渡曲线。
                         let nextPoint = inside ? location : hover.point
                         let nextID = inside ? tiles.first { $0.frame.contains(location) && $0.hitPath.contains(location) }?.id : nil
