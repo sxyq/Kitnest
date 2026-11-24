@@ -2794,7 +2794,7 @@ Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsProcItem,init,ini
 Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsSnapshot,init,init,170,KEEP,storage 初值 StatsDataProvider.swift:180
 Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,init,init,216,KEEP,私有 init，shared:174
 Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,refresh,func,234,KEEP,2026-11-21：MonitorSampler.sampleOnce在采样队列调用；逐项核实9组C同步输出不保留地址后改用局部标量或结构体传址，成功及失败判定与分档节拍保持；GPU型号缓存及连通历史双缓冲沿用，名称查询省去未读取的分组输出
-Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,readProcList,func,538,KEEP,2026-11-21：refresh及网络backgroundTick已统一在MonitorSampler采样队列，移除原缓冲锁；仍复用512项缓冲及上轮组序，按原宿主路径分组并在字典内累加指标与追加kids；原分桶排序和前8组子进程明细保持
+Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,readProcList,func,538,KEEP,2026-11-24：refresh及NetworkFlowTracker.backgroundTick均在MonitorSampler采样队列；复用512项缓冲及上轮组序，按宿主路径聚合并保留前8组明细；C层同一进程快照按需复用proc_pidpath结果
 Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,appBundlePath,func,675,KEEP,readProcList:598、BatteryEnergy.swift:121
 Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,appDisplayName,func,685,KEEP,readProcList:613、BatteryEnergy.swift:124
 Monitor,Features/Monitor/Sampling/StatsDataProvider.swift,StatsDataProvider,readFans,func,706,KEEP,refresh:523
