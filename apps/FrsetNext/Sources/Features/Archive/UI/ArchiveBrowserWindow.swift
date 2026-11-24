@@ -133,11 +133,11 @@ public final class ArchiveBrowserModel: ObservableObject {
     /// 搜索时跳过层级过滤，全量匹配
     public var visibleEntries: [ArchiveEntry] {
         rebuildChildIndexIfNeeded()
-        let list = showAuxiliary ? entries : entries.filter { !ArchiveCore.isAuxiliary($0.path) }
-        guard searchText.isEmpty else {
-            return list.filter { $0.path.localizedCaseInsensitiveContains(searchText) }
+        if searchText.isEmpty {
+            return childIndex[currentPath] ?? []
         }
-        return childIndex[currentPath] ?? []
+        let list = showAuxiliary ? entries : entries.filter { !ArchiveCore.isAuxiliary($0.path) }
+        return list.filter { $0.path.localizedCaseInsensitiveContains(searchText) }
     }
 
     /// v288（2026-11-24 审计包 04）：parent → 直接子项索引（含隐式中间目录）。
