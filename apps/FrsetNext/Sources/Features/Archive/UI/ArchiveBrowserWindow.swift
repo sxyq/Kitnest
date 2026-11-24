@@ -139,11 +139,6 @@ public final class ArchiveBrowserModel: ObservableObject {
     /// 当前层级的直接子项（+ 为「无显式目录条目」的中间目录合成虚拟文件夹）；
     /// 搜索时跳过层级过滤，全量匹配
     public var visibleEntries: [ArchiveEntry] {
-<<<<<<< HEAD
-        if !searchText.isEmpty {
-            let list = showAuxiliary ? entries : entries.filter { !ArchiveCore.isAuxiliary($0.path) }
-            return list.filter { $0.path.localizedCaseInsensitiveContains(searchText) }
-=======
         guard searchText.isEmpty else {
             // v292（2026-11-24 性能第二轮 C，上级复核确认的重复过滤）：
             // 旧实现每次访问都先 `rebuildChildIndexIfNeeded()`（generation 变时整表重建）
@@ -159,7 +154,6 @@ public final class ArchiveBrowserModel: ObservableObject {
                 if entry.path.localizedCaseInsensitiveContains(query) { result.append(entry) }
             }
             return result
->>>>>>> main
         }
         rebuildChildIndexIfNeeded()
         return childIndex[currentPath] ?? []
