@@ -2642,12 +2642,12 @@ Island,Features/Island/IslandSurface.swift,IslandMaterialView,tint,func,397,KEEP
 Island,Features/Island/IslandSurface.swift,IslandMaterialView,applyMaterial,func,402,KEEP,外壳材质变化时切换已创建玻璃视图的显隐与纯色底，保留同一采样视图和轮廓状态
 Island,Features/Island/IslandSurface.swift,IslandMaterialView,applyTint,func,412,KEEP,外壳通透度变化时只更新现有玻璃的tint，不重建采样视图或轮廓遮罩
 Island,Features/Island/IslandSurface.swift,IslandMaterialView,applyGeometry,func,419,KEEP,岛材质唯一几何入口：插值尺寸只喂 CAShapeLayer 遮罩，取样面在展开开始时放大一次、收起收尾时缩回一次；实测玻璃重建 12–16 次/次开合 → 2 次（展开）/0 次（收起）
-Island,Features/Island/IslandSurface.swift,IslandMaterialView,flushStats,func,441,KEEP,形变收尾结算：几何更新次数、玻璃重建次数、遮罩重算次数与 layout p50/p95/max 一行日志（只记毫秒与次数，不记画面）
-Island,Features/Island/IslandSurface.swift,IslandMaterialView,layout,func,460,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；仅bounds或radius变化时更新玻璃frame和mask，关闭CALayer隐式动画，上角移出屏幕保持顶边贴合及底部曲率
-Island,Features/Island/IslandSurface.swift,IslandButtonStyle,makeBody,func,501,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandButtonStyle把label、按压态、help及提示对齐交IslandButtonBody，所有刘海按钮复用悬停与焦点绘制
-Island,Features/Island/IslandSurface.swift,IslandCollapsedView,button,func,563,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；收起态按peekOrder与可见集合生成图标，点击交activatePeek，配置决定是否带72pt数值或38pt纯图标，功耗订阅正式采样
-Island,Features/Island/IslandSurface.swift,IslandCollapsedView,value,func,583,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；收起态标签返回复制、播放/暂停和当天日期，功耗读已有sample.powerWatts，设置预览显示8.6W
-Island,Features/Island/IslandSurface.swift,IslandPeekMediaValue,updateVisibility,func,614,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；收起态媒体使用独立消费者复用系统播放器，展开或移除时释放读取任务，模拟不采集
+Island,Features/Island/IslandSurface.swift,IslandMaterialView,flushStats,func,442,KEEP,形变收尾结算：几何更新次数、玻璃重建次数、遮罩重算次数与 layout p50/p95/max 一行日志（只记毫秒与次数，不记画面）
+Island,Features/Island/IslandSurface.swift,IslandMaterialView,layout,func,461,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；仅bounds或radius变化时更新玻璃frame和mask，关闭CALayer隐式动画，上角移出屏幕保持顶边贴合及底部曲率
+Island,Features/Island/IslandSurface.swift,IslandButtonStyle,makeBody,func,504,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；IslandButtonStyle把label、按压态、help及提示对齐交IslandButtonBody，所有刘海按钮复用悬停与焦点绘制
+Island,Features/Island/IslandSurface.swift,IslandCollapsedView,button,func,566,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；收起态按peekOrder与可见集合生成图标，点击交activatePeek，配置决定是否带72pt数值或38pt纯图标，功耗订阅正式采样
+Island,Features/Island/IslandSurface.swift,IslandCollapsedView,value,func,586,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；收起态标签返回复制、播放/暂停和当天日期，功耗读已有sample.powerWatts，设置预览显示8.6W
+Island,Features/Island/IslandSurface.swift,IslandPeekMediaValue,updateVisibility,func,617,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；收起态媒体使用独立消费者复用系统播放器，展开或移除时释放读取任务，模拟不采集
 Island,Features/Island/IslandToolboxContent.swift,IslandToolboxShortcuts,shortcut,func,38,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；首页五档快捷目录只选择正式已启用工具并打开同一详情，小卡片保留主要入口
 Island,Features/Island/IslandToolboxContent.swift,IslandToolboxContent,init,init,66,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；Root传唯一controller、预览标志和selectedTool绑定，保留onFileDialog回调让系统文件面板期间不卸输入页
 Island,Features/Island/IslandToolboxContent.swift,IslandToolboxContent,directory,func,115,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；全部功能目录按query匹配页面标题及已启用工具名称/关键字/描述，category筛工具；回车选首项、按钮更新page或selectedTool
@@ -3835,13 +3835,13 @@ StatusBar,Features/StatusBar/StatusItemDropProxy.swift,StatusItemDropProxy,perfo
 StatusBar,Features/StatusBar/StatusItemDropProxy.swift,StatusItemDropProxy,hasFiles,func,53,KEEP,pasteboard 是否含文件 URL
 StatusBar,Features/StatusBar/StatusItemDropProxy.swift,StatusItemDropProxy,setActive,func,59,KEEP,强调色底 22% alpha；仅状态变化时改 layer
 Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,init,init,49,KEEP,ToolboxModule.swift:22 经 PanelSectionRegistry.build 构造；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,dayCell,func,206,KEEP,weeksGrid:170 ForEach 内调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,installScrollMonitor,func,264,KEEP,body onAppear:62 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,removeScrollMonitor,func,281,KEEP,body onDisappear:64 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,isFestivalDay,func,315,KEEP,dayCell:181 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,shift,func,323,KEEP,header 按钮:92/118 与滚动闭包:243 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,reload,func,329,KEEP,onAppear:61、header:106、shift:301 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarDay,shortName,func,347,KEEP,扩展方法，lunarDisplay:328/331/332 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,dayCell,func,206,KEEP,weeksGrid:193 ForEach 内调用；2026-11-24：农历显示关闭时按节日、节气短路，开启时每格复用农历日期、节气及节日结果
+Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,installScrollMonitor,func,269,KEEP,body onAppear:62 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,removeScrollMonitor,func,286,KEEP,body onDisappear:64 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,shift,func,319,KEEP,header 按钮:92/118 与滚动闭包:243 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,reload,func,325,KEEP,onAppear:61、header:106、shift:301 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarDay,shortName,func,343,KEEP,lunarDisplay 调用；仅缩短带“节”后缀且长度大于2的节日名
+Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarDay,lunarDisplay,func,347,KEEP,2026-11-24：dayCell 在农历文字开启时调用；复用同格 lunarDate、solarTerm 与 lunarFestival，节日、节气及既有文本优先级保持
 Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,init,init,24,KEEP,单例 shared:9（private init）；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,requestAccessIfNeeded,func,33,KEEP,ToolboxModule.swift:39 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Calendar/CalendarService.swift,CalendarService,refreshAuthorization,func,41,KEEP,读取 EventKit 完整日历访问状态并同步未授权说明；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
@@ -3858,8 +3858,8 @@ Toolbox,Features/Toolbox/Calendar/LunarCalendar.swift,LunarCalendar,gregorianCom
 Toolbox,Features/Toolbox/Calendar/LunarCalendar.swift,LunarCalendar,makeDate,func,115,KEEP,lunarDate:143/146/148/154 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Calendar/LunarCalendar.swift,LunarCalendar,daysBetween,func,121,KEEP,lunarDate:155 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Calendar/LunarCalendar.swift,LunarCalendar,lunarDate,func,131,KEEP,CalendarService:144/147、CalendarSectionView:293/327 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Calendar/LunarCalendar.swift,LunarCalendar,solarTerm,func,189,KEEP,CalendarService:147、CalendarSectionView:292/329 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Calendar/LunarCalendar.swift,LunarCalendar,lunarFestival,func,210,KEEP,CalendarService:145、CalendarSectionView:294/328 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Calendar/LunarCalendar.swift,LunarCalendar,solarTerm,func,187,KEEP,CalendarService:147、CalendarSectionView:292/329 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Calendar/LunarCalendar.swift,LunarCalendar,lunarFestival,func,208,KEEP,CalendarService:145、CalendarSectionView:294/328 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandItem,init,init,39,KEEP,2026-11-20：目录与斜杠映射构造命令元数据和动作闭包；可选开关读取器及别名分别供列表和筛选消费
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandCatalog,buildSlash,func,57,KEEP,2026-11-20：每次构造面板状态时读取正式SlashCommandCatalog，将token及别名转小写供斜杠筛选，执行仍调用原run
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,CommandCatalog,build,func,72,KEEP,2026-11-20：每次打开按当前选区构造AI动作截图开关监测设置和启用工具目录；动作闭包交原业务入口，目录不常驻刷新

@@ -2662,6 +2662,12 @@ EVIDENCE.update({
         "与 hover/press/disabledOpacity/focusRing 同组收编散落状态字面量",
 })
 
+EVIDENCE.update({
+    ("Features/Toolbox/Calendar/CalendarSectionView.swift", "lunarDisplay"):
+        "2026-11-24：dayCell 在农历文字开启时调用；复用同格 lunarDate、solarTerm 与 lunarFestival，"
+        "节日、节气及既有文本优先级保持",
+})
+
 def main() -> int:
     strict = "--strict" in sys.argv
 
