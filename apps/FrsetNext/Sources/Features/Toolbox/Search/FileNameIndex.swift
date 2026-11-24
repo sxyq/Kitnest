@@ -126,8 +126,15 @@ final class FileNameIndex: ObservableObject {
             if a.depth != b.depth { return a.depth < b.depth }
             return a.path < b.path
         }
+        var cancelled = false
         key.withCString { literalKey in
+            var scanned = 0
             while offset < poolLength {
+                // v292 实测：单次全扫 361-1431ms，且循环内原本不看取消——快速输入会把
+                // 多次全扫叠在协作线程池上。每 8192 条检查一次 Task 取消（纯计数，
+                // 不改匹配语义）；被取消即中止并返回空集，调用方本来就会丢弃这次结果。
+                scanned += 1
+                if scanned & 0x1FFF == 0, Task.isCancelled { cancelled = true; return }
                 let bytes = paths.advanced(by: offset)
                 let end = offset + strlen(bytes)
                 var matched = 0
@@ -158,6 +165,7 @@ final class FileNameIndex: ObservableObject {
                 if candidates.count > limit { candidates.removeLast() }
             }
         }
+        if cancelled { return [] }
         return candidates.map(\.path)
     }
 

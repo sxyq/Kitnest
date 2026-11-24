@@ -600,6 +600,15 @@ EVIDENCE.update({
         "菜单栏「图帘」项：发 curtainToggleRequested，与快捷键/设置页同一入口",
 })
 
+# ── v292 实测轮：岛定位 A/B 探针（一次性，仅诊断）────────────────────────
+EVIDENCE.update({
+    ("Features/Island/IslandController.swift", "armFirstUpdateProbe"):
+        "展开后挂一次性 NSWindow.didUpdate 观察者，记「距唤起 Xms 的首帧窗口更新」；"
+        "口径明确写为非合成呈现，只用于比较 setFrame(display:) 两种模式有没有把首帧推后",
+    ("Features/Island/IslandController.swift", "disarmFirstUpdateProbe"):
+        "移除上述观察者：didUpdate 只取首次，收到即摘；再次展开前也先摘，避免旧锚点串到下一轮",
+})
+
 # ── v267：截图覆盖层合并为「自适应」（取消窗口/区域模式选择）──────────────
 EVIDENCE.update({
     ("Features/Capture/Screenshot/ScreenshotManager.swift", "commitFullScreen"):

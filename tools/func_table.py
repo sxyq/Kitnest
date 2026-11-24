@@ -55,8 +55,9 @@ OUT = os.path.join(ROOT, "docs", "00-总览", "数据表", "FrsetNext-函数清�
 # 主面板 77ms / 内存 81-151MB），详见 docs/40-修改记录 对模块记录与当轮实测报告。
 PERF_HOTSPOTS = {
     # ---- P0：实测证实的关键路径大头 ----
-    ("Features/Island/IslandController.swift", "IslandController", "position"):
-        "P0 岛展开定位：冷 163ms / 热 12-60ms，占开窗 75-94%（setFrame display:true 同步重绘；CA 提交+WindowServer）",
+    ("Features/Toolbox/Search/FileNameIndex.swift", "FileNameIndex", "search"):
+        "P0 全盘文件名检索：144.7 万条 / 177MB 字节池逐条子序列扫描，实测单次 361-1431ms"
+        "（短词 deck 类命中 47 万条时最慢，URL+模糊打分逐条构造）；内存只 +5MB（mmap）",
     ("Features/Capture/Screenshot/ScreenSnapshot.swift", "ScreenSnapshot", "captureScreenForScreenshot"):
         "P0 截图抓帧：子任务 141-214ms，决定首块覆盖层 119-164ms（通道选择+probe+画面对照）",
     ("Features/Capture/Screenshot/NativeRegionCapture.swift", "NativeRegionCapture", "run"):
@@ -64,14 +65,21 @@ PERF_HOTSPOTS = {
     ("Features/Archive/UI/ArchiveBrowserWindow.swift", "ArchiveBrowserModel", "visibleEntries"):
         "P0 每次 body 求值入口：v292 已消除空搜索白算 O(N)（1万 7.7ms→<0.001ms，10万 77ms→<0.001ms），保持",
     # ---- P1：有实测证据的次热点/待优化 ----
+    ("Features/Monitor/Storage/DiskIndex.swift", "DiskIndexStore", "reloadFromCache"):
+        "P1 存储窗打开只读缓存：磁盘索引 JSON 解码，实测 1.4s 内 footprint +121~170MB，落定 229MB（本机最大单窗）",
+    ("Features/Island/IslandController.swift", "IslandController", "position"):
+        "P2 岛展开定位（实测降级）：冷 36-45ms / 热 15-20ms；setFrame display on/off 实测差 <8ms，"
+        "首帧 didUpdate 双峰 30-50/140-170ms 与模式无关；历史 163ms 为部署后首次冷进程一次性值",
     ("Features/Panel/Presentation/PanelController.swift", "PanelController", "show"):
         "P1 主面板开：主线程 77ms 首开/42ms 复开（快照 29+落位 19+帧构建 15+上屏 14）",
     ("Core/Motion/GenieWarp.swift", "GenieWarp", "play"):
         "P1 神灯播放：384ms/23-24 帧 60fps 零缺失；帧构建 15-47ms 是主线程最大单项",
     ("Features/Archive/UI/ArchiveBrowserWindow.swift", "ArchiveBrowserModel", "reload"):
-        "P1 归档索引 UI 侧：v292 已加首批/发布次数/rebuild 计时，10k 条待复测（引擎 0.16s）",
+        "P1 归档索引 UI 侧：v292 已加首批/发布次数/rebuild 计时；100k 实测首批 56 条@46ms、"
+        "完整@1338ms、UI 完成 1381ms（发布 9 次、rebuild 0ms）",
     ("Features/Archive/Core/ArchiveCore.swift", "ArchiveCore", "listStreaming"):
-        "P1 渐进索引引擎：10k 条 7zz 0.10-0.28s；v292 已加首批/完整/发布次数计时，待复测 UI 解析占比",
+        "P1 渐进索引引擎：10k 完整@165ms / 100k 完整@1338ms（发布 9 次）；峰值 footprint "
+        "100k 90→293MB、落定 190MB；条目数组本身仅 227B/条（100k=21.6MB），驻留 method/modified 只省 4.3MB",
     ("Features/Clipboard/Store/ClipboardFileStorages.swift", "ClipboardImageStorage", "store"):
         "P1 图片入库重编码：42.1MB TIFF→HEIC 0.90 0.3MB/219ms（持久化串行队列，不阻塞主线程）；历史 TIFF 不回溯",
     ("Features/Clipboard/Store/ClipboardManager.swift", "ClipboardManager", "writeToDatabase"):
@@ -79,7 +87,8 @@ PERF_HOTSPOTS = {
     ("Features/Clipboard/Store/ClipboardManager.swift", "ClipboardManager", "reload"):
         "P1 三栏工作台列表刷新（fetch+截断 800 条）：滚动/搜索场景待实测",
     ("Features/FloatingBall/DesktopPetView.swift", "DesktopPetView", "petContent"):
-        "P1 桌面精灵 3fps 动画时钟：v288 已加 path+mtime 图片缓存；静态/轻动/自定义三态 CPU 待实测",
+        "P2 桌面精灵 3.3fps（0.3s）动画时钟：静态实测 0.3% CPU / 93MB（与空闲基线同）；"
+        "轻动/自定义 PNG 需人手交互，待实测",
     ("Features/Capture/Screenshot/ScreenshotManager.swift", "ScreenshotManager", "beginCapture"):
         "P1 截图编排：首块覆盖层 119-164ms（双屏第二块 +66-70ms），v292 已加全链分段计时",
     ("Features/Archive/Table/ArchiveEntryTable.swift", "ArchiveEntryTableRepresentable", "updateNSView"):

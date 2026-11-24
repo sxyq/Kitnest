@@ -657,6 +657,46 @@ final class IslandController: NSObject, ObservableObject {
         updatePointer()
     }
 
+    /// v292 实测轮：岛定位 `setFrame` 是否强制同步重绘（`display: true`）。
+    /// 默认 true 保持现行为；A/B 时用
+    /// `defaults write com.sxyq.frsetnext probe.islandPositionDisplay -bool false`
+    /// 切换，**每次调用实时读取**，同一进程内即可对比，不必重装。
+    private var positionForcesDisplay: Bool {
+        let defaults = UserDefaults.standard
+        guard defaults.object(forKey: "probe.islandPositionDisplay") != nil else { return true }
+        return defaults.bool(forKey: "probe.islandPositionDisplay")
+    }
+
+    /// 展开后第一次窗口更新（`didUpdate`）的锚点探针。口径：AppKit 完成一次窗口更新，
+    /// **不等于合成器呈现**；只用来比较两种 setFrame 模式有没有把首帧推迟。一次性。
+    private var firstUpdateObserver: NSObjectProtocol?
+    private var firstUpdateAnchor: UInt64 = 0
+
+    private func armFirstUpdateProbe(from start: UInt64) {
+        disarmFirstUpdateProbe()
+        guard let panel else { return }
+        firstUpdateAnchor = start
+        firstUpdateObserver = NotificationCenter.default.addObserver(
+            forName: NSWindow.didUpdateNotification, object: panel, queue: .main
+        ) { [weak self] _ in
+            guard let self else { return }
+            self.disarmFirstUpdateProbe()
+            let ms = Double(DispatchTime.now().uptimeNanoseconds - self.firstUpdateAnchor) / 1_000_000
+            Log.info("Island", String(format: "岛首帧更新 %.0fms（didUpdate，非合成呈现）", ms))
+        }
+        // 兜底：一轮主队列后仍未收到 didUpdate 就如实记下来，避免“没有日志=没有延迟”。
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.firstUpdateObserver != nil else { return }
+            let ms = Double(DispatchTime.now().uptimeNanoseconds - self.firstUpdateAnchor) / 1_000_000
+            Log.info("Island", String(format: "岛展开发起 %.1fms 时仍未收到 didUpdate", ms))
+        }
+    }
+
+    private func disarmFirstUpdateProbe() {
+        if let firstUpdateObserver { NotificationCenter.default.removeObserver(firstUpdateObserver) }
+        firstUpdateObserver = nil
+    }
+
     private func position(collapsed: Bool = false) {
         guard let panel else { return }
         let screen = displayScreen
@@ -679,7 +719,7 @@ final class IslandController: NSObject, ObservableObject {
         let frame = NSRect(x: ((centerX - size.width / 2) * scale).rounded() / scale,
                            y: screen.frame.maxY - size.height,
                            width: size.width, height: size.height)
-        if panel.frame != frame { panel.setFrame(frame, display: true) }
+        if panel.frame != frame { panel.setFrame(frame, display: positionForcesDisplay) }
         if collapsed {
             visibleSize = size
             visibleRadius = IslandLayout.collapsedRadius
@@ -729,6 +769,7 @@ final class IslandController: NSObject, ObservableObject {
             mark("定位")
             if !previewOnly { panel?.orderFrontRegardless() }
             mark("上屏")
+            if !previewOnly { armFirstUpdateProbe(from: expandStart) }
             expanded = true
             revealedEntryID = nil
             if !previewOnly { refreshEntries() }
@@ -774,7 +815,8 @@ final class IslandController: NSObject, ObservableObject {
             previous = mark.nanos
         }
         let total = Double(previous - start) / 1_000_000
-        Log.info("Island", "岛展开分段：\(parts.joined(separator: " · ")) · 合计 \(String(format: "%.1f", total))ms")
+        let mode = positionForcesDisplay ? "同步重绘 on" : "同步重绘 off"
+        Log.info("Island", "岛展开分段（\(mode)）：\(parts.joined(separator: " · ")) · 合计 \(String(format: "%.1f", total))ms")
     }
 
     /// 延后淡入正文；期间再次收起会被 guard 拦下，不会把已收起的正文又点亮。
