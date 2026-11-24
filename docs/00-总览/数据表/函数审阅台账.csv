@@ -3896,21 +3896,25 @@ Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,ensureReady,fu
 Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,preloadIfCached,func,88,KEEP,2026-11-20：正式搜索面板onAppear调用，只在absent时尝试映射已存索引，缺失保持absent不遍历磁盘
 Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,rebuild,func,94,KEEP,2026-11-20：重建重试按钮及深链build=1调用，已有构建则返回，unmap后删除该索引文件并异步build；业务状态由原state发布
 Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,search,func,109,KEEP,2026-11-20：FileSearchSource及诊断深链消费，锁覆盖整池扫描避免映射替换；短查询ASCII折叠子序列，长查询strcasestr，命中后才解码路径和筛类型；用FuzzyMatcher得分、深度和路径字典序插入排序保留limit条
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,depth,func,173,KEEP,2026-11-20：search构造候选时遍历路径UTF8计斜线数，同分时浅路径先排；未调用文件系统获取层级
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,loadFromDisk,func,194,KEEP,2026-11-20：preload和ensureReady及构建完成调用，读24字节头并验证magic及count/length正数，未读版本字段；锁内替换mmap和长度，pool直接偏移headerSize，磁盘时间局部构造后发布ready，不另存条数和日期副本
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,unmap,func,225,KEEP,2026-11-20：rebuild锁内munmap并清映射和池长；删除无消费者entryCount赋值，搜索继续使用同一锁，后续build才恢复映射
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,build,func,236,KEEP,2026-11-20：ensureReady及rebuild用原building合并任务；Data预留24字节头和200MiB容量，walk直接追加原池，每20000项发布；只替换24字节头后原子写盘，路径上限900MiB，删除完整out及Data转换副本；完成主线程mmap，日志从扫描开始计时
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,roots,func,307,KEEP,2026-11-20：build每轮调用，列用户主目录所有点开头目录及Library、Applications、opt、usr/local，并逐项确认目录；不把整个根目录加入
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,walk,func,338,KEEP,2026-11-20：build及自身递归使用同一inout Data，POSIX枚举目录延后递归避免重复写，直接追加UTF8和NUL；长度和900MiB路径上限沿原口径，3条排除路径改为静态初始化一次，普通文件分支仍沿原规则
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,terms,func,382,KEEP,2026-11-20：search输入先trim及lowercase，绝对或波浪路径作为单词保留空格，普通查询按空白拆分；search随后joined形成连续查询字符
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,u32,func,390,KEEP,2026-11-20：loadFromDisk读取头内count和poolLength，按4字节小端解码UInt32；当前未消费版本字段
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,f64,func,394,KEEP,2026-11-20：loadFromDisk将头内8字节小端位模式解为Double作为建立时间；仅内部固定偏移调用
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,appendU32,func,400,KEEP,2026-11-20：build写版本1、条目数及池长三个4字节小端字段，数和长度沿原UInt32 clamping
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,appendF64,func,407,KEEP,2026-11-20：build将当前时间Double位模式按8字节小端写入原头格式，与f64读取配对
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,loadFromDisk,func,222,KEEP,2026-11-20：preload和ensureReady及构建完成调用，读24字节头并验证magic及count/length正数，未读版本字段；锁内替换mmap和长度，pool直接偏移headerSize，磁盘时间局部构造后发布ready，不另存条数和日期副本
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,unmap,func,253,KEEP,2026-11-20：rebuild锁内munmap并清映射和池长；删除无消费者entryCount赋值，搜索继续使用同一锁，后续build才恢复映射
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,build,func,264,KEEP,2026-11-20：ensureReady及rebuild用原building合并任务；Data预留24字节头和200MiB容量，walk直接追加原池，每20000项发布；只替换24字节头后原子写盘，路径上限900MiB，删除完整out及Data转换副本；完成主线程mmap，日志从扫描开始计时
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,roots,func,335,KEEP,2026-11-20：build每轮调用，列用户主目录所有点开头目录及Library、Applications、opt、usr/local，并逐项确认目录；不把整个根目录加入
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,walk,func,366,KEEP,2026-11-20：build及自身递归使用同一inout Data，POSIX枚举目录延后递归避免重复写，直接追加UTF8和NUL；长度和900MiB路径上限沿原口径，3条排除路径改为静态初始化一次，普通文件分支仍沿原规则
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,terms,func,410,KEEP,2026-11-20：search输入先trim及lowercase，绝对或波浪路径作为单词保留空格，普通查询按空白拆分；search随后joined形成连续查询字符
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,u32,func,418,KEEP,2026-11-20：loadFromDisk读取头内count和poolLength，按4字节小端解码UInt32；当前未消费版本字段
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,f64,func,422,KEEP,2026-11-20：loadFromDisk将头内8字节小端位模式解为Double作为建立时间；仅内部固定偏移调用
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,appendU32,func,428,KEEP,2026-11-20：build写版本1、条目数及池长三个4字节小端字段，数和长度沿原UInt32 clamping
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,appendF64,func,435,KEEP,2026-11-20：build将当前时间Double位模式按8字节小端写入原头格式，与f64读取配对
 Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatch,init,init,23,KEEP,2026-11-20：match短查询和超过32字符连续查询两处分支构造，保存score及升序命中位置，供命令文件排序和文本高亮
-Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,match,func,37,KEEP,2026-11-20：命令面板斜杠工具文件索引和搜索标题调用；小写贪心取最早位置直接交rate，删除同下界反向firstIndex无效遍历；超过32字符仍连续匹配
-Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,isMatch,func,69,KEEP,2026-11-20：工具综合字段和剪贴板正文调用；lowercase后迭代子序列，不创建得分和位置；超过32字符仍子序列而match要求连续，保留既有差异
-Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,rate,func,83,KEEP,2026-11-20：仅match短查询调用，基础16分每字符，连续段奖励、词边界14和驼峰10、靠前加分及最多8分间隔扣分，消费原始字符保留大小写边界
+Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,match,func,42,KEEP,2026-11-20：命令面板斜杠工具文件索引和搜索标题调用；小写贪心取最早位置直接交rate，删除同下界反向firstIndex无效遍历；超过32字符仍连续匹配
+Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,asciiMatch,func,57,KEEP,纯 ASCII 时按 UTF-8 字节做同一套子序列判定：1 字节=1 字符=1 字素簇，下标与评分与原 Array<Character> 版本逐项一致（22 万例随机对拍 0 不一致）；含非 ASCII 返回 notApplicable 走原实现
+Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,asciiLower,func,86,KEEP,待补证据：新增函数，尚未逐个读源码填写
+Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,asciiFirstRange,func,88,KEEP,待补证据：新增函数，尚未逐个读源码填写
+Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,rateASCII,func,108,KEEP,待补证据：新增函数，尚未逐个读源码填写
+Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,unicodeMatch,func,133,KEEP,原 match 实现原样保留为慢路径（非 ASCII / 混合文本唯一入口），避免快路径改变中文、组合字素簇的评分与高亮下标
+Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,isMatch,func,165,KEEP,2026-11-20：工具综合字段和剪贴板正文调用；lowercase后迭代子序列，不创建得分和位置；超过32字符仍子序列而match要求连续，保留既有差异
+Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,rate,func,179,KEEP,2026-11-20：仅match短查询调用，基础16分每字符，连续段奖励、词边界14和驼峰10、靠前加分及最多8分间隔扣分，消费原始字符保留大小写边界
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchResultItem,init,init,48,KEEP,ToolboxSearchSource.item:119、本文件:99 构造；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchHookRegistry,register,func,64,KEEP,ToolboxSearchSource.register:91 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchHookRegistry,search,func,70,KEEP,scheduleSearch:1551 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
@@ -3952,13 +3956,13 @@ Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,perfor
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clearInput,func,1904,KEEP,搜索框 ✕ 按钮:629、toolCategory:1385、performWebSearch:1486 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fetchWebResults,func,1919,KEEP,categoryChips:658、engineActionsRow:863、scheduleSearch:1567；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,scheduleSearch,func,1953,KEEP,body onChange(query):502 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,2008,KEEP,WKNavigationDelegate加载完成回调；只记录目标host，不记录搜索结果路径和查询参数
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,2011,KEEP,WKNavigationDelegate加载失败回调；日志只记NSError domain与code，避免错误描述夹带目标URL
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,2015,KEEP,WKNavigationDelegate连接失败回调；日志只记NSError domain与code，避免错误描述夹带目标URL
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeCoordinator,func,2021,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeNSView,func,2023,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,updateNSView,func,2034,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,dismantleNSView,func,2040,KEEP,NSViewRepresentable 静态协议方法；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,2021,KEEP,WKNavigationDelegate加载完成回调；只记录目标host，不记录搜索结果路径和查询参数
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,2024,KEEP,WKNavigationDelegate加载失败回调；日志只记NSError domain与code，避免错误描述夹带目标URL
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,2028,KEEP,WKNavigationDelegate连接失败回调；日志只记NSError domain与code，避免错误描述夹带目标URL
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeCoordinator,func,2034,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeNSView,func,2036,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,updateNSView,func,2047,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,dismantleNSView,func,2053,KEEP,NSViewRepresentable 静态协议方法；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SlashCommands.swift,SlashCommandCatalog,build,func,52,KEEP,CommandPalette.swift:58 buildSlash 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SlashCommands.swift,SlashCommandCatalog,match,func,112,KEEP,SearchSectionView.swift:97 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Shell/ToolboxModule.swift,ToolboxModule,start,func,9,KEEP,AppModule 协议，经 ModuleRegistry.startAll 派发；2026-11-19人工复核：保留，源码与调用/系统入口已核阅

@@ -34,7 +34,103 @@ public enum FuzzyMatcher {
     ]
 
     /// 模糊匹配入口（大小写不敏感）。nil = 不匹配。
+    ///
+    /// v292 实测：原实现每次把目标串转成 `Array<Character>`（每字符 16B），
+    /// 127B 的路径要分配约 2KB；文件名索引单次查询会对几十万条候选各调一次。
+    /// 纯 ASCII 时改走 UTF-8 字节快路径（1 字节 = 1 字符 = 1 个字素簇，下标与评分
+    /// 与慢路径逐项一致），含非 ASCII 时原样退回下面的实现。
     public static func match(_ pattern: String, in target: String) -> FuzzyMatch? {
+        switch asciiMatch(pattern, in: target) {
+        case .hit(let match): return match
+        case .miss: return nil
+        case .notApplicable: break
+        }
+        return unicodeMatch(pattern, in: target)
+    }
+
+    private enum FastResult {
+        case notApplicable
+        case miss
+        case hit(FuzzyMatch)
+    }
+
+    private static func asciiMatch(_ pattern: String, in target: String) -> FastResult {
+        let query = Array(pattern.utf8)
+        guard !query.isEmpty else { return .miss }
+        for b in query where b >= 0x80 { return .notApplicable }
+        let bytes = Array(target.utf8)
+        for b in bytes where b >= 0x80 { return .notApplicable }
+        guard bytes.count >= query.count else { return .miss }
+
+        if query.count > 32 {
+            guard let range = asciiFirstRange(of: query, in: bytes) else { return .miss }
+            return .hit(FuzzyMatch(score: 160 + query.count * 16, indices: Array(range)))
+        }
+
+        var indices: [Int] = []
+        indices.reserveCapacity(query.count)
+        var cursor = 0
+        for wanted in query {
+            let want = asciiLower(wanted)
+            var found = -1
+            while cursor < bytes.count {
+                if asciiLower(bytes[cursor]) == want { found = cursor; cursor += 1; break }
+                cursor += 1
+            }
+            guard found >= 0 else { return .miss }
+            indices.append(found)
+        }
+        return .hit(FuzzyMatch(score: rateASCII(indices: indices, original: bytes), indices: indices))
+    }
+
+    private static func asciiLower(_ b: UInt8) -> UInt8 { (b >= 65 && b <= 90) ? b + 32 : b }
+
+    private static func asciiFirstRange(of needle: [UInt8], in haystack: [UInt8]) -> Range<Int>? {
+        guard !needle.isEmpty, haystack.count >= needle.count else { return nil }
+        let first = asciiLower(needle[0])
+        var start = 0
+        let last = haystack.count - needle.count
+        while start <= last {
+            if asciiLower(haystack[start]) == first {
+                var k = 1
+                while k < needle.count, asciiLower(haystack[start + k]) == asciiLower(needle[k]) { k += 1 }
+                if k == needle.count { return start..<(start + needle.count) }
+            }
+            start += 1
+        }
+        return nil
+    }
+
+    private static let asciiBoundary: Set<UInt8> = [
+        47, 46, 95, 45, 32, 64, 35, 40, 41, 91, 93, 123, 125,
+    ]
+
+    private static func rateASCII(indices: [Int], original: [UInt8]) -> Int {
+        var total = 16 * indices.count
+        var streak = 0
+        for (j, i) in indices.enumerated() {
+            if j > 0, indices[j - 1] == i - 1 { streak += 1 } else { streak = 0 }
+            total += streak * 8
+            if i == 0 {
+                total += 14
+            } else {
+                let previous = original[i - 1]
+                if asciiBoundary.contains(previous) {
+                    total += 14
+                } else if previous >= 97, previous <= 122, original[i] >= 65, original[i] <= 90 {
+                    total += 10
+                }
+            }
+            total += max(0, 8 - i / 2)
+            if j > 0 {
+                let gap = i - indices[j - 1] - 1
+                total -= min(gap, 8)
+            }
+        }
+        return total
+    }
+
+    private static func unicodeMatch(_ pattern: String, in target: String) -> FuzzyMatch? {
         let query = Array(pattern.lowercased())
         let lowered = Array(target.lowercased())
         guard !query.isEmpty, lowered.count >= query.count else { return nil }

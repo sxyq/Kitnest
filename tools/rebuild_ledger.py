@@ -600,6 +600,16 @@ EVIDENCE.update({
         "菜单栏「图帘」项：发 curtainToggleRequested，与快捷键/设置页同一入口",
 })
 
+# ── v292 性能轮：FuzzyMatcher ASCII 快路径（文件名索引 47 万候选的打分底噪）
+EVIDENCE.update({
+    ("Features/Toolbox/Search/FuzzyMatcher.swift", "asciiMatch"):
+        "纯 ASCII 时按 UTF-8 字节做同一套子序列判定：1 字节=1 字符=1 字素簇，下标与评分"
+        "与原 Array<Character> 版本逐项一致（22 万例随机对拍 0 不一致）；含非 ASCII 返回 notApplicable 走原实现",
+    ("Features/Toolbox/Search/FuzzyMatcher.swift", "unicodeMatch"):
+        "原 match 实现原样保留为慢路径（非 ASCII / 混合文本唯一入口），避免快路径改变中文、"
+        "组合字素簇的评分与高亮下标",
+})
+
 # ── v292 实测轮：岛定位 A/B 探针（一次性，仅诊断）────────────────────────
 EVIDENCE.update({
     ("Features/Island/IslandController.swift", "armFirstUpdateProbe"):

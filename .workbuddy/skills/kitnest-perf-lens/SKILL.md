@@ -65,7 +65,9 @@ description: Kitnest 全链路性能/交互/渲染热点诊断；先独立读函
 
 - **CPU 基线**（`proc_pid_rusage` 差分，20s 中位）：干净空闲 **0.3%**；岛展开态 0.3%；主面板 0.3%；剪贴板工作台 0.2%；十万条归档静置 0.2%；存储窗 2.4%；传输坞 0.3%；投屏页 0.4%；桌面精灵（静态）0.3%。
 - **内存基线**（footprint）：冷启动 90–128MB；主面板 141MB；存储窗落定 **229MB**（打开 1.4s 内 +121~170MB，磁盘索引 JSON 解码）；剪贴板工作台 97MB；十万条归档峰值 **293MB** / 落定 190MB。
-- **文件索引是当前最大单点**：144.7 万条 / 177MB 池，单次 `search` **361–1431ms**（短词如 `deck` 命中 47 万条时最慢，瓶颈在逐条 `URL` + 模糊打分；全扫本身约 180–300ms）。进程内存只 +5MB（mmap）。改法必须同时保语义：分词 `strcasestr` 只快 1.5–3.5 倍且命中集从 3371 掉到 161，不能直接替换。
+- **文件索引是当前最大单点（已优化）**：144.7 万条 / 177MB 池。原实现每个命中都构造 `path` 串 + `URL` + `lastPathComponent`，短词 `deck`（47 万命中）实测 **19.0s**；改为「字节取 name → 先跑 name 模糊 → path 串惰性构造 → `.all` 不建 URL」+ `FuzzyMatcher` 纯 ASCII 字节快路径后：`deck` **683ms**、多词 `workbuddy skill` 395ms / `kitnest perf` 319ms，命中集不变（22 万例随机对拍 0 不一致、144.7 万条 name 取法与 URL 0 不一致）。改匹配语义（分词 `strcasestr`）会快到 173-204ms 但命中从 3371 掉到 161，**不能**未经产品确认就换。
+- `FuzzyMatcher.match` 的慢在 `Array<Character>`（每字符 16B）：127B 路径≈2KB/次。ASCII 快路径实测 **6.3-6.5×**（10 万条 91ms→14ms），非 ASCII 原样回退。
+- 搜索是 **250ms 防抖 + detached 任务**：detached 不继承取消，必须 `withTaskCancellationHandler` 显式 `job.cancel()`，`FileNameIndex.search` 里每 8192 条的 `Task.isCancelled` 才会生效。
 - **OCR 常驻来自 Vision，不是 PP-OCR**：主进程 `vmmap` 可见 `TextRecognition.framework` 的 `cr_tr_model_cj_v3` 与 ANECompiler；自检日志「识别前 185.2 → Vision 后 243.8 → PP-OCR 后 244.2 → 1.5s 后 242.0MB」= Vision +57MB 常驻，PP-OCR 子进程只 +0.4MB（helper 退出后为 0 个进程）。不要再把 +146MB 记到 PP-OCR 头上。
 - **归档渐进索引**：10k 首批 56 条@28ms、完整@165ms；100k 首批 56 条@46ms、完整@1338ms（发布 9 次）、UI 完成 1381ms、末次 rebuild 0ms；峰值 90→293MB，3s 后 189MB、10s 后 154MB。
 

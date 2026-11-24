@@ -56,8 +56,9 @@ OUT = os.path.join(ROOT, "docs", "00-总览", "数据表", "FrsetNext-函数清�
 PERF_HOTSPOTS = {
     # ---- P0：实测证实的关键路径大头 ----
     ("Features/Toolbox/Search/FileNameIndex.swift", "FileNameIndex", "search"):
-        "P0 全盘文件名检索：144.7 万条 / 177MB 字节池逐条子序列扫描，实测单次 361-1431ms"
-        "（短词 deck 类命中 47 万条时最慢，URL+模糊打分逐条构造）；内存只 +5MB（mmap）",
+        "P0 全盘文件名检索（已优化待续）：144.7 万条 / 177MB 池。原实现每个命中都建 path 串+URL"
+        "+lastPathComponent，短词 deck（47 万命中）实测 19.0s；改为惰性构造+ASCII 字节快路径后"
+        "683ms，多词 319-404ms，命中集不变（22 万例对拍 0 不一致）；内存仍只 +5MB（mmap）",
     ("Features/Capture/Screenshot/ScreenSnapshot.swift", "ScreenSnapshot", "captureScreenForScreenshot"):
         "P0 截图抓帧：子任务 141-214ms，决定首块覆盖层 119-164ms（通道选择+probe+画面对照）",
     ("Features/Capture/Screenshot/NativeRegionCapture.swift", "NativeRegionCapture", "run"):

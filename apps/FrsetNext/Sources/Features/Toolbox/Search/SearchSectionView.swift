@@ -1977,9 +1977,22 @@ public struct SearchSectionView: View {
             // 第一次搜文件时才把索引准备好（有缓存就 mmap，没有就后台建）；
             // 平时不搜文件的话这里一次都不会执行，零常驻。
             if wantsFiles { FileNameIndex.shared.ensureReady() }
-            let files: [FuzzyFileResult] = wantsFiles
-                ? await Task.detached(priority: .utility) { FileSearchSource.search(trimmed, kind: kind) }.value
-                : []
+            // v292：detached 任务**不继承**父任务取消——查询换了词，上一次全扫仍会跑到底
+            // （实测单次 0.3-1.9s，很容易叠两三轮）。这里显式把取消传给它，
+            // FileNameIndex.search 每 8192 条检查一次 Task.isCancelled 就能提前收工。
+            let files: [FuzzyFileResult]
+            if wantsFiles {
+                let job = Task.detached(priority: .utility) {
+                    FileSearchSource.search(trimmed, kind: kind)
+                }
+                files = await withTaskCancellationHandler {
+                    await job.value
+                } onCancel: {
+                    job.cancel()
+                }
+            } else {
+                files = []
+            }
             guard !Task.isCancelled, current == generation else { return }
             await MainActor.run {
                 guard !Task.isCancelled, current == generation else { return }
