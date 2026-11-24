@@ -381,20 +381,24 @@ private final class IslandMaterialView: NSView {
         // 形状交给 CAShapeLayer 遮罩（2026-11-23：0 字面量收编为 .zero）。
         // v286：`systemGlass` 不再写死 true——那会绕过用户偏好，让刘海永远走
         // 焦点自适应的 NSGlassEffectView（点击前后观感跳变的来源之一）。
-        // 现在 material == .liquidGlass 只表达「愿意接受动态玻璃」，
-        // 最终是否启用由 uiUseSystemGlass 显式偏好决定（默认稳定 .inactive）。
-        let glass = LiquidGlass.makeView(cornerRadius: .zero,
-                                         tint: Self.tint(shellOpacity),
-                                         solid: false,
-                                         followsWindowFocus: material == .liquidGlass)
+        // 2026-11-24 v293：改成一条 `LiquidGlass.Style`——材质/焦点/着色/纯色
+        // 全部交给解析器，后端对象由 GlassHost 按解析结果持有；毛玻璃分支现在
+        // **真的消费 tint**（旧实现直接丢掉，导致「外壳通透度」在默认后端上无效）。
+        var style = LiquidGlass.Style(role: .island)
+        style.tint = Self.tint(shellOpacity)
+        style.cornerRadius = .zero
+        style.focus = material == .liquidGlass ? .systemDynamic : .stable
+        let glass = GlassHost(frame: .zero, style: style)
         glass.appearance = NSAppearance(named: .darkAqua)
+        let host = glass as NSView
         // 关掉 autoresizing：取样面比宿主大（上角移到屏幕外），宿主每帧插值时
         // AppKit 会照旧把子视图拉回 bounds —— 那正好把「只重设一次」变成「每帧一次」。
-        glass.autoresizingMask = []
-        addSubview(glass)
-        glassView = glass
+        host.autoresizingMask = []
+        addSubview(host)
+        glassView = host
         // 排障口径：一眼看出这一版外壳走的是真玻璃还是毛玻璃回退。
-        Log.info("Island", "外壳材质：\(type(of: glass)) 通透度=\(Int((1 - shellOpacity) * 100))% 降透明=\(LiquidGlass.reduceTransparency)")
+        Log.info("Island", "外壳材质：\(LiquidGlass.resolve(style).backend.rawValue) "
+                 + "通透度=\(Int((1 - shellOpacity) * 100))% 降透明=\(LiquidGlass.reduceTransparency)")
         applyMaterial(material)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
@@ -404,11 +408,20 @@ private final class IslandMaterialView: NSView {
         NSColor.black.withAlphaComponent(min(1, max(0, opacity)))
     }
 
-    /// 材质切换收敛：玻璃建一次、只切显隐；纯色/降透明由外层黑幕给深色。
+    /// 材质切换收敛：玻璃对象建一次，纯色/降透明只切显隐 + 解析成不透明底。
+    ///
+    /// v293：`style.solid` 也一起写进去——旧实现只切 `isHidden`，底层对象仍是
+    /// 采样玻璃；纯色窗口一旦被系统短暂重绘（如切 Space）就会透出背后的桌面。
     func applyMaterial(_ new: IslandMaterial) {
         material = new
         let needsGlass = new != .solid
         glassView?.isHidden = !needsGlass
+        if let host = glassView as? GlassHost {
+            var style = host.style
+            style.solid = !needsGlass
+            style.focus = new == .liquidGlass ? .systemDynamic : .stable
+            host.apply(style)
+        }
         // 纯色时留一层黑底：即使外层黑幕将来调整，形状也不会透出背后内容
         layer?.backgroundColor = needsGlass ? nil : NSColor.black.cgColor
         applyTint()
@@ -416,9 +429,10 @@ private final class IslandMaterialView: NSView {
     }
 
     private func applyTint() {
-        guard let glass = glassView, !glass.isHidden else { return }
-        LiquidGlass.reapplyStyle(on: glass, cornerRadius: .zero,
-                                 tint: Self.tint(shellOpacity), solid: false)
+        guard let host = glassView as? GlassHost, !host.isHidden else { return }
+        var style = host.style
+        style.tint = Self.tint(shellOpacity)
+        host.apply(style)
     }
 
     /// 唯一几何入口：插值尺寸只喂遮罩，取样面只在两档之间整块切换。

@@ -339,79 +339,111 @@ public final class ScreenshotManager: ObservableObject {
         // v207（用户：「按快捷键截图应该立刻定格当前屏幕，不能先跳转界面/打断预览」）：
         // 这里绝对不能先 NSApp.activate —— 激活会让主面板/preview hover 窗先收起，
         // 等到真正抓帧时画面已经变了（鼠标停在预览上，预览消失）。
-        // 顺序改为：先冻结抓帧（此时不改任何窗口状态）→ 再激活 App 并铺覆盖层。
-
-        // v161（2026-10-29 修「⌘1 快捷截屏必定卡死」）：快照抓取移出主线程。
-        // 根因（真机采样实锤）：macOS 27 上 legacy CGWindowListCreateImage 已被系统
-        // 改造为 ScreenCaptureKit 代理（SLWindowListCreateImage →
-        // SLSWindowListCreateImageProxying），内部把完成块派发回主队列后 signal
-        // 信号量——主线程同步等待它 = 永久死锁（覆盖层都来不及建，整个 App 无响应）。
-        // 修复：快照统一异步获取（SCK 优先），完成后再回主线程建覆盖层。
+        // 顺序：先冻结全部屏幕 → 再激活 App 并铺覆盖层。
         //
-        // 2026-11-23（用户：「高负载时按了快捷键要等好几秒才出现选区」）：
-        // 1) 多屏改成并发抓（并发度 2，仍是有界），不再一块一块串着等；
-        // 2) 哪块先冻结好就先铺哪块的覆盖层，光标所在屏优先 —— 用户能操作的时间
-        //    从「所有屏都抓完」提前到「自己那块屏抓完」；
-        // 3) 存下任务句柄 + 代次，连按快捷键时旧任务会被叫停（见 CaptureEpochCounter）。
+        // 2026-11-24 v293（C1/C2 重构）：四阶段显式分开，不再「哪块先好就先铺哪块」。
+        //   · 旧实现第一块抓完就 activate + makeKeyAndOrderFront：非镜像双屏下，
+        //     Kitnest 的激活会让**还没抓的副屏**上原本的悬停预览 / 菜单 / 浮层消失，
+        //     副屏冻结到的就是被我们自己改过的画面（原始需求没解决的那条）。
+        //   · 谁先完成也不确定，副屏先完成时会把键盘焦点抢到副屏上。
+        // 现在：
+        //   ① 冻结阶段：有界并发抓全部屏幕，**不创建可见窗口、不激活**；
+        //      每块抓完只建窗（不可见）并预置窗口命中列表；
+        //   ② 上屏阶段：全部冻结完成后 activate 一次；
+        //   ③ 交互阶段：光标屏 makeKey，其余 orderFront（不抢 key）。
+        // 代价是双屏要多等慢的那块（实测 +66~70ms），换来的是画面真实性；
+        // 减少等待靠「抓帧期间并行建窗」，不是靠提前显示。
         let screens = NSScreen.screens
         let epoch = ScreenSnapshot.beginEpoch()
         let started = DispatchTime.now().uptimeNanoseconds
         let priority = currentScreen()
-        // 镜像显示时后面那块屏会拍到先铺好的覆盖层，退回归集后统一铺（镜像很少见）
-        let mirrored = screens.count > 1 && screens.contains { screen -> Bool in
-            guard let id = ScreenSnapshot.displayID(of: screen) else { return false }
-            return CGDisplayIsInMirrorSet(id) != 0
-        }
+        let budget = CaptureBudget.seconds(CaptureBudget.freezeSeconds)
         snapshotTask?.cancel()
         snapshotTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            var shown = 0
-            @MainActor func present(_ screen: NSScreen, _ image: CGImage?) {
+            // 窗口命中列表：一轮只枚举一次（后台），双屏不再主线程枚举两遍。
+            let hitsTask = Task.detached(priority: .userInitiated) { () -> [ScreenshotOverlayView.WindowHit] in
+                let height = await MainActor.run { NSScreen.screens.first?.frame.height ?? 0 }
+                return ScreenshotOverlayView.collectWindowHits(primaryHeight: height)
+            }
+            var prepared: [(screen: NSScreen, window: ScreenshotOverlayWindow)] = []
+            @MainActor func prepare(_ screen: NSScreen, _ image: CGImage?,
+                                    hits: [ScreenshotOverlayView.WindowHit]) {
                 guard self.isCapturing, generation == self.captureGeneration,
                       ScreenSnapshot.isCurrentEpoch(epoch), let image else { return }
-                self.presentOverlay(screen: screen, image: image, flow: flow, activate: shown == 0)
-                shown += 1
-                if shown == 1 {
-                    let ms = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000
-                    let selfLabel = ScreenSnapshot.displayID(of: screen).map { "D\($0)" } ?? "?"
-                    let priorityLabel = priority.flatMap { ScreenSnapshot.displayID(of: $0) }.map { "D\($0)" } ?? "无"
-                    Log.info("Capture", String(format: "首块覆盖层可交互 %.0fms（%@，光标屏 %@）", ms, selfLabel, priorityLabel))
-                }
+                let window = self.makeOverlay(screen: screen, image: image,
+                                              flow: flow, hits: hits)
+                prepared.append((screen, window))
             }
-            if mirrored {
-                let snapshots = await Self.streamScreenSnapshots(screens: screens,
-                                                                 priority: priority,
-                                                                 epoch: epoch) { _, _ in }
-                for (screen, image) in snapshots { present(screen, image) }
-            } else {
-                _ = await Self.streamScreenSnapshots(screens: screens,
-                                                     priority: priority,
-                                                     epoch: epoch) { screen, image in
-                    present(screen, image)
+            // 命中列表在**第一块抓完之后**再取：它只要几毫秒，而冻结不能被它拖慢。
+            var hits: [ScreenshotOverlayView.WindowHit] = []
+            var hitsReady = false
+            _ = await Self.streamScreenSnapshots(screens: screens,
+                                                 priority: priority,
+                                                 epoch: epoch,
+                                                 budget: budget) { screen, image in
+                if !hitsReady {
+                    hitsReady = true
+                    hits = await hitsTask.value
                 }
+                prepare(screen, image, hits: hits)
             }
-            let ms = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000
-            Log.info("Capture", String(format: "截图快照冻结完成 %.0fms · %d 块覆盖层（抓帧前未改窗口状态）", ms, shown))
-            guard self.isCapturing, generation == self.captureGeneration else { return }
-            if shown == 0 {
+            let frozenMs = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000
+            guard self.isCapturing, generation == self.captureGeneration,
+                  ScreenSnapshot.isCurrentEpoch(epoch) else { return }
+            Log.info("Capture", String(format: "截图冻结完成 %.0fms · %d 块（抓帧前未改窗口状态、未激活）",
+                                       frozenMs, prepared.count))
+            guard !prepared.isEmpty else {
                 self.isCapturing = false
                 self.statusMessage = CaptureError.captureFailed.errorDescription
                 HapticService.shared.perform(.operationFailed)
                 Toast.show("截图失败：没有可用屏幕", icon: "exclamationmark.triangle", isWarning: true)
                 self.finishCaptureSession()
+                return
             }
+            self.showOverlays(prepared, priority: priority, frozenMs: frozenMs,
+                              since: started, generation: generation, epoch: epoch)
         }
     }
 
-    /// 把一块已冻结的屏幕铺成可交互覆盖层。
+    /// 上屏阶段：激活一次 → 光标屏成为 key → 其余屏只 orderFront。
     ///
-    /// `activate` 只在第一块时为 true：v109 的「先激活防首击被吃」仍然保留，
-    /// 但没必要每铺一块就重复激活一次（重复激活会让已铺好的覆盖层短暂失焦）。
+    /// 口径：「orderFront 返回」只是窗口服务器受理，不代表真实呈现/可交互；
+    /// 真实可交互时间看覆盖层首次输入事件（`presentedAt` → `noteFirstInput`）。
     @MainActor
-    private func presentOverlay(screen: NSScreen, image: CGImage,
-                                flow: PendingFlow, activate: Bool) {
+    private func showOverlays(_ prepared: [(screen: NSScreen, window: ScreenshotOverlayWindow)],
+                              priority: NSScreen?, frozenMs: Double,
+                              since started: UInt64, generation: Int, epoch: Int) {
         let t0 = DispatchTime.now().uptimeNanoseconds
-        let window = ScreenshotOverlayWindow(screen: screen, snapshot: image)
+        NSApp.activate(ignoringOtherApps: true)
+        let tActivate = DispatchTime.now().uptimeNanoseconds
+        let keyIndex = prepared.firstIndex { $0.screen === priority } ?? 0
+        for (index, item) in prepared.enumerated() {
+            item.window.overlayView.presentedAt = t0
+            if index == keyIndex {
+                item.window.makeKeyAndOrderFront(nil)
+            } else {
+                // v292 B2：后续屏幕的覆盖层不 makeKey——旧实现每块都 makeKeyAndOrderFront，
+                // 会把键盘焦点从光标屏抢到别的屏幕上。鼠标点击仍可直接操作该屏。
+                item.window.orderFront(nil)
+            }
+        }
+        let t1 = DispatchTime.now().uptimeNanoseconds
+        let keyLabel = ScreenSnapshot.displayID(of: prepared[keyIndex].screen).map { "D\($0)" } ?? "?"
+        Log.info("Capture", String(format:
+            "覆盖层上屏请求 %.0fms（冻结 %.0fms · 激活 %.0fms · %d 块 · key=%@）",
+            Double(t1 - started) / 1_000_000, frozenMs,
+            Double(tActivate - t0) / 1_000_000, prepared.count, keyLabel))
+    }
+
+    /// 建一块覆盖层（可见性由 showOverlays 统一负责）。
+    @MainActor
+    private func makeOverlay(screen: NSScreen, image: CGImage,
+                             flow: PendingFlow,
+                             hits: [ScreenshotOverlayView.WindowHit]) -> ScreenshotOverlayWindow {
+        let t0 = DispatchTime.now().uptimeNanoseconds
+        let window = ScreenshotOverlayWindow(screen: screen, snapshot: image,
+                                             windowHits: hits.isEmpty ? nil : hits)
         let t1 = DispatchTime.now().uptimeNanoseconds
         if case .toolbar = flow { window.overlayView.recentClipboardHint = recentClipboardHint }
         // v264：固定比例（设置里选中哪组就锁哪组；没选 = 自由 + ⇧ 正方形）
@@ -440,26 +472,13 @@ public final class ScreenshotManager: ObservableObject {
         }
         window.overlayView.onCancel = { [weak self] in self?.cancelCapture() }
         overlays.append(window)
-        // v292 B1：给首次真实输入事件留时间锚点（mouseDown/mouseMoved 首次触发时记一行）
-        window.overlayView.presentedAt = t0
-        let tConfig = DispatchTime.now().uptimeNanoseconds
-        if activate { NSApp.activate(ignoringOtherApps: true) }
-        let tActivate = DispatchTime.now().uptimeNanoseconds
-        if activate {
-            window.makeKeyAndOrderFront(nil)
-        } else {
-            // v292 B2：后续屏幕的覆盖层不再 makeKey——旧实现每块都 makeKeyAndOrderFront，
-            // 会把键盘焦点从光标屏（第一块）抢到后铺的屏幕上。鼠标点击仍可直接操作该屏。
-            window.orderFront(nil)
+        if UserDefaults.standard.bool(forKey: "probe.capturePhases") {
+            Log.info("Capture", String(format: "覆盖层建窗：%@ %.0fms",
+                                       ScreenSnapshot.displayID(of: screen).map { "D\($0)" } ?? "?",
+                                       Double(DispatchTime.now().uptimeNanoseconds - t0) / 1_000_000))
         }
-        let t2 = DispatchTime.now().uptimeNanoseconds
-        // 口径：这里是窗口服务器「orderFront 返回」耗时，不代表真实上屏/可交互。
-        Log.info("Capture", String(format: "覆盖层上屏：%@ 建窗%.0fms · 状态%.0fms · 激活%.0fms · orderFront返回%.0fms",
-                                   ScreenSnapshot.displayID(of: screen).map { "D\($0)" } ?? "?",
-                                   Double(t1 - t0) / 1_000_000,
-                                   Double(tConfig - t1) / 1_000_000,
-                                   Double(tActivate - tConfig) / 1_000_000,
-                                   Double(t2 - tActivate) / 1_000_000))
+        _ = t1
+        return window
     }
 
     private final class ScreenListBox: @unchecked Sendable {
@@ -475,7 +494,8 @@ public final class ScreenshotManager: ObservableObject {
     static func streamScreenSnapshots(screens: [NSScreen],
                                       priority: NSScreen? = nil,
                                       epoch: Int? = nil,
-                                      onReady: @MainActor @escaping (NSScreen, CGImage?) -> Void)
+                                      budget: CaptureBudget? = nil,
+                                      onReady: @MainActor @escaping (NSScreen, CGImage?) async -> Void)
         async -> [(screen: NSScreen, image: CGImage?)] {
         guard !screens.isEmpty else { return [] }
         let ordered = orderedScreens(screens, priority: priority)
@@ -500,7 +520,8 @@ public final class ScreenshotManager: ObservableObject {
                     let t0 = DispatchTime.now().uptimeNanoseconds
                     let image = await ScreenSnapshot.captureScreenForScreenshot(box.screens[index],
                                                                                 epoch: epoch,
-                                                                                toast: exclusion)
+                                                                                toast: exclusion,
+                                                                                budget: budget)
                     let ms = Double(DispatchTime.now().uptimeNanoseconds - t0) / 1_000_000
                     Log.info("Capture", String(format: "流式子任务 %@ 完成 %.0fms",
                                                displayID.map { "D\($0)" } ?? "?", ms))
@@ -529,7 +550,8 @@ public final class ScreenshotManager: ObservableObject {
                         let t0 = DispatchTime.now().uptimeNanoseconds
                         let image = await ScreenSnapshot.captureScreenForScreenshot(box.screens[index],
                                                                                     epoch: epoch,
-                                                                                    toast: exclusion)
+                                                                                    toast: exclusion,
+                                                                                    budget: budget)
                         let ms = Double(DispatchTime.now().uptimeNanoseconds - t0) / 1_000_000
                         Log.info("Capture", String(format: "流式子任务 %@ 完成 %.0fms",
                                                    displayID.map { "D\($0)" } ?? "?", ms))
@@ -629,7 +651,13 @@ public final class ScreenshotManager: ObservableObject {
     }
 
     private func closeOverlays() {
-        for window in overlays { window.orderOut(nil) }
+        for window in overlays {
+            window.orderOut(nil)
+            // 2026-11-24 v293（C6）：双屏各一张 3420×2224 冻结帧 ≈ 30MB，
+            // 只 removeAll 的话要等窗口被释放才回收；这里显式断开引用，
+            // 取消 / 连按 / 提交后立刻回落，不把上一轮的整屏图带进下一轮。
+            window.overlayView.snapshot = nil
+        }
         overlays.removeAll()
     }
 

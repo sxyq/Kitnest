@@ -330,10 +330,15 @@ def scan_file(path: str, rel: str):
             complexity = 1
             for bc in body_lines:
                 complexity += sum(bc.count(w) for w in BRANCH_WORDS)
+            # 2026-11-24：签名（重载区分用）。只取声明到第一个 `{` 之前的文本，
+            # 归一化空白；台账/审查记录用它区分同名重载，不再只能按名字匹配。
+            decl = " ".join(codes[start:j + 1])
+            signature = re.sub(r"\s+", " ", decl.split("{")[0]).strip()
             rows.append({
                 "module": module_of(rel), "file": rel, "owner": stack[-1][0] if stack else "-",
                 "kind": "func" if kind == "func" else kind,
-                "name": name, "line": start + 1, "lines": len(body_lines), "complexity": complexity,
+                "name": name, "line": start + 1, "lines": len(body_lines),
+                "complexity": complexity, "signature": signature,
             })
             # 跳过函数体，避免把体内嵌套闭包/局部声明记成成员
             if body_depth is not None and j > start:
@@ -352,7 +357,7 @@ def scan_file(path: str, rel: str):
             rows.append({
                 "module": module_of(rel), "file": rel, "owner": stack[-1][0] if stack else "-",
                 "kind": mprop.group(1), "name": mprop.group(2),
-                "line": i + 1, "lines": 0, "complexity": 1,
+                "line": i + 1, "lines": 0, "complexity": 1, "signature": "",
             })
             # v259：计算属性 / 观察器 / `= { … }()` 初始化闭包也要跳体。
             # 旧版只记属性、不跳体，于是 getter 里的 `let opacity` / 闭包里的
@@ -382,6 +387,64 @@ def scan_file(path: str, rel: str):
     return rows
 
 
+# ── 逐函数审查记录（2026-11-24 新增）────────────────────────────────────
+#
+# 为什么单独一份文件：`函数清单.csv` 是**生成物**（行号随每次改码漂移），
+# 手工审查结论写进去会被下一次 `func_table.py` 覆盖。审查记录是人工维护的
+# **来源**，生成时按 (file, owner, name, signature) 合并进 CSV：
+#   · 签名命中 → 精确匹配（同名重载不会互相串结论）；
+#   · 只有一条同名记录时允许回退按名字匹配（老记录没写签名）；
+#   · 没有记录 → NOT_REVIEWED（绝不默认 REVIEWED_OK）。
+REVIEW = os.path.join(ROOT, "docs", "00-总览", "数据表", "函数审查记录.csv")
+REVIEW_FIELDS = ["review_status", "reviewed_revision", "review_note",
+                 "action", "measurement", "perf_issue"]
+REVIEW_STATUSES = ("NOT_REVIEWED", "REVIEWED_OK", "NEEDS_MEASUREMENT",
+                   "NEEDS_FIX", "FIXED", "VERIFIED")
+
+
+def load_reviews() -> dict:
+    if not os.path.exists(REVIEW):
+        return {}
+    out = {}
+    with open(REVIEW, encoding="utf-8-sig", newline="") as fh:
+        for row in csv.DictReader(fh):
+            key = (row.get("file", ""), row.get("owner", ""),
+                   row.get("name", ""), row.get("signature", ""))
+            out[key] = row
+    return out
+
+
+def apply_reviews(rows: list) -> Counter:
+    """把审查记录合并进清单行；返回各状态计数（全部来自真实记录）。"""
+    reviews = load_reviews()
+    by_name = Counter((k[0], k[1], k[2]) for k in reviews)
+    # 同名行数：重载（同 file#owner#name 出现多行）时**禁止**按名字回退，
+    # 否则一条记录会被同名的另一条重载共用，等于虚报已读。
+    row_count = Counter((r["file"], r["owner"], r["name"]) for r in rows)
+    stats = Counter()
+    for r in rows:
+        rec = reviews.get((r["file"], r["owner"], r["name"], r.get("signature", "")))
+        if rec is None:
+            key = (r["file"], r["owner"], r["name"])
+            if by_name.get(key) == 1 and row_count.get(key) == 1:
+                rec = next(v for k, v in reviews.items()
+                           if (k[0], k[1], k[2]) == key)
+        if rec is None:
+            for f in REVIEW_FIELDS:
+                r[f] = "NOT_REVIEWED" if f == "review_status" else ""
+            stats["NOT_REVIEWED"] += 1
+            continue
+        for f in REVIEW_FIELDS:
+            r[f] = rec.get(f, "")
+        status = r["review_status"] or "NOT_REVIEWED"
+        if status not in REVIEW_STATUSES:
+            print(f"?? 未知审查状态 {status!r}：{r['file']}#{r['owner']}#{r['name']}")
+            status = "NOT_REVIEWED"
+        r["review_status"] = status
+        stats[status] += 1
+    return stats
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--check", action="store_true", help="只统计不写文件")
@@ -408,11 +471,16 @@ def main() -> int:
         r["feature_id"], r["doc_path"] = fid, doc
         if fid == "未映射":
             unmapped[r["file"]] += 1
+    review_stats = apply_reviews(all_rows)
     funcs = [r for r in all_rows if r["kind"] in ("func", "init", "deinit", "subscript")]
     kinds = Counter(r["kind"] for r in all_rows)
     modules = Counter(r["module"] for r in all_rows if r["kind"] != "var" and r["kind"] != "let")
 
     print(f"文件 {files}；声明 {len(all_rows)}；函数 {len(funcs)}")
+    total_reviewed = sum(v for k, v in review_stats.items() if k != "NOT_REVIEWED")
+    print("逐函数审查：" + " · ".join(f"{k} {review_stats.get(k, 0)}"
+                                    for k in REVIEW_STATUSES)
+          + f"（已读 {total_reviewed}/{len(funcs)}）")
     print("kind:", dict(kinds))
     print("模块:", modules.most_common())
     if unmapped:
@@ -427,8 +495,9 @@ def main() -> int:
         r["perf_priority"] = PERF_HOTSPOTS.get((r["file"], r["owner"], r["name"]), "")
     with open(args.out, "w", newline="", encoding="utf-8-sig") as fh:
         writer = csv.DictWriter(fh, fieldnames=["module", "file", "owner", "kind",
-                                                "name", "line", "lines", "complexity",
-                                                "feature_id", "doc_path", "perf_priority"])
+                                                "name", "signature", "line", "lines",
+                                                "complexity", "feature_id", "doc_path",
+                                                "perf_priority"] + REVIEW_FIELDS)
         writer.writeheader()
         writer.writerows(all_rows)
     print("已写入", os.path.relpath(args.out, ROOT))

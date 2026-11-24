@@ -3300,6 +3300,83 @@ EVIDENCE.update({
         "析构兜底停表（单例不会走到，但保留以防将来改成实例持有）",
 })
 
+# ── v293（2026-11-24 玻璃系统 / 截图链路专项重构）────────────────────
+EVIDENCE.update({
+    ("Core/UI/LiquidGlassMaterial.swift", "resolve"):
+        "玻璃参数唯一解析入口：solid/降透明 → visualEffect(windowBackground/withinWindow/active)；"
+        "claim 系统玻璃仅在 focus==.systemDynamic 且全局开关允许时成立；其余一律 visualEffect+inactive。"
+        "后端、材质、混合、状态、圆角、着色、外观一次算清并给签名，调用方不再各自判断",
+    ("Core/UI/LiquidGlassMaterial.swift", "resolvedTint"):
+        "动态 NSColor 必须在目标外观下取分量：performAsCurrentDrawingAppearance 内转 sRGB，"
+        "否则深色窗口会拿到浅色 tint（旧实现毛玻璃分支干脆丢掉 tint，岛外壳通透度等于空转）",
+    ("Core/UI/LiquidGlassMaterial.swift", "init"):
+        "玻璃宿主初始化：按解析结果建底层对象（NSGlassEffectView/NSVisualEffectView），"
+        "再叠着色层；内容由 embed 后加，层序固定为 玻璃→着色→内容",
+    ("Core/UI/LiquidGlassMaterial.swift", "makeBackend"):
+        "唯一创建底层材质对象的地方；系统玻璃在 macOS 27 关掉 effectIsInteractive，"
+        "避免玻璃自身的光学按键反馈与内容层 hover 抢同一次合成",
+    ("Core/UI/LiquidGlassMaterial.swift", "apply"):
+        "幂等状态入口：签名没变只更新样式值、不碰材质（AppKit 对 material/blending/state 的任何赋值"
+        "都会作废整窗采样）；后端真的变了才替换底层对象，内容与窗口状态不动",
+    ("Core/UI/LiquidGlassMaterial.swift", "configureBackend"):
+        "毛玻璃三分支先比较再赋值（material/blending/state 任一不同才在隐式动画里切），"
+        "系统玻璃只同步 tintColor/cornerRadius；这是「失焦闪一下」与拖滑块重采样的直接修复点",
+    ("Core/UI/LiquidGlassMaterial.swift", "applyTint"):
+        "两条后端语义对齐：系统玻璃给 tintColor，毛玻璃交给同色着色层；"
+        "系统玻璃时隐藏着色层，避免同一块玻璃被着色两次",
+    ("Core/UI/LiquidGlassMaterial.swift", "applyCorner"):
+        "圆角只在真变时赋值；radius==0 时关闭 masksToBounds，省掉整窗一次离屏合成",
+    ("Core/UI/LiquidGlassMaterial.swift", "layout"):
+        "只在 frame 真变时同步底层与着色层尺寸：逐帧插值的岛只更新遮罩，不重设取样面",
+    ("Core/UI/LiquidGlassMaterial.swift", "viewDidChangeEffectiveAppearance"):
+        "外观切换时重解析动态 tint 并更新签名；材质本身由 AppKit 自适应，不重建对象",
+    ("Core/UI/LiquidGlassMaterial.swift", "GlassTintLayerView.init"):
+        "着色层初始隐藏、不参与命中；纯 CALayer 填充，比叠一个全尺寸 SwiftUI fill 少一次合成",
+    ("Core/UI/LiquidGlassMaterial.swift", "apply"):
+        "着色层唯一写入口：颜色相同直接短路（动态色每次解析都是新对象，必须比值不比其他）",
+    ("Core/UI/LiquidGlassMaterial.swift", "hitTest"):
+        "着色层恒不接事件：覆盖层/面板的首次点击必须落到内容或宿主上",
+    ("Features/Capture/Screenshot/ScreenSnapshot.swift", "seconds"):
+        "会话预算构造：整轮截图共用一个 deadline，替代旧实现「每条通道各自 4s、可串行叠加 12s」",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "showOverlays"):
+        "上屏阶段唯一入口：全部屏幕冻结完成后 activate 一次，光标屏 makeKey、其余 orderFront；"
+        "日志明确区分「orderFront 返回」与真实可交互（首次输入事件另记）",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "makeOverlay"):
+        "建一块覆盖层（不可见）：接齐五条提交回调 + 预置窗口命中列表；"
+        "抓帧期间并行建窗，把上屏阶段的工作提前做掉，但绝不提前显示",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "installSnapshot"):
+        "冻结帧直接作为 CALayer.contents 显示：覆盖层不再透出实时桌面，"
+        "Kitnest 激活导致原应用预览/菜单消失也不再改变用户看到的画面",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "hitTest"):
+        "所有子图层都不接事件，鼠标恒落到覆盖层自己；否则第一下点击会被 NSImageView 的"
+        "acceptsFirstMouse=false 吞掉（历史「点一次没反应」同族）",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "layout"):
+        "子层尺寸只在真变时同步（窗口不可缩放，正常只走一次）",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "replaceWindowHits"):
+        "会话级窗口命中列表晚到时补入（一轮只枚举一次，双屏不再主线程枚举两遍）",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "collectWindowHits"):
+        "可后台调用的窗口枚举：排除本进程与桌面元素、过滤 <80×60、CG 全局坐标转 Cocoa；"
+        "主线程只在没有预置列表时兜底调用",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "drawCanvas"):
+        "高亮/提示绘制：不再整屏填 35% 黑（压暗已下沉为静态层），只画窗口/元素高亮与提示胶囊",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "highlightBounds"):
+        "当前高亮包围盒：局部失效的唯一依据，空白桌面时为空 → 不重绘",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "invalidateCanvas"):
+        "只失效「旧高亮 ∪ 新高亮」：鼠标在空白处移动不再触发整屏重绘",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "updateCrosshair"):
+        "十字准线改 CAShapeLayer 路径更新（关闭隐式动画）：贯穿全屏的两条线不再让整屏 backing store 失效",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "OverlayCanvas.draw"):
+        "透传给覆盖层绘制；自身透明、不接事件，只承载「会随鼠标变化」的那一层",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "OverlayCanvas.hitTest"):
+        "绘制层恒不接事件（事件统一由覆盖层 hitTest 接管）",
+    ("Features/Monitor/Storage/StorageTreemap.swift", "rawPath"):
+        "路径真实构造（缓存未命中时）：轮廓 ∩ 图块画布后线性映射；"
+        "CGPath 布尔运算只在这里发生，不再每个悬停事件做一次",
+    ("Features/Panel/Presentation/FloatingPanel.swift", "glassHost"):
+        "在视图树里定位玻璃宿主（面板被 WindowReveal 容器再包一层）；"
+        "替代旧实现「取 contentView.subviews.first」的脆弱假设",
+})
+
 # ── v291（2026-11-24 投屏线 v2 立项落地）────────────────────────────
 EVIDENCE.update({
     ("Features/TransferDock/Transfer/LanTransferServer.swift", "connectHTML"):
