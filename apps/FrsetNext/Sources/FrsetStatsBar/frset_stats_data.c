@@ -844,9 +844,6 @@ double frset_smc_read_fan(int idx) {
     if (!g_conn) { if (frset_smc_open() != 0) return -1; }
     char key[5];
     snprintf(key, sizeof(key), "F%dAc", idx);
-    SMCKeyData_t info;
-    memset(&info, 0, sizeof(info));
-    if (smc_keyinfo(str2key(key), &info) != 0) return -1;
     uint8_t buf[32];
     memset(buf, 0, sizeof(buf));
     uint32_t size = 0, type = 0;
