@@ -154,33 +154,42 @@ private final class DiskLayoutCache {
     static let shared = DiskLayoutCache()
     private var key = ""
     private var tiles: [DiskTile] = []
+    private var hitPath = Path()
+    private var hitPathSize = CGSize.zero
+    private var hitPathGeometry: StorageSurfaceGeometry?
 
     func tiles(for node: DiskNode, size: CGSize, freeSpace: Int64? = nil,
                indexRevision: Int, contentTopRatio: CGFloat = 0,
-               geometry: StorageSurfaceGeometry = StorageSurfaceGeometry()) -> [DiskTile] {
+               geometry: StorageSurfaceGeometry = StorageSurfaceGeometry()) -> (tiles: [DiskTile], hitPath: Path) {
         // 关窗/最小化途中画布会被压到 0；此时切 Voronoi 既无意义又极贵
         //（退化尺寸会切出大量碎片路径，命中测试再逐个 contains → 主线程卡住）。
-        guard size.width > 40, size.height > 40 else { return [] }
+        guard size.width > 40, size.height > 40 else { return ([], Path()) }
         // v286：外轮廓改由整窗画布推导，缓存键必须带上画布口径
         //（画布宽/顶带高度/图块画布左缘任一变化都要重切）。
         let k = "\(node.id)|\(size.width)×\(size.height)|\(node.children.count)|\(node.size)"
             + "|\(freeSpace ?? 0)|\(indexRevision)|\(contentTopRatio)"
             + "|\(Int(geometry.canvas.width))×\(Int(geometry.canvas.height))"
             + "|\(Int(geometry.tileFrame.minX))|\(Int(geometry.surfaceTop))|\(Int(geometry.sweepEnd))"
-        if k == key { return tiles }
-        var nodes = node.children
-        if node.isDirectory, node.ownSize > 0 {
-            nodes.append(DiskNode(path: "disk-files:" + node.path, name: "其余直接文件",
-                                  isDirectory: false, size: node.ownSize, ownSize: node.ownSize,
-                                  foldedCount: 0, children: [], isAggregate: true))
+        if k != key {
+            var nodes = node.children
+            if node.isDirectory, node.ownSize > 0 {
+                nodes.append(DiskNode(path: "disk-files:" + node.path, name: "其余直接文件",
+                                      isDirectory: false, size: node.ownSize, ownSize: node.ownSize,
+                                      foldedCount: 0, children: [], isAggregate: true))
+            }
+            tiles = DiskVoronoiLayout.make(nodes: nodes, in: size,
+                                           parentPath: node.path, freeSpace: freeSpace,
+                                           contentTopRatio: contentTopRatio,
+                                           geometry: geometry)
+            key = k
         }
-        let made = DiskVoronoiLayout.make(nodes: nodes, in: size,
-                                          parentPath: node.path, freeSpace: freeSpace,
-                                          contentTopRatio: contentTopRatio,
-                                          geometry: geometry)
-        key = k
-        tiles = made
-        return made
+        if hitPathSize != size || hitPathGeometry != geometry {
+            hitPath = StorageMapShape(geometry: geometry)
+                .path(in: CGRect(origin: .zero, size: size))
+            hitPathSize = size
+            hitPathGeometry = geometry
+        }
+        return (tiles, hitPath)
     }
 }
 
@@ -496,11 +505,12 @@ struct StorageTreemap: View {
 
     var body: some View {
         GeometryReader { geo in
-            let tiles = DiskLayoutCache.shared.tiles(for: node, size: geo.size,
-                                                     freeSpace: freeSpace, indexRevision: indexRevision,
-                                                     contentTopRatio: geo.size.height > 0
-                                                        ? contentTop / geo.size.height : 0,
-                                                     geometry: geometry)
+            let layout = DiskLayoutCache.shared.tiles(for: node, size: geo.size,
+                                                      freeSpace: freeSpace, indexRevision: indexRevision,
+                                                      contentTopRatio: geo.size.height > 0
+                                                         ? contentTop / geo.size.height : 0,
+                                                      geometry: geometry)
+            let tiles = layout.tiles
             if tiles.isEmpty {
                 VStack(spacing: 6) {
                     Image(systemName: "square.dashed")
@@ -556,14 +566,11 @@ struct StorageTreemap: View {
                     }
                 }
                 .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
-                .contentShape(StorageMapShape(geometry: geometry))
+                .contentShape(Rectangle())
                 .onContinuousHover { phase in
                     switch phase {
                     case .active(let location):
-                        // v286：命中判定与裁切/手势共用同一份几何推导的图块外轮廓。
-                        let inside = StorageMapShape(geometry: geometry)
-                            .path(in: CGRect(origin: .zero, size: geo.size))
-                            .contains(location)
+                        let inside = layout.hitPath.contains(location)
                         // 同上：位置与活跃态始终跟随真实指针，减弱动态只影响过渡曲线。
                         let nextPoint = inside ? location : hover.point
                         let nextID = inside ? tiles.first { $0.frame.contains(location) && $0.hitPath.contains(location) }?.id : nil
