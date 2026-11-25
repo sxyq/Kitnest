@@ -78,8 +78,13 @@ public struct CodePreviewView: View {
     }
 
     /// 影响高亮结果的输入组合。值一变就必须重新着色（见 body 里的 onChange）。
+    /// 2026-11-25（二轮复核 high）：键里原来没有代码内容——悬停预览在切换条目时
+    /// 主题/字号/语言都不变，.task(id:) 不重跑，屏幕上还是上一条的代码，
+    /// 而状态栏/复制却按新内容走。键并入代码内容的稳定指纹（长度 + 中段采样哈希即可，
+    /// 不需要全文 hash）。
     private var renderKey: String {
-        "\(themeID)|\(fontSize)|\(languageID)"
+        let fp = "\(code.count)|\(code.prefix(64).hashValue)|\(code.suffix(64).hashValue)"
+        return "\(themeID)|\(fontSize)|\(languageID)|\(fp)"
     }
 
     private var options: CodeRenderOptions {

@@ -189,7 +189,12 @@ public final class AIChatViewModel: ObservableObject {
         } catch {
             let partial = reply
             await MainActor.run {
-                // 用户主动停止：不弹错误；其余错误如实提示（保留已产出的内容）
+                // 用户主动停止：不弹错误；其余错误如实提示（保留已产出的内容）。
+                // 会话已切换时旧任务的错误/部分内容一律不写入新会话。
+                if sessionID != self.session?.id {
+                    self.isStreaming = false
+                    return
+                }
                 self.errorMessage = error.isLLMCancellation ? nil : error.localizedDescription
                 self.finishPartial(reply: partial, sessionID: sessionID)
                 if !Task.isCancelled, !error.isLLMCancellation { HapticService.shared.perform(.operationFailed) }
@@ -198,6 +203,13 @@ public final class AIChatViewModel: ObservableObject {
     }
 
     private func commit(reply: String, sessionID: String) {
+        // 2026-11-25（二轮复核）：会话已切换（startNewChat）时，被取消的旧任务收尾
+        // 不得把上一轮的部分回复写进新会话。sessionID 对不上就整体丢弃。
+        guard sessionID == session?.id else {
+            isStreaming = false
+            streamingText = ""
+            return
+        }
         guard !reply.isEmpty else {
             isStreaming = false
             streamingText = ""
@@ -211,6 +223,12 @@ public final class AIChatViewModel: ObservableObject {
     }
 
     private func finishPartial(reply: String, sessionID: String) {
+        // 同上：旧任务的收尾只作用于发起时的会话
+        guard sessionID == session?.id else {
+            isStreaming = false
+            streamingText = ""
+            return
+        }
         if !reply.isEmpty {
             let message = LLMSessionStore.shared.appendMessage(sessionID: sessionID, role: .assistant, content: reply)
             messages.append(message)

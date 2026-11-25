@@ -863,7 +863,10 @@ final class PinnedScreenshotContentView: PinImageView {
     }
 
     private func hideChrome() {
-        guard chromeVisible else { return }
+        // 2026-11-25（二轮复核）：小模式下 chrome 只剩 closeButton 一个可用鼠标入口，
+        // mouseUp 直接走到这里会把 closeButton 淡出并置 isHidden——小图从此只能 Esc 关闭。
+        // showChrome 已带 isSmallMode 守卫，这里补对称。
+        guard chromeVisible, !isSmallMode else { return }
         chromeVisible = false
         bubblePanel.hide()
         NSAnimationContext.runAnimationGroup({ ctx in

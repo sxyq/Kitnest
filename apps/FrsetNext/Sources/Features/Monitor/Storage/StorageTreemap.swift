@@ -148,48 +148,86 @@ enum DiskVoronoiLayout {
     }
 }
 
-/// 布局缓存：hover 改状态会重算 body，不能每次都跑 Voronoi 迭代
-/// （17 个块 × 90 轮 ≈ 2–5ms，逐帧跑会明显掉帧）
-private final class DiskLayoutCache {
-    static let shared = DiskLayoutCache()
-    private var key = ""
-    private var tiles: [DiskTile] = []
-    private var hitPath = Path()
-    private var hitPathSize = CGSize.zero
-    private var hitPathGeometry: StorageSurfaceGeometry?
+/// 悬停坐标量化器：亚像素抖动视为同一位置。
+enum StorageHoverResolver {
+    static func quantize(_ point: CGPoint) -> CGPoint {
+        CGPoint(x: (point.x * 2).rounded() / 2, y: (point.y * 2).rounded() / 2)
+    }
+}
 
-    func tiles(for node: DiskNode, size: CGSize, freeSpace: Int64? = nil,
-               indexRevision: Int, contentTopRatio: CGFloat = 0,
-               geometry: StorageSurfaceGeometry = StorageSurfaceGeometry()) -> (tiles: [DiskTile], hitPath: Path) {
-        // 关窗/最小化途中画布会被压到 0；此时切 Voronoi 既无意义又极贵
-        //（退化尺寸会切出大量碎片路径，命中测试再逐个 contains → 主线程卡住）。
-        guard size.width > 40, size.height > 40 else { return ([], Path()) }
-        // v286：外轮廓改由整窗画布推导，缓存键必须带上画布口径
-        //（画布宽/顶带高度/图块画布左缘任一变化都要重切）。
-        let k = "\(node.id)|\(size.width)×\(size.height)|\(node.children.count)|\(node.size)"
+/// 布局调度器（2026-11-25 体验时段挂死修复）。
+///
+/// 现场（-Onone 符号化栈）：`StorageTreemap.body.getter → DiskLayoutCache.tiles
+/// → DiskVoronoiLayout.make → VoronoiTreemap.layout`——整张权重 Voronoi 在**主线程
+/// body 求值里**跑，5s 采样里主线程一次都没出来。正式版 -O 下单次约数百 ms，
+/// 而存储窗打开期间 body 会被索引发布/磁盘空间刷新反复触发，主线程永远追不上，
+/// 表现就是「打开存储窗就卡死，几小时不恢复」。
+///
+/// 现在：命中缓存立即返回；未命中返回该节点上一次的结果（没有则空），
+/// 后台队列算一次，完成后发布 generation 让视图重画。
+/// 主线程不再有任何 Voronoi 计算。
+@MainActor
+final class DiskLayoutStore: ObservableObject {
+    static let shared = DiskLayoutStore()
+    /// 结果发布计数：后台算完 +1，观察者据此重画
+    @Published private(set) var generation = 0
+
+    private var cache: [String: [DiskTile]] = [:]
+    private var order: [String] = []
+    private var lastByNode: [String: [DiskTile]] = [:]
+    private var inFlight: Set<String> = []
+    /// 上限：一张地图 + 几个下钻层足够
+    private let capacity = 6
+
+    func layout(for node: DiskNode, size: CGSize, freeSpace: Int64?,
+                indexRevision: Int, contentTopRatio: CGFloat,
+                geometry: StorageSurfaceGeometry) -> [DiskTile] {
+        guard size.width > 40, size.height > 40 else { return [] }
+        let key = "\(node.id)|\(size.width)×\(size.height)|\(node.children.count)|\(node.size)"
             + "|\(freeSpace ?? 0)|\(indexRevision)|\(contentTopRatio)"
             + "|\(Int(geometry.canvas.width))×\(Int(geometry.canvas.height))"
             + "|\(Int(geometry.tileFrame.minX))|\(Int(geometry.surfaceTop))|\(Int(geometry.sweepEnd))"
-        if k != key {
-            var nodes = node.children
-            if node.isDirectory, node.ownSize > 0 {
-                nodes.append(DiskNode(path: "disk-files:" + node.path, name: "其余直接文件",
-                                      isDirectory: false, size: node.ownSize, ownSize: node.ownSize,
-                                      foldedCount: 0, children: [], isAggregate: true))
+        if let hit = cache[key] { return hit }
+        // 未命中：先给上一次的结果（同一节点），避免图块闪空
+        let fallback: [DiskTile] = lastByNode[node.id] ?? []
+        guard !inFlight.contains(key) else { return fallback }
+        inFlight.insert(key)
+
+        var nodes = node.children
+        if node.isDirectory, node.ownSize > 0 {
+            nodes.append(DiskNode(path: "disk-files:" + node.path, name: "其余直接文件",
+                                  isDirectory: false, size: node.ownSize, ownSize: node.ownSize,
+                                  foldedCount: 0, children: [], isAggregate: true))
+        }
+        let parentPath = node.path
+        let nodeID = node.id
+        // DiskNode 是值类型（struct + [DiskNode] 子节点），整棵子树按值捕获，后台读安全
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let made = DiskVoronoiLayout.make(nodes: nodes, in: size, parentPath: parentPath,
+                                              freeSpace: freeSpace,
+                                              contentTopRatio: contentTopRatio,
+                                              geometry: geometry)
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.inFlight.remove(key)
+                self.store(key: key, nodeID: nodeID, value: made)
             }
-            tiles = DiskVoronoiLayout.make(nodes: nodes, in: size,
-                                           parentPath: node.path, freeSpace: freeSpace,
-                                           contentTopRatio: contentTopRatio,
-                                           geometry: geometry)
-            key = k
         }
-        if hitPathSize != size || hitPathGeometry != geometry {
-            hitPath = StorageMapShape(geometry: geometry)
-                .path(in: CGRect(origin: .zero, size: size))
-            hitPathSize = size
-            hitPathGeometry = geometry
+        return fallback
+    }
+
+    private func store(key: String, nodeID: String, value: [DiskTile]) {
+        cache[key] = value
+        lastByNode[nodeID] = value
+        order.append(key)
+        if order.count > capacity {
+            cache.removeValue(forKey: order.removeFirst())
         }
-        return (tiles, hitPath)
+        if lastByNode.count > capacity * 4,
+           let staleNodeID = lastByNode.keys.first {
+            lastByNode.removeValue(forKey: staleNodeID)
+        }
+        generation &+= 1
     }
 }
 
@@ -463,6 +501,8 @@ struct StorageTileShape: Shape {
 struct StorageTreemap: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    /// 后台布局调度器（主线程不做 Voronoi）
+    @ObservedObject private var layoutStore = DiskLayoutStore.shared
 
     let node: DiskNode
     let selectedID: String?
@@ -505,12 +545,11 @@ struct StorageTreemap: View {
 
     var body: some View {
         GeometryReader { geo in
-            let layout = DiskLayoutCache.shared.tiles(for: node, size: geo.size,
-                                                      freeSpace: freeSpace, indexRevision: indexRevision,
-                                                      contentTopRatio: geo.size.height > 0
-                                                         ? contentTop / geo.size.height : 0,
-                                                      geometry: geometry)
-            let tiles = layout.tiles
+            let tiles = layoutStore.layout(for: node, size: geo.size,
+                                           freeSpace: freeSpace, indexRevision: indexRevision,
+                                           contentTopRatio: geo.size.height > 0
+                                              ? contentTop / geo.size.height : 0,
+                                           geometry: geometry)
             if tiles.isEmpty {
                 VStack(spacing: 6) {
                     Image(systemName: "square.dashed")
@@ -569,11 +608,21 @@ struct StorageTreemap: View {
                 .contentShape(Rectangle())
                 .onContinuousHover { phase in
                     switch phase {
-                    case .active(let location):
-                        let inside = layout.hitPath.contains(location)
-                        // 同上：位置与活跃态始终跟随真实指针，减弱动态只影响过渡曲线。
+                    case .active(let rawLocation):
+                        // 2026-11-25：量化到 0.5pt —— 窗口动画/液态回弹期间指针坐标有亚像素抖动，
+                        // 不量化会「每个事件都写 hover → 重启弹簧 → 坐标再变」自激（一轮挂死原因之一）。
+                        let location = StorageHoverResolver.quantize(rawLocation)
+                        if hover.point == location, hover.active {
+                            return                      // 同一点重复事件：不写状态、不重算命中
+                        }
+                        // 命中判定与裁切共用同一份几何推导轮廓（Path 已由 StorageShapeCache 缓存）
+                        let inside = StorageMapShape(geometry: geometry)
+                            .path(in: CGRect(origin: .zero, size: geo.size))
+                            .contains(location)
                         let nextPoint = inside ? location : hover.point
-                        let nextID = inside ? tiles.first { $0.frame.contains(location) && $0.hitPath.contains(location) }?.id : nil
+                        let nextID = inside ? tiles.first {
+                            $0.frame.contains(location) && $0.hitPath.contains(location)
+                        }?.id : nil
                         let active = inside
                         if hover.point != nextPoint || hover.id != nextID || hover.active != active {
                             hover = (nextPoint, nextID, active)

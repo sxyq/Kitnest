@@ -51,8 +51,14 @@ public enum ArchiveCore {
 
     static func extractionDirectory(containing file: URL) -> URL {
         let temporary = FileManager.default.temporaryDirectory.standardizedFileURL
-        return temporary.appendingPathComponent(file.standardizedFileURL.pathComponents[temporary.pathComponents.count],
-                                                isDirectory: true)
+        // 2026-11-25（二轮复核）：file 不在临时目录树下时下标会越界。回退到临时根目录的
+        // 「frset-extract-other」子目录，宁可放错位置也不崩。
+        let comps = file.standardizedFileURL.pathComponents
+        let idx = temporary.pathComponents.count
+        guard comps.count > idx else {
+            return temporary.appendingPathComponent("frset-extract-other", isDirectory: true)
+        }
+        return temporary.appendingPathComponent(comps[idx], isDirectory: true)
     }
 
     // MARK: 7zz 定位

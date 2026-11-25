@@ -3437,5 +3437,27 @@ EVIDENCE.update({
         "不再重复调用 LunarCalendar，节气、节日、农历和节假日文案的显示顺序保持原行为",
 })
 
+# ── v293 续（2026-11-25 主线合入 Lite 后新增函数）────────────────────
+EVIDENCE.update({
+    ("App/FrsetNextApp.swift", "isLegitimateHolderForTakeover"):
+        "启动路径在新鲜挂死标记下调用；委托同文件 isLegitimateHolder，排除自身、僵尸及非本 bundle 进程，"
+        "只有确认同一 Kitnest 实例时才允许 SIGKILL，其他情况沿既有无锁接管路径继续启动",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "pixelSize"):
+        "仅由 commitToSaveDirectory 在暂存截图复制到用户目录前调用；ImageIO 读取 PNG 头部宽高，不解码整图，"
+        "结果只传给文件名模板的 {w}/{h}，读取失败沿用零尺寸默认值",
+    ("Features/Monitor/Memory/ProcessFreezer.swift", "identity"):
+        "由 isSameProcess 在解冻路径调用；先判 PID 存活，再以 rusage 的启动时刻区分 same/different，"
+        "无法读取启动时刻返回 unknown，而 isSameProcess 将 unknown 视为可唤醒，避免冻结记录被永久跳过 SIGCONT",
+    ("Features/Monitor/Storage/StorageTreemap.swift", "quantize"):
+        "仅由 StorageTreemap.onContinuousHover 调用；把鼠标坐标量化到 0.5pt 后再做重复事件判定，"
+        "减少亚像素事件触发的 hover 状态与弹簧重算，命中轮廓和图块选择仍使用同一量化坐标",
+    ("Features/Monitor/Storage/StorageTreemap.swift", "layout"):
+        "StorageTreemap.body 的唯一布局入口；以节点、画布、几何、索引版本和可用空间组成缓存键，"
+        "命中直接返回，未命中先返同节点旧结果并在 userInitiated 后台队列执行 DiskVoronoiLayout.make，完成后回主线程发布 generation",
+    ("Features/Monitor/Storage/StorageTreemap.swift", "store"):
+        "只由 layout 的后台计算完成回调在主线程调用；写入最多 6 个布局键、更新同节点回退结果，"
+        "lastByNode 超过 24 个节点时按节点 ID 淘汰，递增 generation 触发视图读取新布局",
+})
+
 if __name__ == "__main__":
     sys.exit(main())

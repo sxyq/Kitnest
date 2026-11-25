@@ -155,7 +155,11 @@ public final class ProcessFreezer: ObservableObject {
               let saved = try? JSONDecoder().decode([SavedFreeze].self, from: data) else { return }
         var restored = 0
         for item in saved {
-            let stillFrozen = pidAlive(item.pid) && startTime(item.pid) == item.startedAt
+            // 2026-11-25（二轮复核）：startTime 取不到（权限/进程刚退出读数失败）不再视为
+            // 「不是同一进程」——那会让残留的 SIGSTOP 永远没人解。SIGCONT 对未暂停进程是
+            // 无害空操作，取不到就保守唤醒。
+            let st = startTime(item.pid)
+            let stillFrozen = pidAlive(item.pid) && (st == nil || st == item.startedAt)
             if stillFrozen {
                 Darwin.kill(item.pid, SIGCONT)
                 for extra in item.extraPIDs where pidAlive(extra) {
@@ -172,8 +176,9 @@ public final class ProcessFreezer: ObservableObject {
 
     /// 恢复一个 App 的主进程 + 附带暂停的 helper
     private func resume(_ item: FrozenApp) {
-        if isSameProcess(item) {
-            Darwin.kill(item.pid, SIGCONT)
+        switch identity(of: item) {
+        case .same, .unknown: Darwin.kill(item.pid, SIGCONT)
+        case .different: break          // pid 已被复用/已退出，绝不能对无辜进程动手
         }
         for extra in item.extraPIDs where pidAlive(extra) {
             Darwin.kill(extra, SIGCONT)
@@ -344,8 +349,20 @@ public final class ProcessFreezer: ObservableObject {
         ProcessMemoryInspector.resourceUsage(of: pid)?.ri_proc_start_abstime
     }
 
+    /// 2026-11-25（二轮复核 high）：进程身份改为三态。旧实现把「rusage 取不到
+    /// startTime」当成「不是同一进程」→ resume 跳过 SIGCONT，而此刻 frozen 已清空、
+    /// 看门狗/到期已停，进程就永久卡在 SIGSTOP（用户看到「点不动的 App」）。
+    /// SIGCONT 对正常运行中的进程是无害空操作，unknown 一律按同一进程保守唤醒。
+    private enum PIDIdentity { case same, different, unknown }
+
+    private func identity(of item: FrozenApp) -> PIDIdentity {
+        guard pidAlive(item.pid) else { return .different }
+        guard let st = startTime(item.pid) else { return .unknown }
+        return st == item.startedAt ? .same : .different
+    }
+
     private func isSameProcess(_ item: FrozenApp) -> Bool {
-        pidAlive(item.pid) && startTime(item.pid) == item.startedAt
+        identity(of: item) != .different
     }
 
     // MARK: - 定时解冻
@@ -446,7 +463,9 @@ public final class ProcessFreezer: ObservableObject {
             SavedFreeze(pid: $0.pid, startedAt: $0.startedAt, extraPIDs: $0.extraPIDs)
         }
         guard let data = try? JSONEncoder().encode(saved) else { return }
-        try? data.write(to: Self.pidFileURL)
+        // 2026-11-25（二轮复核）：非原子写可能留下半截 JSON → thawOrphans 解码失败直接 return，
+        // 残留冻结进程永远没人唤醒。改原子写。
+        try? data.write(to: Self.pidFileURL, options: .atomic)
     }
 
     private func clearPidFile() {

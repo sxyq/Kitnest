@@ -424,8 +424,6 @@ public enum CaptureDeepLink {
                     }
                 }
             }
-        case "region":
-            ScreenshotManager.shared.captureRegion()
         case "ocr":
             // v166.6 排障入口：kitnest://capture?action=ocr&file=/tmp/a.png
             // 对指定图片走真实「识字」链路（识别 → 写剪贴板 → 弹结果窗），

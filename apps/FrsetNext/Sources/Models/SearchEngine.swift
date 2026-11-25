@@ -186,7 +186,9 @@ public final class SearchServiceManager: ObservableObject {
     /// - Returns: 是否成功移除
     @discardableResult
     public func removeFromSearchBar(engineID: String) -> Bool {
-        guard activeBarItems.count > 1 else { return false }
+        // 2026-11-25（二轮复核）：引擎根本不在栏内时旧实现照样返回 true，
+        // 设置页会误报成功。只有真移除了才算成功。
+        guard activeBarItems.contains(engineID), activeBarItems.count > 1 else { return false }
         activeBarItems.removeAll { $0 == engineID }
         persistActiveBarItems()
         return true
@@ -220,6 +222,11 @@ public final class SearchServiceManager: ObservableObject {
     public func deleteCustomEngine(engineID: String) {
         customEngines.removeAll { $0.id == engineID }
         activeBarItems.removeAll { $0 == engineID }
+        // 2026-11-25（二轮复核）：删掉最后一个栏内引擎会把搜索栏清空（≥1 不变式破坏，
+        // 之后所有 removeFromSearchBar 都返回 false 且搜索栏没有可用引擎）。补默认引擎。
+        if activeBarItems.isEmpty, let first = Self.defaultActiveBarItems.first {
+            activeBarItems = [first]
+        }
         persistActiveBarItems()
         rebuildOrder()
         persistCustomEngines()

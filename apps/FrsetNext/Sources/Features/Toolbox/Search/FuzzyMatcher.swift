@@ -152,8 +152,15 @@ public enum FuzzyMatcher {
             cursor = hit + 1
         }
 
-        return FuzzyMatch(score: rate(indices: indices, original: Array(target)),
-                          indices: indices)
+        // 2026-11-25（二轮复核）：indices 是对 lowered（lowercased 数组）算的，
+        // 而 rate 用它去索引 original（未转换数组）。大小写转换一旦改变长度
+        //（如 "İ"→"i̇" 变两字符），索引就会越界或错位打分。长度一致才用
+        // 位置评分，否则退化为长度无关的保守分。
+        let originalArray = Array(target)
+        let score = originalArray.count == lowered.count
+            ? rate(indices: indices, original: originalArray)
+            : 16 * indices.count
+        return FuzzyMatch(score: score, indices: indices)
     }
 
     /// 是否模糊命中（不关心得分与位置）
