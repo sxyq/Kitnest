@@ -183,8 +183,6 @@ public enum LunarCalendar {
                707, 723, 808, 823, 908, 923, 1008, 1023, 1107, 1122, 1207, 1221]
     ]
 
-    public static var solarTermYears: [Int] { solarTerms.keys.sorted() }
-
     /// 返回该日期的节气名（无则返回 nil）
     public static func solarTerm(_ date: Date) -> String? {
         let (y, m, d) = gregorianComponents(date)

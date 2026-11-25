@@ -207,7 +207,22 @@ public struct CalendarSectionView: View {
         let index = row * 7 + column
         let day = index < days.count ? days[index] : nil
         let isToday = day?.isToday ?? false
-        let isFestival = day.map { isFestivalDay($0) } ?? false
+        let hasHoliday = day?.holidayText?.isEmpty == false
+        let solarTerm: String?
+        if showLunar || !hasHoliday {
+            solarTerm = day.flatMap { LunarCalendar.solarTerm($0.date) }
+        } else {
+            solarTerm = nil
+        }
+        let lunar: LunarDate?
+        if showLunar || (!hasHoliday && solarTerm == nil) {
+            lunar = day.flatMap { LunarCalendar.lunarDate($0.date) }
+        } else {
+            lunar = nil
+        }
+        let lunarFestival = lunar.flatMap { LunarCalendar.lunarFestival($0) }
+        let isFestival = hasHoliday || solarTerm != nil || lunarFestival != nil
+        let lunarDisplay = showLunar ? day?.lunarDisplay(lunar, solarTerm: solarTerm, festival: lunarFestival) : nil
         // v132：点选态（今天有蓝底胶囊，其余选中日用描边环）
         let isSelected: Bool = {
             guard let date = day?.date, let selected = selectedDay else { return false }
@@ -219,7 +234,7 @@ public struct CalendarSectionView: View {
                 .font(.system(size: 14, weight: isToday ? .semibold : .regular))
                 .foregroundStyle(isToday ? Color.white : Color.primary)
                 .frame(height: 18)
-            Text(showLunar ? (day?.lunarDisplay ?? " ") : " ")
+            Text(showLunar ? (lunarDisplay ?? " ") : " ")
                 .font(.system(size: 11))
                 .foregroundStyle(isToday ? Color.white.opacity(0.92)
                                          : (isFestival ? Color.orange : Color.secondary))
@@ -311,15 +326,6 @@ public struct CalendarSectionView: View {
         return CalendarService.monthTitle(start)
     }
 
-    /// 节气 / 传统节日（橙色高亮）：农历节气表或节日表命中
-    private func isFestivalDay(_ day: CalendarDay) -> Bool {
-        if let text = day.holidayText, !text.isEmpty { return true }
-        if LunarCalendar.solarTerm(day.date) != nil { return true }
-        if let lunar = LunarCalendar.lunarDate(day.date),
-           LunarCalendar.lunarFestival(lunar) != nil { return true }
-        return false
-    }
-
     private func shift(_ days: Int) {
         guard let next = calendar.date(byAdding: .day, value: days, to: anchor) else { return }
         anchor = next
@@ -348,10 +354,10 @@ private extension CalendarDay {
         text.hasSuffix("节") && text.count > 2 ? String(text.dropLast()) : text
     }
 
-    var lunarDisplay: String {
-        if let lunar = LunarCalendar.lunarDate(date) {
-            if let festival = LunarCalendar.lunarFestival(lunar) { return Self.shortName(festival) }
-            if let term = LunarCalendar.solarTerm(date) { return term }
+    func lunarDisplay(_ lunar: LunarDate?, solarTerm: String?, festival: String?) -> String {
+        if let lunar {
+            if let festival { return Self.shortName(festival) }
+            if let solarTerm { return solarTerm }
         }
         if let text = lunarText, !text.isEmpty { return Self.shortName(text) }
         if let holiday = holidayText, !holiday.isEmpty { return Self.shortName(holiday) }
