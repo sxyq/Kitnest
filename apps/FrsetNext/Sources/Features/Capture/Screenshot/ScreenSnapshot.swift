@@ -289,7 +289,7 @@ enum ScreenSnapshot {
             toastFrame = rect
         }
         let toastVisible = toastFrame != nil
-        let shouldCancel: () -> Bool = {
+        let shouldCancel: @Sendable () -> Bool = {
             if let epoch, !isCurrentEpoch(epoch) { return true }
             if let budget, budget.expired { return true }
             return false
@@ -336,13 +336,17 @@ enum ScreenSnapshot {
         if toastVisible {
             if #available(macOS 14.0, *), let displayID {
                 sck = await Task.detached(priority: .userInitiated) {
-                    sckCaptureSync(displayID: displayID)
+                    sckCaptureSync(displayID: displayID,
+                                   timeout: min(CaptureBudget.channelSeconds,
+                                                budget?.remaining ?? CaptureBudget.channelSeconds),
+                                   isCancelled: shouldCancel)
                 }.value
             } else {
                 sck = nil
             }
         } else {
-            sck = await captureScreenAdaptive(screen: screen)
+            sck = await captureScreenAdaptive(screen: screen, budget: budget,
+                                              isCancelled: shouldCancel)
         }
         let sckProbeStart = DispatchTime.now().uptimeNanoseconds
         let sckProbe = sck.map { probe($0, size: screenFrame.size) }
@@ -439,7 +443,10 @@ enum ScreenSnapshot {
     private static var channelLogged = false
 
     /// 自适应抓屏总入口（异步，主线程安全）：截图族所有 UI 快照统一走这里
-    static func captureScreenAdaptive(screen: NSScreen) async -> CGImage? {
+    static func captureScreenAdaptive(screen: NSScreen,
+                                      budget: CaptureBudget? = nil,
+                                      isCancelled: (@Sendable () -> Bool)? = nil) async -> CGImage? {
+        let shouldCancel = isCancelled ?? { false }
         let channel = preferredChannel
         if !channelLogged {
             channelLogged = true
@@ -451,12 +458,18 @@ enum ScreenSnapshot {
         case .sckAsync:
             if #available(macOS 14.0, *), let displayID = displayID(of: screen) {
                 if let image = await Task.detached(priority: .userInitiated, operation: {
-                    sckCaptureSync(displayID: displayID)
+                    sckCaptureSync(displayID: displayID,
+                                   timeout: min(CaptureBudget.channelSeconds,
+                                                budget?.remaining ?? CaptureBudget.channelSeconds),
+                                   isCancelled: shouldCancel)
                 }).value { return image }
+                guard !shouldCancel() else { return nil }
                 Log.warn("Capture", "SCK 整屏抓取失败或超时，回退同屏 legacy 通道")
             }
+            guard !shouldCancel() else { return nil }
             return await Task.detached(priority: .userInitiated) { cgCapture(screen: screen) }.value
         case .legacyBackground:
+            guard !shouldCancel() else { return nil }
             return await Task.detached(priority: .userInitiated) { cgCapture(screen: screen) }.value
         }
     }
@@ -499,19 +512,31 @@ enum ScreenSnapshot {
     /// 连续失败 → 无有效画布）；此封装在**后台队列**信号量等待异步 SCK，
     /// 禁止主线程调用。
     @available(macOS 14.0, *)
-    static func sckCaptureSync(displayID: CGDirectDisplayID) -> CGImage? {
+    static func sckCaptureSync(displayID: CGDirectDisplayID,
+                               timeout: Double = CaptureBudget.channelSeconds,
+                               isCancelled: (() -> Bool)? = nil) -> CGImage? {
+        let shouldCancel = isCancelled ?? { false }
+        let deadline = DispatchTime.now().uptimeNanoseconds
+            + UInt64(max(0, timeout) * 1_000_000_000)
+        guard DispatchTime.now().uptimeNanoseconds < deadline, !shouldCancel() else { return nil }
         let sem = DispatchSemaphore(value: 0)
         let result = SynchronousImageResult()
         let task = Task.detached(priority: .userInitiated) {
             result.store(try? await sckCapture(displayID: displayID))
             sem.signal()
         }
-        guard sem.wait(timeout: .now() + 4) == .success else {
-            task.cancel()
-            Log.warn("Capture", "ScreenCaptureKit 整屏抓取超时")
-            return nil
+        // 2026-11-26 性能审阅：用户反馈“高负载时按了截图要等好几秒”；共享会话余量并每 30ms 响应取消。
+        while !shouldCancel() {
+            let now = DispatchTime.now().uptimeNanoseconds
+            guard now < deadline else { break }
+            let nextPoll = min(deadline, now + 30_000_000)
+            if sem.wait(timeout: DispatchTime(uptimeNanoseconds: nextPoll)) == .success {
+                return result.load()
+            }
         }
-        return result.load()
+        task.cancel()
+        Log.warn("Capture", shouldCancel() ? "ScreenCaptureKit 整屏抓取已取消" : "ScreenCaptureKit 整屏抓取超时")
+        return nil
     }
 
     @available(macOS 14.0, *)

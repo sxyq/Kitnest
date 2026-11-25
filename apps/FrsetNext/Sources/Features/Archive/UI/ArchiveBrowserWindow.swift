@@ -438,7 +438,7 @@ public final class ArchiveBrowserModel: ObservableObject {
             if publishCount == 1 {
                 let ms = Double(DispatchTime.now().uptimeNanoseconds - reloadStart) / 1_000_000
                 Log.info("Archive", String(format: "UI 首批上屏 %.0fms（%d 条 · rebuild %.0fms）",
-                                           ms, partial.count, lastRebuildMs))
+                                           ms, batch.count, lastRebuildMs))
             }
         }, completion: { [weak self] list, err in
             guard let self, self.reloadGeneration == generation else { return }

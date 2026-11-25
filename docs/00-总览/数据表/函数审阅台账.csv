@@ -1818,14 +1818,14 @@ Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,sameColo
 Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,averageDifference,func,233,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
 Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,pixelColor,func,256,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
 Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,captureScreenForScreenshot,func,275,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
-Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,displayID,func,396,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
-Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,screencaptureDisplayIndex,func,401,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
-Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,captureScreenAdaptive,func,442,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
-Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,legacyCaptureProbed,func,481,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
-Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,sckCaptureSync,func,502,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
-Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,sckCaptureWindowSync,func,518,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
-Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,sckCapture,func,538,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
-Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,sckCapture,func,565,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,displayID,func,400,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,screencaptureDisplayIndex,func,405,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,captureScreenAdaptive,func,446,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,legacyCaptureProbed,func,494,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,sckCaptureSync,func,515,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,sckCaptureWindowSync,func,543,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,sckCapture,func,563,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Capture,Features/Capture/Screenshot/ScreenSnapshot.swift,ScreenSnapshot,sckCapture,func,590,KEEP,2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）
 Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,init,init,66,KEEP,2026-11-20：单例初始化读最近图及preflight，只有显式诊断标记才请求权限。
 Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,refreshPermission,func,155,KEEP,2026-11-20：截图面板出现更新权限展示，不主动请求授权。
 Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,probePermission,func,177,KEEP,2026-11-20：实际preflight/SCK能力探测；重入返回旧hasPermission会提前失败，permissionProbed只写无读。

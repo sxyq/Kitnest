@@ -60,7 +60,8 @@ PERF_HOTSPOTS = {
         "+lastPathComponent，短词 deck（47 万命中）实测 19.0s；改为惰性构造+ASCII 字节快路径后"
         "683ms，多词 319-404ms，命中集不变（22 万例对拍 0 不一致）；内存仍只 +5MB（mmap）",
     ("Features/Capture/Screenshot/ScreenSnapshot.swift", "ScreenSnapshot", "captureScreenForScreenshot"):
-        "P0 截图抓帧：子任务 141-214ms，决定首块覆盖层 119-164ms（通道选择+probe+画面对照）",
+        "P0 截图抓帧：历史 v292 子任务 141-214ms、首块覆盖层 119-164ms（通道选择+probe+画面对照）；"
+        "SCK 等待现已沿用截图会话剩余预算并每 30ms 响应取消，改后交互数据待实测",
     ("Features/Capture/Screenshot/NativeRegionCapture.swift", "NativeRegionCapture", "run"):
         "P0 screencapture 子进程：空闲 71-149ms / 8 核满载 92-257ms（14.1MB BMP，读取 ~1ms、解码 0.1ms）",
     ("Features/Archive/UI/ArchiveBrowserWindow.swift", "ArchiveBrowserModel", "visibleEntries"):
