@@ -92,12 +92,20 @@ public final class ArchiveUndoStack: ObservableObject {
 
     public func undo() {
         guard !busy, let change = undoItems.last else { return }
+        // 2026-11-25（二轮复核 medium）：apply 是异步的，期间可能又有新 push。
+        // 完成回调里 removeLast() 会把「别人的」条目弹掉，本次变更反倒留在栈上 →
+        // 下一次 undo 作用到错误条目。记住发起时的位置，按位置移除。
+        let applyIndex = undoItems.count - 1
         busy = true
         apply(change, undo: true) { [weak self] ok, msg in
             guard let self else { return }
             self.busy = false
             if ok {
-                self.undoItems.removeLast()
+                if self.undoItems.count == applyIndex + 1 {
+                    self.undoItems.removeLast()
+                } else if self.undoItems.indices.contains(applyIndex) {
+                    self.undoItems.remove(at: applyIndex)
+                }
                 self.redoItems.append(change)
                 self.refresh()
                 Toast.show("已撤销：\(change.label)", icon: "arrow.uturn.backward")

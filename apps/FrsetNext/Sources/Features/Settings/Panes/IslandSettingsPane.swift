@@ -61,7 +61,11 @@ final class IslandSettingsDraft: SettingsEditableDraft {
     func isDirty(in scope: String) -> Bool {
         let part = IslandSettingsPart(rawValue: scope)!
         return defaultParts.contains(part) || merged(part, from: configuration, comparedTo: saved, into: saved) != saved
-            || (part == .canvas && previewController.layoutConfiguration != configuration)
+            // 2026-11-25（二轮复核 medium）：布局配置只在「布局编辑中」才有比较意义。
+            // IslandController 在 page == .custom 时用 customWidgetOrder/Sizes 重写 4 个
+            // widget 字段，与草稿常规字段恒不等 → canvas 页永久显示未保存、侧栏橙点常亮。
+            || (part == .canvas && previewController.editingLayout
+                && previewController.layoutConfiguration != configuration)
     }
     func save() -> String? {
         for part in IslandSettingsPart.allCases where isDirty(in: part.rawValue) {

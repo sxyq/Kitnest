@@ -25,6 +25,15 @@ public final class TagStore: ObservableObject {
     // MARK: 加载
 
     public func refresh(notifying: Bool = false) {
+        // 2026-11-25（二轮复核 medium）：原来在主线程全程持 accessLock 读四张表并排序——
+        // 标签/关联一多就卡 UI，还阻塞后台捕获写入。读库挪后台，publish 内部自己切主线程。
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            self?.refreshSync(notifying: notifying)
+        }
+    }
+
+    /// 同步读库 + 排序；只在后台队列调用（publish 会切回主线程）
+    private func refreshSync(notifying: Bool) {
         db.accessLock.lock(); defer { db.accessLock.unlock() }
         do {
             // v286：分组先行（标签按组排序展示），旧库无 group_id 列时已由迁移补上。

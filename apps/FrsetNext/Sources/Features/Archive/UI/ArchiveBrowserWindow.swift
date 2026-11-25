@@ -399,7 +399,14 @@ public final class ArchiveBrowserModel: ObservableObject {
         return true
     }
 
+    /// 2026-11-25（二轮复核 medium）：init/保存/添加/删除/重命名/undo 各起一次
+    /// listStreaming，重叠时旧进程更晚返回会把新列表回灌成陈旧内容，旧回调还会提前
+    /// 把 indexingComplete 置 true 解锁搜索。每次 reload 领一个代号，回调先对代号。
+    private var reloadGeneration = 0
+
     public func reload() {
+        reloadGeneration &+= 1
+        let generation = reloadGeneration
         loading = true
         errorText = nil
         // v292（性能第二轮 F）：UI 侧计时——首批上屏、发布次数、每次 rebuild 耗时、
@@ -412,7 +419,7 @@ public final class ArchiveBrowserModel: ObservableObject {
         // 全量载入（含辅助文件），由 visibleEntries 决定显隐——这样开关能即时生效
         ArchiveCore.listStreaming(url: url, includeAuxiliary: true,
                                   onPreliminary: { [weak self] partial in
-            guard let self, !partial.isEmpty else { return }
+            guard let self, self.reloadGeneration == generation, !partial.isEmpty else { return }
             self.loading = false                 // 首批条目到位即可交互
             self.indexingComplete = false
             self.preliminaryCount = partial.count
@@ -428,7 +435,7 @@ public final class ArchiveBrowserModel: ObservableObject {
                                            ms, partial.count, lastRebuildMs))
             }
         }, completion: { [weak self] list, err in
-            guard let self else { return }
+            guard let self, self.reloadGeneration == generation else { return }
             self.loading = false
             self.indexingComplete = true
             self.preliminaryCount = list.count
@@ -1034,10 +1041,22 @@ public final class ArchiveBrowserModel: ObservableObject {
         }
         let cap = Int64(48 * 1024 * 1024)
         var seen = Set<String>()
-        let unique = files.filter { $0.size <= cap && seen.insert($0.path).inserted }
+        var skipped: [String] = []
+        var unique: [ArchiveEntry] = []
+        for f in files where seen.insert(f.path).inserted {
+            if f.size <= cap { unique.append(f) } else { skipped.append(f.path) }
+        }
         var snaps: [ArchiveChange.Snapshot] = []
         func next(_ index: Int) {
             guard index < unique.count else {
+                // 2026-11-25（二轮复核 high）：超限文件不进快照，但**必须告知**。
+                // 旧实现静默过滤：删除目录后 undo 只写回小文件、仍提示「已撤销」，
+                // 大文件永久丢失。
+                if !skipped.isEmpty {
+                    Toast.show("\(skipped.count) 个文件超过 48MB 未备份，撤销不会恢复它们",
+                               icon: "exclamationmark.triangle")
+                    Log.warn("Archive", "删除备份跳过超限文件 \(skipped.count) 个：\(skipped.prefix(5).joined(separator: ", "))")
+                }
                 completion(snaps)
                 return
             }

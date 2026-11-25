@@ -168,7 +168,14 @@ public final class PermissionCenter: ObservableObject {
     }
 
     /// 是否已向系统申请过屏幕录制权限（区分「没问过」与「问过被拒」）
-    private var screenRecordingRequested = false
+    /// 2026-11-25（二轮复核 medium）：原来只是内存标志，重启即丢。上次已请求被拒的用户
+    /// 重启后 quickStatus 又回到 .notDetermined，卡片显示「授权」按钮，而
+    /// CGRequestScreenCaptureAccess 不会再弹窗 → 点了没反应（v274 修的问题重启复现）。
+    /// 落 UserDefaults 持久化。
+    private var screenRecordingRequested: Bool {
+        get { UserDefaults.standard.bool(forKey: "permission.screenRecordingRequested") }
+        set { UserDefaults.standard.set(newValue, forKey: "permission.screenRecordingRequested") }
+    }
 
     /// 快速状态：屏幕录制用 CGPreflight（可能假阴性，权威值走 probeScreenRecording）
     private func quickStatus(_ kind: PermissionKind) -> PermissionStatus {

@@ -3467,5 +3467,22 @@ EVIDENCE.update({
         "lastByNode 超过 24 个节点时按节点 ID 淘汰，递增 generation 触发视图读取新布局",
 })
 
+EVIDENCE.update({
+    ("App/FrsetNextApp.swift", "writeHolderInPlace"):
+        "InstanceLock.acquire 的两条无锁接管出口调用；同一路径 ftruncate/write/fsync，保留原 inode，避免替换文件使 flock 锁分离",
+    ("Features/Capture/Pin/PinChrome.swift", "pinScreen"):
+        "PinBubblePanel.show 与 PinMenuPanel.layoutPanel 共用；按锚点中点选择显示器，只有未匹配时才回退到主屏或首屏",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "scanCapturedImages"):
+        "只由 reloadRecent 的 utility 队列调用；扫描保存与暂存目录，按扩展过滤、路径去重、时间倒排取前 60 项，不解码图像",
+    ("Features/Clipboard/Store/TagStore.swift", "refreshSync"):
+        "只由 refresh 的 userInitiated 后台任务调用；持数据库锁读取分组、标签和关联，排序并重建映射后切主线程发布",
+    ("Features/Monitor/Storage/DiskIndex.swift", "nextScanToken"):
+        "rescan 开始与 cancelScan 作废时递增受锁保护的整数令牌，使过期扫描回调失效；无磁盘或布局热路径工作",
+    ("Features/Monitor/Storage/DiskIndex.swift", "isCurrentScan"):
+        "只在扫描 completion 落盘前比较令牌；锁保护的整数比较阻止已取消扫描持久化旧快照",
+    ("Features/Settings/Panes/FloatingBallSettingsPane.swift", "init"):
+        "由 slider helper 为五项尺寸/透明度设置构造；读取对应偏好或既定回退值初始化滑条，变更时由 body 写偏好并应用配置",
+})
+
 if __name__ == "__main__":
     sys.exit(main())

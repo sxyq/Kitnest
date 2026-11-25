@@ -756,8 +756,27 @@ final class DiskIndexStore: ObservableObject {
     }
 
     /// 重新扫描（可取消）
+    /// 2026-11-25（二轮复核 medium）：扫描完成回调跑在磁盘队列上，原实现用
+    /// `DispatchQueue.main.sync { scanner === s }` 判身份——磁盘队列会被主线程的
+    /// 一次卡顿拖死（反之主线程等磁盘队列就死锁），而且身份判定后还要在这条队列上
+    /// persist 几十 MB plist。改成锁保护的代数令牌，回调里零等待。
+    private let scanTokenLock = NSLock()
+    private var scanToken = 0
+
+    private func nextScanToken() -> Int {
+        scanTokenLock.lock(); defer { scanTokenLock.unlock() }
+        scanToken += 1
+        return scanToken
+    }
+
+    private func isCurrentScan(_ token: Int) -> Bool {
+        scanTokenLock.lock(); defer { scanTokenLock.unlock() }
+        return scanToken == token
+    }
+
     func rescan() {
         guard !isScanning else { return }
+        let token = nextScanToken()
         let s = DiskIndexScanner()
         scanner = s
         isScanning = true
@@ -771,7 +790,7 @@ final class DiskIndexStore: ObservableObject {
                    self.progressText = "已索引 \(count) 项 · \(path)"
                },
                completion: { [weak self, s] snap in
-                   if let snap, DispatchQueue.main.sync(execute: { self?.scanner === s }) {
+                   if let snap, self?.isCurrentScan(token) == true {
                        do { try Self.persist(snap: snap, to: url) }
                        catch { Log.warn("DiskIndex", "索引缓存写入失败：\(error.localizedDescription)") }
                    }
@@ -790,6 +809,7 @@ final class DiskIndexStore: ObservableObject {
     }
 
     func cancelScan() {
+        _ = nextScanToken()          // 作废在途扫描的令牌
         scanner?.cancel()
         scanner = nil
         isScanning = false

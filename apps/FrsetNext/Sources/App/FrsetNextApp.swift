@@ -726,7 +726,7 @@ final class InstanceLock {
         if !isLegitimateHolder(holder) || holder <= 0 {
             Log.warn("App", "持有者 pid=\(holder) 不是本应用实例 → 不发送 SIGKILL，改无锁运行")
             runningWithoutLock = true
-            try? "\(getpid())\nbuild=\(buildStamp)\n".write(to: url, atomically: true, encoding: .utf8)
+            writeHolderInPlace()
             startHeartbeat()
             return true
         }
@@ -740,7 +740,7 @@ final class InstanceLock {
         Log.warn("App", "持有者 pid=\(holder) 无法结束 → 无锁启动（若看到两套菜单栏，请手动退出旧实例）")
         // 无锁也要把「我在跑」写出去：锁文件里的 pid 改成自己、心跳照常跳。
         // 否则下一次点击读到的还是那个已经废掉的 pid，会再起一个实例，越点越多。
-        try? "\(getpid())\nbuild=\(buildStamp)\n".write(to: url, atomically: true, encoding: .utf8)
+        writeHolderInPlace()
         startHeartbeat()
         return true
     }
@@ -800,9 +800,18 @@ final class InstanceLock {
 
     /// 一次「打开 + 非阻塞抢锁」。成功返回 fd，失败返回 nil（锁被别人握着）。
     private func tryAcquire() -> Int32? {
-        let handle = Darwin.open(url.path, O_CREAT | O_RDWR | O_CLOEXEC, 0o644)
-        guard handle >= 0 else { return nil }
-        if flock(handle, LOCK_EX | LOCK_NB) == 0 {
+        // 2026-11-25（二轮复核 high）：flock 锁的是 **inode**。若锁文件被 rename 换过
+        // inode（历史上无锁分支用 atomically:true 写过），两边会各锁一个 inode 且都
+        // 认为独占。抢到锁后再核对「路径当前 inode == 我锁住的 inode」，不一致就重开一次。
+        for _ in 0..<2 {
+            let handle = Darwin.open(url.path, O_CREAT | O_RDWR | O_CLOEXEC, 0o644)
+            guard handle >= 0 else { return nil }
+            guard flock(handle, LOCK_EX | LOCK_NB) == 0 else { close(handle); return nil }
+            var mine = stat(), pathStat = stat()
+            if fstat(handle, &mine) == 0, stat(url.path, &pathStat) == 0, mine.st_ino != pathStat.st_ino {
+                close(handle)          // 锁住的是已被替换的旧 inode，重来
+                continue
+            }
             ftruncate(handle, 0)
             // 写两行：pid + 构建戳。构建戳让下一个实例能分辨「占着锁的是不是我之前的旧版本」。
             let text = "\(getpid())\nbuild=\(buildStamp)\n"
@@ -810,8 +819,21 @@ final class InstanceLock {
             fsync(handle)
             return handle
         }
-        close(handle)
         return nil
+    }
+
+    /// 就地覆写锁文件（不换 inode）。
+    /// 2026-11-25（二轮复核 high）：无锁分支原来用 atomically:true 写——那是 rename，
+    /// 会替换 inode，而 flock 跟着 inode 走：旧实例锁着旧 inode、新实例稍后锁住新 inode，
+    /// 「唯一实例」被彻底绕开。必须 ftruncate+write 就地改内容。
+    private func writeHolderInPlace() {
+        let text = "\(getpid())\nbuild=\(buildStamp)\n"
+        let h = Darwin.open(url.path, O_CREAT | O_WRONLY | O_CLOEXEC, 0o644)
+        guard h >= 0 else { return }
+        ftruncate(h, 0)
+        _ = text.withCString { write(h, $0, strlen($0)) }
+        fsync(h)
+        close(h)
     }
 
     /// 读锁文件里记录的持有者 pid（读不到返回 0）。

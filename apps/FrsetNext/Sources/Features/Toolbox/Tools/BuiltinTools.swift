@@ -286,7 +286,9 @@ public enum BuiltinTools {
                                                       theme: theme,
                                                       fontSize: 13,
                                                       showsLineNumbers: true)
-                let image = CodeCardImage.render(code: raw, options: renderOptions)
+                // 2026-11-25：卡片渲染依赖 AppKit 绘制上下文（主线程），execute 在
+                // 协作线程池，必须切回主线程再画。
+                let image = await MainActor.run { CodeCardImage.render(code: raw, options: renderOptions) }
                 let lines = CodeHighlighter.statistics(raw).lines
                 let name = CodeLanguageCatalog.displayName(languageID)
                 return ToolOutput(text: raw,

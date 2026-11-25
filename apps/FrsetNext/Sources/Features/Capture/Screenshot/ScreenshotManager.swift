@@ -331,6 +331,10 @@ public final class ScreenshotManager: ObservableObject {
     @MainActor
     private func beginCapture(flow: PendingFlow, generation: Int) {
         closeOverlays()
+        // 2026-11-25（二轮复核 medium）：上一轮的动作条是 .floating 独立面板，不属 overlays，
+        // closeOverlays 管不到。不收掉会被 screencapture 拍进冻结帧——用户拿到的截图里
+        // 带着自己的工具条；随后 present() 还会覆盖 onCaptureFinished，上一轮 completion 丢失。
+        CaptureActionChain.sharedPanel?.orderOut(nil)
         pendingFlow = flow
         // v267：历史库模式标签在**提交时**按真实结果写（窗口 / 选区 / 全屏），
         // 不再在打开覆盖层时就猜一个。
@@ -1122,11 +1126,24 @@ public final class ScreenshotManager: ObservableObject {
     /// v235：截图默认只进私有暂存目录，用户点保存才进下载目录；
     /// 列表要把两边都算上，否则未保存的截图在面板里看不到。
     public func reloadRecent() {
+        // 2026-11-25（二轮复核 medium）：本函数会被 init 同步调用，而它要扫
+        // ~/Downloads + 暂存目录。未授权时目录枚举会卡在 TCC 上，首个访问点又常在
+        // 主线程（快捷键/面板 @StateObject）——按下截图后可能长时间没有覆盖层
+        // （v228 已有同结论，init 这条路径漏改）。扫描挪后台，回主线程赋值。
+        let dirs = [saveDirectory, stagingDirectory]
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let items = Self.scanCapturedImages(in: dirs)
+            DispatchQueue.main.async { self?.recent = items }
+        }
+    }
+
+    /// 后台扫描截图目录（最多 60 条，按修改时间倒序）
+    private static func scanCapturedImages(in dirs: [URL]) -> [CapturedImage] {
         let fm = FileManager.default
         let allowed: Set<String> = ["png", "jpg", "jpeg", "heic", "tiff"]
         var seen: Set<String> = []
         var items: [CapturedImage] = []
-        for dir in [saveDirectory, stagingDirectory] {
+        for dir in dirs {
             guard let urls = try? fm.contentsOfDirectory(at: dir,
                                                          includingPropertiesForKeys: [.contentModificationDateKey],
                                                          options: [.skipsHiddenFiles]) else { continue }
@@ -1139,7 +1156,7 @@ public final class ScreenshotManager: ObservableObject {
                 items.append(CapturedImage(url: url, createdAt: date))
             }
         }
-        recent = Array(items.sorted { $0.createdAt > $1.createdAt }.prefix(60))
+        return Array(items.sorted { $0.createdAt > $1.createdAt }.prefix(60))
     }
 
     /// 读取已有缩略图缓存；未命中时由 loadThumbnail 在后台生成。

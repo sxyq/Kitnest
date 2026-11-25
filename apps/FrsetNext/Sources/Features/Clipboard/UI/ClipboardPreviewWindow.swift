@@ -67,7 +67,9 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
         switch model.kind {
         case .image:
             if let path = item.imagePath ?? item.thumbnailPath,
-               let image = NSImage(contentsOf: ClipboardFileStore.url(forRelativePath: path)),
+               // 2026-11-25（二轮复核 medium）：NSImage(contentsOf:) 是整图解码且绕过了
+               // 已有图片缓存，悬停大图时主线程卡一下。改走带缓存的存储层读取。
+               let image = ClipboardImageStorage.image(relativePath: path),
                image.size.width > 1, image.size.height > 1 {
                 let ocrHeight: CGFloat = (PreviewPopoverDataBridge.shared.ocrText(for: item) ?? "").isEmpty ? 0 : 160
                 let chrome: CGFloat = 100 + ocrHeight

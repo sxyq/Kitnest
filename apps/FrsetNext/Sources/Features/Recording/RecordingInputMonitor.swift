@@ -66,8 +66,12 @@ public final class RecordingInputMonitor {
     public func stop() {
         running = false
         if let loop = tapRunLoop {
+            // 2026-11-25（二轮复核 medium）：跨线程直接 CFRunLoopStop 在「runloop 还没起来
+            // 或已退出」时会丢——线程于是永久卡在 CFRunLoopRun，每轮启停泄漏一个线程。
+            // 把停止动作投递到该 runloop 自身执行，并唤醒它。
+            CFRunLoopPerformBlock(loop, CFRunLoopMode.commonModes.rawValue) { CFRunLoopStop(loop) }
+            CFRunLoopWakeUp(loop)
             if let source = runLoopSource { CFRunLoopRemoveSource(loop, source, .commonModes) }
-            CFRunLoopStop(loop)
             tapRunLoop = nil
         }
         if let tap {
