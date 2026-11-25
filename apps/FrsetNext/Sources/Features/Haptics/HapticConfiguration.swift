@@ -105,8 +105,11 @@ extension HapticConfiguration: Codable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
         intensity = try c.decodeIfPresent(HapticIntensity.self, forKey: .intensity) ?? .medium
-        disabledEvents = try c.decodeIfPresent(Set<HapticEvent>.self, forKey: .disabledEvents)
-            ?? Self().disabledEvents
+        if let rawEvents = try c.decodeIfPresent([String].self, forKey: .disabledEvents) {
+            disabledEvents = Set(rawEvents.compactMap { HapticEvent(rawValue: $0) })
+        } else {
+            disabledEvents = Self().disabledEvents
+        }
         schemaVersion = try c.decodeIfPresent(Int.self, forKey: .schemaVersion) ?? 0
     }
 }

@@ -21,24 +21,24 @@ App,App/AppBootstrap.swift,AppBootstrap,readSelection,func,656,KEEP,命令面板
 App,App/AppBootstrap.swift,AppBootstrap,frontmostForSelection,func,707,KEEP,2026-11-24 性能第二轮 A2：纯本地 NSWorkspace 查询（不触发 AX IPC），岛展开时固定触发时前台应用上下文供后台选区读取；前台是 Kitnest 自身时返回 nil 沿用原语义；命令面板/划词路径不改
 App,App/AppBootstrap.swift,AppBootstrap,runSelectionAction,func,713,KEEP,快捷键、命令面板和刘海OCR划词按钮共用已捕获SelectionResult或readSelection；失败Toast，翻译取消旧请求交translateAndIngest，其他动作交正式ToolRunnerWindow自动执行
 App,App/FrsetNextApp.swift,AppDelegate,applicationDidFinishLaunching,func,33,KEEP,NSApplicationDelegate启动回调；启动日志与更新探针只记阶段和凭据是否提供，不记更新URL或校验值
-App,App/FrsetNextApp.swift,AppDelegate,isZombie,func,91,KEEP,"单实例检查过滤用；proc_pidinfo取pbi_status==SZOMB(5)判定僵尸，NSRunningApplication与kill(pid,0)都会把僵尸当成活进程"
-App,App/FrsetNextApp.swift,AppDelegate,enforceSingleMenubarOwner,func,107,KEEP,applicationDidFinishLaunching L37 调用；同 bundle 多实例退出 + 原版并存提示
-App,App/FrsetNextApp.swift,AppDelegate,continueAfterSingleInstanceCheck,func,162,KEEP,抢到实例锁后的公共启动路径；2.5秒后检查官方原版com.maoux.frset是否在跑并提示重复菜单栏，其余沿用原单实例检查后半段
-App,App/FrsetNextApp.swift,AppDelegate,applicationShouldTerminate,func,176,KEEP,2026-11-20：系统退出回调先取得原归档任务确认结果，再由更新器处理待安装交接；取消时不启动替换，替换程序启动失败也保留当前进程
-App,App/FrsetNextApp.swift,AppDelegate,applicationWillTerminate,func,181,KEEP,NSApplicationDelegate 回调；个性化落盘 + 日志归档停止 + bootstrap.stop
-App,App/FrsetNextApp.swift,AppDelegate,applicationShouldHandleReopen,func,190,KEEP,NSApplicationDelegate 回调；点 Dock/重开时显示主面板
-App,App/FrsetNextApp.swift,AppDelegate,updateDockPresence,func,200,KEEP,applicationDidFinishLaunching 注册 NSWindow 键状态/关闭通知；函数统计可见标题窗后在 regular 与 accessory 策略间切换
-App,App/FrsetNextApp.swift,AppDelegate,application,func,217,KEEP,NSApplicationDelegate回调；文件URL与kitnest://深链分流，入站URL日志只保留scheme和host，不记录路径、参数或文件名
-App,App/FrsetNextApp.swift,InstanceLock,acquire,func,683,KEEP,2026-11-23：单实例锁唯一入口；先 flock(O_CLOEXEC)，失败再按「持有者非活实例/旧构建/心跳超 12s」三条判据接管，只回收放满 3s 的锁，杀不掉就无锁启动不自杀
-App,App/FrsetNextApp.swift,InstanceLock,startHeartbeat,func,738,KEEP,2026-11-23：acquire L… 抢到锁后启动；DispatchSource 2s 一次写 instance.heartbeat，纯后台队列不碰主线程
-App,App/FrsetNextApp.swift,InstanceLock,touchHeartbeat,func,747,KEEP,2026-11-23：startHeartbeat 的定时器回调写入 pid 心跳文件，供 heartbeatStale 判断卡死
-App,App/FrsetNextApp.swift,InstanceLock,heartbeatStale,func,752,KEEP,2026-11-23：acquire L… 接管判定用；心跳 mtime 超过 12s 即认为持有者卡死
-App,App/FrsetNextApp.swift,InstanceLock,isOutdatedBuild,func,759,KEEP,2026-11-23：acquire L… 接管判定用；锁文件 build= 构建戳与本进程不一致即旧实例
-App,App/FrsetNextApp.swift,InstanceLock,isLegitimateHolderForTakeover,func,773,KEEP,启动路径在新鲜挂死标记下调用；委托同文件 isLegitimateHolder，排除自身、僵尸及非本 bundle 进程，只有确认同一 Kitnest 实例时才允许 SIGKILL，其他情况沿既有无锁接管路径继续启动
-App,App/FrsetNextApp.swift,InstanceLock,isLegitimateHolder,func,775,KEEP,2026-11-23：acquire L… 接管判定用；持有者 pid 不存在或是僵尸（SZOMB）都不算合法持有
-App,App/FrsetNextApp.swift,InstanceLock,isZombie,func,783,KEEP,"单实例检查过滤用；proc_pidinfo取pbi_status==SZOMB(5)判定僵尸，NSRunningApplication与kill(pid,0)都会把僵尸当成活进程"
-App,App/FrsetNextApp.swift,InstanceLock,tryAcquire,func,791,KEEP,2026-11-23：acquire L… 调用；open(O_CREAT|O_CLOEXEC)+flock 非阻塞抢锁，成功写入 pid 与 build 戳
-App,App/FrsetNextApp.swift,InstanceLock,readHolderPid,func,807,KEEP,2026-11-23：acquire L… 调用；解析锁文件首行 pid，供接管判据与日志使用
+App,App/FrsetNextApp.swift,AppDelegate,isZombie,func,92,KEEP,"单实例检查过滤用；proc_pidinfo取pbi_status==SZOMB(5)判定僵尸，NSRunningApplication与kill(pid,0)都会把僵尸当成活进程"
+App,App/FrsetNextApp.swift,AppDelegate,enforceSingleMenubarOwner,func,108,KEEP,applicationDidFinishLaunching L37 调用；同 bundle 多实例退出 + 原版并存提示
+App,App/FrsetNextApp.swift,AppDelegate,continueAfterSingleInstanceCheck,func,163,KEEP,抢到实例锁后的公共启动路径；2.5秒后检查官方原版com.maoux.frset是否在跑并提示重复菜单栏，其余沿用原单实例检查后半段
+App,App/FrsetNextApp.swift,AppDelegate,applicationShouldTerminate,func,177,KEEP,2026-11-20：系统退出回调先取得原归档任务确认结果，再由更新器处理待安装交接；取消时不启动替换，替换程序启动失败也保留当前进程
+App,App/FrsetNextApp.swift,AppDelegate,applicationWillTerminate,func,182,KEEP,NSApplicationDelegate 回调；个性化落盘 + 日志归档停止 + bootstrap.stop
+App,App/FrsetNextApp.swift,AppDelegate,applicationShouldHandleReopen,func,192,KEEP,NSApplicationDelegate 回调；点 Dock/重开时显示主面板
+App,App/FrsetNextApp.swift,AppDelegate,updateDockPresence,func,202,KEEP,applicationDidFinishLaunching 注册 NSWindow 键状态/关闭通知；函数统计可见标题窗后在 regular 与 accessory 策略间切换
+App,App/FrsetNextApp.swift,AppDelegate,application,func,219,KEEP,NSApplicationDelegate回调；文件URL与kitnest://深链分流，入站URL日志只保留scheme和host，不记录路径、参数或文件名
+App,App/FrsetNextApp.swift,InstanceLock,acquire,func,694,KEEP,2026-11-23：单实例锁唯一入口；先 flock(O_CLOEXEC)，失败再按「持有者非活实例/旧构建/心跳超 12s」三条判据接管，只回收放满 3s 的锁，杀不掉就无锁启动不自杀
+App,App/FrsetNextApp.swift,InstanceLock,startHeartbeat,func,749,KEEP,2026-11-23：acquire L… 抢到锁后启动；DispatchSource 2s 一次写 instance.heartbeat，纯后台队列不碰主线程
+App,App/FrsetNextApp.swift,InstanceLock,touchHeartbeat,func,758,KEEP,2026-11-23：startHeartbeat 的定时器回调写入 pid 心跳文件，供 heartbeatStale 判断卡死
+App,App/FrsetNextApp.swift,InstanceLock,heartbeatStale,func,763,KEEP,2026-11-23：acquire L… 接管判定用；心跳 mtime 超过 12s 即认为持有者卡死
+App,App/FrsetNextApp.swift,InstanceLock,isOutdatedBuild,func,770,KEEP,2026-11-23：acquire L… 接管判定用；锁文件 build= 构建戳与本进程不一致即旧实例
+App,App/FrsetNextApp.swift,InstanceLock,isLegitimateHolderForTakeover,func,784,KEEP,启动路径在新鲜挂死标记下调用；委托同文件 isLegitimateHolder，排除自身、僵尸及非本 bundle 进程，只有确认同一 Kitnest 实例时才允许 SIGKILL，其他情况沿既有无锁接管路径继续启动
+App,App/FrsetNextApp.swift,InstanceLock,isLegitimateHolder,func,786,KEEP,2026-11-23：acquire L… 接管判定用；持有者 pid 不存在或是僵尸（SZOMB）都不算合法持有
+App,App/FrsetNextApp.swift,InstanceLock,isZombie,func,794,KEEP,"单实例检查过滤用；proc_pidinfo取pbi_status==SZOMB(5)判定僵尸，NSRunningApplication与kill(pid,0)都会把僵尸当成活进程"
+App,App/FrsetNextApp.swift,InstanceLock,tryAcquire,func,802,KEEP,2026-11-23：acquire L… 调用；open(O_CREAT|O_CLOEXEC)+flock 非阻塞抢锁，成功写入 pid 与 build 戳
+App,App/FrsetNextApp.swift,InstanceLock,readHolderPid,func,818,KEEP,2026-11-23：acquire L… 调用；解析锁文件首行 pid，供接管判据与日志使用
 Core,Core/Motion/GenieMesh.swift,GenieRect,offsetBy,func,33,KEEP,2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；GenieWarp.swift:283-284 调用
 Core,Core/Motion/GenieMesh.swift,GenieMesh,localY,func,49,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；GenieWarp.swift:87,88 调用"
 Core,Core/Motion/GenieMesh.swift,GenieMesh,screenY,func,51,KEEP,"2026-11-19：已逐函数阅读完整实现并核对文件内调用、协议回调及已有入口记录；GenieWarp.swift:70,83,84 调用"
@@ -935,6 +935,12 @@ Audio,Features/Audio/AudioMixer.swift,AudioMixerController,reloadDevices,func,27
 Audio,Features/Audio/AudioMixer.swift,AudioMixerController,selectDefaultDevice,func,303,KEEP,2026-11-20：设置 Picker 和刘海菜单共用；写系统默认设备，刷新监听和界面，返回状态码转为可见反馈
 Audio,Features/Audio/AudioMixer.swift,AudioMixerController,refreshPlayingApps,func,315,KEEP,2026-11-20：设置页首次出现及2秒计时调用；筛有声进程、读取 PID 和图标，只在 PID 序列变化时发布；旧图标按 PID 保留
 Audio,Features/Audio/AudioMixer.swift,AudioMixerPane,init,init,365,KEEP,2026-11-20：AppBootstrap 注册音频设置页的构建闭包使用无参初始化；视图出现和离开分别启停本页采样
+Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,setVisible,func,44,KEEP,正式媒体宿主按UUID登记消费者，首次可见立即刷新并每秒更新，最后离开停止timer、osascript及封面任务并清快照
+Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,refresh,func,64,KEEP,可见媒体timer仅在process为空时request(read)，复用同一系统正在播放读取路径
+Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,send,func,68,KEEP,媒体上一首/播放暂停/下一首把命令整数转为action交request，再读取系统返回的实际快照
+Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,seek,func,72,KEEP,媒体进度松手把秒数用MediaRemote命令24及seconds交request
+Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,request,func,76,KEEP,同一osascript JXA脚本读取或控制MediaRemote，后台收stdout并在主线程仅接纳当前Process结果；解码快照、反馈commandAccepted，曲目或封面变化才loadArtwork
+Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,loadArtwork,func,124,KEEP,新快照先取消旧封面任务，优先解播放器base64图片，否则读取播放器提供的文件或网络URL；取消后不发布，失败给实际读取原因
 Capture,Features/Capture/Annotation/AnnotationCompositor.swift,Annotation,init,init,128,KEEP,2026-11-19：编辑器笔画/文本/撤销恢复与历史快照多处构造；保留原ID、工具、像素坐标及样式和辅助参数，不另归一化
 Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,composite,func,166,KEEP,2026-11-19：EditorCanvas导出/复制调用；无标注原样返回，建同尺寸context绘底图并翻左上坐标，再缓存各强度马赛克/模糊层绘制
 Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,roundedCorners,func,218,KEEP,2026-11-19：Editor导出按圆角设置调用；半径限短边一半并透明裁切，context创建或makeImage失败保留原图
@@ -2067,51 +2073,50 @@ Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageSto
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardImageStorage,fileExtension,func,331,KEEP,2026-11-17：store调用；按PNG JPEG GIF RIFF头选择已支持的原图扩展名；其他已有图片数据用tiff路径
 Clipboard,Features/Clipboard/Store/ClipboardFileStorages.swift,ClipboardStorageUsageProvider,exceeds,func,367,KEEP,2026-11-17：容量prune循环调用；先SQL总量再按需枚举五类目录；等价于既有max数据库磁盘口径超限判定
 Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardFilterKind,matches,func,77,KEEP,2026-11-20：设置预览及悬浮列表按12种分类判断；文件媒体用已存位集，代码交正式文本分类器，正式列表另走SQL查询。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,init,init,168,KEEP,2026-11-20：shared构造时注册主队列标签通知，闭包弱持Manager并调用applyTagChange。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,deinit,deinit,174,KEEP,2026-11-20：删除init注册的标签通知观察者；通知回调弱持有manager，析构不操作用户数据
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,pauseRecording,func,207,KEEP,2026-11-20：菜单栏、主面板与快捷键入口撤销旧到期Timer，设置期限、更新剩余分钟并发送状态通知。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,resumeRecording,func,221,KEEP,2026-11-20：菜单、快捷键与到期处理恢复记录，原属性didSet清理期限和计时器，按参数决定提示。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,refreshPauseDeadline,func,226,KEEP,2026-11-20：暂停、唤醒及轮询共用，按向上取整分钟刷新，到期复用resumeRecording且不重复提示。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,start,func,235,KEEP,2026-11-20：ClipboardModule启动时读取当前计数、安装common模式轮询、刷新标签和列表并启动两个清理器；Module重复启动清理器可删。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,schedulePoll,func,249,KEEP,2026-11-20：启动与速率切换共用，先使原Timer失效，再在主RunLoop common模式注册弱持有闭包。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,pollTick,func,258,KEEP,2026-11-20：原Timer刷新暂停期限并按burstUntil在2秒空闲与0.5秒突发之间切换；ingest已同步重建突发Timer，变量与实际计时器一致。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,poll,func,270,KEEP,2026-11-21：Timer与既有重试入口共用，双读变更计数、处理暂停和自写内容；读失败时由一次性Timer直接补读，避免相同计数提前返回。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleRetry,func,303,KEEP,2026-11-21：changeCount双读不一致时一次性Timer仍重跑poll；读取失败路径强制补读一次并更新最新changeCount，避免跳过或重复捕获；补读失败不续排。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,readAndIngest,func,322,KEEP,2026-11-21：由poll调用；粘贴板读取失败时仅初次调用安排强制poll补读，补读禁止续排，成功后的忽略规则和入库沿原实现
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,writeToDatabase,func,347,KEEP,2026-11-21：串行队列去重、四类附件落盘及正式插入；原图写失败停止建空图片记录，已写附件INSERT失败时移除本次原图、缩略图、RTF与长文，再沿原去重置顶处理。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleReloadCoalesced,func,452,KEEP,2026-11-21：新捕获和重复置顶仍合并主线程刷新；改用reload(reset:false)按当前页数重查，避免刷新将已浏览列表重置第一页；安装版重新构建通过。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,updateFirstItemScrolledOut,func,468,KEEP,2026-11-20：表格滚动回调仅在顶部状态变化时发布属性与通知。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,makeQuery,func,475,KEEP,2026-11-20：reload与loadMore共用当前搜索、分类和标签，查询上限沿用800条。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,reload,func,484,KEEP,2026-11-20：串行查询并按generation在主队列发布最新结果；调用前读取筛选分页并设置加载状态，两个清理器和工具回流存在后台直接入口，待迁回主线程。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,applyTagChange,func,514,KEEP,2026-11-20：init的main队列观察者调用；整体替换重查，删除当前标签清筛选；按通知keys更新tagIDs，当前筛选或正在加载时复用reload
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,loadMoreIfNeeded,func,535,KEEP,2026-11-20：尾行出现且尚未达800条时累计页数查询，主队列按generation发布并结束加载。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,recentItems,func,565,KEEP,2026-11-20：悬浮及最近记录窗口请求独立于主列表筛选的最近项，原队列查询后主线程交付。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,fullText,func,577,KEEP,2026-11-20：预览及编辑按原规则读内联、文本附件和RTF；单项与多项历史复制均提供onReadFailure，正文附件不可读时返回实际失败而非截短预览。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,ocrText,func,591,KEEP,2026-11-20：AppBootstrap注入OCR读取provider，按dedupeKey读取现有识别存储，不重复识别。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,clearCurrentPasteboard,func,597,KEEP,2026-11-20：主面板和悬浮窗菜单仅清系统剪贴板并同步自写计数，保留数据库历史。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,copy,func,609,KEEP,2026-11-20：单项历史复制先严格读取完整正文、图片/RTF和完整文件列表，读取失败在清空系统剪贴板前返回；成功保持原类型、自写标记和可选自动粘贴。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,copy,func,673,KEEP,2026-11-20：主表回车和最近记录窗多选复制；单个媒体转原入口，混合媒体提示，逐条严格读全文后合并。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,copyText,func,694,KEEP,2026-11-20：OCR、工具及内容动作的正式文本复制入口；写入失败返回原因，成功统一finishCopy。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,copyFiles,func,706,KEEP,2026-11-20：中转、压缩和刘海文件复制写URL后立即回读正式入库，再完成复制；私有图片原路径引用只存正文的问题待处理。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,copyImageFile,func,717,KEEP,2026-11-21：图片菜单校验私有原图可读后直接写系统file URL并保留原自动暂存通知，不回读成第二条文件历史；避免图片项删除私有附件后损坏新历史引用。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,finishCopy,func,729,KEEP,2026-11-20：成功复制共用自写token、有效期及变更计数，统一记录事件、提示和主动复制触觉。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,delete,func,760,KEEP,2026-11-20：确认后原队列正式删除，失败报告原因，成功才移除可见项、通知共享预览及其他窗口。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,clearUnsavedHistory,func,786,KEEP,2026-11-20：设置入口统计后确认，再查询并删除未存且未收藏历史，保留标签，逐项报告失败与回收字节。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,reviewBackupExport,func,836,KEEP,2026-11-20：设置备份表单传入完成回调，复用ClipboardBackup.reviewExport和Manager原队列，直接返回Operation。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,exportBackup,func,840,KEEP,2026-11-20：备份表单传目标、密码和缺失记录清单至ClipboardBackup.export，不另建持久化路径。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,prepareBackupRestore,func,845,KEEP,2026-11-20：恢复表单将源文件、密码、回调及原队列交prepareRestore，返回同一取消对象。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,restoreBackup,func,850,KEEP,2026-11-20：确认恢复仅在成功时失效OCR索引、刷新标签通知、关闭预览和清选择，再把原Result回给表单。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,saveContent,func,868,KEEP,2026-11-21：编辑窗与预览共用；正文/别名在单条UPDATE中写入，新文本及RTF先落到独立路径，SQL成功后移除旧附件，失败只回收暂存文件；安装版界面回调待实测。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,toggleFavorite,func,929,KEEP,2026-11-20：主面板和表格收藏动作读数据库当前值取反，成功通知窗口，收藏筛选重查，普通列表原位更新。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,setNote,func,954,KEEP,2026-11-20：已存动作异步写库，失败提示；取消当前已存过滤项时重查，其余只更新对应模型。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,ingestToolOutput,func,972,KEEP,2026-11-21：AI、工具、翻译和摘要唯一写入口await既有utility串行持久化队列；去重查询、长文落盘、INSERT与回查离开调用UI线程，完成后刷新主列表并返回原条目。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,insert,func,1024,KEEP,2026-11-20：截图、文本及主动复制回读共用，非空结果沿原串行队列交writeToDatabase，可替代重复persist。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,insertImage,func,1030,KEEP,2026-11-20：AppBootstrap截图完成调用，以现有Reader构造图片结果后复用insert。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,insertText,func,1036,KEEP,2026-11-20：OCR和取色完成调用，保留来源及副标题，经Reader正式文本结果复用insert。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleAutoStage,func,1045,KEEP,2026-11-20：新文件及重复文件捕获在主线程发布URL通知，AppBootstrap按中转启用和自动暂存开关消费。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleOCR,func,1055,KEEP,2026-11-20：成功存图按偏好异步识别，完成回到原队列确认条目仍存在再写OCR与统计；空结果保留图片。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,pasteToFrontmostApplication,func,1079,KEEP,2026-11-20：主动复制自动粘贴分支先取辅助功能权限，生成Cmd+V按下及抬起事件，成功文案明确为已发送粘贴。
-Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,presentAccessibilityGuide,func,1106,KEEP,2026-11-20：自动粘贴权限失败本次启动首回显示引导、系统设置及暂不开启，后续走已有提示入口。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,init,init,165,KEEP,2026-11-20：shared构造时注册主队列标签通知，闭包弱持Manager并调用applyTagChange。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,deinit,deinit,171,KEEP,2026-11-20：删除init注册的标签通知观察者；通知回调弱持有manager，析构不操作用户数据
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,pauseRecording,func,204,KEEP,2026-11-20：菜单栏、主面板与快捷键入口撤销旧到期Timer，设置期限、更新剩余分钟并发送状态通知。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,resumeRecording,func,218,KEEP,2026-11-20：菜单、快捷键与到期处理恢复记录，原属性didSet清理期限和计时器，按参数决定提示。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,refreshPauseDeadline,func,223,KEEP,2026-11-20：暂停、唤醒及轮询共用，按向上取整分钟刷新，到期复用resumeRecording且不重复提示。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,start,func,232,KEEP,2026-11-20：ClipboardModule启动时读取当前计数、安装common模式轮询、刷新标签和列表并启动两个清理器；Module重复启动清理器可删。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,schedulePoll,func,246,KEEP,2026-11-20：启动与速率切换共用，先使原Timer失效，再在主RunLoop common模式注册弱持有闭包。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,pollTick,func,255,KEEP,2026-11-20：原Timer刷新暂停期限并按burstUntil在2秒空闲与0.5秒突发之间切换；ingest已同步重建突发Timer，变量与实际计时器一致。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,poll,func,267,KEEP,2026-11-21：Timer与既有重试入口共用，双读变更计数、处理暂停和自写内容；读失败时由一次性Timer直接补读，避免相同计数提前返回。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleRetry,func,300,KEEP,2026-11-21：changeCount双读不一致时一次性Timer仍重跑poll；读取失败路径强制补读一次并更新最新changeCount，避免跳过或重复捕获；补读失败不续排。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,readAndIngest,func,319,KEEP,2026-11-21：由poll调用；粘贴板读取失败时仅初次调用安排强制poll补读，补读禁止续排，成功后的忽略规则和入库沿原实现
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,writeToDatabase,func,344,KEEP,2026-11-21：串行队列去重、四类附件落盘及正式插入；原图写失败停止建空图片记录，已写附件INSERT失败时移除本次原图、缩略图、RTF与长文，再沿原去重置顶处理。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleReloadCoalesced,func,444,KEEP,2026-11-21：新捕获和重复置顶仍合并主线程刷新；改用reload(reset:false)按当前页数重查，避免刷新将已浏览列表重置第一页；安装版重新构建通过。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,updateFirstItemScrolledOut,func,460,KEEP,2026-11-20：表格滚动回调仅在顶部状态变化时发布属性与通知。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,makeQuery,func,467,KEEP,2026-11-20：reload与loadMore共用当前搜索、分类和标签，查询上限沿用800条。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,reload,func,476,KEEP,2026-11-20：串行查询并按generation在主队列发布最新结果；调用前读取筛选分页并设置加载状态，两个清理器和工具回流存在后台直接入口，待迁回主线程。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,applyTagChange,func,506,KEEP,2026-11-20：init的main队列观察者调用；整体替换重查，删除当前标签清筛选；按通知keys更新tagIDs，当前筛选或正在加载时复用reload
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,loadMoreIfNeeded,func,527,KEEP,2026-11-20：尾行出现且尚未达800条时累计页数查询，主队列按generation发布并结束加载。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,recentItems,func,557,KEEP,2026-11-20：悬浮及最近记录窗口请求独立于主列表筛选的最近项，原队列查询后主线程交付。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,fullText,func,569,KEEP,2026-11-20：预览及编辑按原规则读内联、文本附件和RTF；单项与多项历史复制均提供onReadFailure，正文附件不可读时返回实际失败而非截短预览。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,ocrText,func,583,KEEP,2026-11-20：AppBootstrap注入OCR读取provider，按dedupeKey读取现有识别存储，不重复识别。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,clearCurrentPasteboard,func,589,KEEP,2026-11-20：主面板和悬浮窗菜单仅清系统剪贴板并同步自写计数，保留数据库历史。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,copy,func,601,KEEP,2026-11-20：单项历史复制先严格读取完整正文、图片/RTF和完整文件列表，读取失败在清空系统剪贴板前返回；成功保持原类型、自写标记和可选自动粘贴。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,copy,func,665,KEEP,2026-11-20：主表回车和最近记录窗多选复制；单个媒体转原入口，混合媒体提示，逐条严格读全文后合并。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,copyText,func,686,KEEP,2026-11-20：OCR、工具及内容动作的正式文本复制入口；写入失败返回原因，成功统一finishCopy。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,copyFiles,func,698,KEEP,2026-11-20：中转、压缩和刘海文件复制写URL后立即回读正式入库，再完成复制；私有图片原路径引用只存正文的问题待处理。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,copyImageFile,func,709,KEEP,2026-11-21：图片菜单校验私有原图可读后直接写系统file URL并保留原自动暂存通知，不回读成第二条文件历史；避免图片项删除私有附件后损坏新历史引用。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,finishCopy,func,720,KEEP,2026-11-20：成功复制共用自写token、有效期及变更计数，统一记录事件、提示和主动复制触觉。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,delete,func,751,KEEP,2026-11-20：确认后原队列正式删除，失败报告原因，成功才移除可见项、通知共享预览及其他窗口。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,clearUnsavedHistory,func,777,KEEP,2026-11-20：设置入口统计后确认，再查询并删除未存且未收藏历史，保留标签，逐项报告失败与回收字节。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,reviewBackupExport,func,827,KEEP,2026-11-20：设置备份表单传入完成回调，复用ClipboardBackup.reviewExport和Manager原队列，直接返回Operation。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,exportBackup,func,831,KEEP,2026-11-20：备份表单传目标、密码和缺失记录清单至ClipboardBackup.export，不另建持久化路径。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,prepareBackupRestore,func,836,KEEP,2026-11-20：恢复表单将源文件、密码、回调及原队列交prepareRestore，返回同一取消对象。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,restoreBackup,func,841,KEEP,2026-11-20：确认恢复仅在成功时失效OCR索引、刷新标签通知、关闭预览和清选择，再把原Result回给表单。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,saveContent,func,859,KEEP,2026-11-21：编辑窗与预览共用；正文/别名在单条UPDATE中写入，新文本及RTF先落到独立路径，SQL成功后移除旧附件，失败只回收暂存文件；安装版界面回调待实测。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,toggleFavorite,func,920,KEEP,2026-11-20：主面板和表格收藏动作读数据库当前值取反，成功通知窗口，收藏筛选重查，普通列表原位更新。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,setNote,func,945,KEEP,2026-11-20：已存动作异步写库，失败提示；取消当前已存过滤项时重查，其余只更新对应模型。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,ingestToolOutput,func,963,KEEP,2026-11-21：AI、工具、翻译和摘要唯一写入口await既有utility串行持久化队列；去重查询、长文落盘、INSERT与回查离开调用UI线程，完成后刷新主列表并返回原条目。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,insert,func,1015,KEEP,2026-11-20：截图、文本及主动复制回读共用，非空结果沿原串行队列交writeToDatabase，可替代重复persist。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,insertImage,func,1021,KEEP,2026-11-20：AppBootstrap截图完成调用，以现有Reader构造图片结果后复用insert。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,insertText,func,1027,KEEP,2026-11-20：OCR和取色完成调用，保留来源及副标题，经Reader正式文本结果复用insert。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,scheduleOCR,func,1034,KEEP,2026-11-20：成功存图按偏好异步识别，完成回到原队列确认条目仍存在再写OCR与统计；空结果保留图片。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,pasteToFrontmostApplication,func,1058,KEEP,2026-11-20：主动复制自动粘贴分支先取辅助功能权限，生成Cmd+V按下及抬起事件，成功文案明确为已发送粘贴。
+Clipboard,Features/Clipboard/Store/ClipboardManager.swift,ClipboardManager,presentAccessibilityGuide,func,1085,KEEP,2026-11-20：自动粘贴权限失败本次启动首回显示引导、系统设置及暂不开启，后续走已有提示入口。
 Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardReadResult,init,init,22,KEEP,2026-11-17：各读取分支及imageResult和textResult构造；统一携带正文图片RTF文件URL来源和去重输入；isEmpty由ingest与insert消费
 Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,init,init,55,KEEP,2026-11-17：ClipboardManager持有唯一默认general读取器；可注入的NSPasteboard为原有构造参数；本轮未新建读取器或轮询服务
 Clipboard,Features/Clipboard/Store/ClipboardPasteboardReader.swift,ClipboardPasteboardReader,read,func,61,KEEP,2026-11-17：Manager读取及文件复制回读调用；Finder继续文件优先；微信容器jpg附带TIFF的实际许可错误已复现，沿原QQ条件加入微信容器单图并优先读取图片数据
@@ -2478,20 +2483,20 @@ FloatingBall,Features/FloatingBall/FloatingBallController.swift,FloatingBallCont
 FloatingBall,Features/FloatingBall/FloatingBallController.swift,FloatingBallController,screenKey,func,429,KEEP,复用IslandDisplay的稳定显示器身份作为位置与页面偏好键
 FloatingBall,Features/FloatingBall/FloatingBallController.swift,FloatingBallController,legacyScreenKey,func,435,KEEP,读取旧NSScreenNumber数字键，以继续使用已有球体位置
 FloatingBall,Features/FloatingBall/FloatingBallController.swift,FloatingBallController,clampedOrigin,func,438,KEEP,按指定显示器可见区域限制面板原点，避免窗口移出屏幕
-FloatingBall,Features/FloatingBall/FloatingBallController.swift,FloatingBallPanel,init,init,604,KEEP,控制器单例持有复用状态；面板采用无边框非激活样式，避免建立第二主面板
-FloatingBall,Features/FloatingBall/FloatingBallController.swift,CGFloat,clamped,func,612,KEEP,读取用户尺寸偏好并限制在设置界面公布的范围内，未设置时使用指定默认值
-FloatingBall,Features/FloatingBall/FloatingBallController.swift,ConditionalGlassPlate,body,func,622,KEEP,ConditionalGlassPlate：普通球/展开面板走玻璃，海豚本体不套玻璃（保持清晰不整图模糊）
+FloatingBall,Features/FloatingBall/FloatingBallController.swift,FloatingBallPanel,init,init,560,KEEP,控制器单例持有复用状态；面板采用无边框非激活样式，避免建立第二主面板
+FloatingBall,Features/FloatingBall/FloatingBallController.swift,CGFloat,clamped,func,568,KEEP,读取用户尺寸偏好并限制在设置界面公布的范围内，未设置时使用指定默认值
+FloatingBall,Features/FloatingBall/FloatingBallController.swift,ConditionalGlassPlate,body,func,578,KEEP,ConditionalGlassPlate：普通球/展开面板走玻璃，海豚本体不套玻璃（保持清晰不整图模糊）
 Haptics,Features/Haptics/HapticConfiguration.swift,HapticIntensity,atLeast,func,46,KEEP,2026-11-23：HapticPattern.steps L… 调用；按强度阶梯取不低于下限的档位，失败事件要求不低于「中」
 Haptics,Features/Haptics/HapticConfiguration.swift,HapticConfiguration,init,init,68,KEEP,2026-11-23：默认配置（enabled=true、强度=中、6 个默认关闭场景），设置页恢复默认与 load() 兜底使用
 Haptics,Features/Haptics/HapticConfiguration.swift,HapticConfiguration,isEnabled,func,70,KEEP,2026-11-23：HapticService.perform L… 调用；总开关 + 强度 + 场景开关三重判断，关闭其一即不发
 Haptics,Features/Haptics/HapticConfiguration.swift,HapticConfiguration,migrated,func,77,KEEP,2026-11-23：解码后显式迁移（v0 轻→中 + 版本号补齐）；返回是否需要写回，解码本身保持无副作用
 Haptics,Features/Haptics/HapticConfiguration.swift,HapticConfiguration,encode,func,95,KEEP,2026-11-23：写 schemaVersion=3 与三个用户字段；旧配置字段名不变
 Haptics,Features/Haptics/HapticConfiguration.swift,HapticConfiguration,init,init,104,KEEP,2026-11-23：默认配置（enabled=true、强度=中、6 个默认关闭场景），设置页恢复默认与 load() 兜底使用
-Haptics,Features/Haptics/HapticConfiguration.swift,HapticConfiguration,func,func,116,KEEP,2026-11-23：合成成员（Equatable 比较只看 enabled/intensity/disabledEvents，忽略版本号）
-Haptics,Features/Haptics/HapticConfiguration.swift,HapticConfiguration,load,func,125,KEEP,2026-11-23：读 UserDefaults + 解码 + migrated()，不落盘；HapticSettingsStore 与设置页草稿共用
-Haptics,Features/Haptics/HapticConfiguration.swift,HapticSettingsStore,init,init,148,KEEP,2026-11-23：进程内只读一次配置并缓存；业务侧不再每次事件解码 JSON
-Haptics,Features/Haptics/HapticConfiguration.swift,HapticSettingsStore,save,func,159,KEEP,2026-11-23：HapticSettingsDraft.save 调用；写盘成功才替换内存快照，失败原样返回错误
-Haptics,Features/Haptics/HapticConfiguration.swift,HapticSettingsStore,reload,func,172,KEEP,2026-11-23：重新读盘替换快照（外部改动配置时使用）
+Haptics,Features/Haptics/HapticConfiguration.swift,HapticConfiguration,func,func,119,KEEP,2026-11-23：合成成员（Equatable 比较只看 enabled/intensity/disabledEvents，忽略版本号）
+Haptics,Features/Haptics/HapticConfiguration.swift,HapticConfiguration,load,func,128,KEEP,2026-11-23：读 UserDefaults + 解码 + migrated()，不落盘；HapticSettingsStore 与设置页草稿共用
+Haptics,Features/Haptics/HapticConfiguration.swift,HapticSettingsStore,init,init,151,KEEP,2026-11-23：进程内只读一次配置并缓存；业务侧不再每次事件解码 JSON
+Haptics,Features/Haptics/HapticConfiguration.swift,HapticSettingsStore,save,func,162,KEEP,2026-11-23：HapticSettingsDraft.save 调用；写盘成功才替换内存快照，失败原样返回错误
+Haptics,Features/Haptics/HapticConfiguration.swift,HapticSettingsStore,reload,func,175,KEEP,2026-11-23：重新读盘替换快照（外部改动配置时使用）
 Haptics,Features/Haptics/HapticDriver.swift,HapticDriving,prepare,func,68,KEEP,2026-11-23：驱动协议；准备完成后回调，设备枚举不得占用调用线程
 Haptics,Features/Haptics/HapticDriver.swift,HapticDriving,fire,func,69,KEEP,2026-11-23：驱动协议；返回 HapticDelivery，公开接口只能如实返回「已请求」
 Haptics,Features/Haptics/HapticDriver.swift,HapticDriving,invalidate,func,70,KEEP,2026-11-23：驱动协议；睡眠唤醒/设备变化后释放句柄允许重建
@@ -2533,13 +2538,171 @@ Haptics,Features/Haptics/TrackpadActuator.swift,TrackpadActuator,describeLocked,
 Haptics,Features/Haptics/TrackpadActuator.swift,TrackpadActuator,loadSymbols,func,184,KEEP,2026-11-23：只 dlopen 一次 MultitouchSupport，四个符号缺一即视为不可用；不新增私有符号
 Haptics,Features/Haptics/TrackpadActuator.swift,TrackpadActuator,actuationDeviceID,func,201,KEEP,2026-11-23：IOKit 找 ActuationSupported 设备，内建优先、外接兜底（外接行为未在本机验证）
 Haptics,Features/Haptics/TrackpadActuator.swift,TrackpadActuator,selectDeviceID,func,225,KEEP,纯选择逻辑（不碰 IOKit）：ActuationSupported 且有 Multitouch ID 才是候选，内建优先、外接 Magic Trackpad 兜底；抽成纯函数后可用合成字典验证「仅内建/内建+外接/仅外接/不支持/缺 ID/空表」六种情况，真实枚举仍只读设备属性
-Island,Features/Island/IslandDisplay.swift,IslandDisplay,init,init,13,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；由NSScreen读取显示ID并转换系统UUID，镜像屏统一采用源屏的稳定身份和几何
-Island,Features/Island/IslandDisplay.swift,IslandDisplay,sourceID,func,24,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；用CGDisplayMirrorsDisplay归一镜像源，独立屏保留自身系统显示ID
+Island,Features/Island/IslandCalendarContent.swift,IslandCalendarContent,movePreviewDate,func,89,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandCalendarContent.swift,IslandCalendarContent,copySelectedDate,func,95,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandCalendarContent.swift,IslandLiveCalendarContent,calendarLayout,func,137,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandCalendarContent.swift,IslandLiveCalendarContent,monthGrid,func,264,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandCalendarContent.swift,IslandLiveCalendarContent,eventRows,func,302,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandCalendarContent.swift,IslandLiveCalendarContent,monthTitle,func,326,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandCalendarContent.swift,IslandLiveCalendarContent,monthDay,func,330,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandCalendarContent.swift,IslandLiveCalendarContent,weekdayTitle,func,334,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandCalendarContent.swift,IslandLiveCalendarContent,fullDate,func,338,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandCalendarContent.swift,IslandLiveCalendarContent,eventTime,func,342,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandCalendarContent.swift,IslandLiveCalendarContent,selectDate,func,346,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandCalendarContent.swift,IslandLiveCalendarContent,moveDate,func,352,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandCalendarContent.swift,IslandLiveCalendarContent,reload,func,359,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandCalendarContent.swift,IslandLiveCalendarContent,reloadEvents,func,364,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandContent.swift,IslandRootView,updateMonitoring,func,84,KEEP,页面、展开及首页监测组件可见性变化时交MonitorSampler.setIslandActive，设置预览不启动真实采样
+Island,Features/Island/IslandContent.swift,IslandRootView,applyTagChange,func,88,KEEP,2026-11-20：IslandRootView接收TagStore增量通知；映射整体替换或缺少变更信息时重新查询，单标签删除清除对应筛选，仅更新受影响已加载行的tagIDs
+Island,Features/Island/IslandContent.swift,IslandRootView,pageContent,func,110,KEEP,IslandRootView按唯一controller.page分派正式内容；中转页在近期记录与utilitiesOnly传输内容间切换
+Island,Features/Island/IslandContent.swift,IslandRootView,widgetContent,func,150,KEEP,首页异构格按组件种类及尺寸装现有监测、近期记录、媒体、音量、日历和功能入口，预览用既有样例
+Island,Features/Island/IslandContent.swift,IslandRootView,widget,func,188,KEEP,首页共用组件标题、颜色与glassCard外壳，标题切对应page；仅剪贴板格接收URL拖入
+Island,Features/Island/IslandContent.swift,IslandRootView,compactRecord,func,205,KEEP,首页近期项显示单行及选中标记，原生IslandFileDragSource接单击预览、双击复制与文件拖出，延迟首页单击换页
+Island,Features/Island/IslandContent.swift,IslandRootView,sampleDetail,func,332,KEEP,刘海设置预览将固定样本交给正式正文组件，固定会话保留调参滚动；图片和多路径文件不读取真实文件
+Island,Features/Island/IslandContent.swift,IslandRootView,select,func,353,KEEP,设置selectedRecord与列表焦点，可切剪贴板页；显式预览且非设置预览时按来源panel交共用present
+Island,Features/Island/IslandContent.swift,IslandRootView,moveSelection,func,359,KEEP,列表方向键及原生行onMove把选中索引夹在记录范围，调用select并scrollTo居中定位
+Island,Features/Island/IslandContent.swift,IslandRootView,copySelectedRecord,func,368,KEEP,列表复制命令和原生行Cmd+C只按selectedRecord找到一行，交统一copy
+Island,Features/Island/IslandContent.swift,IslandRootView,draggingChanged,func,385,KEEP,原生文件拖出回调更新recordDragging，拖出结束再reloadRecords，拖动中保留当前行视图
+Island,Features/Island/IslandContent.swift,IslandRootView,reloadRecords,func,391,KEEP,展开、页面、剪贴板及中转通知只递增recordsRevision，触发现有.task(id:)的独立近期查询
+Island,Features/Island/IslandContent.swift,IslandRootView,loadRecords,func,397,KEEP,后台独立fetch剪贴板并合并中转项，原路径和暂存路径别名去重，文件按路径拆行、按最新日期排序；取消或拖出中不发布，预览仅用样例，主列表筛选分页保留
+Island,Features/Island/IslandContent.swift,IslandRootView,fileIcon,func,464,KEEP,loadRecords按真实目录及共用图片、归档、文档、影音、文本类型表选行图标
+Island,Features/Island/IslandContent.swift,IslandRootView,copy,func,475,KEEP,Root的Task把结果写feedback；IslandRecentRow图片交copy、单文件交copyFiles，文本后台fullText并传出读取错误，富文本带原RTF交正式copy，预览仅反馈
+Island,Features/Island/IslandController.swift,IslandController,init,init,95,KEEP,正式单例与原设置预览构造配置和目标缓存；轻量入口view构造点击回调且不支持归档恢复
+Island,Features/Island/IslandController.swift,IslandController,surfaceAnimation,func,163,KEEP,Surface及设置预览共用几何时序，减少动态用120ms easeOut，否则展开280ms/收起240ms无回弹spring
+Island,Features/Island/IslandController.swift,IslandController,apply,func,175,KEEP,设置保存与组件排序共用，正式实例persist失败返回原因，成功替换配置并按enabled启停；预览只更新内存
+Island,Features/Island/IslandController.swift,IslandController,beginLayoutEditing,func,200,KEEP,以当前配置建立布局草稿并进入首页编辑，保持刘海展开；已保存配置在编辑过程中保持原样
+Island,Features/Island/IslandController.swift,IslandController,updateLayout,func,209,KEEP,接收有效网格位置或尺寸变化，仅更新当前布局草稿，不调用持久化或启动业务模块
+Island,Features/Island/IslandController.swift,IslandController,finishLayoutEditing,func,224,KEEP,从当前配置合并四项布局字段；保存失败保留草稿和原因，成功后通知设置预览并退出编辑
+Island,Features/Island/IslandController.swift,IslandController,cancelLayoutEditing,func,234,KEEP,丢弃布局草稿、恢复正式配置展示，并结束编辑交互；收起窗口沿用此入口
+Island,Features/Island/IslandController.swift,IslandController,setWidgetVisible,func,240,KEEP,通过现有 hiddenWidgets 在编辑草稿中移出或重新加入组件，不删除功能入口
+Island,Features/Island/IslandController.swift,IslandController,beginInteraction,func,247,KEEP,文件拖入拖出、格拖放及媒体滑杆操作置interacting，取消待收回工作
+Island,Features/Island/IslandController.swift,IslandController,endInteraction,func,248,KEEP,交互结束重新读取指针，仍在外且非显式展开时按配置collapseDelay安排收回
+Island,Features/Island/IslandController.swift,IslandController,turnPage,func,275,KEEP,底部翻页、Option方向键和横向滚动按IslandPage.tabs循环切换唯一page
+Island,Features/Island/IslandController.swift,IslandController,turnComponentPage,func,283,KEEP,现有页面草稿将组件页码限制在0至componentPageCount减1；当前尚无调用方
+Island,Features/Island/IslandController.swift,IslandController,selectPage,func,287,KEEP,turnPage和goBack复用可见页选择；记忆模式按显示器身份保存实际页面，保存错误交feedback
+Island,Features/Island/IslandController.swift,IslandController,selectDeepLinkPage,func,298,KEEP,2026-11-21：kitnest://island?page=...使用；任务页沿原selectPage策略更新，功能详情页仅切换当前显示页，不覆盖固定或记忆页配置
+Island,Features/Island/IslandController.swift,IslandController,rememberPage,func,303,KEEP,2026-11-20：主线草稿页面变化与selectPage共用；正式记忆模式且当前屏幕页面发生变化时写入lastPageByDisplay，持久化成功再发布配置，失败显示原提示
+Island,Features/Island/IslandController.swift,IslandController,applyOpeningPage,func,317,KEEP,现有草稿按固定页或屏幕记忆挑选可见页，并以remember=false交selectPage；当前尚无调用方
+Island,Features/Island/IslandController.swift,IslandController,setComponentPageCount,func,325,KEEP,画布排列完成后同步唯一首页组件页数，尺寸或显隐调整时将当前页保持在已有页内
+Island,Features/Island/IslandController.swift,IslandController,goBack,func,330,KEEP,刘海详情返回原四入口，组件页与各页选择保留在同一控制器
+Island,Features/Island/IslandController.swift,IslandController,openMonitorDetail,func,347,KEEP,首页监测卡点击调用；将 IslandMetric 映射到 MonitorModuleID，保存选中指标，必要时展开工作台并切到监测详情页，返回路径仍由 page 状态保留
+Island,Features/Island/IslandController.swift,IslandController,stepMonitorDetail,func,358,KEEP,监测详情的左右键、横滑和快捷操作调用；按 monitorDetailOrder 计算边界内的下一个模块，更新共享 MonitorCenterPresenter 选中项和可映射的岛指标
+Island,Features/Island/IslandController.swift,IslandController,resumeAfterOutside,func,372,KEEP,外部文件选择结束或取消后复用正式打开方法，恢复原页和已保存的工具输入
+Island,Features/Island/IslandController.swift,IslandController,bindRecordScroll,func,374,KEEP,记录列表原生滚动窗绑定后恢复实际偏移；滚动通知只保存控制器值，不发布整页或另建滚动服务
+Island,Features/Island/IslandController.swift,IslandController,releaseRecordScroll,func,390,KEEP,切页、收回结束和窗口停止时移除记录滚动通知，保留偏移供同一列表返回恢复
+Island,Features/Island/IslandController.swift,IslandController,changeTrack,func,396,KEEP,演示tracks按步长循环更新track并把seek归零；当前源码未找到调用，正式媒体send走NowPlayingController
+Island,Features/Island/IslandController.swift,IslandController,refreshClipboard,func,401,KEEP,expand前独立取最近一条正文前24字符压平为摘要；预览取IslandSample标题
+Island,Features/Island/IslandController.swift,IslandController,copyLatest,func,415,KEEP,收起态剪贴板快捷操作独立fetch最近一项交ClipboardManager.copy(autoPaste:false)，空列表给反馈，预览不写系统剪贴板
+Island,Features/Island/IslandController.swift,IslandController,copyDate,func,425,KEEP,收起态日历快捷操作把当天ISO年月日交copyText并反馈，预览只改feedback
+Island,Features/Island/IslandController.swift,IslandController,activatePeek,func,430,KEEP,收起态图标按peeksQuickActions执行复制或展开指定页，关闭快捷操作时统一打开peek.page
+Island,Features/Island/IslandController.swift,IslandController,surfaceDidChange,func,455,KEEP,材质更新回传动画中实际size/radius，重算命中轮廓；到收起目标才卸内容、缩panel、归还焦点及执行afterCollapse，真实刘海无图标时隐藏外壳
+Island,Features/Island/IslandController.swift,IslandController,performOutside,func,481,KEEP,截图、工具文件面板和正式外窗入口在展开时保存afterCollapse并收回，几何完成后执行；预览仅反馈
+Island,Features/Island/IslandController.swift,IslandController,start,func,488,KEEP,App启动和apply启用时仅正式且enabled实例show，不启动设置预览窗口
+Island,Features/Island/IslandController.swift,IslandController,open,func,493,KEEP,菜单栏、深链和键盘入口，禁用时打开刘海设置，否则show并expand(takeFocus:true)
+Island,Features/Island/IslandController.swift,IslandController,open,func,497,KEEP,菜单栏、深链和键盘入口，禁用时打开刘海设置，否则show并expand(takeFocus:true)
+Island,Features/Island/IslandController.swift,IslandController,openIsland,func,501,KEEP,2026-11-21：公开open()与open(page:)共用；未指定目标时应用固定/记忆展开策略，深链指定目标时保留该页并展开，不再被默认页策略覆盖
+Island,Features/Island/IslandController.swift,IslandController,show,func,515,KEEP,首次创建唯一透明非激活IslandPanel、事件监听和屏幕通知，装IslandRootView；后续复用窗口定位，空图标的真实刘海收起态不留可见外壳
+Island,Features/Island/IslandController.swift,IslandController,refreshDisplays,func,556,KEEP,显示参数或Space变化时更新目标及入口，只移动已有业务窗口，指定离线沿原选择临时主屏
+Island,Features/Island/IslandController.swift,IslandController,refreshEntries,func,580,KEEP,每个启用逻辑显示目标仅持有绘制入口的NSPanel，当前屏沿用原舞台，不创建正文订阅或采样
+Island,Features/Island/IslandController.swift,IslandController,activateDisplay,func,621,KEEP,点击屏幕入口明确迁移并保持展开，已有预览时保留其键盘焦点和会话
+Island,Features/Island/IslandController.swift,IslandController,move,func,635,KEEP,迁移原面板及原预览窗口，保持hosting view和业务输入，绕开取消布局草稿的collapse
+Island,Features/Island/IslandController.swift,IslandController,armFirstUpdateProbe,func,675,KEEP,展开后挂一次性 NSWindow.didUpdate 观察者，记「距唤起 Xms 的首帧窗口更新」；口径明确写为非合成呈现，只用于比较 setFrame(display:) 两种模式有没有把首帧推后
+Island,Features/Island/IslandController.swift,IslandController,disarmFirstUpdateProbe,func,695,KEEP,移除上述观察者：didUpdate 只取首次，收到即摘；再次展开前也先摘，避免旧锚点串到下一轮
+Island,Features/Island/IslandController.swift,IslandController,position,func,700,KEEP,优先摄像头屏幕两侧auxiliaryTop区域求真实刘海中心宽高，无刘海用180×28入口；动画舞台不提前缩小，到收起态才按像素对齐缩到入口尺寸
+Island,Features/Island/IslandController.swift,IslandController,updateNotchMetrics,func,730,KEEP,读取当前屏幕两侧辅助区域与安全高度作为硬件刘海尺寸；无刘海屏幕使用紧凑顶部入口
+Island,Features/Island/IslandController.swift,IslandController,expand,func,740,KEEP,取消待收回，首次展开前保存AppBootstrap划词结果、刷新摘要并挂内容；正式舞台扩大后显示，takeFocus请求键盘焦点
+Island,Features/Island/IslandController.swift,IslandController,beginSelectionRefresh,func,792,KEEP,2026-11-24 性能第二轮 A2：岛展开选区读取改后台执行——先捕获前台上下文，DispatchQueue.global 读 AX（0.25s IPC 超时），回主线程按 selectionGeneration 代次丢弃过期结果；外壳展开不再阻塞在三次同步 AX IPC 上
+Island,Features/Island/IslandController.swift,IslandController,logExpandPhases,func,808,KEEP,2026-11-24 性能第二轮 A1：expand() 单调时钟分步计时（开页/选区发起/剪贴板/状态/定位/上屏/入口/焦点）一行汇总，替代原笼统的「首次布局」单值日志；只记机器耗时不代表真实呈现
+Island,Features/Island/IslandController.swift,IslandController,revealContent,func,823,KEEP,expand() 的正文显现阶段调用；延迟动画执行前再次确认 expanded，收起期间直接丢弃回调，避免已收起的工作台被异步任务重新点亮
+Island,Features/Island/IslandController.swift,IslandController,collapse,func,831,KEEP,收回先关闭来源panel的共用预览并取消悬停任务，清显式展开及采样、归还firstResponder，动画末由surfaceDidChange卸载内容
+Island,Features/Island/IslandController.swift,IslandController,stop,func,859,KEEP,apply禁用时collapse并隐藏panel，移除本实例事件和屏幕通知后释放唯一窗口
+Island,Features/Island/IslandController.swift,IslandController,installMonitors,func,879,KEEP,首次show挂全局/本地指针及按下事件，外部点击收回；窗内水平滚动累计超过36pt切页，交互结束统一endInteraction
+Island,Features/Island/IslandController.swift,IslandController,updatePointer,func,961,KEEP,按实际可见动画轮廓判断鼠标并设置ignoresMouseEvents；摄像头区域悬停按配置延时展开，进入共享预览仍算在内，非显式且非交互离开才延时收回
+Island,Features/Island/IslandController.swift,IslandController,entry,func,1044,KEEP,鼠标事件只在缓存逻辑屏幕入口矩形命中，不在每次移动重新读取UUID或创建视图
+Island,Features/Island/IslandController.swift,IslandController,containsEntry,func,1052,KEEP,预览点外处理识别刘海入口点击，跨屏迁移时不提前关闭预览
+Island,Features/Island/IslandController.swift,IslandEntryView,init,init,1059,KEEP,正式单例与原设置预览构造配置和目标缓存；轻量入口view构造点击回调且不支持归档恢复
+Island,Features/Island/IslandController.swift,IslandEntryView,init,init,1085,KEEP,正式单例与原设置预览构造配置和目标缓存；轻量入口view构造点击回调且不支持归档恢复
+Island,Features/Island/IslandController.swift,IslandEntryView,mouseDown,func,1086,KEEP,轻量入口的本地点击转交唯一controller选择显示目标，不持有业务状态
+Island,Features/Island/IslandController.swift,IslandEntryView,hitTest,func,1087,KEEP,菜单栏搜索短条的图标和文字共用入口点击区域，事件交回同一控制器迁移原工作台
+Island,Features/Island/IslandController.swift,IslandEntryView,accessibilityPerformPress,func,1088,KEEP,菜单栏轻量入口通过辅助功能按下动作调用同一activate回调
+Island,Features/Island/IslandController.swift,IslandEntryView,draw,func,1089,KEEP,其他屏幕仅绘制黑色入口和短标记，不挂载完整SwiftUI正文
+Island,Features/Island/IslandController.swift,IslandPanel,performKeyEquivalent,func,1104,KEEP,IslandPanel接Esc收回、Cmd+O展开、Option左右翻页及Cmd数字选所有页面并展开，其余交AppKit
+Island,Features/Island/IslandDisplay.swift,IslandDisplay,entrySize,func,17,KEEP,2026-11-20：主线草稿入口尺寸属性与entryFrame共用；真实刘海读左右安全区间距和顶部安全高度，普通屏沿配置宽度及28pt高度
+Island,Features/Island/IslandDisplay.swift,IslandDisplay,entryFrame,func,24,KEEP,2026-11-20：主线草稿入口刷新与鼠标命中共用；真实刘海按安全区居中，普通屏按左中右位置及配置宽度定位，沿逻辑点和frame负坐标计算
+Island,Features/Island/IslandDisplay.swift,IslandDisplay,init,init,40,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；由NSScreen读取显示ID并转换系统UUID，镜像屏统一采用源屏的稳定身份和几何
+Island,Features/Island/IslandDisplay.swift,IslandDisplay,sourceID,func,51,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；用CGDisplayMirrorsDisplay归一镜像源，独立屏保留自身系统显示ID
+Island,Features/Island/IslandDisplay.swift,IslandDisplay,enabled,func,61,KEEP,按自动刘海优先、全部、主屏或指定UUID筛选；指定目标全离线临时主屏而不覆写偏好
+Island,Features/Island/IslandFeatureContent.swift,IslandFeatureContent,compact,func,51,KEEP,首页格尺寸决定录屏紧凑组件、截图/OCR正式CaptureModule按钮或详情页入口，较大格显示功能摘要
+Island,Features/Island/IslandFeatureContent.swift,IslandAIChatPreview,submit,func,120,KEEP,AI设置预览发送固定场景消息与反馈，不初始化真实会话服务或请求网络
+Island,Features/Island/IslandFeatureContent.swift,IslandDownloadContent,start,func,200,KEEP,下载页按钮及回车先识别网盘分享交CloudLinkActions.resolve，否则完整http/https URL交现有直接下载器，预览只反馈
+Island,Features/Island/IslandFeatureContent.swift,IslandOCRControls,chooseImage,func,419,KEEP,OCR页图片入口收回后用NSOpenPanel选图，后台读取Data交现有manager.recognize(inline:true)，失败给路径读取原因，结束重开刘海
+Island,Features/Island/IslandFeatureContent.swift,IslandArchiveContent,choose,func,455,KEEP,归档页收回后选择文件，创建模式可多选目录并交ArchiveCreateWindowController，打开模式交ArchiveBrowserWindowController，取消重新open
+Island,Features/Island/IslandFileDrag.swift,IslandFileDragSource,makeNSView,func,19,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandFileDrag.swift,IslandFileDragSource,updateNSView,func,24,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandFileDrag.swift,IslandFileDragView,viewDidMoveToWindow,func,50,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandFileDrag.swift,IslandFileDragView,hitTest,func,59,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandFileDrag.swift,IslandFileDragView,cancelSelection,func,63,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandFileDrag.swift,IslandFileDragView,mouseDown,func,68,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandFileDrag.swift,IslandFileDragView,keyDown,func,74,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandFileDrag.swift,IslandFileDragView,mouseDragged,func,86,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandFileDrag.swift,IslandFileDragView,mouseUp,func,106,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandFileDrag.swift,IslandFileDragView,viewWillMove,func,120,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandFileDrag.swift,IslandFileDragView,draggingSession,func,125,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandFileDrag.swift,IslandFileDragView,draggingSession,func,127,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
 Island,Features/Island/IslandGlow.swift,IslandGlowRegions,reduce,func,27,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；合并当前刘海页面卡片与按钮的边界锚点，单个 Canvas 消费几何；滚动范围附带裁切锚点
 Island,Features/Island/IslandGlow.swift,IslandGlowTarget,body,func,36,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；卡片修饰器只登记边界；场景修饰器给四页提供同一开关与指针，并只让绘制层订阅鼠标位置
 Island,Features/Island/IslandGlow.swift,IslandGlowScene,body,func,46,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；卡片修饰器只登记边界；场景修饰器给四页提供同一开关与指针，并只让绘制层订阅鼠标位置
 Island,Features/Island/IslandGlow.swift,View,islandGlowScene,func,127,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；刘海外壳挂载唯一流光场景，覆盖总览、记录、监测、全部功能及其详情；收起或关闭流光时停止位置更新
 Island,Features/Island/IslandGlow.swift,View,islandGlowClip,func,130,KEEP,2026-11-19：已逐函数阅读完整实现并核对控制器调用、SwiftUI/AppKit事件、通知及系统资源入口；滚动容器把可见边界附在内部目标锚点上，流光按交集裁切，隐藏记录不在标题和页脚上绘制
+Island,Features/Island/IslandMediaContent.swift,IslandMediaPlayerContent,cover,func,146,KEEP,媒体大小形态共用播放器真实artwork，没有封面显示音乐图标；按side裁连续圆角并注明封面来源状态
+Island,Features/Island/IslandMediaContent.swift,IslandMediaPlayerContent,metadata,func,157,KEEP,媒体完整页与格共用标题、歌手、专辑和播放器来源，full控制字号及折行，小格省歌手
+Island,Features/Island/IslandMediaContent.swift,IslandMediaPlayerContent,transport,func,179,KEEP,完整/紧凑播放器共用上一首5、下一首4及playButton，send闭包由正式或设置预览宿主提供
+Island,Features/Island/IslandMediaContent.swift,IslandMediaPlayerContent,playButton,func,191,KEEP,媒体不同尺寸共用命令2切播放，图标及无障碍标签跟snapshot.isPlaying变化
+Island,Features/Island/IslandMediaContent.swift,IslandMediaPlayerContent,progress,func,199,KEEP,仅有正duration及position时提供Slider，拖动用scrub并beginInteraction，松手seek后endInteraction；未知时长完整页显示服务状态
+Island,Features/Island/IslandMediaContent.swift,IslandMediaPlayerContent,time,func,223,KEEP,progress和方形媒体格将非负秒格式为分:秒，达到一小时使用时:分:秒
+Island,Features/Island/IslandRecordRows.swift,IslandRecentRow,copy,func,57,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandRecordRows.swift,IslandRecordFocusAppearance,body,func,86,KEEP,2026-11-23：随类型自 Features/Island/IslandContent.swift 拆出迁入（职责拆分，纯搬家，行为不变）
+Island,Features/Island/IslandSettings.swift,IslandConfiguration,pageTitle,func,175,KEEP,现有草稿仅对custom页返回自定义名称，其余返回原页面title；当前尚无调用方
+Island,Features/Island/IslandSettings.swift,IslandConfiguration,init,init,189,KEEP,默认构造保留原全部字段；JSON逐字段decodeIfPresent新增屏幕范围不丢旧主题布局组件
+Island,Features/Island/IslandSettings.swift,IslandConfiguration,init,init,192,KEEP,默认构造保留原全部字段；JSON逐字段decodeIfPresent新增屏幕范围不丢旧主题布局组件
+Island,Features/Island/IslandSettings.swift,IslandConfiguration,requestedSize,func,259,KEEP,读取用户原五档尺寸，画布临时适配不覆盖原选择；默认仅监测与近期内容占两列
+Island,Features/Island/IslandSettings.swift,IslandConfiguration,size,func,262,KEEP,组件排列和设置Picker共用配置尺寸，未配置监测/剪贴板默认wide、其余small；单行和不足列数时适配到可放尺寸
+Island,Features/Island/IslandSettings.swift,IslandConfiguration,color,func,267,KEEP,widget与metric两个重载分别读取配置十六进制颜色，没有有效颜色用各自枚举色，正式与设置预览共用
+Island,Features/Island/IslandSettings.swift,IslandConfiguration,color,func,270,KEEP,widget与metric两个重载分别读取配置十六进制颜色，没有有效颜色用各自枚举色，正式与设置预览共用
+Island,Features/Island/IslandSettings.swift,IslandConfiguration,load,func,273,KEEP,正式controller和设置草稿解码island.configuration，新组件补到已有widgetOrder尾部，失败日志后使用默认配置
+Island,Features/Island/IslandSettings.swift,IslandConfiguration,persist,func,287,KEEP,正式IslandController.apply把当前Codable配置编码存入唯一island.configuration键，编码错误传回设置保存
+Island,Features/Island/IslandSettings.swift,IslandMetric,format,func,451,KEEP,图表、指标卡和统计共用单位格式，百分比/KB/s取0小数，GiB/W取1小数并带unit
+Island,Features/Island/IslandSettings.swift,Array,islandMove,func,457,KEEP,设置顺序按钮、键盘和指标拖放从既有数组移除item后插到目标索引，不创建第二份排序状态
+Island,Features/Island/IslandSurface.swift,IslandMorph,body,func,178,KEEP,IslandMorph以同一size/progress补间驱动圆角、材质遮罩、内容透明度和命中；IslandGlow按共享鼠标位置只在卡片内绘制径向背景及边框亮光
+Island,Features/Island/IslandSurface.swift,IslandOutline,path,func,254,KEEP,IslandOutline在连续圆角矩形顶端补矩形，使可见上沿贴顶，材质mask与controller命中轮廓共用
+Island,Features/Island/IslandSurface.swift,IslandMaterialHost,makeNSView,func,288,KEEP,IslandMaterial用当前solid创建唯一原生材质视图，不在每帧重建玻璃
+Island,Features/Island/IslandSurface.swift,IslandMaterialHost,makeCoordinator,func,303,KEEP,IslandMaterialHost 的 NSViewRepresentable 生命周期调用；创建 GeometryCoordinator 保存上次尺寸和圆角，供 updateNSView 去重几何更新，避免非几何状态变化触发重复材质处理
+Island,Features/Island/IslandSurface.swift,IslandMaterialHost,updateNSView,func,305,KEEP,动画几何更新仅在radius变化时请求layout，并把当前size/radius回报controller.surfaceDidChange
+Island,Features/Island/IslandSurface.swift,IslandMaterialHost,targetSize,func,327,KEEP,玻璃取样面只认展开/收起两个最终尺寸：形变途中 SwiftUI 每帧都会 updateNSView，取样面若跟插值走，NSGlassEffectView 每帧重算背景采样
+Island,Features/Island/IslandSurface.swift,IslandMaterialView,init,init,372,KEEP,IslandMaterialView创建固定darkAqua、followsWindowFocus=false的正式LiquidGlass并加轮廓mask；coder初始化明确不可用
+Island,Features/Island/IslandSurface.swift,IslandMaterialView,init,init,404,KEEP,IslandMaterialView创建固定darkAqua、followsWindowFocus=false的正式LiquidGlass并加轮廓mask；coder初始化明确不可用
+Island,Features/Island/IslandSurface.swift,IslandMaterialView,tint,func,407,KEEP,按外壳通透度生成黑色NSColor，供系统玻璃结构面使用单层着色
+Island,Features/Island/IslandSurface.swift,IslandMaterialView,applyMaterial,func,415,KEEP,外壳材质变化时切换已创建玻璃视图的显隐与纯色底，保留同一采样视图和轮廓状态
+Island,Features/Island/IslandSurface.swift,IslandMaterialView,applyTint,func,431,KEEP,外壳通透度变化时只更新现有玻璃的tint，不重建采样视图或轮廓遮罩
+Island,Features/Island/IslandSurface.swift,IslandMaterialView,applyGeometry,func,439,KEEP,岛材质唯一几何入口：插值尺寸只喂 CAShapeLayer 遮罩，取样面在展开开始时放大一次、收起收尾时缩回一次；实测玻璃重建 12–16 次/次开合 → 2 次（展开）/0 次（收起）
+Island,Features/Island/IslandSurface.swift,IslandMaterialView,flushStats,func,461,KEEP,形变收尾结算：几何更新次数、玻璃重建次数、遮罩重算次数与 layout p50/p95/max 一行日志（只记毫秒与次数，不记画面）
+Island,Features/Island/IslandSurface.swift,IslandMaterialView,layout,func,480,KEEP,仅bounds或radius变化时更新玻璃frame和mask，关闭CALayer隐式动画，上角移出屏幕保持顶边贴合及底部曲率
+Island,Features/Island/IslandSurface.swift,IslandButtonStyle,makeBody,func,522,KEEP,IslandButtonStyle把label、按压态、help及提示对齐交IslandButtonBody，所有刘海按钮复用悬停与焦点绘制
+Island,Features/Island/IslandSurface.swift,IslandCollapsedView,button,func,584,KEEP,收起态按peekOrder与可见集合生成图标，点击交activatePeek，配置决定是否带72pt数值或38pt纯图标，功耗订阅正式采样
+Island,Features/Island/IslandSurface.swift,IslandCollapsedView,value,func,604,KEEP,收起态标签返回复制、播放/暂停和当天日期，功耗读已有sample.powerWatts，设置预览显示8.6W
+Island,Features/Island/IslandSurface.swift,IslandPeekMediaValue,updateVisibility,func,635,KEEP,收起态媒体使用独立消费者复用系统播放器，展开或移除时释放读取任务，模拟不采集
+Island,Features/Island/IslandToolboxContent.swift,IslandToolboxShortcuts,shortcut,func,38,KEEP,首页五档快捷目录只选择正式已启用工具并打开同一详情，小卡片保留主要入口
+Island,Features/Island/IslandToolboxContent.swift,IslandToolboxContent,init,init,66,KEEP,Root传唯一controller、预览标志和selectedTool绑定，保留onFileDialog回调让系统文件面板期间不卸输入页
+Island,Features/Island/IslandToolboxContent.swift,IslandToolboxContent,directory,func,115,KEEP,全部功能目录按query匹配页面标题及已启用工具名称/关键字/描述，category筛工具；回车选首项、按钮更新page或selectedTool
+Island,Features/Island/IslandWidgetGrid.swift,IslandWidgetPlacement,frame,func,9,KEEP,按共享画布单格及间隙计算异构卡片实际位置尺寸，排列、辉光和拖动落点使用同一几何
+Island,Features/Island/IslandWidgetGrid.swift,IslandWidgetGrid,layout,func,83,KEEP,先保留活动组件的候选位置，其他组件保留不冲突的旧位置；冲突项寻找就近空格并沿用分页
+Island,Features/Island/IslandWidgetGrid.swift,IslandWidgetGrid,rebuild,func,134,KEEP,配置变化时缓存排列并收集实际受影响组件；连续指针位移由当前卡片的局部状态承担
+Island,Features/Island/IslandWidgetGrid.swift,IslandWidgetGrid,begin,func,145,KEEP,记录手势前配置及所有可见位置，提供无效落点恢复依据，不写入正式配置
+Island,Features/Island/IslandWidgetGrid.swift,IslandWidgetGrid,change,func,158,KEEP,将拖动位置映射到合法格子，连续缩放跨占用格即让位；候选位置、尺寸或占用变化才重新排列
+Island,Features/Island/IslandWidgetGrid.swift,IslandWidgetGrid,end,func,188,KEEP,有效释放保存草稿内的坐标与视觉顺序，无效释放恢复手势前配置；编辑保持到完成或取消
+Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,settle,func,349,KEEP,释放后接续当前卡片的实际位置与宽高，以 0.24 秒可中断弹性过渡吸附；减少动态效果下直接落定
+Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,adjustSize,func,355,KEEP,编辑态方向键和辅助功能共用尺寸调整；候选来自实际可见画布，正常态不挂载此入口
+Island,Features/Island/IslandWidgetGrid.swift,IslandEditableWidget,distance,func,369,KEEP,以行列归一化距离选择现有五档尺寸，并留 0.12 距离差避免边界附近反复切换
 Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,advance,func,157,KEEP,切换到指定操作步骤并同步演示卡片、当前预览和示例阶段；减少动态效果时不播放过渡动画
 Manual,Features/Manual/ManualDemoView.swift,ManualDemoView,preset,func,199,KEEP,呈现用途、操作和结果三种预设演示入口；点击时停止自动播放并切换到对应步骤
 Manual,Features/Manual/ManualDocument.swift,ManualNode,init,init,19,KEEP,2026-11-19：load创建分类及parse创建文章共用，保存稳定文档标识、标题、层级、演示分类和图标供双栏导航消费
@@ -2552,16 +2715,16 @@ Manual,Features/Manual/ManualDocument.swift,ManualDocument,firstRange,func,233,K
 Manual,Features/Manual/ManualView.swift,ManualPaneView,init,init,17,KEEP,2026-11-19：SettingsRootView的manual分支构造公开SwiftUI页面，文档和导航状态归页面持有
 Manual,Features/Manual/ManualView.swift,ManualPaneView,sidebar,func,46,KEEP,2026-11-19：body只计算一次搜索命中与可见分类，并传给侧栏；分类展开、文章选择和快速入门沿用原绑定
 Manual,Features/Manual/ManualView.swift,ManualPaneView,detail,func,122,KEEP,2026-11-19：body传入本轮无结果状态；有序操作步骤原位展示ManualDemoView，正文和可点击步骤只保留一份，选文时滚回顶部
-Manual,Features/Manual/ManualView.swift,ManualPaneView,categorySymbol,func,211,KEEP,2026-11-20：功能分类首页为八类文章选用对应SF Symbol；点击分类进入现有功能卡列表，不启动正式功能
-Manual,Features/Manual/ManualView.swift,ManualPaneView,categoryDescription,func,224,KEEP,2026-11-20：分类首页用普通用户词语说明每类用途，配合真实文章数量显示，不把内部接口放入手册
-Manual,Features/Manual/ManualView.swift,ManualPaneView,quickStartCard,func,237,KEEP,分类首页保留原有任务卡；实际教程沿WelcomeWindowController入口打开，完整章节使用原文章ID选择，不复制教程状态
-Manual,Features/Manual/ManualView.swift,ManualPaneView,breadcrumb,func,256,KEEP,2026-11-19：detail文章页消费ancestorPath绘制可点击分类与标题，回跳只写当前selection
-Manual,Features/Manual/ManualView.swift,ManualPaneView,sectionLinks,func,275,KEEP,2026-11-19：detail分类页通过FlowLinks展示本分类全部文章入口，点击切换同一个selection
-Manual,Features/Manual/ManualView.swift,ManualPaneView,navFooter,func,287,KEEP,2026-11-19：detail文章末尾沿flatNodes顺序显示前后文导航，两端省略缺少的按钮
-Manual,Features/Manual/ManualView.swift,ManualPaneView,ancestorPath,func,314,KEEP,2026-11-19：breadcrumb从当前文章按parentIndex收集父分类，返回从分类到文章的可点击路径
-Manual,Features/Manual/ManualView.swift,ManualPaneView,parent,func,324,KEEP,2026-11-19：ancestorPath直接用解析期父索引查分类，未登记父级时结束遍历
-Manual,Features/Manual/ManualView.swift,ManualDisclosureStyle,makeBody,func,436,KEEP,2026-11-19：ManualTreeRow的DisclosureGroupStyle协议实现，三角按钮切换原expanded集合并沿主题播放展开过渡
-Manual,Features/Manual/ManualView.swift,-,inlineMarkdown,func,554,KEEP,2026-11-19：ManualBlockView直接调用唯一行内Markdown转换；已移除仅转发的inline方法，保留解析失败时原文显示
+Manual,Features/Manual/ManualView.swift,ManualPaneView,categorySymbol,func,213,KEEP,2026-11-20：功能分类首页为八类文章选用对应SF Symbol；点击分类进入现有功能卡列表，不启动正式功能
+Manual,Features/Manual/ManualView.swift,ManualPaneView,categoryDescription,func,226,KEEP,2026-11-20：分类首页用普通用户词语说明每类用途，配合真实文章数量显示，不把内部接口放入手册
+Manual,Features/Manual/ManualView.swift,ManualPaneView,quickStartCard,func,239,KEEP,分类首页保留原有任务卡；实际教程沿WelcomeWindowController入口打开，完整章节使用原文章ID选择，不复制教程状态
+Manual,Features/Manual/ManualView.swift,ManualPaneView,breadcrumb,func,258,KEEP,2026-11-19：detail文章页消费ancestorPath绘制可点击分类与标题，回跳只写当前selection
+Manual,Features/Manual/ManualView.swift,ManualPaneView,sectionLinks,func,277,KEEP,2026-11-19：detail分类页通过FlowLinks展示本分类全部文章入口，点击切换同一个selection
+Manual,Features/Manual/ManualView.swift,ManualPaneView,navFooter,func,289,KEEP,2026-11-19：detail文章末尾沿flatNodes顺序显示前后文导航，两端省略缺少的按钮
+Manual,Features/Manual/ManualView.swift,ManualPaneView,ancestorPath,func,316,KEEP,2026-11-19：breadcrumb从当前文章按parentIndex收集父分类，返回从分类到文章的可点击路径
+Manual,Features/Manual/ManualView.swift,ManualPaneView,parent,func,326,KEEP,2026-11-19：ancestorPath直接用解析期父索引查分类，未登记父级时结束遍历
+Manual,Features/Manual/ManualView.swift,ManualDisclosureStyle,makeBody,func,438,KEEP,2026-11-19：ManualTreeRow的DisclosureGroupStyle协议实现，三角按钮切换原expanded集合并沿主题播放展开过渡
+Manual,Features/Manual/ManualView.swift,-,inlineMarkdown,func,556,KEEP,2026-11-19：ManualBlockView直接调用唯一行内Markdown转换；已移除仅转发的inline方法，保留解析失败时原文显示
 Monitor,Features/Monitor/BatteryEnergy.swift,StatsEnergyItem,init,init,32,KEEP,2026-11-20：tick在后台聚合应用能耗后构造排行值；主线程发布前六项，功耗页仅展示前五项
 Monitor,Features/Monitor/BatteryEnergy.swift,BatteryEnergySampler,init,init,67,KEEP,2026-11-20：私有构造仅供shared单例；512项采样缓冲随该单例存在，停止采样不释放缓冲
 Monitor,Features/Monitor/BatteryEnergy.swift,BatteryEnergySampler,start,func,71,KEEP,2026-11-20：实际功耗页出现时调用；主线程立即采样并安排1.5秒补采及5秒定时，已有定时器时不重复启动；设置预览不创建消费者
@@ -2646,18 +2809,19 @@ Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,rate,func,39
 Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,clamp,func,404,KEEP,2026-11-20：CPU、内存压力和电池利用率使用共同的0至1范围，避免非有限值进入显示
 Monitor,Features/Monitor/Sampling/MonitorReader.swift,MonitorReader,uint64Value,func,409,KEEP,2026-11-20：从 IOKit Statistics 中读取读写累计字节，并桥接 NSNumber 或 UInt64；缺值为零
 Monitor,Features/Monitor/Sampling/MonitorSampler.swift,History,init,init,36,KEEP,2026-11-20：为空时发布初始历史，构建两份快照缓存及清空历史后的空快照；图表按字段读取
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setPanelActive,func,65,KEEP,2026-11-20：MonitorPopoutWindow 显示标记可见，面板收起和关闭清除此位；不改变主面板状态
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setHomePanelActive,func,76,KEEP,2026-11-20：PanelController 的性能页与主面板退出分别设置进入和离开，不改变监测独立窗状态
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setSettingsActive,func,83,KEEP,2026-11-20：SettingsWindowController 按遮挡通知报告监测设置页可见，StatusBarController 退出时清除此位
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,init,init,108,KEEP,2026-11-20：shared 唯一构造；主队列接收保存、导入及恢复默认的原偏好通知，同时重排监测采样和后台流量定时器
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,deinit,deinit,121,KEEP,2026-11-20：释放时移除偏好通知观察者并取消尚未执行的定时采样项
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,start,func,128,KEEP,2026-11-20：MonitorModule 启动时调用；已有定时任务即返回，否则先应用偏好，再复用立即刷新
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,stop,func,136,KEEP,2026-11-20：总开关关闭时取消并清除排队任务，暂停 C 层连通性与进程统计，并在主队列更新运行状态
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,refresh,func,150,KEEP,2026-11-20：启动和四种正式界面进入时调用；在采样队列读已保存总开关，开启时才直接采样一帧
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,applyPreferences,func,160,KEEP,2026-11-20：偏好变化与可见性变化共用；更新温度条件，总开关关闭时停止，否则按可见状态选择设定间隔或至少5秒
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,scheduleNext,func,180,KEEP,2026-11-20：取消旧定时任务，在采样队列延时执行；执行前读取总开关，采样后按当前界面可见性安排下一帧
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,sampleOnce,func,205,KEEP,2026-11-20：优先使用有效 C 快照，补深层指标及时间轴；轮换同一组历史缓冲，在 MonitorExtra 的锁内合并峰值，主队列发布当前值与历史
-Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,resetHistory,func,351,KEEP,2026-11-20：监测设置的清空按钮调用，锁内重置环形缓冲与两份快照，重置补充指标后发布空历史
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setIslandActive,func,65,KEEP,刘海监测实际可见时设置islandActive并applyPreferences重新安排现有采样，激活立即refresh，状态相同不重复安排
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setPanelActive,func,72,KEEP,2026-11-20：MonitorPopoutWindow 显示标记可见，面板收起和关闭清除此位；不改变主面板状态
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setHomePanelActive,func,83,KEEP,2026-11-20：PanelController 的性能页与主面板退出分别设置进入和离开，不改变监测独立窗状态
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,setSettingsActive,func,90,KEEP,2026-11-20：SettingsWindowController 按遮挡通知报告监测设置页可见，StatusBarController 退出时清除此位
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,init,init,115,KEEP,2026-11-20：shared 唯一构造；主队列接收保存、导入及恢复默认的原偏好通知，同时重排监测采样和后台流量定时器
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,deinit,deinit,128,KEEP,2026-11-20：释放时移除偏好通知观察者并取消尚未执行的定时采样项
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,start,func,135,KEEP,2026-11-20：MonitorModule 启动时调用；已有定时任务即返回，否则先应用偏好，再复用立即刷新
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,stop,func,143,KEEP,2026-11-20：总开关关闭时取消并清除排队任务，暂停 C 层连通性与进程统计，并在主队列更新运行状态
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,refresh,func,157,KEEP,2026-11-20：启动和四种正式界面进入时调用；在采样队列读已保存总开关，开启时才直接采样一帧
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,applyPreferences,func,167,KEEP,2026-11-20：偏好变化与可见性变化共用；更新温度条件，总开关关闭时停止，否则按可见状态选择设定间隔或至少5秒
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,scheduleNext,func,187,KEEP,2026-11-20：取消旧定时任务，在采样队列延时执行；执行前读取总开关，采样后按当前界面可见性安排下一帧
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,sampleOnce,func,212,KEEP,2026-11-20：优先使用有效 C 快照，补深层指标及时间轴；轮换同一组历史缓冲，在 MonitorExtra 的锁内合并峰值，主队列发布当前值与历史
+Monitor,Features/Monitor/Sampling/MonitorSampler.swift,MonitorSampler,resetHistory,func,358,KEEP,2026-11-20：监测设置的清空按钮调用，锁内重置环形缓冲与两份快照，重置补充指标后发布空历史
 Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,init,init,75,KEEP,2026-11-20：shared 唯一构造，从空应用及网卡历史开始；启动由 MonitorModule 决定
 Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,applyKeepAlivePreference,func,91,KEEP,2026-11-20：MonitorModule 启动和 MonitorSampler 原偏好观察者共用；两个开关均开启时首采并启用 5 秒定时器，任一关闭时取消
 Monitor,Features/Monitor/Sampling/NetworkFlowTracker.swift,NetworkFlowTracker,backgroundTick,func,108,KEEP,2026-11-21：首拍及5秒定时器派发到既有采样队列；启用时读nettop并累计；菜单栏快照有效时复用网速，停用时直接读取网卡差分，避免继续累计旧速率
@@ -2861,26 +3025,26 @@ Monitor,Features/Monitor/Views/MonitorCharts.swift,InputView,resignFirstResponde
 Monitor,Features/Monitor/Views/MonitorCharts.swift,InputView,keyDown,func,46,KEEP,2026-11-21：AppKit按键回调将左右键及两种回车转换为move/toggle，其余事件调用super
 Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendData,init,init,78,KEEP,2026-11-21：MonitorDetailView与IslandMonitorChart消费；按原模块转换历史并对齐时间间隔与缺失值，预先生成可见点及量程，不触发额外系统读取
 Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendData,format,func,120,KEEP,2026-11-21：趋势图图例刻度及辅助阅读共用；按模块选择百分比压力等级速率摄氏度或瓦数，缺失读数显示破折号
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,drawSeries,func,301,KEEP,2026-11-21：plot的Canvas调用；遍历已生成的visiblePoints，缺失读数或相隔超过较大采样间隔2.5倍时结束连续段
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,drawRun,func,320,KEEP,2026-11-21：drawSeries交付连续点段；沿原样式画柱单点或曲线，内存压力画阶梯且只有首序列填面积
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,xPosition,func,349,KEEP,2026-11-21：曲线与定位线共用；以采样时间和historyCapacity时间窗计算横坐标，未满历史右对齐
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,nearest,func,352,KEEP,2026-11-21：hover点击及拖动回调调用；把横坐标换为时间后在visiblePoints找最近点，不重建历史及读取系统
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,pin,func,356,KEEP,2026-11-21：点击拖动回车共用；更新完整固定点并写入MonitorDetailSelection.chartPins，后续采样不替换该点
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,unpin,func,360,KEEP,2026-11-21：返回最新按钮及回车共用；清除本图fixed和hovered以及选择对象中的当前key
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,restoreSelection,func,361,KEEP,2026-11-21：onAppear及data.key改变调用；从共享选择恢复固定点，重置临时悬停与本模块量程身份
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,timeText,func,362,KEEP,2026-11-21：图例时间轴和辅助阅读共用；把真实Unix时间格式化为时分秒及两位小数秒
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorSparkline,init,init,383,KEEP,2026-11-21：MonitorAreaSparkline叠加曲线构造；保留原数值上限及可选槽位，不持有采样器
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorSparkline,path,func,389,KEEP,2026-11-21：SwiftUI Shape绘制入口；先经points生成坐标，少于2点不画折线，其余交smoothPath
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorSparkline,points,func,397,KEEP,2026-11-21：折线和面积Shape共用；沿原上限有限值归一化与槽位右对齐生成CGPoint，空数据或无绘图区返回空
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorSparkline,smoothPath,func,416,KEEP,2026-11-21：两种Shape及MonitorTrendChart.drawRun共用；Catmull-Rom控制点在相邻XY范围内，1至2点沿原直线处理
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorAreaShape,init,init,452,KEEP,2026-11-21：MonitorAreaSparkline.body构造填充层，与叠加折线共享values上限及slots
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorAreaShape,path,func,458,KEEP,2026-11-21：SwiftUI Shape绘制入口；复用points及smoothPath，首尾连接绘图区底部闭合，少于2点返回空
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorAreaSparkline,init,init,480,KEEP,2026-11-21：MonitorNetworkViews实际网络历史图消费；面积渐变与折线共用数据上限槽位，保留线宽参数
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorRing,init,init,524,KEEP,2026-11-21：BatteryPanel电量环消费；沿原半线宽内缩与有限值0至1裁剪，修饰参数供实际图形绘制
-Monitor,Features/Monitor/Views/MonitorCharts.swift,Segment,init,init,553,KEEP,2026-11-21：BatteryPanel与MonitorDetailView构造内存及磁盘组成；id用于ForEach，数值和颜色交父堆叠条
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorStackedBar,init,init,563,KEEP,2026-11-21：BatteryPanel及MonitorDetailView内存磁盘卷信息消费；按非负总量归一化各段宽度，保留原高度和间隙
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorRow,init,init,611,KEEP,2026-11-21：MonitorDetailView及保留的Stats进程表消费；左侧标签右侧等宽数值，沿原单行缩放与语义色
-Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorSectionTitle,init,init,637,KEEP,2026-11-21：MonitorDetailView各区标题与BatteryPanel及PortOccupancySection消费；居中文字两侧细线，不能随旧页面一并删除
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,drawSeries,func,298,KEEP,2026-11-21：plot的Canvas调用；遍历已生成的visiblePoints，缺失读数或相隔超过较大采样间隔2.5倍时结束连续段
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,drawRun,func,317,KEEP,2026-11-21：drawSeries交付连续点段；沿原样式画柱单点或曲线，内存压力画阶梯且只有首序列填面积
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,xPosition,func,346,KEEP,2026-11-21：曲线与定位线共用；以采样时间和historyCapacity时间窗计算横坐标，未满历史右对齐
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,nearest,func,349,KEEP,2026-11-21：hover点击及拖动回调调用；把横坐标换为时间后在visiblePoints找最近点，不重建历史及读取系统
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,pin,func,353,KEEP,2026-11-21：点击拖动回车共用；更新完整固定点并写入MonitorDetailSelection.chartPins，后续采样不替换该点
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,unpin,func,357,KEEP,2026-11-21：返回最新按钮及回车共用；清除本图fixed和hovered以及选择对象中的当前key
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,restoreSelection,func,358,KEEP,2026-11-21：onAppear及data.key改变调用；从共享选择恢复固定点，重置临时悬停与本模块量程身份
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorTrendChart,timeText,func,359,KEEP,2026-11-21：图例时间轴和辅助阅读共用；把真实Unix时间格式化为时分秒及两位小数秒
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorSparkline,init,init,380,KEEP,2026-11-21：MonitorAreaSparkline叠加曲线构造；保留原数值上限及可选槽位，不持有采样器
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorSparkline,path,func,386,KEEP,2026-11-21：SwiftUI Shape绘制入口；先经points生成坐标，少于2点不画折线，其余交smoothPath
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorSparkline,points,func,394,KEEP,2026-11-21：折线和面积Shape共用；沿原上限有限值归一化与槽位右对齐生成CGPoint，空数据或无绘图区返回空
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorSparkline,smoothPath,func,413,KEEP,2026-11-21：两种Shape及MonitorTrendChart.drawRun共用；Catmull-Rom控制点在相邻XY范围内，1至2点沿原直线处理
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorAreaShape,init,init,449,KEEP,2026-11-21：MonitorAreaSparkline.body构造填充层，与叠加折线共享values上限及slots
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorAreaShape,path,func,455,KEEP,2026-11-21：SwiftUI Shape绘制入口；复用points及smoothPath，首尾连接绘图区底部闭合，少于2点返回空
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorAreaSparkline,init,init,477,KEEP,2026-11-21：MonitorNetworkViews实际网络历史图消费；面积渐变与折线共用数据上限槽位，保留线宽参数
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorRing,init,init,521,KEEP,2026-11-21：BatteryPanel电量环消费；沿原半线宽内缩与有限值0至1裁剪，修饰参数供实际图形绘制
+Monitor,Features/Monitor/Views/MonitorCharts.swift,Segment,init,init,550,KEEP,2026-11-21：BatteryPanel与MonitorDetailView构造内存及磁盘组成；id用于ForEach，数值和颜色交父堆叠条
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorStackedBar,init,init,560,KEEP,2026-11-21：BatteryPanel及MonitorDetailView内存磁盘卷信息消费；按非负总量归一化各段宽度，保留原高度和间隙
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorRow,init,init,608,KEEP,2026-11-21：MonitorDetailView及保留的Stats进程表消费；左侧标签右侧等宽数值，沿原单行缩放与语义色
+Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorSectionTitle,init,init,634,KEEP,2026-11-21：MonitorDetailView各区标题与BatteryPanel及PortOccupancySection消费；居中文字两侧细线，不能随旧页面一并删除
 Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailSelection,init,init,10,KEEP,MonitorCenterView.swift:19 与 DetailView:49 构造
 Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorPerformanceContent,init,init,40,KEEP,PanelRootView.swift:693、PopoutRootView:54 构造
 Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailView,init,init,71,KEEP,同名重载错挂：init(selection:pageMode:fixedWidth:) 是 :25 在用；init(module:) 已删
@@ -2989,15 +3153,15 @@ Onboarding,Features/Onboarding/QuickTutorialController.swift,QuickTutorialContro
 Onboarding,Features/Onboarding/QuickTutorialController.swift,QuickTutorialController,complete,func,262,KEEP,保存独立完成状态、最终步骤和实际结果提示
 Onboarding,Features/Onboarding/QuickTutorialController.swift,QuickTutorialController,setStep,func,271,KEEP,写入指定教程当前步骤并通知观察视图
 Onboarding,Features/Onboarding/QuickTutorialController.swift,QuickTutorialController,key,func,276,KEEP,生成按教程与字段分隔的偏好键
-Onboarding,Features/Onboarding/WelcomeView.swift,WelcomeView,tutorialCard,func,137,KEEP,绘制单项新手任务入口并根据该项进度提供开始、继续或重学
-Onboarding,Features/Onboarding/WelcomeView.swift,WelcomeView,taskDescription,func,163,KEEP,提供三项真实教程任务的单行操作摘要
-Onboarding,Features/Onboarding/WelcomeView.swift,WelcomeView,tutorialDetail,func,170,KEEP,展示当前任务步骤、实际状态、结果和跳过/稍后继续入口
-Onboarding,Features/Onboarding/WelcomeView.swift,WelcomeView,tutorialSteps,func,217,KEEP,按剪贴板、截图或文件中转分派真实按钮和完成条件
-Onboarding,Features/Onboarding/WelcomeView.swift,WelcomeView,tutorialStep,func,269,KEEP,按业务状态显示教程步骤及完成图标
-Onboarding,Features/Onboarding/WelcomeView.swift,WelcomeView,featureSection,func,288,KEEP,body:24/41/59 调用
-Onboarding,Features/Onboarding/WelcomeView.swift,WelcomeView,featureCard,func,302,KEEP,featureSection:161 调用
-Onboarding,Features/Onboarding/WelcomeView.swift,WelcomeView,hotkeyRow,func,360,KEEP,hotkeySection:215-230 调用
-Onboarding,Features/Onboarding/WelcomeView.swift,WelcomeView,shortcutDisplay,func,376,KEEP,显示按键管理器当前解析出的用户快捷键
+Onboarding,Features/Onboarding/WelcomeView.swift,WelcomeView,tutorialCard,func,133,KEEP,绘制单项新手任务入口并根据该项进度提供开始、继续或重学
+Onboarding,Features/Onboarding/WelcomeView.swift,WelcomeView,taskDescription,func,159,KEEP,提供三项真实教程任务的单行操作摘要
+Onboarding,Features/Onboarding/WelcomeView.swift,WelcomeView,tutorialDetail,func,166,KEEP,展示当前任务步骤、实际状态、结果和跳过/稍后继续入口
+Onboarding,Features/Onboarding/WelcomeView.swift,WelcomeView,tutorialSteps,func,213,KEEP,按剪贴板、截图或文件中转分派真实按钮和完成条件
+Onboarding,Features/Onboarding/WelcomeView.swift,WelcomeView,tutorialStep,func,265,KEEP,按业务状态显示教程步骤及完成图标
+Onboarding,Features/Onboarding/WelcomeView.swift,WelcomeView,featureSection,func,284,KEEP,body:24/41/59 调用
+Onboarding,Features/Onboarding/WelcomeView.swift,WelcomeView,featureCard,func,298,KEEP,featureSection:161 调用
+Onboarding,Features/Onboarding/WelcomeView.swift,WelcomeView,hotkeyRow,func,356,KEEP,hotkeySection:215-230 调用
+Onboarding,Features/Onboarding/WelcomeView.swift,WelcomeView,shortcutDisplay,func,372,KEEP,显示按键管理器当前解析出的用户快捷键
 Onboarding,Features/Onboarding/WelcomeWindowController.swift,WelcomeWindowController,init,init,24,KEEP,shared 单例 :16 调用
 Onboarding,Features/Onboarding/WelcomeWindowController.swift,WelcomeWindowController,show,func,36,KEEP,AppBootstrap:163、StatusBarController:184 调用
 Onboarding,Features/Onboarding/WelcomeWindowController.swift,WelcomeWindowController,showTutorial,func,44,KEEP,选定新手任务后复用欢迎窗入口
@@ -3133,24 +3297,24 @@ Panel,Features/Panel/Presentation/PanelPreviewPresenterAdapter.swift,PanelPrevie
 Panel,Features/Panel/Presentation/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,cancelKeyboardPreview,func,51,KEEP,协议方法；ClipboardTableHostView:635
 Panel,Features/Panel/Presentation/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,prepareForPanelAppear,func,56,KEEP,协议方法；ClipboardSectionView:36
 Panel,Features/Panel/Presentation/PanelPreviewPresenterAdapter.swift,PanelPreviewPresenterAdapter,notifyItemRemoved,func,61,KEEP,协议方法；ClipboardSectionView:96、ClipboardTableHostView:1002
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,isSegmentOn,func,80,KEEP,enabledPages :62 过滤调用
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,normalizeSegmentSelection,func,95,KEEP,onAppear :229 与 5 处 onChange :144-152
-Panel,Features/Panel/Presentation/PanelRootView.swift,AnchorArrow,path,func,264,KEEP,Shape 协议要求（SwiftUI 绘制调用）
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,segmentHelp,func,386,KEEP,pageSegments :389 调用
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,selectPage,func,393,KEEP,segmentItem 动作 :370/:387 回调
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,segmentItem,func,401,KEEP,pageSegments :369/386 调用
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,runCapture,func,468,KEEP,captureAction 四个菜单项 :481-485
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,closeBottomSearch,func,605,KEEP,onSubmit :536 与收起按钮 :538
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,toolbarIcon,func,616,KEEP,bottomToolbar :551/587/593 调用
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,captureButton,func,624,KEEP,toolbar :281 取色按钮
-Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,cachedBackgroundImage,func,725,KEEP,body 背景 :159 调用
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,isSegmentOn,func,79,KEEP,enabledPages :62 过滤调用
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,normalizeSegmentSelection,func,94,KEEP,onAppear :229 与 5 处 onChange :144-152
+Panel,Features/Panel/Presentation/PanelRootView.swift,AnchorArrow,path,func,263,KEEP,Shape 协议要求（SwiftUI 绘制调用）
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,segmentHelp,func,385,KEEP,pageSegments :389 调用
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,selectPage,func,392,KEEP,segmentItem 动作 :370/:387 回调
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,segmentItem,func,400,KEEP,pageSegments :369/386 调用
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,runCapture,func,467,KEEP,captureAction 四个菜单项 :481-485
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,closeBottomSearch,func,604,KEEP,onSubmit :536 与收起按钮 :538
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,toolbarIcon,func,615,KEEP,bottomToolbar :551/587/593 调用
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,captureButton,func,623,KEEP,toolbar :281 取色按钮
+Panel,Features/Panel/Presentation/PanelRootView.swift,PanelRootView,cachedBackgroundImage,func,724,KEEP,body 背景 :159 调用
 Panel,Features/Panel/Presentation/PanelSegments.swift,PanelSegments,migrateLegacyVisibility,func,21,KEEP,把旧showSystemStatus与panel.transferDock有效展示状态合并入分段键，移除重复展示键
-Panel,Features/Panel/Presentation/PanelSegments.swift,PanelSegments,title,func,36,KEEP,PanelRootView.swift:227/228/369/386
-Panel,Features/Panel/Presentation/PanelSegments.swift,PanelSegments,fullTitle,func,44,KEEP,PersonalizationSettingsPane.swift:148 勾选项标题
-Panel,Features/Panel/Presentation/PanelSegments.swift,PanelSegments,decode,func,60,KEEP,PanelRootView.swift:62 解顺序串；order getter :85
-Panel,Features/Panel/Presentation/PanelSegments.swift,PanelSegments,encode,func,71,KEEP,order setter :86 写盘；PersonalizationSettingsPane:68
-Panel,Features/Panel/Presentation/PanelSegments.swift,GlobalEntries,isEnabled,func,101,KEEP,StatusBarMenuBuilder:53-55/91/105、StatsBarEngine:44/176
-Panel,Features/Panel/Presentation/PanelSegments.swift,GlobalEntries,setEnabled,func,105,KEEP,PersonalizationSettingsPane:110/115/120 Toggle 写入
+Panel,Features/Panel/Presentation/PanelSegments.swift,PanelSegments,title,func,32,KEEP,PanelRootView.swift:227/228/369/386
+Panel,Features/Panel/Presentation/PanelSegments.swift,PanelSegments,fullTitle,func,40,KEEP,PersonalizationSettingsPane.swift:148 勾选项标题
+Panel,Features/Panel/Presentation/PanelSegments.swift,PanelSegments,decode,func,56,KEEP,PanelRootView.swift:62 解顺序串；order getter :85
+Panel,Features/Panel/Presentation/PanelSegments.swift,PanelSegments,encode,func,67,KEEP,order setter :86 写盘；PersonalizationSettingsPane:68
+Panel,Features/Panel/Presentation/PanelSegments.swift,GlobalEntries,isEnabled,func,96,KEEP,StatusBarMenuBuilder:53-55/91/105、StatsBarEngine:44/176
+Panel,Features/Panel/Presentation/PanelSegments.swift,GlobalEntries,setEnabled,func,100,KEEP,PersonalizationSettingsPane:110/115/120 Toggle 写入
 Panel,Features/Panel/Presentation/PanelToolbar.swift,PanelToolbarLayout,sizeThatFits,func,66,KEEP,2026-11-23：随类型自 Features/Panel/Presentation/PanelRootView.swift 拆出迁入（职责拆分，纯搬家，行为不变）
 Panel,Features/Panel/Presentation/PanelToolbar.swift,PanelToolbarLayout,placeSubviews,func,72,KEEP,2026-11-23：随类型自 Features/Panel/Presentation/PanelRootView.swift 拆出迁入（职责拆分，纯搬家，行为不变）
 Panel,Features/Panel/Preview/DocumentInlinePreview.swift,WordDocumentRevision,init,init,44,KEEP,WordDocumentRevision按标准化文件路径、修改时间和大小构成修订标识；WordDocumentStore.Entry保存该修订及导入正文，供缓存判断是否仍对应同一文档
@@ -3394,6 +3558,17 @@ Settings,Features/Settings/Panes/DiagnosticsExporter.swift,AnalyticsEvent,record
 Settings,Features/Settings/Panes/FloatingBallSettingsPane.swift,FloatingBallSettingsPane,slider,func,183,KEEP,展示球体尺寸、小窗宽高、组件尺寸及透明度，并即时应用
 Settings,Features/Settings/Panes/FloatingBallSettingsPane.swift,FloatingBallSettingsPane,option,func,198,KEEP,把位置记忆、逐屏页面记忆、离开保持展开与半隐藏开关写入共用偏好并应用
 Settings,Features/Settings/Panes/FloatingBallSettingsPane.swift,FloatingBallSettingsPane,pickCustomPetImage,func,210,KEEP,选择自定义海豚 PNG：复制到应用支持目录后存路径，避免原文件移动导致形象失效
+Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,init,init,33,KEEP,草稿加载唯一配置并建立previewOnly控制器，预览排序回调只同步widgetSizes/widgetOrder/metricOrder到草稿
+Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,isDirty,func,61,KEEP,按刘海四页所属字段判断草稿变动，画布页包含未完成的布局编辑
+Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,save,func,66,KEEP,SettingsDraftEditor保存交正式IslandController.apply，失败返回原因，成功才更新saved与脏态通知
+Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,save,func,72,KEEP,SettingsDraftEditor保存交正式IslandController.apply，失败返回原因，成功才更新saved与脏态通知
+Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,discard,func,83,KEEP,设置取消把configuration恢复saved，didSet同步内存预览
+Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,discard,func,86,KEEP,设置取消把configuration恢复saved，didSet同步内存预览
+Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,restoreDefaults,func,94,KEEP,设置恢复默认只替换草稿为IslandConfiguration，保存按钮才应用正式顶部组件
+Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,restoreDefaults,func,97,KEEP,设置恢复默认只替换草稿为IslandConfiguration，保存按钮才应用正式顶部组件
+Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,merged,func,104,KEEP,刘海四页复用字段集合与字典键差量合并，保留当前正式配置及其他页面草稿
+Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,updatePreview,func,156,KEEP,草稿configuration.didSet交previewController.apply，仅更新previewOnly实例内存
+Settings,Features/Settings/Panes/IslandSettingsPane.swift,IslandSettingsDraft,setGrid,func,157,KEEP,画布列/行Picker更新草稿gridColumns/gridRows，宽高至少新minimumWidth/minimumHeight，didSet自动刷新预览
 Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsSettingsDraft,init,init,15,KEEP,从 FSBarConfigurationSnapshot 读取部件配置并保存一份 saved，模块列表由 FSBarAllModules 提供，编辑时只改 configuration；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsSettingsDraft,owns,func,22,KEEP,排列页只编辑排列键，部件页只编辑形态颜色且排除独立刷新间隔；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/MonitorWidgetsPane.swift,MonitorWidgetsSettingsDraft,bool,func,43,KEEP,部件草稿的布尔读取接受 NSNumber.boolValue，缺键才使用选项默认值，因此显式 false 保留；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
@@ -3498,13 +3673,13 @@ Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettings
 Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,chooseImportFile,func,224,KEEP,2026-11-17：配置页导入按钮打开NSOpenPanel；后台读文件解码并验证格式及支持版本；主线程写pendingImport或错误；确认按钮随后调用performImport；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,performImport,func,248,KEEP,2026-11-17：确认弹窗调用；过滤菜单部件键且只写变化值再重载引擎；偏好交applyImportedPreferences；任一原入口失败显示原因；成功计数并提示忽略键；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,applyImportedPreferences,func,271,KEEP,2026-11-17：performImport唯一调用；过滤白名单及相同值；启动设置和热键复用各自保存入口；其余偏好落盘并通知现有外观刘海浮窗AI监测传输等消费点；失败返回原原因；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,isMenuBarConfigurationKey,func,469,KEEP,2026-11-17：菜单部件导入过滤与导出过滤共用；接受正式排列键和各FSBar模块前缀及Power拆分键；避免导入运行采样字段；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,exportableMenuBarConfiguration,func,476,KEEP,2026-11-17：performExport调用；合并默认配置和实际快照；填独立采样间隔并派生Widgets_order及跑猫开关；仅导出正式配置键并编码为PreferenceValue；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,exportablePreferences,func,489,KEEP,2026-11-17：performExport调用；读取白名单落盘值并覆盖现有服务的有效设置；快捷键和刘海及截图比例按正式结构编码；凭据和剪贴板历史未加入白名单；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,applyPreferences,func,593,KEEP,2026-11-17：applyImportedPreferences调用；只写白名单键；null删除该键；返回排序后的忽略键；同一白名单集合由静态值复用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,defaultExportFileName,func,617,KEEP,2026-11-17：performExport保存面板默认名；传入日期经dayStamp生成Kitnest配置文件名及frsetconfig扩展名；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,dayStamp,func,638,KEEP,2026-11-17：defaultExportFileName调用；复用静态DateFormatter生成yyyyMMdd-HHmmss本地时间；仅用于配置导出文件名；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,iso8601Now,func,643,KEEP,2026-11-17：performExport生成exportedAt；复用静态DateFormatter按yyyy-MM-dd及带时区时间输出；未用于统计查询；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,isMenuBarConfigurationKey,func,472,KEEP,2026-11-17：菜单部件导入过滤与导出过滤共用；接受正式排列键和各FSBar模块前缀及Power拆分键；避免导入运行采样字段；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,exportableMenuBarConfiguration,func,479,KEEP,2026-11-17：performExport调用；合并默认配置和实际快照；填独立采样间隔并派生Widgets_order及跑猫开关；仅导出正式配置键并编码为PreferenceValue；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,exportablePreferences,func,492,KEEP,2026-11-17：performExport调用；读取白名单落盘值并覆盖现有服务的有效设置；快捷键和刘海及截图比例按正式结构编码；凭据和剪贴板历史未加入白名单；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,applyPreferences,func,597,KEEP,2026-11-17：applyImportedPreferences调用；只写白名单键；null删除该键；返回排序后的忽略键；同一白名单集合由静态值复用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,defaultExportFileName,func,621,KEEP,2026-11-17：performExport保存面板默认名；传入日期经dayStamp生成Kitnest配置文件名及frsetconfig扩展名；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,dayStamp,func,642,KEEP,2026-11-17：defaultExportFileName调用；复用静态DateFormatter生成yyyyMMdd-HHmmss本地时间；仅用于配置导出文件名；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Panes/StatisticsSettingsPane.swift,StatisticsSettingsPane,iso8601Now,func,647,KEEP,2026-11-17：performExport生成exportedAt；复用静态DateFormatter按yyyy-MM-dd及带时区时间输出；未用于统计查询；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/WidgetSettingsSelfTest.swift,WidgetSettingsSelfTest,runIfRequested,func,46,KEEP,StatsBarEngine.swift:72 启动时调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/WidgetSettingsSelfTest.swift,WidgetSettingsSelfTest,run,func,55,KEEP,本文件:49 延时 5s 进入；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Panes/WidgetSettingsSelfTest.swift,WidgetSettingsSelfTest,testLayout,func,75,KEEP,本文件:65 主流程调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
@@ -3549,17 +3724,17 @@ Settings,Features/Settings/Shell/SettingsEditingSession.swift,CalendarSettingsDr
 Settings,Features/Settings/Shell/SettingsEditingSession.swift,CalendarSettingsDraft,discard,func,41,KEEP,SettingsEditableDraft 取消接口由统一底栏及 discardAll 调用，各模块负责恢复保存值而不把草稿写入正式设置；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsEditingSession.swift,CalendarSettingsDraft,restoreDefaults,func,48,KEEP,SettingsEditableDraft 默认恢复接口由模块底栏和 restoreAllDefaults 调用，仅准备各模块默认草稿，最后保存才应用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,init,init,71,KEEP,SettingsEditingSession.init注册各类外观和八个模块工厂，新增transferLocal供本地暂存设置缓存；SettingsDraftEditor.init保存id、工厂及内容闭包，切页借用同一草稿；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,register,func,99,KEEP,将 id 和草稿工厂保存为惰性闭包，restoreAllDefaults 可以创建未访问页面的同一份缓存草稿；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,draft,func,103,KEEP,按 id 返回既有草稿；首次创建时缓存 isDirty/save/discard/restoreDefaults 闭包及对象变化订阅，让切页共享同一编辑实例；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,isDirty,func,118,KEEP,将页面 editingDraftIDs 与会话 dirtyIDs 求交集，供页标题和侧边栏显示对应页面未保存状态；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,restoreAllDefaults,func,125,KEEP,先调用所有已注册工厂补齐页面草稿，再对每份草稿执行 restoreDefaults，并标记 allDefaultsPrepared；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,saveAll,func,134,KEEP,按 id 排序只保存脏草稿，遇到首个具体失败原因立即返回；全部成功后清除 allDefaultsPrepared 并返回 nil；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,discardAll,func,146,KEEP,对缓存草稿逐个调用 discard，取消全部默认准备标记，不关闭设置窗口；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,end,func,155,KEEP,设置窗口关闭时清空草稿实例和全部默认标记，并递增 generation，使下次打开重建内容与预览生命周期；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsDraftEditor,init,init,218,KEEP,SettingsEditingSession.init注册各类外观和八个模块工厂，新增transferLocal供本地暂存设置缓存；SettingsDraftEditor.init保存id、工厂及内容闭包，切页借用同一草稿；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,register,func,100,KEEP,将 id 和草稿工厂保存为惰性闭包，restoreAllDefaults 可以创建未访问页面的同一份缓存草稿；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,draft,func,104,KEEP,按 id 返回既有草稿；首次创建时缓存 isDirty/save/discard/restoreDefaults 闭包及对象变化订阅，让切页共享同一编辑实例；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,isDirty,func,119,KEEP,将页面 editingDraftIDs 与会话 dirtyIDs 求交集，供页标题和侧边栏显示对应页面未保存状态；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,restoreAllDefaults,func,126,KEEP,先调用所有已注册工厂补齐页面草稿，再对每份草稿执行 restoreDefaults，并标记 allDefaultsPrepared；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,saveAll,func,135,KEEP,按 id 排序只保存脏草稿，遇到首个具体失败原因立即返回；全部成功后清除 allDefaultsPrepared 并返回 nil；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,discardAll,func,147,KEEP,对缓存草稿逐个调用 discard，取消全部默认准备标记，不关闭设置窗口；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsEditingSession,end,func,156,KEEP,设置窗口关闭时清空草稿实例和全部默认标记，并递增 generation，使下次打开重建内容与预览生命周期；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsEditingSession.swift,SettingsDraftEditor,init,init,224,KEEP,SettingsEditingSession.init注册各类外观和八个模块工厂，新增transferLocal供本地暂存设置缓存；SettingsDraftEditor.init保存id、工厂及内容闭包，切页借用同一草稿；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsModule.swift,SettingsModule,start,func,14,KEEP,AppModule 协议；ModuleRegistry.startAll 派发；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsNavigation.swift,SettingsGroup,section,func,136,KEEP,按页面反查所属二级小节；小节 ID 以一级目录名为前缀，跨目录唯一
-Settings,Features/Settings/Shell/SettingsNavigation.swift,SettingsGroup,group,func,140,KEEP,由二级 SettingsPage 反查一级 SettingsGroup，统一驱动分组高亮与导航归属；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsNavigation.swift,SettingsGroup,section,func,139,KEEP,按页面反查所属二级小节；小节 ID 以一级目录名为前缀，跨目录唯一
+Settings,Features/Settings/Shell/SettingsNavigation.swift,SettingsGroup,group,func,143,KEEP,由二级 SettingsPage 反查一级 SettingsGroup，统一驱动分组高亮与导航归属；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsPanes.swift,StartupSettingsDraft,save,func,18,KEEP,先验证自定义 SF Symbol，变更小猫时调用 FSBarSaveConfiguration；只应用变化的图标/符号/入口键，发入口通知并刷新正式图标和小猫，失败返回具体原因；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsPanes.swift,StartupSettingsDraft,discard,func,35,KEEP,重新读取图标存储、引擎小猫配置与七项入口偏好，替换草稿并更新 saved；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsPanes.swift,StartupSettingsDraft,restoreDefaults,func,41,KEEP,菜单栏草稿恢复 logo、默认自定义符号、关闭小猫并启用七项入口，正式图标和入口不立即变化；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
@@ -3589,29 +3764,29 @@ Settings,Features/Settings/Shell/SettingsPanes.swift,TagManagementSheet,moveTag,
 Settings,Features/Settings/Shell/SettingsPanes.swift,TagManagementSheet,hexString,func,813,KEEP,Color→#RRGGBB 转换，供分组/标签颜色选择器落库（sRGB 取整避免偏色）
 Settings,Features/Settings/Shell/SettingsPanes.swift,IgnoredAppsEditor,init,init,830,KEEP,MenuBarSettingsDraft 读取当前图标样式/自定义符号、Bar_MainIconCat 与七项入口标记，保存值组合供 isDirty 比较；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,init,init,36,KEEP,SettingsRootView 同时观察传入 SettingsUIState 和其 editingSession，内容树通过 environmentObject 共用该会话，按 generation 和窗口可见性重建预览；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,panePage,func,232,KEEP,设置页统一纵向ScrollView显示滚动条，内容水平34pt/垂直18pt内边距并靠左撑满；monitorWidgets分发也经过此入口，使所有模块卡及底部保存区可整页滚动访问；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsRootView.swift,SettingsRootView,panePage,func,240,KEEP,设置页统一纵向ScrollView显示滚动条，内容水平34pt/垂直18pt内边距并靠左撑满；monitorWidgets分发也经过此入口，使所有模块卡及底部保存区可整页滚动访问；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsSidebarView.swift,CaptureSettingsBlock,init,init,56,KEEP,将旧深链/搜索的 0…4 下标映射回 CaptureSettingsBlock，维持现有入口定位；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSearchEntry,matches,func,74,KEEP,本文件:203 搜索过滤；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,groupHeader,func,160,KEEP,渲染一级目录并把点击映射到该组首个二级页；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,sectionHeader,func,196,KEEP,渲染二级小节标题（缩进22、11.5pt）并切换展开；拆过小节的目录下页面行缩进38，形成三级层次
 Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,navRow,func,233,KEEP,本文件:127-136 分类行；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,navigate,func,333,KEEP,本文件:213 搜索结果点击；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,footerChip,func,419,KEEP,渲染设置侧栏底部的数据、关于、手册入口并更新当前二级页；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsSidebarView.swift,SettingsSidebarView,footerChip,func,422,KEEP,渲染设置侧栏底部的数据、关于、手册入口并更新当前二级页；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsUIState,init,init,29,KEEP,本文件:87 uiState 初始化；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsUIState,expandAncestors,func,36,KEEP,把选中页的一级目录与二级小节一起放进展开集合，深链/搜索落地时直接看到页面行
 Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsUIState,selectPane,func,42,KEEP,本文件:107 open(pane:) 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsUIState,reveal,func,53,KEEP,搜索模块链接及深链展开目标一级目录并定位二级页控件，与普通打开折叠行为分离；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsUIState,applyPaneMapping,func,61,KEEP,本文件:28/37 私有映射；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindow,performKeyEquivalent,func,130,KEEP,NSWindow override；AppKit 派发 Esc；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,init,init,150,KEEP,本文件:80 shared 单例；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,open,func,161,KEEP,FrsetNextApp.swift:24/148 等 22 处；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,close,func,199,KEEP,SettingsWindowControlling 协议 Registry.swift:92；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowWillClose,func,218,KEEP,原生关闭按钮回调将 isVisible 设为 false 并结束 editingSession，销毁未保存草稿和预览内容；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowDidMiniaturize,func,223,KEEP,设置窗口最小化时将 isVisible 设为 false，使 SettingsRootView 卸载预览内容，缓存草稿仍保留；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowDidDeminiaturize,func,227,KEEP,设置窗口恢复时将 isVisible 设为 true，重新挂载当前页并借用原缓存草稿；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowDidChangeOcclusionState,func,231,KEEP,用window.isVisible且未最小化更新uiState.isVisible，使临时遮挡下设置内容和预览状态保持挂载；仅monitorModule或monitorSettings页按真正occlusionState.visible调用MonitorSampler.setSettingsActive暂停或恢复采样，其他页不启动监测；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowDidChangeScreen,func,241,KEEP,更新设置窗最小尺寸以匹配进入屏幕的可见区域；窗口根视图仍由同一自适应容器布局
-Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,ensureWindow,func,249,KEEP,本文件:104 open 内调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindow,performKeyEquivalent,func,134,KEEP,NSWindow override；AppKit 派发 Esc；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,init,init,154,KEEP,本文件:80 shared 单例；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,open,func,165,KEEP,FrsetNextApp.swift:24/148 等 22 处；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,close,func,203,KEEP,SettingsWindowControlling 协议 Registry.swift:92；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowWillClose,func,222,KEEP,原生关闭按钮回调将 isVisible 设为 false 并结束 editingSession，销毁未保存草稿和预览内容；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowDidMiniaturize,func,227,KEEP,设置窗口最小化时将 isVisible 设为 false，使 SettingsRootView 卸载预览内容，缓存草稿仍保留；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowDidDeminiaturize,func,231,KEEP,设置窗口恢复时将 isVisible 设为 true，重新挂载当前页并借用原缓存草稿；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowDidChangeOcclusionState,func,235,KEEP,用window.isVisible且未最小化更新uiState.isVisible，使临时遮挡下设置内容和预览状态保持挂载；仅monitorModule或monitorSettings页按真正occlusionState.visible调用MonitorSampler.setSettingsActive暂停或恢复采样，其他页不启动监测；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,windowDidChangeScreen,func,245,KEEP,更新设置窗最小尺寸以匹配进入屏幕的可见区域；窗口根视图仍由同一自适应容器布局
+Settings,Features/Settings/Shell/SettingsWindowController.swift,SettingsWindowController,ensureWindow,func,253,KEEP,本文件:104 open 内调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleStore,select,func,91,KEEP,调用方 MenuBarIconStyle.swift:260（@objc selectIconStyle）
 StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleStore,setRevealsCustomOption,func,107,KEEP,调用方同文件 :272/:282（@objc hide/restoreIconOption）
 StatusBar,Features/StatusBar/MenuBarIconStyle.swift,RotatingLayerView,init,init,141,KEEP,调用方 startFan:471 实例化旋转视图
@@ -3674,24 +3849,25 @@ StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,mainI
 StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openPanelAction,func,124,KEEP,@objc；#selector StatusBarMenuBuilder.swift:95
 StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openSettingsAction,func,129,KEEP,@objc；#selector StatusBarMenuBuilder.swift:102
 StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openFavoritesAction,func,130,KEEP,状态栏全局收藏菜单项打开共享收藏窗口
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,updatePauseBadge,func,132,KEEP,按剪贴板暂停状态更新菜单栏徽标和图标提示文字
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,pauseRecordingAction,func,137,KEEP,根据菜单项分钟数恢复记录、定时暂停或暂停至手动恢复
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openMonitorSettingsAction,func,142,KEEP,@objc；#selector StatusBarMenuBuilder.swift:107
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openArchiveTasksAction,func,147,KEEP,@objc；#selector StatusBarMenuBuilder.swift:113
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openFloatingClipboardAction,func,156,KEEP,@objc；#selector StatusBarMenuBuilder.swift:119
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,toggleCurtainAction,func,162,KEEP,菜单栏「图帘」项：发 curtainToggleRequested，与快捷键/设置页同一入口
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showOnboardingAction,func,167,KEEP,@objc；#selector StatusBarMenuBuilder.swift:123
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showTutorialAction,func,171,KEEP,菜单栏教程入口先返回欢迎页任务列表，再展示同一欢迎窗
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,checkForUpdatesAction,func,177,KEEP,@objc；#selector StatusBarMenuBuilder.swift:132
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,toggleMonitorModuleAction,func,183,KEEP,@objc；#selector StatusBarMenuBuilder.swift:153
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showStatisticsAction,func,190,KEEP,@objc；#selector :140，亦为 frset.openStatistics 观察者:48
-StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,quitAction,func,194,KEEP,@objc；#selector StatusBarMenuBuilder.swift:176
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openIslandAction,func,131,KEEP,菜单栏刘海工作台Selector只交唯一IslandController.shared.open，不另建展示窗口
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,updatePauseBadge,func,133,KEEP,按剪贴板暂停状态更新菜单栏徽标和图标提示文字
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,pauseRecordingAction,func,138,KEEP,根据菜单项分钟数恢复记录、定时暂停或暂停至手动恢复
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openMonitorSettingsAction,func,143,KEEP,@objc；#selector StatusBarMenuBuilder.swift:107
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openArchiveTasksAction,func,148,KEEP,@objc；#selector StatusBarMenuBuilder.swift:113
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,openFloatingClipboardAction,func,157,KEEP,@objc；#selector StatusBarMenuBuilder.swift:119
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,toggleCurtainAction,func,163,KEEP,菜单栏「图帘」项：发 curtainToggleRequested，与快捷键/设置页同一入口
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showOnboardingAction,func,168,KEEP,@objc；#selector StatusBarMenuBuilder.swift:123
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showTutorialAction,func,172,KEEP,菜单栏教程入口先返回欢迎页任务列表，再展示同一欢迎窗
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,checkForUpdatesAction,func,178,KEEP,@objc；#selector StatusBarMenuBuilder.swift:132
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,toggleMonitorModuleAction,func,184,KEEP,@objc；#selector StatusBarMenuBuilder.swift:153
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,showStatisticsAction,func,191,KEEP,@objc；#selector :140，亦为 frset.openStatistics 观察者:48
+StatusBar,Features/StatusBar/StatusBarController.swift,StatusBarController,quitAction,func,195,KEEP,@objc；#selector StatusBarMenuBuilder.swift:176
 StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,entriesSignature,func,39,KEEP,调用方 mainMenu:61（私有）
 StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,mainMenu,func,50,KEEP,调用方 StatusBarController.swift:117（右键点击）
 StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,refreshPauseMenu,func,66,KEEP,刷新暂停菜单状态，提供立即恢复及 5、15、30 分钟和手动暂停选项
 StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,buildMenu,func,85,KEEP,调用方 mainMenu:74（缓存未命中/结构变化）
-StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,customIconItem,func,202,KEEP,调用方 buildMenu:167
-StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,item,func,211,KEEP,调用方 buildMenu 内多处（:92/:99/:106 等）
+StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,customIconItem,func,205,KEEP,调用方 buildMenu:167
+StatusBar,Features/StatusBar/StatusBarMenuBuilder.swift,StatusBarMenuBuilder,item,func,214,KEEP,调用方 buildMenu 内多处（:92/:99/:106 等）
 StatusBar,Features/StatusBar/StatusBarModule.swift,StatusBarModule,start,func,10,KEEP,AppModule 协议；AppBootstrap.swift:25 注册，startAll:34 派发
 Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,init,init,49,KEEP,ToolboxModule.swift:22 经 PanelSectionRegistry.build 构造；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Calendar/CalendarSectionView.swift,CalendarSectionView,dayCell,func,206,KEEP,weeksGrid:170 ForEach 内调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
@@ -3786,35 +3962,36 @@ Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,webView
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebResultScraper,webView,func,459,KEEP,nonisolated WKNavigationDelegate：didFinish / didFail 两个重载都回 MainActor resume navContinuation，等待导航时不会卡死或泄漏；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,init,init,593,KEEP,ToolboxModule.swift:16 经 PanelSectionRegistry.build 构造；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,init,init,600,KEEP,正式 SearchSectionView.init 观察共享服务；草稿重载观察 SearchDisplayDraft.service 并注入三项分类绑定，预览与正式路径复用同一视图；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,previewAction,func,810,KEEP,设置预览的网页/工具/引擎动作仅显示演示反馈，消费clearSearchInputAfterWebAction决定调用clearInput或保留输入；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ContentHeightKey,reduce,func,926,KEEP,PreferenceKey 协议实现（:710 onPreferenceChange 消费）；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,categoryHeader,func,1019,KEEP,webCategory:844、clipboard:1173、files:1299、tools:1381 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webCategory,func,1083,KEEP,listContent:732/734 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webResultArea,func,1144,KEEP,webCategory调用并构造网页结果动作；日志探针仅记录结果数量与状态，不输出标题和目标URL
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ClipboardFilterKind,matches,func,1348,KEEP,filteredClipboardMatches:1127 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filterChips,func,1388,KEEP,clipboardCategory:1176、filesCategory:1302 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardCategory,func,1410,KEEP,listContent:731/736 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardIcon,func,1501,KEEP,clipboardCategory:1195/1215 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fileIcon,func,1522,KEEP,filesCategory:1318/1340 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,resultFileIcon,func,1533,KEEP,设置预览文件行用 doc SF Symbol，正式文件行继续读取缓存的 NSWorkspace 文件图标；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,ago,func,1612,KEEP,「22 分钟前建立」相对时间文案；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filesCategory,func,1620,KEEP,listContent:729/738 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,toolCategory,func,1729,KEEP,listContent:730/747 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,highlighted,func,1798,KEEP,web:1014/1036、clipboard:1199、files:1321、tools:1396 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,updatePreviewCategories,func,1843,KEEP,仅设置预览响应分类开关；当前类关闭时切回全部并调用本地 scheduleSearch，不写持久分类；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filterPreviewItems,func,1850,KEEP,固定工具名/命令、副标题、五类文件名及网页标题/摘要通过 FuzzyMatcher 本地筛选，更新结果与搜索状态，不进入注册检索源、文件索引或网页抓取；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,previewSelectionFill,func,1876,KEEP,按 previewSelectedResultID 给被点击的固定结果绘制强调色圆角底，正式搜索行使用透明底；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,performWebSearch,func,1887,KEEP,搜索框提交与引擎按钮调用；生成搜索URL并交默认浏览器，日志只记引擎，不记录关键词或URL参数
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clearInput,func,1915,KEEP,搜索框 ✕ 按钮:629、toolCategory:1385、performWebSearch:1486 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fetchWebResults,func,1930,KEEP,categoryChips:658、engineActionsRow:863、scheduleSearch:1567；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,scheduleSearch,func,1964,KEEP,body onChange(query):502 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,2032,KEEP,WKNavigationDelegate加载完成回调；只记录目标host，不记录搜索结果路径和查询参数
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,2035,KEEP,WKNavigationDelegate加载失败回调；日志只记NSError domain与code，避免错误描述夹带目标URL
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,2039,KEEP,WKNavigationDelegate连接失败回调；日志只记NSError domain与code，避免错误描述夹带目标URL
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeCoordinator,func,2045,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeNSView,func,2047,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,updateNSView,func,2058,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
-Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,dismantleNSView,func,2064,KEEP,NSViewRepresentable 静态协议方法；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,init,init,607,KEEP,正式 SearchSectionView.init 观察共享服务；草稿重载观察 SearchDisplayDraft.service 并注入三项分类绑定，预览与正式路径复用同一视图
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,previewAction,func,817,KEEP,设置预览的网页/工具/引擎动作仅显示演示反馈，消费clearSearchInputAfterWebAction决定调用clearInput或保留输入；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ContentHeightKey,reduce,func,933,KEEP,PreferenceKey 协议实现（:710 onPreferenceChange 消费）；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,categoryHeader,func,1026,KEEP,webCategory:844、clipboard:1173、files:1299、tools:1381 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webCategory,func,1090,KEEP,listContent:732/734 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,webResultArea,func,1151,KEEP,webCategory调用并构造网页结果动作；日志探针仅记录结果数量与状态，不输出标题和目标URL
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,ClipboardFilterKind,matches,func,1355,KEEP,filteredClipboardMatches:1127 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filterChips,func,1395,KEEP,clipboardCategory:1176、filesCategory:1302 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardCategory,func,1417,KEEP,listContent:731/736 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clipboardIcon,func,1508,KEEP,clipboardCategory:1195/1215 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fileIcon,func,1529,KEEP,filesCategory:1318/1340 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,resultFileIcon,func,1540,KEEP,设置预览文件行用 doc SF Symbol，正式文件行继续读取缓存的 NSWorkspace 文件图标；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,ago,func,1619,KEEP,「22 分钟前建立」相对时间文案；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filesCategory,func,1627,KEEP,listContent:729/738 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,toolCategory,func,1736,KEEP,listContent:730/747 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,highlighted,func,1805,KEEP,web:1014/1036、clipboard:1199、files:1321、tools:1396 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,updatePreviewCategories,func,1850,KEEP,仅设置预览响应分类开关；当前类关闭时切回全部并调用本地 scheduleSearch，不写持久分类；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,filterPreviewItems,func,1857,KEEP,固定工具名/命令、副标题、五类文件名及网页标题/摘要通过 FuzzyMatcher 本地筛选，更新结果与搜索状态，不进入注册检索源、文件索引或网页抓取；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,previewSelectionFill,func,1883,KEEP,按 previewSelectedResultID 给被点击的固定结果绘制强调色圆角底，正式搜索行使用透明底；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,performWebSearch,func,1894,KEEP,搜索框提交与引擎按钮调用；生成搜索URL并交默认浏览器，日志只记引擎，不记录关键词或URL参数
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,clearInput,func,1922,KEEP,搜索框 ✕ 按钮:629、toolCategory:1385、performWebSearch:1486 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,fetchWebResults,func,1937,KEEP,categoryChips:658、engineActionsRow:863、scheduleSearch:1567；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,SearchSectionView,scheduleSearch,func,1971,KEEP,body onChange(query):502 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,2039,KEEP,WKNavigationDelegate加载完成回调；只记录目标host，不记录搜索结果路径和查询参数
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,2042,KEEP,WKNavigationDelegate加载失败回调；日志只记NSError domain与code，避免错误描述夹带目标URL
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,Coordinator,webView,func,2046,KEEP,WKNavigationDelegate连接失败回调；日志只记NSError domain与code，避免错误描述夹带目标URL
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeCoordinator,func,2052,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,makeNSView,func,2054,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,updateNSView,func,2065,KEEP,NSViewRepresentable 协议实现；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
+Toolbox,Features/Toolbox/Search/SearchSectionView.swift,WebPreviewRepresentable,dismantleNSView,func,2071,KEEP,NSViewRepresentable 静态协议方法；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SlashCommands.swift,SlashCommandCatalog,build,func,52,KEEP,CommandPalette.swift:58 buildSlash 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Search/SlashCommands.swift,SlashCommandCatalog,match,func,112,KEEP,SearchSectionView.swift:97 调用；2026-11-19人工复核：保留，源码与调用/系统入口已核阅
 Toolbox,Features/Toolbox/Shell/ToolboxModule.swift,ToolboxModule,start,func,9,KEEP,AppModule 协议，经 ModuleRegistry.startAll 派发；2026-11-19人工复核：保留，源码与调用/系统入口已核阅

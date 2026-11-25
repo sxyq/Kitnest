@@ -24,10 +24,6 @@ public enum PanelSegments {
             defaults.set(enabled && Preferences.shared.value(monitorKey, default: true), forKey: monitorKey)
             defaults.removeObject(forKey: "showSystemStatus")
         }
-        // Lite 版没有中转/投屏分段；历史键只做清理，不再迁移出页面。
-        defaults.removeObject(forKey: "panel.transferDock")
-        defaults.removeObject(forKey: "panel.segment.transfer")
-        defaults.removeObject(forKey: "panel.segment.cast")
     }
 
     /// 出厂顺序（也是「恢复默认」用的顺序）
@@ -50,8 +46,8 @@ public enum PanelSegments {
 
     // MARK: 顺序
 
-    /// 当前顺序（**总是**包含四个页面，缺的按默认顺序补在后面——
-    /// 这样以后加第五页时，老用户的顺序串不会把它吃掉）
+    /// 当前顺序（**总是**包含两个页面，缺的按默认顺序补在后面——
+    /// 这样以后加页面时，老用户的顺序串不会把它吃掉）
     public static var order: [PanelCenterPage] {
         get { decode(Preferences.shared.value(orderKey, default: "")) }
         set { Preferences.shared.set(orderKey, encode(newValue)) }
@@ -69,7 +65,7 @@ public enum PanelSegments {
     }
 
     public static func encode(_ pages: [PanelCenterPage]) -> String {
-        // 去重 + 补全：写盘的一定是完整的四页
+        // 去重 + 补全：写盘的一定是完整的页面顺序
         var normalized = pages
         for page in defaultOrder where !normalized.contains(page) { normalized.append(page) }
         var seen = Set<PanelCenterPage>()
@@ -79,11 +75,10 @@ public enum PanelSegments {
 
 // MARK: - 全局入口开关（v192）
 //
-// 用户（2026-11-03）：「状态栏里面的那两个性能监测界面和那个主页，都是在设置中
-// 也能够添加进行关闭，跟那个中转和投屏一样」。
+// 用户（2026-11-03）要求主页和性能监测入口都能在设置中开关。
 //
 // 与 `PanelSegments` 的分工：
-//   · PanelSegments 管**主面板顶部的分段按钮**（主页/监测/中转/投屏）；
+//   · PanelSegments 管**主面板顶部的分段按钮**（主页/监测）；
 //   · 这里管**菜单栏（状态栏）里的入口项**与两个独立窗口是否可达：
 //       - entry.home          菜单栏「打开面板」+ ⌥A 热键
 //       - entry.monitorPopout 菜单栏「性能监测…」+ ⌥P 热键

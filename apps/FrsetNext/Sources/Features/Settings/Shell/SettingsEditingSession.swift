@@ -74,6 +74,7 @@ final class SettingsEditingSession: ObservableObject {
         }
         register(id: "pin") { PinSettingsDraft() }
         register(id: "curtain") { CurtainSettingsDraft() }
+        register(id: "island") { IslandSettingsDraft() }
         register(id: "menuBar") { MenuBarSettingsDraft() }
         register(id: "calendar") { CalendarSettingsDraft() }
         register(id: "monitorWidgets") { MonitorWidgetsSettingsDraft() }
@@ -159,7 +160,7 @@ final class SettingsEditingSession: ObservableObject {
     }
 
     private var personalizationDraftIDs: Set<String> {
-        Set(PersonalizationSettingsPart.allCases.map(\.draftID)).union(["pin", "curtain", "menuBar", "menuBarArrangement", "monitorWidgets", "capture.watermark", "recording", "searchDisplay"])
+        Set(PersonalizationSettingsPart.allCases.map(\.draftID)).union(["pin", "curtain", "island", "menuBar", "menuBarArrangement", "monitorWidgets", "capture.watermark", "recording", "searchDisplay"])
     }
     private let personalizationScopes = ["recording": "effects", "searchDisplay": "display"]
 }
@@ -174,6 +175,7 @@ extension SettingsPage {
         case .panelBackground: return [PersonalizationSettingsPart.panelBackground.draftID]
         case .generalPanel: return [PersonalizationSettingsPart.mainPanel.draftID]
         case .generalWindows: return [PersonalizationSettingsPart.floatingWindow.draftID]
+        case .island, .islandPeeks, .islandCanvas, .islandMaterial: return ["island"]
         case .generalNotifications: return [PersonalizationSettingsPart.notification.draftID]
         case .captureActions: return [PersonalizationSettingsPart.captureToolbar.draftID]
         case .clipboardAppearance: return [PersonalizationSettingsPart.clipboardAppearance.draftID]
@@ -203,6 +205,10 @@ extension SettingsPage {
     }
     var editingScope: String? {
         switch self {
+        case .island: return IslandSettingsPart.activation.rawValue
+        case .islandPeeks: return IslandSettingsPart.peeks.rawValue
+        case .islandCanvas: return IslandSettingsPart.canvas.rawValue
+        case .islandMaterial: return IslandSettingsPart.appearance.rawValue
         default: return nil
         }
     }

@@ -20,9 +20,9 @@ public struct ClipboardSectionView: View {
 
     @ObservedObject private var manager = ClipboardManager.shared
     @ObservedObject private var tutorial = QuickTutorialController.shared
-    /// 面板当前页（主页/性能监测/中转站）——非主页时要禁用列表的 hover 追踪
+    /// 面板当前页（主页/性能监测）——非主页时要禁用列表的 hover 追踪
     /// （2026-10-18 幽灵预览修复：三页 ZStack 常驻，透明主页的 NSTrackingArea
-    ///  仍在接收 mouseMoved，会在性能页/中转站页上误弹预览）
+    ///  仍在接收 mouseMoved，会在性能页上误弹预览）
     @ObservedObject private var pagePresenter = MonitorCenterPresenter.shared
 
     // 注意：裸 swiftc 自检无 SwiftUIMacros 插件，@State 不可用（CONTRACT §7.4）→ 用 @Stored

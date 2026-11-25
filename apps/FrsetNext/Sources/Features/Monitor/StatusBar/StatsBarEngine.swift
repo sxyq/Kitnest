@@ -81,7 +81,7 @@ public enum StatsBarEngine {
         // （不依赖合成鼠标事件；"settings" 打开部件设置窗；"cycle" 每 4s 轮播各模块页）
         if let probe = ProcessInfo.processInfo.environment["FRSET_STATSBAR_PROBE"] {
             if probe == "home" {
-                // 只开主面板首页（v60：性能页已删，面板恒为 主页/中转站 两页）。
+                // 只开主面板首页（性能监测使用独立窗口）。
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3.0) {
                     Log.info("StatsBar", "探针触发 home（主面板首页）")
                     PanelController.shared.show()

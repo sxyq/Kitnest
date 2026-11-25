@@ -120,7 +120,7 @@ public class PanelController: NSObject, PanelControlling, NSWindowDelegate {
 
     /// 启动 2s 后在空闲时离屏布局一次整棵面板视图树。
     ///
-    /// 背景（2026-10-19 实测）：面板三页（主页/性能/中转）常驻，第一次
+    /// 背景（2026-10-19 实测）：面板多页常驻，第一次
     /// `makeKeyAndOrderFront` 会在同一个调用里做完整 SwiftUI 布局 —— sample 显示
     /// 400ms 左右全部耗在 `updateConstraintsIfNeeded → NSHostingView.minSize → ViewGraph`，
     /// 表现就是「点部件后要等一下才弹出来」。把这次布局提前到启动空闲期、以 alpha=0

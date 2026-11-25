@@ -200,6 +200,8 @@ public struct ManualPaneView: View {
                                symbol: "doc.on.clipboard", guide: "02-01-剪贴板历史", tutorial: .clipboard)
                 quickStartCard("截屏并提取文字", detail: "框选画面，识别文字并复制。",
                                symbol: "viewfinder", guide: "03-11-文字识别", tutorial: .screenshot)
+                quickStartCard("设置刘海与多屏", detail: "选择显示屏幕，了解另一块屏幕的入口。",
+                               symbol: "display.2", guide: "01-03-刘海工作台与多屏")
                 quickStartCard("看性能与磁盘占用", detail: "打开监测页，查看 CPU、内存与磁盘。",
                                symbol: "waveform.path.ecg", guide: "05-01-性能监测总览")
                 quickStartCard("解压与压缩文件", detail: "浏览压缩包内容，或把文件压成一个包。",

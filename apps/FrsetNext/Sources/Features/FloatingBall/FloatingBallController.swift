@@ -22,7 +22,7 @@ enum FloatingBallSettings {
     static let keepOpenKey = "floatingBall.keepOpen"
 
     static var actions: [(id: String, title: String, symbol: String)] {
-        FloatingBallModule.allCases.map { ($0.rawValue, $0.title, $0.symbol) }
+        IslandWidget.allCases.map { ($0.rawValue, $0.title, $0.icon) }
             + [("favorites", "收藏", "star")]
     }
     static let defaultActions = ["capture", "clipboard", "search"]
@@ -364,12 +364,12 @@ public final class FloatingBallController: NSObject, ObservableObject, NSWindowD
         case "archive": ArchiveFileBoxWindow.show()
         case "ocr": CaptureModule.capture(.ocr)
         default:
-            guard let module = FloatingBallModule(rawValue: id) else { return }
-            openModule(module)
+            guard let widget = IslandWidget(rawValue: id) else { return }
+            openModule(widget)
         }
     }
 
-    private func openModule(_ module: FloatingBallModule) {
+    private func openModule(_ widget: IslandWidget) {
         if moduleWindow == nil {
             let visible = displayScreen.visibleFrame
             let size = NSSize(width: min(640, visible.width), height: min(520, visible.height))
@@ -384,9 +384,9 @@ public final class FloatingBallController: NSObject, ObservableObject, NSWindowD
             window.applyOfficialChrome()
             moduleWindow = window
         }
-        let host = NSHostingView(rootView: FloatingBallModuleView(module: module))
+        let host = NSHostingView(rootView: FloatingBallModuleView(widget: widget))
         host.sizingOptions = []
-        moduleWindow?.title = "Kitnest · " + module.title
+        moduleWindow?.title = "Kitnest · " + widget.title
         // 换内容走 setOfficialContent：保证玻璃底重挂到新内容之下（v272 契约）
         moduleWindow?.setOfficialContent(host)
         moduleWindow?.makeKeyAndOrderFront(nil)
@@ -536,67 +536,23 @@ private struct FloatingBallView: View {
     }
 }
 
-/// 悬浮球快捷窗里能放的组件。Lite 版没有中转、投屏与刘海，
-/// 只留能独立渲染的页面；纯动作类（截图 / 识别 / 搜索）点一下直接执行。
-enum FloatingBallModule: String, CaseIterable, Identifiable {
-    case monitor, media, calendar, clipboard, tools, volume, search, capture, ocr, archive, statistics
-    var id: String { rawValue }
-    var title: String {
-        switch self {
-        case .monitor: return "性能监测"
-        case .media: return "声音与播放"
-        case .calendar: return "日程与待办"
-        case .clipboard: return "剪贴板"
-        case .tools: return "快捷工具"
-        case .volume: return "系统音量"
-        case .search: return "全局搜索"
-        case .capture: return "截图与标注"
-        case .ocr: return "识别与翻译"
-        case .archive: return "压缩与解压"
-        case .statistics: return "使用统计"
-        }
-    }
-    var symbol: String {
-        switch self {
-        case .monitor: return "waveform.path.ecg"
-        case .media: return "music.note"
-        case .calendar: return "calendar"
-        case .clipboard: return "doc.on.clipboard"
-        case .tools: return "square.grid.2x2"
-        case .volume: return "speaker.wave.2"
-        case .search: return "magnifyingglass"
-        case .capture: return "viewfinder"
-        case .ocr: return "text.viewfinder"
-        case .archive: return "archivebox"
-        case .statistics: return "chart.bar"
-        }
-    }
-}
-
 private struct FloatingBallModuleView: View {
-    let module: FloatingBallModule
+    let widget: IslandWidget
+    @Stored private var mediaConsumer = UUID()
 
     var body: some View {
         Group {
-            switch module {
-            case .monitor:
-                MonitorPerformanceContent()
-            case .clipboard:
-                ScrollView { ClipboardSectionView().padding() }
-            case .calendar:
-                ScrollView { CalendarSectionView().padding() }
-            case .tools:
-                ScrollView { ToolboxSectionView().padding() }
-            case .media, .volume:
-                AudioMixerPane()
-            case .search, .capture, .ocr, .archive, .statistics:
-                Text("\(module.title)会在主窗口里打开")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            switch widget {
+            case .media: IslandMediaContent(controller: .shared, previewOnly: false)
+            case .volume: AudioMixerPane()
+            case .calendar: ScrollView { CalendarSectionView().padding() }
+            case .tools: ScrollView { ToolboxSectionView().padding() }
+            default: IslandFeatureContent(page: widget.page, controller: .shared, previewOnly: false)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear { if widget == .media { NowPlayingController.shared.setVisible(true, consumer: mediaConsumer) } }
+        .onDisappear { if widget == .media { NowPlayingController.shared.setVisible(false, consumer: mediaConsumer) } }
     }
 }
 

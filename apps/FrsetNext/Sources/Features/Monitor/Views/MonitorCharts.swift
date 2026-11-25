@@ -129,16 +129,13 @@ struct MonitorTrendData {
     }
 }
 
-/// 趋势图画法：面积（带渐变填充）或柱状。
-enum MonitorChartStyle { case area, bars }
-
 /// 正式界面与设置预览共用；鼠标移动只更新本图的查看状态。
 struct MonitorTrendChart: View {
     let data: MonitorTrendData
     var selection: MonitorDetailSelection? = nil
     var compact = false
     var showAxes = true
-    var style = MonitorChartStyle.area
+    var style = IslandChartStyle.area
     var interaction: ((Bool) -> Void)? = nil
     @Stored private var hovered: MonitorTrendPoint? = nil
     @Stored private var fixed: MonitorTrendPoint? = nil

@@ -161,12 +161,12 @@ struct StatisticsChartsView: View {
     /// 五张指标卡：复制 / 截图 / 识别 / 工具 / 监测。
     /// v84（2026-10-20 用户需求「统计要覆盖新增功能」）：原版五卡是
     /// Pastes/Searches/Tools/Note/Capture，其中 Note 在重建版没有对应能力、
-    /// 而截图族新增了长截图/贴图/标注、监测新增了性能页/中转站，故重划分组：
+    /// 而截图族新增了长截图/贴图/标注，故重划分组：
     /// · 复制 = 单条复制 + 批量复制 + 自动粘贴
     /// · 截图 = 截图完成 + 长截图 + 贴图 + 标注
     /// · 识别 = OCR + 翻译
     /// · 工具 = 工具执行 + 取色
-    /// · 监测 = 性能监测页 + 状态栏监测部件点击 + 文件中转
+    /// · 监测 = 性能监测页 + 状态栏监测部件点击
     // v126（性能审计 F1275）：配置表从计算属性改为 static let——五张卡的配置是常量，
     // 原来 body 每次求值都重建 5 个 MetricConfig + 重算 15 次 AnalyticsEvent.eventName。
     private static let metricConfigs: [MetricConfig] = [

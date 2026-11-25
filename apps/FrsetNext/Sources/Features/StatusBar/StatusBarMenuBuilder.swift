@@ -115,6 +115,9 @@ public enum StatusBarMenuBuilder {
                                     action: #selector(StatusBarController.openMonitorSettingsAction(_:)), target: target)))
         }
 
+        menu.addItem(track(item("刘海工作台", key: "", modifiers: [],
+                                action: #selector(StatusBarController.openIslandAction(_:)), target: target)))
+
         // v180：归档任务——压缩/解压可能在没有归档窗口时发起（访达服务、文件盒），
         // 这里给一个全局入口；任务进行中 HUD 会自动出现，这个入口用于重新打开详情。
         menu.addItem(track(item("归档任务…", key: "", modifiers: [],

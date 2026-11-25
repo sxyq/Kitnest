@@ -46,7 +46,8 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
         case .general: return [.generalStart, .generalNotifications, .permissions, .haptics]
         case .appearance: return [.generalPersonal, .appearanceText, .generalWindows]
         case .entryInteraction: return [.generalPanel, .panelBackground, .generalMenuBar, .menuBarArrangement,
-                                        .shortcuts, .floatingBall, .clipboardFloating]
+                                        .shortcuts, .island, .islandPeeks, .islandCanvas,
+                                        .islandMaterial, .floatingBall, .clipboardFloating]
         case .clipboard: return [.clipboardCapture, .clipboardHistory, .clipboardAppearance]
         case .capture: return [.capture(.capture), .ocr, .watermark, .captureActions, .capture(.pin), .capture(.curtain), .capture(.recording), .capture(.workflow)]
         case .searchAI: return [.search, .ai]
@@ -81,6 +82,8 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
                       pages: [.generalPanel, .panelBackground]),
                 .init(id: "entryInteraction.menuBar", title: "菜单栏与快捷键",
                       pages: [.generalMenuBar, .menuBarArrangement, .shortcuts]),
+                .init(id: "entryInteraction.island", title: "刘海工作台",
+                      pages: [.island, .islandPeeks, .islandCanvas, .islandMaterial]),
                 .init(id: "entryInteraction.floating", title: "悬浮窗",
                       pages: [.floatingBall, .clipboardFloating]),
             ]
@@ -144,7 +147,7 @@ enum SettingsGroup: String, CaseIterable, Identifiable, Hashable {
 
 enum SettingsPage: Hashable {
     case haptics
-    case generalStart, generalNotifications, permissions, generalPersonal, appearanceText, generalWindows, generalPanel, panelBackground, generalMenuBar, menuBarArrangement, monitorWidgets, floatingBall, clipboardCapture, clipboardHistory, clipboardAppearance, clipboardFloating, archive, ocr, watermark, captureActions, search, ai, tools, aiText, calendar, shortcuts, monitorSettings, configTransfer, diagnostics, about, manual, audio, statistics
+    case generalStart, generalNotifications, permissions, generalPersonal, appearanceText, generalWindows, generalPanel, panelBackground, island, islandPeeks, islandCanvas, islandMaterial, generalMenuBar, menuBarArrangement, monitorWidgets, floatingBall, clipboardCapture, clipboardHistory, clipboardAppearance, clipboardFloating, archive, ocr, watermark, captureActions, search, ai, tools, aiText, calendar, shortcuts, monitorSettings, configTransfer, diagnostics, about, manual, audio, statistics
     case capture(CaptureSettingsBlock), monitorModule(MonitorModuleID)
     /// 旧业务入口仍可解析，设置侧栏不展示实时正文。
     var canonical: SettingsPage {
@@ -166,6 +169,10 @@ enum SettingsPage: Hashable {
         case .generalWindows: return "窗口材质与动效"
         case .generalPanel: return "布局与页面"
         case .panelBackground: return "背景图片"
+        case .island: return "唤出与收回"
+        case .islandPeeks: return "收起态"
+        case .islandCanvas: return "画布与组件"
+        case .islandMaterial: return "材质与颜色"
         case .generalMenuBar: return "图标与入口"
         case .menuBarArrangement: return "排列与间距"
         case .monitorWidgets: return "部件与颜色"
@@ -224,6 +231,10 @@ enum SettingsPage: Hashable {
         case .generalWindows: return "窗口材质与开合动效"
         case .generalPanel: return "主面板显示哪些页面"
         case .panelBackground: return "主面板背景图与遮罩"
+        case .island: return "显示屏幕、菜单栏入口与自动收回"
+        case .islandPeeks: return "收起后的图标、数值与快捷操作"
+        case .islandCanvas: return "刘海内组件的位置与尺寸"
+        case .islandMaterial: return "刘海材质与指标颜色"
         case .generalMenuBar: return "菜单栏图标与入口"
         case .menuBarArrangement: return "图标合并、间距与分隔线"
         case .monitorWidgets: return "菜单栏部件的形态、颜色与排列"

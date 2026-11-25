@@ -191,7 +191,7 @@ public struct ClipboardSettingsPane: View {
                     .controlSize(.small)
                 }
                 SettingsDivider()
-                SettingsRow(title: "清除历史，保留已存项目", subtitle: "保留已存项目、收藏、标签、文件中转及原文件。即时操作。") {
+                SettingsRow(title: "清除历史，保留已存项目", subtitle: "保留已存项目、收藏、标签及原文件。即时操作。") {
                     Button(clearingHistory ? "正在清理…" : "清除历史…") {
                         clearingHistory = true
                         ClipboardManager.shared.clearUnsavedHistory {

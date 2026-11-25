@@ -292,10 +292,10 @@ final class ClipboardTableView: NSTableView {
     var onMouseExited: (() -> Void)?
 
     /// 页面激活状态（2026-10-18「幽灵预览」修复）：
-    /// 主面板三页（主页/性能监测/中转站）是 ZStack **常驻**结构，非当前页只做
+    /// 主面板多页（主页/性能监测）是 ZStack **常驻**结构，非当前页只做
     /// `opacity(0) + allowsHitTesting(false)`——但 NSTrackingArea 是 AppKit 层机制，
     /// **不受 SwiftUI 命中测试控制**：透明主页的表格仍在接收 mouseMoved，
-    /// 在性能页/中转站页上划过「隐形行」的位置就会弹出文本框/图片预览。
+    /// 在性能页上划过「隐形行」的位置就会弹出文本框/图片预览。
     /// 非激活时移除 tracking area 并忽略 mouseMoved。
     var isActive: Bool = true {
         didSet {
@@ -416,7 +416,7 @@ public struct ClipboardTableHostView: NSViewRepresentable {
     /// v66 个性化（密度/徽章/缩略图变更 → updateNSView 即时生效）
     @ObservedObject var personalization: Personalization
     var scrollProxy: ClipboardTableScrollProxy
-    /// 页面是否激活（非主页 = 面板切到性能监测/中转站时禁用 hover 追踪，防幽灵预览）
+    /// 页面是否激活（非主页 = 面板切到性能监测时禁用 hover 追踪，防幽灵预览）
     var isActive: Bool = true
     var onCopy: (ClipboardItem) -> Void
 

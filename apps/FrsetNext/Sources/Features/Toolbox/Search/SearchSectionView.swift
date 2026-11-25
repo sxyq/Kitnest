@@ -597,6 +597,13 @@ public struct SearchSectionView: View {
         initialCategory = nil
     }
 
+    init(islandCategory: IslandSearchCategory) {
+        service = .shared
+        draftQuery = nil
+        draftWeb = nil; draftClipboard = nil; draftFiles = nil
+        initialCategory = SearchCategory(rawValue: islandCategory.rawValue)
+    }
+
     init(draft: SearchDisplayDraft, query: Binding<String>) {
         service = draft.service
         draftQuery = query
@@ -624,7 +631,7 @@ public struct SearchSectionView: View {
                         Label("浏览快捷命令", systemImage: "command")
                             .font(.system(size: 11, weight: .medium))
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(IslandButtonStyle())
                 }
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)

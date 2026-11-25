@@ -317,6 +317,8 @@ struct StatisticsSettingsPane: View {
             incoming.keys.contains(where: { $0.hasPrefix("panel.segment.") }) {
             NotificationCenter.default.post(name: Personalization.didChangeNotification, object: nil)
         }
+        if incoming[IslandConfiguration.key] != nil,
+           let reason = IslandController.shared.apply(.load()) { return reason }
         let floating = FloatingClipDeskStore.shared
         if incoming[FloatingClipPrefs.layoutKey] != nil { floating.layout = FloatingClipPrefs.layout }
         if incoming[FloatingClipPrefs.cardSizeKey] != nil { floating.cardSize = FloatingClipPrefs.cardSize }
@@ -440,6 +442,7 @@ struct StatisticsSettingsPane: View {
         "activeBarItems",
         // 埋点开关（D5：analyticsEnabled）
         "analyticsEnabled",
+        IslandConfiguration.key,
         FloatingClipPrefs.layoutKey, FloatingClipPrefs.cardSizeKey,
         FloatingClipPrefs.hoverPreviewKey, FloatingClipPrefs.splitRatioKey,
         PanelSegments.homeKey, PanelSegments.monitorKey, PanelSegments.orderKey,
@@ -579,6 +582,7 @@ struct StatisticsSettingsPane: View {
         out["shortcuts.bindings"] = .dictionary(combinations)
         out["shortcuts.doubleTap"] = .dictionary(doubles)
         out["toolbox.toolShortcuts"] = .dictionary(tools)
+        out[IslandConfiguration.key] = .data(try JSONEncoder().encode(IslandConfiguration.load()).base64EncodedString())
         out[CaptureRatioStore.keyItems] = .data(try JSONEncoder().encode(CaptureRatioStore.customItems).base64EncodedString())
         return out
     }

@@ -101,7 +101,7 @@ private struct MonitorSettingsContent: View {
                     .buttonStyle(.plain).foregroundStyle(Theme.accent)
             }
             SettingsSection("模块显隐") {
-                Text("决定主面板与独立监测窗里的模块入口。菜单栏部件在「部件设置」中调整。")
+                Text("决定主面板、刘海和独立监测窗中的模块入口。菜单栏部件在“部件设置”中调整。")
                     .font(.system(size: Theme.TextSize.caption)).foregroundStyle(.secondary)
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 10) {
                     ForEach(order, id: \.self) { module in

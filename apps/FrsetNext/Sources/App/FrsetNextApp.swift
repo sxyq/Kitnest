@@ -48,6 +48,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // v259：上次异常退出可能留下被 SIGSTOP 的应用，先无条件唤醒再干别的
         ProcessFreezer.shared.thawOrphans()
         PanelSegments.migrateLegacyVisibility()
+        IslandController.shared.start()
         AppBootstrap.start()
         // v127（ArcZip P3）：注册 NSServices 服务提供者（访达右键「解压到此处/解压到…/压缩」）。
         // 服务项声明在 Info.plist 的 NSServices；selector 回调落到 ArchiveServicesProvider。
@@ -184,6 +185,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // v84：退出前把个性化防抖窗口内的改动立即落盘（否则 150ms 内退出会丢设置）
         Personalization.shared.flushPendingPersist()
         LogArchive.shared.stop()
+        IslandController.shared.stop()
         AppBootstrap.stop()
     }
 
@@ -254,6 +256,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             // （每次都重做 scheme/host/query 切分），纯重复计算。
             let comps = URLComponents(url: url, resolvingAgainstBaseURL: false)
             switch url.host {
+            case "island":
+                let requestedPage = comps?.queryItems?.first(where: { $0.name == "page" })?.value
+                    .flatMap(IslandPage.init(rawValue:))
+                if comps?.queryItems?.first(where: { $0.name == "action" })?.value == "collapse" {
+                    if let requestedPage { IslandController.shared.selectDeepLinkPage(requestedPage) }
+                    IslandController.shared.collapse()
+                } else if let requestedPage {
+                    IslandController.shared.open(page: requestedPage)
+                } else { IslandController.shared.open() }
             case "settings":
                 let pane = comps?
                     .queryItems?.first(where: { $0.name == "pane" })?.value
@@ -423,7 +434,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 if let monitorRaw, let module = MonitorModuleID(rawValue: monitorRaw) {
                     MonitorCenterPresenter.shared.selectPerformance(module: module)
                 }
-                // 深链直达页面：kitnest://panel?page=transfer|cast|performance
+                // 深链直达页面：kitnest://panel?page=home|performance
                 switch comps?.queryItems?.first(where: { $0.name == "page" })?.value {
                 case "home":       MonitorCenterPresenter.shared.selectHome()
                 case "performance": MonitorCenterPresenter.shared.selectPerformance()

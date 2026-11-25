@@ -69,6 +69,14 @@ EVIDENCE = {
         "2026-11-21：kitnest://island?page=...使用；任务页沿原selectPage策略更新，功能详情页仅切换当前显示页，不覆盖固定或记忆页配置",
     ("Features/Island/IslandController.swift", "openIsland"):
         "2026-11-21：公开open()与open(page:)共用；未指定目标时应用固定/记忆展开策略，深链指定目标时保留该页并展开，不再被默认页策略覆盖",
+    ("Features/Island/IslandController.swift", "openMonitorDetail"):
+        "首页监测卡点击调用；将 IslandMetric 映射到 MonitorModuleID，保存选中指标，必要时展开工作台并切到监测详情页，返回路径仍由 page 状态保留",
+    ("Features/Island/IslandController.swift", "stepMonitorDetail"):
+        "监测详情的左右键、横滑和快捷操作调用；按 monitorDetailOrder 计算边界内的下一个模块，更新共享 MonitorCenterPresenter 选中项和可映射的岛指标",
+    ("Features/Island/IslandController.swift", "revealContent"):
+        "expand() 的正文显现阶段调用；延迟动画执行前再次确认 expanded，收起期间直接丢弃回调，避免已收起的工作台被异步任务重新点亮",
+    ("Features/Island/IslandSurface.swift", "makeCoordinator"):
+        "IslandMaterialHost 的 NSViewRepresentable 生命周期调用；创建 GeometryCoordinator 保存上次尺寸和圆角，供 updateNSView 去重几何更新，避免非几何状态变化触发重复材质处理",
     ("Features/Island/IslandDisplay.swift", "entrySize"):
         "2026-11-20：主线草稿入口尺寸属性与entryFrame共用；真实刘海读左右安全区间距和顶部安全高度，普通屏沿配置宽度及28pt高度",
     ("Features/Island/IslandDisplay.swift", "entryFrame"):

@@ -137,6 +137,14 @@ struct SettingsRootView: View {
             panePage { GeneralSettingsPane(section: .background) }
         case .permissions:
             panePage { GeneralSettingsPane(section: .permissions) }
+        case .island:
+            panePage { IslandSettingsPane(part: .activation) }
+        case .islandPeeks:
+            panePage { IslandSettingsPane(part: .peeks) }
+        case .islandCanvas:
+            panePage { IslandSettingsPane(part: .canvas) }
+        case .islandMaterial:
+            panePage { IslandSettingsPane(part: .appearance) }
         case .generalPersonal:
             panePage { GeneralSettingsPane(section: .personalization) }
         case .generalMenuBar:

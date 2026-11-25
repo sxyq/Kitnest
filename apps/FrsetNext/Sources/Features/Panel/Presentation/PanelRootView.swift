@@ -56,9 +56,8 @@ struct PanelRootView: View {
     // v177（用户：设置里自定义顶部页面的展现，关掉的不占内存）；v181 增加可拖拽顺序
     @AppStorage(PanelSegments.homeKey) private var segmentHome = true
     @AppStorage(PanelSegments.monitorKey) private var segmentMonitor = true
-    /// v260：「常规 → 功能」里四个勾选框的门控状态。
-    /// 之前 showSystemStatus / showCalendar / panel.transferDock 全仓没有读取方，
-    /// 用户勾掉也看不到变化（「这个设置之后无效」）。这里作为分段/卡片显隐的前置条件，
+    /// v260：「常规 → 功能」里的开关状态。
+    /// 这些开关作为分段和首页卡片显隐的前置条件，
     /// 与「个性化 → 主面板页面」的勾选是 AND 关系：两处都开才出现。
     @AppStorage("showCalendar") private var featureCalendar = true
     /// 顺序串（CSV）——单独观察它，设置里拖完顺序面板立刻重排
@@ -273,8 +272,8 @@ struct PanelRootView: View {
 
     // MARK: - 顶部工具条（40pt，原版同序：截图 / 取色 / 悬浮剪贴板 ｜ 分段 ｜ 设置）
 
-    // v84（2026-10-20 用户反馈「性能监测/文件中转的切换压在截屏/录屏/取色按钮上」）：
-    // 原实现用 ZStack 把「左图标组 + 齿轮」（下层）与「居中的三段分段」（上层）叠在一起。
+    // v84（2026-10-20 用户反馈「性能监测分段压在截屏/录屏/取色按钮上」）：
+    // 原实现用 ZStack 把「左图标组 + 齿轮」（下层）与「居中的分段按钮」（上层）叠在一起。
     // 面板宽 360~400pt 时，分段总宽 ≈204pt、两侧各只剩 ≈78~98pt，而左侧图标组
     // （3×22 + 2×20 spacing ≈ 106pt）比余量更宽 → 分段整块压在截图/取色/悬浮剪贴板
     // 图标上（用户实拍重叠）。现改为**三段式自绘布局**（见 PanelToolbarLayout）：
@@ -402,7 +401,7 @@ struct PanelRootView: View {
         Button(action: action) {
             // v84：字号 12→11、内边距 12/4→9/3（面板 360pt 宽时与左右图标组共存，
             // 避免三段时间排不下被压缩或压住图标）
-            // v236.1：横向再收到 7——四段全开时理想宽度 148pt，而 360pt 面板
+            // v236.1：横向再收到 7——页面全开时理想宽度 148pt，而 360pt 面板
             // （内容宽 332、左组 82、齿轮 22）留给居中的带宽只有 156pt，
             // 收窄后「居中」与「不截断文字」可以同时满足，不用二选一。
             Text(title)
@@ -643,14 +642,14 @@ struct PanelRootView: View {
 
     @ViewBuilder private var content: some View {
         // v136（用户：「毛玻璃效果和之前不一样 + 滑动明显卡顿」诊断结论）：
-        // 三/四页常驻 ZStack + opacity(0) 的旧结构，每帧都要合成全部页面图层
-        //（v130 增第四页「投屏」后叠到 4 层），且任何面板状态变化（剪贴板每秒
+        // 多页常驻 ZStack + opacity(0) 的旧结构，每帧都要合成全部页面图层，
+        // 且任何面板状态变化（剪贴板每秒
         //  更新等）都会重算隐藏页的 body——滚动掉帧与玻璃观感发闷的共同来源。
         // 改为**按页实例化**：隐藏页完全不进入视图树（零合成、零 body 求值）。
         // 页面数据在单例 Store，切换丢的只是滚动位置，可接受。
         ZStack(alignment: .top) {
             if enabledPages.isEmpty {
-                // v177：四个页面全关 —— 一个内容视图都不创建（不占内存），只留提示
+                // v177：所有页面全关 —— 一个内容视图都不创建（不占内存），只留提示
                 VStack(spacing: 8) {
                     Image(systemName: "rectangle.dashed")
                         .font(.scaledSystem(size: 22, scale: personalization.fontScale))

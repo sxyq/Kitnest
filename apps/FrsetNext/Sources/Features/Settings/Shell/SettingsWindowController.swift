@@ -71,6 +71,10 @@ final class SettingsUIState: ObservableObject {
         case "appearance.text", "appearance.radius": selection = .appearanceText
         case "panel.background", "appearance.background": selection = .panelBackground
         case "permissions", "general.permissions": selection = .permissions
+        case "island", "appearance.island": selection = .island
+        case "island.peeks": selection = .islandPeeks
+        case "island.canvas", "island.widgets": selection = .islandCanvas
+        case "island.material", "island.colors": selection = .islandMaterial
         case "floatingBall", "floating.ball": selection = .floatingBall
         case "personalization", "general.personalization", "appearance":
             selection = .generalPersonal

@@ -386,7 +386,7 @@ enum AppBootstrap {
                            keyCode: 0x09, modifiers: UInt32(optionKey)) {   // ⌥V
             NSApp.activate(ignoringOtherApps: true)
             ServiceLocator.panel?.show()
-            // 面板可能停在中转/监测页；明确切回首页（= 剪贴板历史）
+            // 面板可能停在监测页；明确切回首页（= 剪贴板历史）
             MonitorCenterPresenter.shared.selectHome()
         },
         // v264：重新钉住上一张（⌃⌥P）——「全部隐藏」之后一键找回
