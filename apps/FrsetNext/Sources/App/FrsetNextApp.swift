@@ -129,7 +129,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 锁被别人握着：它活着。看它是不是已经不省人事。
         let holder = lock.holderPid
         let hung = LogArchive.freshHangMarker()
-        if hung, holder > 0 {
+        if hung, holder > 0, lock.isLegitimateHolderForTakeover(holder) {
             Log.warn("App", "实例锁持有者 pid=\(holder) 主线程阻塞 → 强制接管")
             kill(holder, SIGKILL)
             // 等内核释放锁（最多 2s），拿到就继续启动。
@@ -803,6 +803,9 @@ final class InstanceLock {
     ///   · pid 已不存在（进程被回收，锁是别人继承下去的）；
     ///   · pid 是僵尸（`kill(pid,0)` 仍然成功，判据会骗人）；
     ///   · pid 存在但不是本 App（helper / 子进程继承了 fd，或 pid 被系统复用）。
+    /// 启动编排侧复用的判据：pid 必须真的属于同 bundle 的活实例才允许 SIGKILL
+    func isLegitimateHolderForTakeover(_ pid: pid_t) -> Bool { isLegitimateHolder(pid) }
+
     private func isLegitimateHolder(_ holder: pid_t) -> Bool {
         guard holder > 0, holder != getpid() else { return false }
         guard !Self.isZombie(holder) else { return false }
@@ -837,6 +840,10 @@ final class InstanceLock {
     /// 读锁文件里记录的持有者 pid（读不到返回 0）。
     private func readHolderPid() -> pid_t {
         guard let text = try? String(contentsOf: url, encoding: .utf8) else { return 0 }
-        return pid_t(text.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
+        // 锁文件格式是 "pid\nbuild=<stamp>\n"。2026-11-25（二轮复核）：旧实现把整串
+        // 转 pid_t —— 带第二行必然失败返回 0，于是「持有者是否合法」永远判否，
+        // 接管逻辑退化成「每次启动都无锁运行」，能出现两套菜单栏。只取第一行。
+        let first = text.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: true).first
+        return pid_t((first.map(String.init) ?? "").trimmingCharacters(in: .whitespaces)) ?? 0
     }
 }

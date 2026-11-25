@@ -729,22 +729,26 @@ public final class ArchiveBrowserModel: ObservableObject {
             dir = currentPath
         }
         ArchiveCore.addFiles(url: url, files: files, intoDirectory: dir) { [weak self] ok, msg in
-            defer {
+            // 2026-11-25（二轮复核）：清理挪进备份完成回调。captureAddeds 已改后台拷贝，
+            // 原来这里的 defer 会在拷贝开始前就把源临时目录删掉 → 撤销快照全部失效。
+            let cleanupTemporaries = {
                 for directory in temporaryDirectories { try? FileManager.default.removeItem(at: directory) }
             }
-            guard let self else { return }
+            guard let self else { cleanupTemporaries(); return }
             if ok {
                 // v127（ArcZip P0）：新增内容备份 → 可撤销（undo=removeEntries）
                 self.captureAddeds(files, into: dir) { snaps in
                     if !snaps.isEmpty {
                         self.undoStack.push(.add(items: snaps))
                     }
+                    cleanupTemporaries()
                 }
                 self.refreshSourceStamp()
                 Toast.show(msg, icon: "plus.circle")
                 self.reload()
             } else {
                 self.errorText = msg
+                cleanupTemporaries()
             }
         }
     }
