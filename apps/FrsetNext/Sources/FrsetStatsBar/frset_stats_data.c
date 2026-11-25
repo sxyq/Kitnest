@@ -583,6 +583,7 @@ static double frset_nowsec(void) {
 
 typedef struct {
     int pid;
+    int scan_index;
     uint64_t ut, st, rb, wb;
     double mem, cpu, dr, dw;
     char name[64];
@@ -620,9 +621,11 @@ static double g_pPrevT[4] = {0, 0, 0, 0};
    readProcList 同一刷新周期对 kind 0/1/2 连调三次 frset_proc_top，原实现每次都
    proc_listallpids + 全量 proc_pid_rusage/proc_name（3×~500 次系统调用/周期）。
    进程原始计数（ut/st/rb/wb/mem/name）与 kind 无关，缓存一次扫描 200ms 内复用；
-   速率仍按各 kind 自己的上一轮快照（g_pPrev[k]）差分，数值口径不变。
-   缓存命中时 t 回拨到扫描时刻，保证 dt 与实际采样窗口一致。 */
+   速率仍按各 kind 自己的上一轮快照（g_pPrev[k]）差分，数值口径不变；进程路径一并缓存，
+   避免三个 kind 重复调用 proc_pidpath。缓存命中时 t 回拨到扫描时刻，保证 dt 与实际采样窗口一致。 */
 static frset_proc_raw_t g_scanCache[FRSET_PROC_CAP];
+static char g_scanCachePath[FRSET_PROC_CAP][512];
+static char g_scanCachePathLoaded[FRSET_PROC_CAP];
 static int    g_scanCacheN = 0;
 static double g_scanCacheT = 0;
 
@@ -664,6 +667,9 @@ int frset_proc_top(int kind, frset_proc_t *out, int max) {
             r->wb = ri.ri_diskio_byteswritten;
             r->mem = (double)ri.ri_phys_footprint;
             strncpy(r->name, name, sizeof(r->name) - 1);
+            r->scan_index = nsrc - 1;
+            g_scanCachePathLoaded[r->scan_index] = 0;
+            g_scanCachePath[r->scan_index][0] = 0;
         }
         free(pids);
         g_scanCacheN = nsrc;
@@ -717,10 +723,16 @@ int frset_proc_top(int kind, frset_proc_t *out, int max) {
         out[i].mem = r->mem;
         out[i].disk_r = r->dr;
         out[i].disk_w = r->dw;
-        char pbuf[4096] = {0};
-        if (proc_pidpath(r->pid, pbuf, sizeof(pbuf)) > 0) {
-            strncpy(out[i].path, pbuf, sizeof(out[i].path) - 1);
+        if (!g_scanCachePathLoaded[r->scan_index]) {
+            g_scanCachePathLoaded[r->scan_index] = 1;
+            char path[4096] = {0};
+            if (proc_pidpath(r->pid, path, sizeof(path)) > 0) {
+                strncpy(g_scanCachePath[r->scan_index], path,
+                        sizeof(g_scanCachePath[r->scan_index]) - 1);
+                g_scanCachePath[r->scan_index][sizeof(g_scanCachePath[r->scan_index]) - 1] = 0;
+            }
         }
+        strncpy(out[i].path, g_scanCachePath[r->scan_index], sizeof(out[i].path) - 1);
     }
     /* v128：pids 缓冲已在扫描分支内释放（缓存命中时根本没有 pids） */
     return m;
@@ -833,9 +845,6 @@ double frset_smc_read_fan(int idx) {
     if (!g_conn) { if (frset_smc_open() != 0) return -1; }
     char key[5];
     snprintf(key, sizeof(key), "F%dAc", idx);
-    SMCKeyData_t info;
-    memset(&info, 0, sizeof(info));
-    if (smc_keyinfo(str2key(key), &info) != 0) return -1;
     uint8_t buf[32];
     memset(buf, 0, sizeof(buf));
     uint32_t size = 0, type = 0;

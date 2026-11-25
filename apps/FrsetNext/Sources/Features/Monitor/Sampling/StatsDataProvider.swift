@@ -563,6 +563,19 @@ public final class StatsDataProvider {
             var iconPath = ""
             var cpu = 0.0, mem = 0.0, r = 0.0, w = 0.0
             var kids: [ChildRec] = []
+
+            mutating func append(_ child: ChildRec, path: String, bundle: String?,
+                                 displayName: @autoclosure () -> String) {
+                if self.displayName.isEmpty {
+                    self.displayName = displayName()
+                    iconPath = bundle ?? path
+                }
+                cpu += child.cpu
+                mem += child.mem
+                r += child.r
+                w += child.w
+                kids.append(child)
+            }
         }
         var groups: [String: Acc] = [:]
         for i in 0..<Int(n) {
@@ -581,18 +594,13 @@ public final class StatsDataProvider {
             } else {
                 key = path
             }
-            // 在字典内追加，避免局部 Acc 与字典共享 kids 时逐次复制已有子进程。
-            if groups[key, default: Acc()].displayName.isEmpty {
-                groups[key, default: Acc()].displayName = bundle.map { appDisplayName(bundle: $0) }
-                    ?? String(cString: FSStatsProcName(&item))
-                groups[key, default: Acc()].iconPath = bundle ?? path
-            }
-            groups[key, default: Acc()].cpu += item.cpu
-            groups[key, default: Acc()].mem += item.mem
-            groups[key, default: Acc()].r += item.disk_r
-            groups[key, default: Acc()].w += item.disk_w
-            groups[key, default: Acc()].kids.append(ChildRec(idx: i, pid: item.pid,
-                cpu: item.cpu, mem: item.mem, r: item.disk_r, w: item.disk_w))
+            groups[key, default: Acc()].append(
+                ChildRec(idx: i, pid: item.pid, cpu: item.cpu, mem: item.mem,
+                         r: item.disk_r, w: item.disk_w),
+                path: path,
+                bundle: bundle,
+                displayName: bundle.map { Self.appDisplayName(bundle: $0) }
+                    ?? String(cString: FSStatsProcName(&item)))
         }
         // 组内子进程按当前维度降序（同样分桶，避免展开后行序抖动）
         func sortChildren(_ list: inout [StatsProcItem]) {
