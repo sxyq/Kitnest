@@ -33,6 +33,24 @@ import Foundation
 
 final class FileNameIndex: ObservableObject {
 
+    private final class Mapping {
+        let base: UnsafeMutableRawPointer
+        let mapLength: Int
+        let poolLength: Int
+
+        var pool: UnsafePointer<UInt8> {
+            UnsafePointer(base.advanced(by: FileNameIndex.headerSize).assumingMemoryBound(to: UInt8.self))
+        }
+
+        init(base: UnsafeMutableRawPointer, mapLength: Int, poolLength: Int) {
+            self.base = base
+            self.mapLength = mapLength
+            self.poolLength = poolLength
+        }
+
+        deinit { munmap(base, mapLength) }
+    }
+
     static let shared = FileNameIndex()
 
     enum State: Equatable {
@@ -49,14 +67,7 @@ final class FileNameIndex: ObservableObject {
 
     // MARK: mmap 视图
 
-    private var map: UnsafeMutableRawPointer?
-    private var mapLength = 0
-    private var poolLength = 0
-    /// 只读指针，搜索时零拷贝
-    private var pool: UnsafePointer<UInt8>? {
-        guard let map else { return nil }
-        return UnsafePointer(map.advanced(by: Self.headerSize).assumingMemoryBound(to: UInt8.self))
-    }
+    private var mapping: Mapping?
 
     private let buildQueue = DispatchQueue(label: "com.frsetnext.fileindex", qos: .utility)
     private let stateLock = NSLock()
@@ -111,11 +122,12 @@ final class FileNameIndex: ObservableObject {
         guard !key.isEmpty else { return [] }
         let needle = Array(key.utf8)
         let literal = key.count > 32
-        // 建索引/替换映射时 `map` 会被 munmap，搜索必须和它互斥
-        // （否则可能读到已经释放的页 → EXC_BAD_ACCESS）。
+        // 本地持有映射快照，扫描期间即使缓存被替换，旧映射也会延后释放。
         stateLock.lock()
-        defer { stateLock.unlock() }
-        guard let pool, poolLength > 0 else { return [] }
+        let mapping = self.mapping
+        stateLock.unlock()
+        guard let mapping, mapping.poolLength > 0 else { return [] }
+        let pool = mapping.pool
 
         let paths = UnsafeRawPointer(pool).assumingMemoryBound(to: CChar.self)
         var offset = 0
@@ -129,7 +141,7 @@ final class FileNameIndex: ObservableObject {
         var cancelled = false
         key.withCString { literalKey in
             var scanned = 0
-            while offset < poolLength {
+            while offset < mapping.poolLength {
                 // v292 实测：单次全扫 361-1431ms，且循环内原本不看取消——快速输入会把
                 // 多次全扫叠在协作线程池上。每 8192 条检查一次 Task 取消（纯计数，
                 // 不改匹配语义）；被取消即中止并返回空集，调用方本来就会丢弃这次结果。
@@ -239,12 +251,12 @@ final class FileNameIndex: ObservableObject {
         close(fd)
         guard let ptr, ptr != MAP_FAILED else { return false }
 
+        let replacement = Mapping(base: ptr, mapLength: total, poolLength: len)
         stateLock.lock()
-        if let old = map { munmap(old, mapLength) }
-        map = ptr
-        mapLength = total
-        poolLength = len
+        let previous = mapping
+        mapping = replacement
         stateLock.unlock()
+        withExtendedLifetime(previous) {}
 
         state = .ready(count: count, builtAt: Date(timeIntervalSince1970: stamp))
         return true
@@ -252,11 +264,10 @@ final class FileNameIndex: ObservableObject {
 
     private func unmap() {
         stateLock.lock()
-        if let map { munmap(map, mapLength) }
-        map = nil
-        mapLength = 0
-        poolLength = 0
+        let previous = mapping
+        mapping = nil
         stateLock.unlock()
+        withExtendedLifetime(previous) {}
     }
 
     // MARK: - 建索引

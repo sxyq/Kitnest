@@ -3926,21 +3926,23 @@ Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcher,updateNSVie
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcherView,viewDidMoveToWindow,func,668,KEEP,2026-11-20：进入窗口且无句柄时安装本地按键监听，只消费所属窗口已处理按键；离开窗口移除监听并清句柄
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,KeyEventCatcherView,deinit,deinit,681,KEEP,2026-11-20：视图释放时移除尚存本地按键监听，与挂窗离开处理共用同一可空句柄
 Toolbox,Features/Toolbox/Search/CommandPalette.swift,Array,subscript,subscript,689,KEEP,2026-11-20：选中项变化触发滚动定位时按indices取可选元素，结果目录变化后不访问越界项
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,init,init,65,KEEP,2026-11-20：shared唯一私有构造，初始化本身不扫描；SearchSectionView计算属性及其state订阅会取得单例，旧注释称面板不走初始化失实
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,ensureReady,func,76,KEEP,2026-11-20：搜索调度及建立按钮调用，ready或building直接返回，先尝试loadFromDisk，失败交既有后台build；非路径文件搜索才需要该索引
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,preloadIfCached,func,88,KEEP,2026-11-20：正式搜索面板onAppear调用，只在absent时尝试映射已存索引，缺失保持absent不遍历磁盘
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,rebuild,func,94,KEEP,2026-11-20：重建重试按钮及深链build=1调用，已有构建则返回，unmap后删除该索引文件并异步build；业务状态由原state发布
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,search,func,109,KEEP,2026-11-20：FileSearchSource及诊断深链消费，锁覆盖整池扫描避免映射替换；短查询ASCII折叠子序列，长查询strcasestr，命中后才解码路径和筛类型；用FuzzyMatcher得分、深度和路径字典序插入排序保留limit条
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,loadFromDisk,func,222,KEEP,2026-11-20：preload和ensureReady及构建完成调用，读24字节头并验证magic及count/length正数，未读版本字段；锁内替换mmap和长度，pool直接偏移headerSize，磁盘时间局部构造后发布ready，不另存条数和日期副本
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,unmap,func,253,KEEP,2026-11-20：rebuild锁内munmap并清映射和池长；删除无消费者entryCount赋值，搜索继续使用同一锁，后续build才恢复映射
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,build,func,264,KEEP,2026-11-20：ensureReady及rebuild用原building合并任务；Data预留24字节头和200MiB容量，walk直接追加原池，每20000项发布；只替换24字节头后原子写盘，路径上限900MiB，删除完整out及Data转换副本；完成主线程mmap，日志从扫描开始计时
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,roots,func,335,KEEP,2026-11-20：build每轮调用，列用户主目录所有点开头目录及Library、Applications、opt、usr/local，并逐项确认目录；不把整个根目录加入
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,walk,func,366,KEEP,2026-11-20：build及自身递归使用同一inout Data，POSIX枚举目录延后递归避免重复写，直接追加UTF8和NUL；长度和900MiB路径上限沿原口径，3条排除路径改为静态初始化一次，普通文件分支仍沿原规则
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,terms,func,410,KEEP,2026-11-20：search输入先trim及lowercase，绝对或波浪路径作为单词保留空格，普通查询按空白拆分；search随后joined形成连续查询字符
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,u32,func,418,KEEP,2026-11-20：loadFromDisk读取头内count和poolLength，按4字节小端解码UInt32；当前未消费版本字段
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,f64,func,422,KEEP,2026-11-20：loadFromDisk将头内8字节小端位模式解为Double作为建立时间；仅内部固定偏移调用
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,appendU32,func,428,KEEP,2026-11-20：build写版本1、条目数及池长三个4字节小端字段，数和长度沿原UInt32 clamping
-Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,appendF64,func,435,KEEP,2026-11-20：build将当前时间Double位模式按8字节小端写入原头格式，与f64读取配对
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,Mapping,init,init,45,KEEP,FileNameIndex.loadFromDisk 为 mmap 建立只读映射快照；快照由 search 临时强持有，替换或清空共享映射后仍供在途扫描读取
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,Mapping,deinit,deinit,51,KEEP,映射快照最后一个引用释放时 munmap 对应只读区；搜索期间保留快照使缓存替换不释放正在读取的内存
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,init,init,76,KEEP,2026-11-20：shared唯一私有构造，初始化本身不扫描；SearchSectionView计算属性及其state订阅会取得单例，旧注释称面板不走初始化失实
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,ensureReady,func,87,KEEP,2026-11-20：搜索调度及建立按钮调用，ready或building直接返回，先尝试loadFromDisk，失败交既有后台build；非路径文件搜索才需要该索引
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,preloadIfCached,func,99,KEEP,2026-11-20：正式搜索面板onAppear调用，只在absent时尝试映射已存索引，缺失保持absent不遍历磁盘
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,rebuild,func,105,KEEP,2026-11-20：重建重试按钮及深链build=1调用，已有构建则返回，unmap后删除该索引文件并异步build；业务状态由原state发布
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,search,func,120,KEEP,2026-11-26：FileSearchSource及诊断深链消费；锁内仅复制Mapping快照，随后无锁扫描；本地强引用保证替换时旧mmap仍有效，原ASCII子序列、FuzzyMatcher评分与limit排序不变
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,loadFromDisk,func,234,KEEP,2026-11-26：preload、ensureReady及构建完成调用；读24字节头并验证magic及count/length正数；锁内替换Mapping快照，旧映射在锁外且无搜索持有后释放；state与磁盘时间沿原路径发布
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,unmap,func,265,KEEP,2026-11-26：rebuild调用；锁内清共享Mapping引用，锁外释放本地引用；在途search持有旧快照直至扫描结束，避免长扫描期间等待锁及释放仍被访问的页
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,build,func,275,KEEP,2026-11-20：ensureReady及rebuild用原building合并任务；Data预留24字节头和200MiB容量，walk直接追加原池，每20000项发布；只替换24字节头后原子写盘，路径上限900MiB，删除完整out及Data转换副本；完成主线程mmap，日志从扫描开始计时
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,roots,func,346,KEEP,2026-11-20：build每轮调用，列用户主目录所有点开头目录及Library、Applications、opt、usr/local，并逐项确认目录；不把整个根目录加入
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,walk,func,377,KEEP,2026-11-20：build及自身递归使用同一inout Data，POSIX枚举目录延后递归避免重复写，直接追加UTF8和NUL；长度和900MiB路径上限沿原口径，3条排除路径改为静态初始化一次，普通文件分支仍沿原规则
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,terms,func,421,KEEP,2026-11-20：search输入先trim及lowercase，绝对或波浪路径作为单词保留空格，普通查询按空白拆分；search随后joined形成连续查询字符
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,u32,func,429,KEEP,2026-11-20：loadFromDisk读取头内count和poolLength，按4字节小端解码UInt32；当前未消费版本字段
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,f64,func,433,KEEP,2026-11-20：loadFromDisk将头内8字节小端位模式解为Double作为建立时间；仅内部固定偏移调用
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,appendU32,func,439,KEEP,2026-11-20：build写版本1、条目数及池长三个4字节小端字段，数和长度沿原UInt32 clamping
+Toolbox,Features/Toolbox/Search/FileNameIndex.swift,FileNameIndex,appendF64,func,446,KEEP,2026-11-20：build将当前时间Double位模式按8字节小端写入原头格式，与f64读取配对
 Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatch,init,init,23,KEEP,2026-11-20：match短查询和超过32字符连续查询两处分支构造，保存score及升序命中位置，供命令文件排序和文本高亮
 Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,match,func,42,KEEP,2026-11-20：命令面板斜杠工具文件索引和搜索标题调用；小写贪心取最早位置直接交rate，删除同下界反向firstIndex无效遍历；超过32字符仍连续匹配
 Toolbox,Features/Toolbox/Search/FuzzyMatcher.swift,FuzzyMatcher,asciiMatch,func,57,KEEP,纯 ASCII 时按 UTF-8 字节做同一套子序列判定：1 字节=1 字符=1 字素簇，下标与评分与原 Array<Character> 版本逐项一致（22 万例随机对拍 0 不一致）；含非 ASCII 返回 notApplicable 走原实现

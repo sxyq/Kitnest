@@ -3482,6 +3482,10 @@ EVIDENCE.update({
         "只在扫描 completion 落盘前比较令牌；锁保护的整数比较阻止已取消扫描持久化旧快照",
     ("Features/Settings/Panes/FloatingBallSettingsPane.swift", "init"):
         "由 slider helper 为五项尺寸/透明度设置构造；读取对应偏好或既定回退值初始化滑条，变更时由 body 写偏好并应用配置",
+    ("Features/Toolbox/Search/FileNameIndex.swift", "init"):
+        "FileNameIndex.loadFromDisk 为 mmap 建立只读映射快照；快照由 search 临时强持有，替换或清空共享映射后仍供在途扫描读取",
+    ("Features/Toolbox/Search/FileNameIndex.swift", "deinit"):
+        "映射快照最后一个引用释放时 munmap 对应只读区；搜索期间保留快照使缓存替换不释放正在读取的内存",
 })
 
 if __name__ == "__main__":
