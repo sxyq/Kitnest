@@ -11,12 +11,21 @@ import CoreImage
 
 public enum RecordingCompositor {
 
+    private static let keyOverlayCache: NSCache<NSString, CGImage> = {
+        let cache = NSCache<NSString, CGImage>()
+        cache.countLimit = 8
+        return cache
+    }()
+
     /// 按键条：最多显示 4 个键帽，右对齐贴着画面底部居中
     /// - Parameter pixelScale: 视频像素 / 点（Retina 录制时 2）
     public static func keyOverlay(keys: [RecordedKey], now: CFTimeInterval,
                                   pixelScale: CGFloat, reduceTransparency: Bool = false) -> CGImage? {
         let visible = keys.suffix(4)
         guard !visible.isEmpty else { return nil }
+        let cacheKey = "\(pixelScale)|\(reduceTransparency)|" +
+            visible.map { "\($0.text.utf8.count):\($0.text)" }.joined(separator: "|")
+        if let cached = keyOverlayCache.object(forKey: cacheKey as NSString) { return cached }
         let pad: CGFloat = 10 * pixelScale
         let capH: CGFloat = 46 * pixelScale
         let gap: CGFloat = 8 * pixelScale
@@ -66,7 +75,9 @@ public enum RecordingCompositor {
             CTLineDraw(line, ctx)
             x += w + gap
         }
-        return ctx.makeImage()
+        guard let image = ctx.makeImage() else { return nil }
+        keyOverlayCache.setObject(image, forKey: cacheKey as NSString)
+        return image
     }
 
     /// 点击环：160×160 画布，progress 0→1 时半径扩散、透明度衰减
