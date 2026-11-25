@@ -14,12 +14,11 @@ import SwiftUI
 // 性能纪律（重要）：
 //   1) **零常驻**：本文件里的任何类型都不在 AppBootstrap / 模块 start() 里被引用，
 //      只有用户点「打开存储管理」才创建窗口 → 才读缓存 / 才扫描。平时 App 完全不加载。
-//   2) 扫描走 POSIX opendir/readdir/lstat（不建 NSURL、不查 resourceValues），
-//      后台专用队列、可取消；隐藏目录（点开头）一律纳入，符号链接不跟随以免死循环。
-//   3) 每层只保留最大的 30 个子项，其余聚合成「其余 N 项」——索引大小有上界；
-//      深度上限 5、节点上限 12 万，避免全盘扫描把内存吃满。
-//   4) 结果 JSON 落盘到 Application Support/FrsetNext/disk-index/，重开窗口直接读缓存，
-//      只有点「重新扫描」才重扫。删除后同时更新内存树与缓存文件。
+//   2) 扫描走 POSIX opendir/readdir/fstatat，目录相对读取且不跟随符号链接；
+//      后台专用队列、可取消；隐藏目录（点开头）一律纳入。
+//   3) 每层最多保留 60 个子项，深度上限 64、节点上限 400 万，其余目录聚合。
+//   4) 快照以二进制 plist 存入 Application Support/FrsetNext/disk-index/，重开窗口直接读缓存；
+//      工作记录单独存为 JSON，删除后同时更新内存树与缓存。
 //   5) 删除一律走「移到废纸篓」，不做永久删除。
 
 // MARK: 模型
@@ -552,7 +551,8 @@ final class DiskIndexScanner {
             if dtype == dtDir {
                 subdirs.append(name)
             } else if dtype == dtReg {
-                guard lstat(path == "/" ? "/" + name : path + "/" + name, &st) == 0 else { skipped += 1; continue }
+                let result = name.withCString { fstatat(dirfd(dir), $0, &st, AT_SYMLINK_NOFOLLOW) }
+                guard result == 0 else { skipped += 1; continue }
                 let bytes = Self.physicalSize(st)
                 fileBytes += bytes
                 retainFile(name, size: bytes, in: &files)
@@ -561,8 +561,9 @@ final class DiskIndexScanner {
                 skipped += 1
                 continue
             } else {
-                // DT_UNKNOWN（网络卷 / 部分文件系统）：退回 lstat 判断
-                guard lstat(path == "/" ? "/" + name : path + "/" + name, &st) == 0 else { skipped += 1; continue }
+                // DT_UNKNOWN（网络卷 / 部分文件系统）：退回 fstatat 判断
+                let result = name.withCString { fstatat(dirfd(dir), $0, &st, AT_SYMLINK_NOFOLLOW) }
+                guard result == 0 else { skipped += 1; continue }
                 let mode = st.st_mode & ifmt
                 if mode == iflnk { skipped += 1; continue }
                 if mode == ifdir {
@@ -840,8 +841,7 @@ final class DiskIndexStore: ObservableObject {
         "/tmp", "/private/tmp", "/var/tmp", "/private/var/tmp",
     ]
 
-    /// 候选清单缓存：SwiftUI 每次 hover/勾选都会重算 body，
-    /// 不能每帧都遍历索引树（最多 12 万节点）。只在索引变化时重算一次。
+    /// 候选清单缓存：SwiftUI 每次 hover/勾选都会重算 body，只在索引变化时重算一次。
     private var candidateCache: [CleanupCandidate] = []
     private var candidateCacheStamp: TimeInterval = -1
     private var largestDirectoryCache: [DiskNode]?
