@@ -3486,6 +3486,8 @@ EVIDENCE.update({
         "FileNameIndex.loadFromDisk 为 mmap 建立只读映射快照；快照由 search 临时强持有，替换或清空共享映射后仍供在途扫描读取",
     ("Features/Toolbox/Search/FileNameIndex.swift", "deinit"):
         "映射快照最后一个引用释放时 munmap 对应只读区；搜索期间保留快照使缓存替换不释放正在读取的内存",
+    ("Features/Archive/Core/ArchiveCore.swift", "emitNewEntriesIfDue"):
+        "ArchiveCore.listStreaming 每 150ms 调用；锁内只截取上次发射后的新增条目，并在锁内按解析顺序提交给串行投递队列，避免 100k 条索引反复保留完整 Array 快照并触发追加时 O(N) 复制",
 })
 
 if __name__ == "__main__":
