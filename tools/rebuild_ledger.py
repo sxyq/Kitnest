@@ -3432,6 +3432,9 @@ EVIDENCE.update({
     ("Features/TransferDock/Transfer/LanTransferServer.swift", "connectHTML"):
         "立项 v2 主路线 A 的连接页：UA 分流给 iPhone(AirPlay 引导)/Android(无线调试指引)，"
         "直传动作跳 /s/ 复用既有路由；AP 隔离提示；无外链资源",
+    ("Features/Toolbox/Calendar/CalendarSectionView.swift", "lunarDisplay"):
+        "日历单元格把已计算的农历、节气与传统节日传入展示函数；函数只按原优先级裁短节日名，"
+        "不再重复调用 LunarCalendar，节气、节日、农历和节假日文案的显示顺序保持原行为",
 })
 
 if __name__ == "__main__":
