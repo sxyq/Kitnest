@@ -429,8 +429,11 @@ public final class FloatingBallController: NSObject, ObservableObject, NSWindowD
     private func screenKey(_ screen: NSScreen) -> String {
         // 2026-11-25（函数审查 NEEDS_FIX 落实）：IslandDisplay 是可失败 init
         //（NSScreenNumber 缺失 / CGDisplayCreateUUID 返回 nil），屏热插拔瞬间强解包会崩。
-        // 回退到 legacyScreenKey 的数字键，两套键空间不混用（此函数只在 IslandDisplay 可用时才需要稳定键）。
-        IslandDisplay(screen: screen)?.id ?? legacyScreenKey(screen)
+        //
+        // 2026-11-25（二轮复核 medium）：回退键必须带前缀。旧版写进数字键的是**绝对坐标**，
+        // 新版写的是**相对坐标**——共用一个数字键时，一次回退就会把旧版的绝对坐标
+        // 永久覆盖成相对值，屏一换位置全乱。命名空间分开。
+        IslandDisplay(screen: screen)?.id ?? "legacy-\(legacyScreenKey(screen))"
     }
     private func legacyScreenKey(_ screen: NSScreen) -> String {
         String((screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value ?? 0)

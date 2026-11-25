@@ -781,7 +781,10 @@ enum AppBootstrap {
     }
 
     static func runSelectionAction(_ action: AISummaryAction, selection: SelectionResult? = nil) {
-        let selected = selection ?? readSelection()
+        // 2026-11-25（二轮复核 medium）：热键路径原来走无超时的 readSelection()，
+        // 前台应用 AX 无响应时主线程被卡住、面板/菜单栏一起顿住。v292 已给岛路径
+        // 加了 messagingTimeout，这条路径漏了——补 1.2s 有界超时。
+        let selected = selection ?? readSelection(in: nil, messagingTimeout: 1.2)
         Task { @MainActor in
             switch selected {
             case .failure(let error):

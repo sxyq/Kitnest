@@ -74,9 +74,10 @@ public enum MemoryHelperClient {
             "(/bin/launchctl enable system/\(helperLabel) >/dev/null 2>&1 || true)",
             "/bin/launchctl bootstrap system \(quote(installedPlistPath))"
         ]
-        let result = await Task.detached(priority: .userInitiated) {
-            AdministratorShell.run(commands.joined(separator: " && "))
-        }.value
+        // 2026-11-25（二轮复核 medium）：AdministratorShell 内部是 NSAppleScript，
+        // 属于主线程 API（授权弹窗本身就是模态的）。原来丢到 detached 后台线程跑，
+        // 可能静默失败、错误只剩 -128 判定。这里直接在主线程执行。
+        let result = AdministratorShell.run(commands.joined(separator: " && "))
         switch result {
         case .success:
             // launchd 启动有延迟，轮询至多 6 秒
