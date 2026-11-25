@@ -154,6 +154,12 @@ final class LongScreenshotSession {
     deinit {
         sampleTimer?.setEventHandler {}
         sampleTimer?.cancel()
+        // 2026-11-25（二轮复核 medium）：deinit 原来只停采样定时器，不停帧流。
+        // SCStream 强引用着 FrameStream（30fps 持续出帧、屏幕录制指示灯常亮），
+        // 会话被丢弃后流还活着。这里补一次停止。
+        if #available(macOS 14.0, *), let fs = frameStream as? LongScreenshotFrameStream {
+            fs.stop()
+        }
     }
 
     // MARK: 生命周期

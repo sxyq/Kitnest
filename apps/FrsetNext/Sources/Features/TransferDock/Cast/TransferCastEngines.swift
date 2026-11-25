@@ -593,7 +593,9 @@ public enum ADBWirelessEngine {
     /// `adb pair ip:port code`（后台执行；输出如 "Successfully paired to ..."）
     public static func pair(host: String, port: String, code: String,
                             completion: @escaping (String) -> Void) {
-        ADBExtrasEngine.run(["pair", "\(host):\(port)", code], timeout: nil) { out, _ in
+        // 2026-11-25（二轮复核 medium）：timeout: nil 时 adb pair 打到不可达地址/半开连接
+        // 会等到系统级超时，期间 AdbQrPairing.requestInFlight 一直占位、配对轮询停摆。
+        ADBExtrasEngine.run(["pair", "\(host):\(port)", code], timeout: 20) { out, _ in
             DispatchQueue.main.async { completion(out ?? "adb 不可用") }
         }
     }
@@ -697,7 +699,11 @@ public enum ADBFileBridge {
                 completion(0, output ?? "adb 不可用")
                 return
             }
+            // 2026-11-25（二轮复核 medium）：serial 在整批开始时解析一次并贯穿，
+            // 旧实现每个文件都读 activeSerial —— 批量超过 5s 后它过期变 nil，
+            // 第 2 个文件起丢掉 -s，USB+无线同时在线时报 "more than one device"。
             pushOne(urls: urls, sizes: sizes, remoteDir: remoteDir, index: 0,
+                    serial: ADBExtrasEngine.activeSerial,
                     sent: 0, tracker: tracker, progress: progress) { sent, log in
                 HapticService.shared.perform(sent == urls.count ? .transferCompleted : .transferFailed)
                 completion(sent, log)
@@ -706,7 +712,7 @@ public enum ADBFileBridge {
     }
 
     private static func pushOne(urls: [URL], sizes: [Int64], remoteDir: String,
-                                index: Int, sent: Int,
+                                index: Int, serial: String?, sent: Int,
                                 tracker: PushTracker,
                                 progress: @escaping (PushProgress) -> Void,
                                 completion: @escaping (Int, String) -> Void) {
@@ -725,7 +731,6 @@ public enum ADBFileBridge {
         DispatchQueue.global(qos: .userInitiated).async {
             let task = Process()
             task.executableURL = URL(fileURLWithPath: adb)
-            let serial = ADBExtrasEngine.activeSerial
             var args: [String] = []
             if let serial, !serial.isEmpty { args += ["-s", serial] }
             args += ["push", url.path, remoteDir + "/"]
@@ -775,7 +780,7 @@ public enum ADBFileBridge {
             tracker.log += "\(url.lastPathComponent)：\(ok ? "✓ " + speedHint(combined) : "✗ " + String(combined.prefix(80)))\n"
 
             pushOne(urls: urls, sizes: sizes, remoteDir: remoteDir, index: index + 1,
-                    sent: sent + (ok ? 1 : 0), tracker: tracker,
+                    serial: serial, sent: sent + (ok ? 1 : 0), tracker: tracker,
                     progress: progress, completion: completion)
         }
     }

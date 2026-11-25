@@ -1228,12 +1228,21 @@ public enum ArchiveCore {
                 // v127：取消传播的统一收尾——被 terminate 的 7zz 可能报空错，
                 // 对外一律回「已取消」，别把取消显示成失败
                 let cancelled = !ok && ArchiveTaskQueue.shared.isCancelled(taskID)
+                // 2026-11-25（二轮复核 medium）：失败/取消时 7zz 可能已经写出半截归档，
+                // 旧实现留在原地——用户得到一个打不开的包，还以为创建成功过。
+                if !ok { try? FileManager.default.removeItem(at: archiveURL) }
                 done(ok, msg)
                 // 保持原 API 语义：结果回主线程（run 的回调本在主线程，这里兜底早期返回路径）
                 DispatchQueue.main.async { completion(ok, cancelled ? "已取消" : msg) }
             }
             guard let first = files.first else {
                 both(false, "没有选中文件")
+                return
+            }
+            // 2026-11-25（二轮复核 medium）：目标已存在时 `7zz a` 是**追加/合并**而非覆盖，
+            // 新包会混入旧内容且无任何提示。明确拒绝，让用户自己删或改名。
+            if FileManager.default.fileExists(atPath: archiveURL.path) {
+                both(false, "目标已存在：\(archiveURL.lastPathComponent)（请先删除或改名，避免新旧内容混在一起）")
                 return
             }
             var base = first.deletingLastPathComponent()

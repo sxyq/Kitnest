@@ -1,4 +1,13 @@
 import AppKit
+
+/// 锚点中点所在的屏幕（点坐标，与 NSScreen.frame 同系）；取不到时退回主屏。
+/// 2026-11-25：钉图气泡的钳制必须跟着锚点所在的屏走，不能用 NSScreen.main
+///（键盘焦点窗所在屏），否则副屏上的钉图气泡会被拽到另一块屏。
+private func pinScreen(containing rect: NSRect) -> NSScreen? {
+    let p = NSPoint(x: rect.midX, y: rect.midY)
+    return NSScreen.screens.first { NSMouseInRect(p, $0.frame, false) }
+        ?? NSScreen.main ?? NSScreen.screens.first
+}
 import Foundation
 
 // MARK: - 统一的悬停气泡（对齐标注竖栏 v221 的「冒泡」）
@@ -26,6 +35,7 @@ final class PinBubbleView: NSView {
     private static let vPad: CGFloat = 6
     private static let badgeH: CGFloat = 14
     private static let gap: CGFloat = 6
+
 
     init(model: PinBubbleModel) {
         self.model = model
@@ -121,7 +131,10 @@ final class PinBubblePanel: NSPanel {
 
         var origin = NSPoint(x: anchor.midX - size.width / 2,
                              y: anchor.maxY + 7)
-        if let screen = (NSScreen.main ?? NSScreen.screens.first) {
+        // 2026-11-25（二轮复核 medium）：钳制必须用「锚点所在的那块屏」，
+        // 不能用 NSScreen.main（键盘焦点窗所在的屏）。钉图在副屏时主屏钳制会把气泡
+        // 拽到另一块屏、离按钮上千点。
+        if let screen = pinScreen(containing: anchor) {
             let v = screen.visibleFrame
             origin.x = min(max(v.minX + 6, origin.x), v.maxX - size.width - 6)
             if origin.y + size.height > v.maxY - 4 { origin.y = anchor.minY - size.height - 7 }
@@ -483,7 +496,7 @@ final class PinMenuPanel: NSPanel {
     private func layoutPanel(anchor: NSRect) {
         let size = frame.size
         var origin = NSPoint(x: anchor.midX - size.width / 2, y: anchor.maxY + 8)
-        if let screen = (NSScreen.main ?? NSScreen.screens.first) {
+        if let screen = pinScreen(containing: anchor) {
             let v = screen.visibleFrame
             origin.x = min(max(v.minX + 8, origin.x), v.maxX - size.width - 8)
             if origin.y + size.height > v.maxY - 6 { origin.y = anchor.minY - size.height - 8 }

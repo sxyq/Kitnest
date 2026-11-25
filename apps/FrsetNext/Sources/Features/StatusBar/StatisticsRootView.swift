@@ -817,9 +817,14 @@ private struct Last30BarsView: View {
             Text(verbatim: "近 30 天")
                 .font(.system(size: 12, design: .monospaced))
                 .frame(height: 18)
+            // 2026-11-25（二轮复核 medium）：days 与 maxTotal 各算一次并传参。
+            // 旧实现每根柱子里的 maxTotal 都会再调一次 days()——每次 body 求值
+            // ≈930 次 Calendar 运算（30 柱 × 31 次）。
+            let buckets = days
+            let peak = max(buckets.map { $0.total }.max() ?? 1, 1)
             HStack(alignment: .bottom, spacing: barSpacing) {
-                ForEach(days) { day in
-                    barColumn(for: day)
+                ForEach(buckets) { day in
+                    barColumn(for: day, peak: peak)
                 }
             }
             .frame(height: 81, alignment: .bottom)
@@ -854,11 +859,11 @@ private struct Last30BarsView: View {
         max(days.map { $0.total }.max() ?? 1, 1)
     }
 
-    private func barColumn(for day: DayBucket) -> some View {
+    private func barColumn(for day: DayBucket, peak: Int) -> some View {
         RoundedRectangle(cornerRadius: 1.5, style: .continuous)
             .fill(StatisticsPalette.secondary.opacity(0.35))
             .frame(width: barWidth,
-                   height: max(3, CGFloat(day.total) / CGFloat(maxTotal) * chartHeight))
+                   height: max(3, CGFloat(day.total) / CGFloat(max(peak, 1)) * chartHeight))
             .help("\(prettyDay(day.day)) · \(day.total) 次")
     }
 

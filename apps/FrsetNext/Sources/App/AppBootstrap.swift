@@ -650,10 +650,23 @@ enum AppBootstrap {
     private static var screenshotTranslatePending = false
 
     /// 热键触发：激活一次性翻译会话并启动截图 OCR；OCR 文本产出后在事件接线处自动翻译
+    private static var screenshotTranslateReset: DispatchWorkItem?
+
     private static func beginScreenshotTranslate() {
         screenshotTranslateLock.lock()
         screenshotTranslatePending = true
         screenshotTranslateLock.unlock()
+        // 2026-11-25（二轮复核 medium）：取消截图、截图失败、OCR 无文字时这个标志
+        // 会永久挂起 → 下一次任意来源的 OCR（如 ⇧⌥O）被误判成截图翻译会话，
+        // 静默翻译并弹「截图翻译完成」。30 秒后自动复位。
+        let reset = DispatchWorkItem {
+            screenshotTranslateLock.lock()
+            screenshotTranslatePending = false
+            screenshotTranslateLock.unlock()
+        }
+        screenshotTranslateReset?.cancel()
+        screenshotTranslateReset = reset
+        DispatchQueue.main.asyncAfter(deadline: .now() + 30, execute: reset)
         ScreenshotManager.shared.captureAndOCR()
     }
 
@@ -662,6 +675,8 @@ enum AppBootstrap {
         screenshotTranslateLock.lock(); defer { screenshotTranslateLock.unlock() }
         guard screenshotTranslatePending else { return false }
         screenshotTranslatePending = false
+        screenshotTranslateReset?.cancel()
+        screenshotTranslateReset = nil
         return true
     }
 
