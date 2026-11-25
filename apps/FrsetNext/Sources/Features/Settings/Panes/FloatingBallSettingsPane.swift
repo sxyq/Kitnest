@@ -177,7 +177,9 @@ struct FloatingBallSettingsPane: View {
                 option("收起后贴边半隐藏", key: FloatingBallSettings.autoHideKey, fallback: true)
             }
         }
-        .id(revision)
+        // 2026-11-26 修复：原 `.id(revision)` 会在每次 revision 变化（任意开关/排序/档位）
+        // 时销毁重建整棵视图树，丢失滚动/焦点/展开态。revision 由 @Stored（底层 @StateObject）
+        // 承载，写值本身就会触发 body 重算并重新读取 UserDefaults，无需强制换 identity。
     }
 
     /// 2026-11-25（二轮复核 medium）：滑条原来在 set 里 `revision &+= 1`，而整页挂着

@@ -242,10 +242,14 @@ public final class SettingsWindowController: NSObject, SettingsWindowControlling
     public func windowDidChangeOcclusionState(_ notification: Notification) {
         // 遮挡时保留内容与预览位置；卸载重建会让调参中的画面跳动、清空场景状态。
         uiState.isVisible = window?.isVisible == true && window?.isMiniaturized == false
+        // 2026-11-26 修复：selection 只会被赋 canonical 页（.monitorSettings / .monitorWidgets），
+        // 原 case .monitorModule 永不成立 → settingsActive 恒 false。改判两个真实页；
+        // 离开监测页时显式复位，避免切换页面后仍停在设置态刷新节奏。
         switch uiState.selection {
-        case .monitorModule:
+        case .monitorSettings, .monitorWidgets:
             MonitorSampler.shared.setSettingsActive(window?.occlusionState.contains(.visible) == true)
-        default: break
+        default:
+            MonitorSampler.shared.setSettingsActive(false)
         }
     }
 

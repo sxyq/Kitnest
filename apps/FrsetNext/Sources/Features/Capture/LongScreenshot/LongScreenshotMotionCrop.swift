@@ -84,8 +84,12 @@ enum LongScreenshotMotionCrop {
         // 只裁掉「确实有一大块静止区」的情况：
         //   · 运动区至少覆盖 25% 宽度且 ≥ 160px
         //   · 且确实存在 ≥ 8% 宽度的静止区（否则整幅都在动，不必裁）
-        let x0 = bestStart * 4
-        let x1 = min(w, (bestStart + bestLen) * 4)
+        // 2026-11-26 修复：还原列坐标要按**真实**降采样比。
+        // sw = max(32, w/4)：当 64<w<128 时 sw 被抬到 32 而不再等于 w/4，
+        // 旧实现仍按 *4 还原，区间会整体偏右（再被 min(w,...) 截断后更偏）。
+        let colScale = Double(w) / Double(sw)
+        let x0 = min(w, Int((Double(bestStart) * colScale).rounded(.down)))
+        let x1 = min(w, Int((Double(bestStart + bestLen) * colScale).rounded(.up)))
         let movingWidth = x1 - x0
         guard movingWidth >= max(160, Int(Double(w) * 0.25)) else { return nil }
         guard w - movingWidth >= max(24, Int(Double(w) * 0.08)) else { return nil }

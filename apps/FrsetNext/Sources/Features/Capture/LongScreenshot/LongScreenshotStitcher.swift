@@ -160,14 +160,19 @@ final class LongScreenshotStitcher {
         return img
     }
 
-    /// 实时预览只显示画布顶部至多 500 行，不复制其余拼接内容。
+    /// 实时预览只显示画布底部至多 500 行，不复制其余拼接内容。
+    /// 2026-11-26 修复（二轮 low）：原来取顶部 prefix——长图越长，用户刚追加的那一段越看不到；
+    /// 预览卡改为裁底部后应同步取尾部区间，否则「正在拼接」始终显示第一屏。
     var preview: CGImage? {
         let height = min(canvasHeight, 500)
         guard canvasWidth > 0, height > 0 else { return nil }
-        let count = canvasWidth * height * 4
-        var copy = Array(bytes.prefix(count))
+        let rowBytes = canvasWidth * 4
+        let offset = (canvasHeight - height) * rowBytes
+        let count = rowBytes * height
+        guard offset >= 0, offset + count <= bytes.count else { return nil }
+        var copy = Array(bytes[offset..<(offset + count)])
         let ctx = CGContext(data: &copy, width: canvasWidth, height: height,
-                            bitsPerComponent: 8, bytesPerRow: canvasWidth * 4,
+                            bitsPerComponent: 8, bytesPerRow: rowBytes,
                             space: canvasColorSpace,
                             bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
         return ctx?.makeImage()

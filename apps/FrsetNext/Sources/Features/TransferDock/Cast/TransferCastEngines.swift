@@ -23,7 +23,18 @@ public extension Notification.Name {
 public enum AirDropSendEngine {
 
     /// 系统空投服务是否可用（老系统/被 MDM 禁用时为 false）
-    public static var isAvailable: Bool { cachedService != nil }
+    ///
+    /// 2026-11-26 修复（二轮 medium）：本属性会被渲染路径读取，旧实现直接走 cachedService，
+    /// 过期时会同步重建 NSSharingService（首次 AWDL 初始化 1–3s）→ 卡主线程。现在只读缓存：
+    /// 已建过实例即 true；从没建过则后台预热一次并按乐观 true 返回（真不可用时点发送有 Toast）。
+    public static var isAvailable: Bool {
+        lock.lock()
+        let known = _service != nil
+        lock.unlock()
+        if known { return true }
+        DispatchQueue.global(qos: .utility).async { _ = cachedService }
+        return true
+    }
 
     // MARK: v120 修复「点了没显示 + 卡顿」
     //
@@ -53,6 +64,7 @@ public enum AirDropSendEngine {
         }
     }
 
+    /// 重建/取用缓存服务（可能触发 1–3s 的同步初始化，**只允许在后台线程调用**）
     private static var cachedService: NSSharingService? {
         lock.lock(); defer { lock.unlock() }
         let now = Date().timeIntervalSince1970
@@ -60,6 +72,13 @@ public enum AirDropSendEngine {
         let s = NSSharingService(named: .sendViaAirDrop)
         _service = s
         _stamp = now
+        return s
+    }
+
+    /// 只读缓存：未过期才返回，绝不在调用线程做初始化（2026-11-26 修复，主线程安全）
+    private static func freshService() -> NSSharingService? {
+        lock.lock(); defer { lock.unlock() }
+        guard let s = _service, Date().timeIntervalSince1970 - _stamp < 300 else { return nil }
         return s
     }
 
@@ -79,11 +98,28 @@ public enum AirDropSendEngine {
             Toast.show("没有可发送的文件", icon: "exclamationmark.triangle", isWarning: true)
             return false
         }
-        guard let service = cachedService else {
-            HapticService.shared.perform(.transferFailed)
-            Toast.show("本机隔空投送不可用（检查系统设置）", icon: "exclamationmark.triangle", isWarning: true)
-            return false
+        // 2026-11-26 修复（二轮 medium）：缓存过期时旧实现就地重建（阻塞主线程 1–3s）。
+        // 现在主线程只取现成的；过期/未预热交给后台重建，完成后回主线程发起。
+        if let service = freshService() {
+            beginSend(service, urls: urls)
+            return true
         }
+        DispatchQueue.global(qos: .userInitiated).async {
+            let service = cachedService
+            DispatchQueue.main.async {
+                guard let service else {
+                    HapticService.shared.perform(.transferFailed)
+                    Toast.show("本机隔空投送不可用（检查系统设置）", icon: "exclamationmark.triangle", isWarning: true)
+                    return
+                }
+                beginSend(service, urls: urls)
+            }
+        }
+        return true
+    }
+
+    /// 真正的发起动作（主线程）：先激活 app 再异步 perform
+    private static func beginSend(_ service: NSSharingService, urls: [URL]) {
         // ① 先把本 app 激活（nonactivating 面板不会自己激活），否则系统面板不出现。
         //    面板 hidesOnDeactivate=false 且 canBecomeKey=true，激活后仍是 key，不会自己收起。
         NSApp.activate(ignoringOtherApps: true)
@@ -93,7 +129,6 @@ public enum AirDropSendEngine {
             service.perform(withItems: urls)
             Log.info("Transfer", "隔空投送发起：\(urls.count) 个文件")
         }
-        return true
     }
 }
 
@@ -109,15 +144,28 @@ public final class AirDropReceiveWatcher {
     private var source: DispatchSourceFileSystemObject?
     private let queue = DispatchQueue(label: "com.frset.airdrop.receive")
     private var seen: Set<String> = []
+    private let stateLock = NSLock()
     private var started = false
+    private var _running = false
+
+    /// 是否真的挂上了监听（2026-11-26 修复：原来只置 started，open 失败后无法重试，
+    /// 而接收页仍写死显示「已监听」——留下「看起来在跑、实际没监听」的半成品状态）
+    public var isRunning: Bool { stateLock.lock(); defer { stateLock.unlock() }; return _running }
 
     private var downloadsDir: URL {
         FileManager.default.urls(for: .downloadsDirectory, in: .userDomainMask)[0]
     }
 
-    public func start() {
-        guard !started else { return }
-        started = true
+    /// 启动监听；completion 在主线程回调是否成功（失败后允许下次重试）
+    public func start(completion: ((Bool) -> Void)? = nil) {
+        stateLock.lock()
+        let already = started
+        if !already { started = true }
+        stateLock.unlock()
+        guard !already else {
+            DispatchQueue.main.async { completion?(self.isRunning) }
+            return
+        }
         // v105（2026-10-21 卡死根因，sample 栈实锤）：此处在**主线程**做
         // contentsOfDirectory + open(dir)——~/Downloads 枚举被文件系统/同步盘
         // 挂起时主线程整体冻结（实测 236s 完整卡死）。全部移后台队列执行。
@@ -128,6 +176,9 @@ public final class AirDropReceiveWatcher {
             let fd = open(dir.path, O_EVTONLY)
             guard fd >= 0 else {
                 Log.warn("Transfer", "Downloads 目录监听打开失败")
+                // 2026-11-26 修复：复位 started，下次进页面还能重试
+                self.stateLock.lock(); self.started = false; self.stateLock.unlock()
+                DispatchQueue.main.async { completion?(false) }
                 return
             }
             let src = DispatchSource.makeFileSystemObjectSource(
@@ -136,7 +187,9 @@ public final class AirDropReceiveWatcher {
             src.setCancelHandler { close(fd) }
             src.resume()
             self.source = src
+            self.stateLock.lock(); self._running = true; self.stateLock.unlock()
             Log.info("Transfer", "空投接收监听已启动（~/Downloads）")
+            DispatchQueue.main.async { completion?(true) }
         }
     }
 
@@ -535,7 +588,10 @@ public enum ADBWirelessEngine {
 
     /// 兜底：解析 `adb mdns services`（旧版 adb / Bonjour 被防火墙拦时）
     private static func discoverViaADB(completion: @escaping ([DiscoveredService]?) -> Void) {
-        ADBExtrasEngine.run(["mdns", "services"], timeout: nil) { out, _ in
+        // 2026-11-26 修复（二轮 low）：原来 timeout: nil——adb 卡住时 completion 永不回调，
+        // AdbQrPairing 的 requestInFlight 会永久占位（扫码轮询全停，只能等 120s 超时）。
+        // `adb mdns services` 正常 1s 内返回，给 5s 足够；超时 runSync 会 terminate 并回调。
+        ADBExtrasEngine.run(["mdns", "services"], timeout: 5) { out, _ in
             guard let out, !out.isEmpty else { emit([], completion: completion); return }
             var result: [DiscoveredService] = []
             var seen = Set<String>()
@@ -816,7 +872,11 @@ public enum ADBFileBridge {
                             completion: @escaping (Int, String) -> Void) -> Void {
         let fm = FileManager.default
         try? fm.createDirectory(at: stagingDir, withIntermediateDirectories: true)
-        ADBExtrasEngine.run(["pull", remoteDir + "/.", stagingDir.path], timeout: nil) { out, status in
+        // 2026-11-26 修复（二轮 low）：原来 timeout: nil——adb 卡住时 completion 永不回调，
+        // 调用方 TransferDockView.pullFromPhone 的 adbPushing 会永久为 true（按钮一直
+        // 「拉取中…」，后续拉取被 guard 全挡住）。拉取时长不可预估，给 10 分钟硬上限：
+        // 超时 runSync 会 terminate 并照常回调（status 非 0），调用方得以收尾复位按钮。
+        ADBExtrasEngine.run(["pull", remoteDir + "/.", stagingDir.path], timeout: 600) { out, status in
             guard let out else {
                 HapticService.shared.perform(.transferFailed)
                 DispatchQueue.main.async { completion(0, "adb 不可用") }

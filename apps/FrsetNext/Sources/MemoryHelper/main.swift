@@ -26,18 +26,33 @@ private func fail(_ message: String, code: Int32) -> Never {
     exit(code)
 }
 
-private func runTool(_ path: String, _ arguments: [String] = []) -> Bool {
+/// 派生一个外部工具并等它退出（带超时）。
+///
+/// 2026-11-26 修复（F-misc-1#20）：原来的 `waitUntilExit()` 没有超时，而 serve 是
+/// 单线程「accept → 处理 → close」循环：purge 一慢/一卡，整个 helper 就不再接受任何
+/// 请求，客户端只能等 60s 超时后放弃，用户看到的是「优化内存没反应」。改成
+/// SIGTERM → 2s → SIGKILL 的兜底，任何路径都不会无限阻塞。
+private func runTool(_ path: String, _ arguments: [String] = [], timeout: TimeInterval = 20) -> Bool {
     let process = Process()
     process.executableURL = URL(fileURLWithPath: path)
     process.arguments = arguments
     process.standardOutput = FileHandle.nullDevice
     process.standardError = FileHandle.nullDevice
+    let exited = DispatchSemaphore(value: 0)
+    process.terminationHandler = { _ in exited.signal() }
     do {
         try process.run()
     } catch {
         return false
     }
-    process.waitUntilExit()
+    if exited.wait(timeout: .now() + timeout) == .timedOut {
+        process.terminate()                                   // SIGTERM
+        if exited.wait(timeout: .now() + 2) == .timedOut {
+            kill(process.processIdentifier, SIGKILL)
+            _ = exited.wait(timeout: .now() + 2)              // 收尸失败也不再等
+        }
+        return false
+    }
     return process.terminationStatus == 0
 }
 

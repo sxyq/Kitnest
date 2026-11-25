@@ -16,19 +16,35 @@ import SwiftUI
 
 enum QRCodeImage {
     private static let context = CIContext(options: [.useSoftwareRenderer: false])
+    /// 2026-11-26 修复（二轮 low）：QRCodeView 每次 body 求值都会重算位图
+    /// （connectURL/statusText 抖动也算重算）。按「文本 + 目标尺寸」缓存，
+    /// NSCache 自动按内存压力回收，id 失效无需关心。
+    private static let cache = NSCache<NSString, NSImage>()
 
-    /// 生成指定**点数**的二维码位图（内部按 3× 超采样后交给 SwiftUI 缩放）
+    /// 生成指定**点数**的二维码位图（内部按整数倍超采样后交给 SwiftUI 缩放）
     static func make(from string: String, size: CGFloat) -> NSImage? {
         guard !string.isEmpty else { return nil }
+        let key = "\(Int(size.rounded()))|\(string)" as NSString
+        if let cached = cache.object(forKey: key) { return cached }
+
         let filter = CIFilter.qrCodeGenerator()
         filter.message = Data(string.utf8)
         filter.correctionLevel = "M"
         guard let output = filter.outputImage else { return nil }
 
-        let scale = size / max(1, output.extent.width)
+        // 2026-11-26 修复（二轮 low）：原来 scale = size / 模块数 不是整数倍，
+        // CGAffineTransform 放大时模块边界被抗锯齿，长 URL 在小尺寸下模块宽高不均，
+        // 部分手机/微信扫不出。改为整数倍（每模块正好 N 个像素）。
+        // 像素目标按 2× 屏（Retina）折算，再除回点数，SwiftUI 按 size 点摆放时近似 1:1。
+        let modules = max(1, output.extent.width.rounded())
+        let targetPixels = max(size, 1) * 2
+        let scale = max(1, (targetPixels / modules).rounded(.down))
         let scaled = output.transformed(by: CGAffineTransform(scaleX: scale, y: scale))
         guard let cgImage = context.createCGImage(scaled, from: scaled.extent) else { return nil }
-        return NSImage(cgImage: cgImage, size: NSSize(width: size, height: size))
+        let image = NSImage(cgImage: cgImage,
+                            size: NSSize(width: scaled.extent.width / 2, height: scaled.extent.height / 2))
+        cache.setObject(image, forKey: key)
+        return image
     }
 }
 
@@ -39,7 +55,9 @@ struct QRCodeView: View {
 
     var body: some View {
         Group {
-            if let image = QRCodeImage.make(from: text, size: size * 3) {
+            // 2026-11-26：不再传 size*3 超采样（3 倍后再缩回会被抗锯齿），
+            // make 内部按整数倍模块 + 2× 屏像素生成。
+            if let image = QRCodeImage.make(from: text, size: size) {
                 Image(nsImage: image)
                     .interpolation(.none)
                     .resizable()

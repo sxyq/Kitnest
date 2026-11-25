@@ -143,25 +143,45 @@ struct AppearancePreviewVisibilityKey: PreferenceKey {
 }
 
 private enum AppearancePreviewWallpaper {
+    private static let lock = NSLock()
     private static var cachedURL: URL?
     private static var cachedImage: NSImage?
 
-    static func image() -> NSImage? {
+    /// 2026-11-26 修复：壁纸缩略解码（CGImageSource，maxPixel 1024）从主线程移出。
+    /// 原实现在 onAppear / onChange 同步解码，大尺寸壁纸首次切页有可感卡顿。
+    /// 现在主线程只做「取 URL + 查缓存」，解码在后台，结果回主线程回调。
+    static func load(completion: @escaping (NSImage?) -> Void) {
         guard let screen = NSScreen.main,
-              let url = NSWorkspace.shared.desktopImageURL(for: screen) else { return nil }
-        if cachedURL == url { return cachedImage }
-        cachedURL = url
-        cachedImage = nil
-        if let source = CGImageSourceCreateWithURL(url as CFURL, [kCGImageSourceShouldCache: false] as CFDictionary),
-           let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, [
-                kCGImageSourceCreateThumbnailFromImageAlways: true,
-                kCGImageSourceCreateThumbnailWithTransform: true,
-                kCGImageSourceThumbnailMaxPixelSize: 1024,
-                kCGImageSourceShouldCacheImmediately: true,
-           ] as CFDictionary) {
-            cachedImage = NSImage(cgImage: thumbnail, size: .zero)
+              let url = NSWorkspace.shared.desktopImageURL(for: screen) else {
+            completion(nil)
+            return
         }
-        return cachedImage
+        lock.lock()
+        if cachedURL == url {
+            let hit = cachedImage
+            lock.unlock()
+            completion(hit)
+            return
+        }
+        lock.unlock()
+        DispatchQueue.global(qos: .userInitiated).async {
+            var decoded: NSImage?
+            if let source = CGImageSourceCreateWithURL(url as CFURL,
+                                                       [kCGImageSourceShouldCache: false] as CFDictionary),
+               let thumbnail = CGImageSourceCreateThumbnailAtIndex(source, 0, [
+                    kCGImageSourceCreateThumbnailFromImageAlways: true,
+                    kCGImageSourceCreateThumbnailWithTransform: true,
+                    kCGImageSourceThumbnailMaxPixelSize: 1024,
+                    kCGImageSourceShouldCacheImmediately: true,
+               ] as CFDictionary) {
+                decoded = NSImage(cgImage: thumbnail, size: .zero)
+            }
+            lock.lock()
+            cachedURL = url
+            cachedImage = decoded
+            lock.unlock()
+            DispatchQueue.main.async { completion(decoded) }
+        }
     }
 }
 
@@ -254,11 +274,12 @@ struct AppearancePreviewBlock: View {
             if !$0 { revealed = true; revealScale = 1 }
         }
         .onAppear {
-            if needsWallpaper { wallpaper = AppearancePreviewWallpaper.image() }
+            if needsWallpaper { loadWallpaper() }
             // 进页面先演示一次「打开」，否则只有切换动画档位才看得到。
             if scope != .notification, openReplay == 0 { openReplay = 1 }
             if scope == .captureToolbar {
-                toolbarModel.style = CaptureToolbarStyle(rawValue: draft.toolbarStyle)!
+                // 2026-11-26 修复：未知 toolbarStyle 不再强解包崩溃，回退默认档
+                toolbarModel.style = CaptureToolbarStyle(rawValue: draft.toolbarStyle) ?? .iconBar
                 toolbarModel.preview = CaptureAppearanceSample.image
                 toolbarModel.isSettingsPreview = true
                 toolbarModel.onPreviewFeedback = { toolbarFeedback = $0 }
@@ -269,10 +290,13 @@ struct AppearancePreviewBlock: View {
             }
         }
         .onChange(of: needsWallpaper) { needed in
-            wallpaper = needed ? AppearancePreviewWallpaper.image() : nil
+            if needed { loadWallpaper() } else { wallpaper = nil }
         }
         .onChange(of: draft.toolbarStyle) { style in
-            if scope == .captureToolbar { toolbarModel.style = CaptureToolbarStyle(rawValue: style)! }
+            // 2026-11-26 修复：未知 toolbarStyle 不再强解包崩溃，回退默认档
+            if scope == .captureToolbar {
+                toolbarModel.style = CaptureToolbarStyle(rawValue: style) ?? .iconBar
+            }
         }
         .onChange(of: p.openAnimation) { _ in
             if scope != .notification { openReplay &+= 1 }
@@ -334,8 +358,15 @@ struct AppearancePreviewBlock: View {
         .id(scope)
     }
 
-    private var previewColorScheme: ColorScheme {
-        switch draft.appearance {
+    /// 2026-11-26 修复：后台解码壁纸后才落值；期间偏好可能已切走，回填前再确认一次。
+    private func loadWallpaper() {
+        AppearancePreviewWallpaper.load { image in
+            guard self.needsWallpaper else { return }
+            self.wallpaper = image
+        }
+    }
+
+    private var previewColorScheme: ColorScheme {        switch draft.appearance {
         case .light: return .light
         case .dark, .midnight: return .dark
         case .system: return colorScheme
@@ -365,7 +396,8 @@ struct AppearancePreviewBlock: View {
         case .captureToolbar:
             let size = CaptureActionToolbarPanel.panelSize(
                 for: toolbarModel.preview?.cgImage(forProposedRect: nil, context: nil, hints: nil),
-                style: CaptureToolbarStyle(rawValue: draft.toolbarStyle)!)
+                // 2026-11-26 修复：未知 toolbarStyle 不再强解包崩溃，回退默认档
+                style: CaptureToolbarStyle(rawValue: draft.toolbarStyle) ?? .iconBar)
             return CGSize(width: size.width, height: toolbarModel.preview == nil ? 56 : size.height)
         case .notification:
             return CGSize(width: max(panelSize.width, toastSize.width), height: toastSize.height + 36)

@@ -16,10 +16,18 @@ public final class ShortcutCapture: ObservableObject {
 
     public init() {}
 
+    /// 当前正在录制的实例（2026-11-26 修复：原实现各实例各装一个 app 级 local monitor，
+    /// 互不互斥——设置页同时点开两个「请按组合键…」时，先注册的会先吃掉按键并把它记到
+    /// 上一个动作上，后一个则永远停在录制态继续吞键。改为单例录制中心，同一时刻只允许一个。）
+    private static var activeCapture: ShortcutCapture?
+
     public func toggle() { isRecording ? stop() : start() }
 
     public func start() {
         stop()
+        // 顶掉其它仍在录制的实例，保证按键归属唯一
+        if let other = Self.activeCapture, other !== self { other.stop() }
+        Self.activeCapture = self
         isRecording = true
         monitor = NSEvent.addLocalMonitorForEvents(matching: [.keyDown]) { [weak self] event in
             guard let self else { return event }
@@ -41,9 +49,13 @@ public final class ShortcutCapture: ObservableObject {
         if let monitor { NSEvent.removeMonitor(monitor) }
         monitor = nil
         if isRecording { isRecording = false }
+        if Self.activeCapture === self { Self.activeCapture = nil }
     }
 
-    deinit { if let monitor { NSEvent.removeMonitor(monitor) } }
+    deinit {
+        if let monitor { NSEvent.removeMonitor(monitor) }
+        if Self.activeCapture === self { Self.activeCapture = nil }
+    }
 }
 
 /// 单个快捷键录入按钮：显示当前组合 / 未设置，点击进入录制，可清除

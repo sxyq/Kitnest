@@ -53,9 +53,12 @@ public enum ArchiveCore {
         let temporary = FileManager.default.temporaryDirectory.standardizedFileURL
         // 2026-11-25（二轮复核）：file 不在临时目录树下时下标会越界。回退到临时根目录的
         // 「frset-extract-other」子目录，宁可放错位置也不崩。
+        // 2026-11-26 修复（二轮 low）：光比段数不够——/Users/xxx 这类外部路径段数一样多，
+        // 取到的会是无关目录。补一层临时目录前缀校验，不匹配同样回退。
         let comps = file.standardizedFileURL.pathComponents
-        let idx = temporary.pathComponents.count
-        guard comps.count > idx else {
+        let roots = temporary.pathComponents
+        let idx = roots.count
+        guard comps.count > idx, Array(comps.prefix(idx)) == roots else {
             return temporary.appendingPathComponent("frset-extract-other", isDirectory: true)
         }
         return temporary.appendingPathComponent(comps[idx], isDirectory: true)

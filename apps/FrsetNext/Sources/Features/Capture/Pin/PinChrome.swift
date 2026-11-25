@@ -399,6 +399,8 @@ final class PinMenuPanel: NSPanel {
     var onPick: ((String) -> Void)?
     /// 关闭后把键盘焦点还给钉图窗，否则 Esc/A/C 这些快捷键就失灵了
     weak var ownerWindow: NSWindow?
+    /// present 代次（dismiss 的淡出回调据此判断是否已被重新弹出）
+    private var shownGeneration = 0
 
     init() {
         super.init(contentRect: NSRect(x: 0, y: 0, width: PinMenuView.width, height: 40),
@@ -440,6 +442,9 @@ final class PinMenuPanel: NSPanel {
 
     /// 在屏幕坐标 rect 上方弹出（放不下就翻到下方）
     func present(entries: [PinMenuEntry], above anchor: NSRect) {
+        // 2026-11-26 修复（二轮 low）：每次弹出自增代次，dismiss 的淡出完成回调据此判断
+        // 「这 100ms 里有没有被重新 present」，避免旧回调把刚显示的菜单 orderOut 掉。
+        shownGeneration &+= 1
         stack = [("更多", entries)]
         reload(push: false)
         layoutPanel(anchor: anchor)
@@ -462,11 +467,14 @@ final class PinMenuPanel: NSPanel {
 
     func dismiss() {
         guard isVisible else { return }
+        // 2026-11-26 修复（二轮 low）：淡出 100ms 内若又被 present（Esc 后立刻右键），
+        // 旧 completion 的 orderOut 会把刚显示的菜单收掉。用代次判断这次淡出是否还有效。
+        let generation = shownGeneration
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.10
             animator().alphaValue = 0
         }, completionHandler: { [weak self] in
-            guard let self else { return }
+            guard let self, self.shownGeneration == generation else { return }
             self.orderOut(nil)
             self.ownerWindow?.makeKey()
         })

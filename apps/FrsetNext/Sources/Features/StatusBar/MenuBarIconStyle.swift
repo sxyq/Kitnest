@@ -274,7 +274,14 @@ enum MenuBarIconDrawing {
             button.imagePosition = .noImage
             let view = RotatingLayerView(frame: NSRect(x: 0, y: 0, width: 18, height: 18))
             view.setSymbol(MenuBarIconStyle.fan.systemImage)
-            button.addSubview(view)
+            // 2026-11-26 修复：旋转视图若压在拖放代理（StatusItemDropProxy）之上，
+            // 拖文件进来时的高亮底色会被它挡住。有代理时插到代理下方（代理只收拖放/转发点击，
+            // 被盖住不影响功能）。
+            if let proxy = button.subviews.first(where: { $0 is StatusItemDropProxy }) {
+                button.addSubview(view, positioned: .below, relativeTo: proxy)
+            } else {
+                button.addSubview(view)
+            }
             view.translatesAutoresizingMaskIntoConstraints = false
             NSLayoutConstraint.activate([
                 view.centerXAnchor.constraint(equalTo: button.centerXAnchor),

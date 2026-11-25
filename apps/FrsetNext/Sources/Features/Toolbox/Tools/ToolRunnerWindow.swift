@@ -45,6 +45,11 @@ final class ToolRunnerWindowController: NSObject, ObservableObject, NSWindowDele
         if let window, window.isVisible, currentToolID == toolID, input == nil, currentIntent == intent {
             window.contentView?.layer?.removeAllAnimations()
             WindowReveal.reset(window)
+            // 2026-11-26 修复（二轮 low）：close() 的 preview 分支会先把 alpha 动画到 0，
+            // 若 completion 里 closeGeneration 已变（show 第一行就 ++）则跳过 close——
+            // 于是「关→立刻重开同一工具」会得到一个 alpha≈0 的不可见窗口。
+            // 复用分支必须把不透明度复位。
+            window.alphaValue = 1
             window.makeKeyAndOrderFront(nil)
             NSApp.activate(ignoringOtherApps: true)
             if autoRun {

@@ -152,6 +152,43 @@ public final class FavoritesStore: ObservableObject {
         set(reference.kind, id: reference.resourceID, favorite: false)
     }
 
+    /// 批量移除失效收藏（2026-11-26 修复，low）：
+    /// 原实现每发现一条失效收藏就 set() 一次，而每次 set() 都会 post 一次
+    /// didChangeNotification → 收藏窗 reload → 再全量重建（含 CommandCatalog），
+    /// 靠「每轮至少删掉一条」收敛。这里一次事务删完、只发一次通知。
+    public func removeMissing(_ references: [FavoriteReference]) {
+        guard !references.isEmpty else { return }
+        queue.async {
+            do {
+                try self.database.transaction { db in
+                    for reference in references {
+                        try db.run("DELETE FROM resource_favorites WHERE resource_type=? AND resource_id=?",
+                                   [.text(reference.kind.rawValue), .text(reference.resourceID)])
+                    }
+                }
+            } catch {
+                Log.error("favorites", "清理失效收藏失败: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    Toast.show("清理失效收藏失败：\(error.localizedDescription)",
+                               icon: "exclamationmark.triangle", isWarning: true)
+                }
+                return
+            }
+            DispatchQueue.main.async {
+                var next = self.keys
+                var nextLevels = self.levels
+                for reference in references {
+                    next.remove(reference.id)
+                    nextLevels.removeValue(forKey: reference.id)
+                }
+                if next != self.keys { self.keys = next }
+                if nextLevels != self.levels { self.levels = nextLevels }
+                NotificationCenter.default.post(name: Self.didChangeNotification, object: nil,
+                                                userInfo: ["batchRemoved": references.count])
+            }
+        }
+    }
+
     private func referencesOnQueue() -> [FavoriteReference] {
         (try? database.query("SELECT resource_type,resource_id,added_at FROM resource_favorites ORDER BY added_at DESC") { row in
             guard let raw = row.string("resource_type"),
@@ -276,6 +313,8 @@ private struct FavoritesView: View {
 
     @MainActor private func rebuildEntries(items: [ClipboardItem], references: [FavoriteReference]) {
         var next: [FavoriteEntry] = []
+        // 2026-11-26 修复：失效收藏先收集，循环结束再一次性批量移除（不再边遍历边写库）
+        var missing: [FavoriteReference] = []
         for item in items {
             let title = item.aliasTitle ?? item.title ?? item.content?.firstLineBrief ?? item.type.rawValue
             next.append(FavoriteEntry(id: "clipboard:\(item.dedupeKey)", title: title,
@@ -293,32 +332,32 @@ private struct FavoritesView: View {
                 continue
             case .transferFile:
                 guard let file = LocalTransferStore.shared.items.first(where: { $0.id == reference.resourceID }) else {
-                    FavoritesStore.shared.removeMissing(reference); continue
+                    missing.append(reference); continue
                 }
                 next.append(FavoriteEntry(id: reference.id, title: file.name, detail: "文件中转 · \(file.sizeText)",
                                           symbol: "doc", open: { LocalTransferStore.shared.open(file) },
                                           remove: { FavoritesStore.shared.set(reference.kind, id: reference.resourceID, favorite: false) }))
             case .tool:
                 guard let tool = ToolRegistry.tool(id: reference.resourceID) else {
-                    FavoritesStore.shared.removeMissing(reference); continue
+                    missing.append(reference); continue
                 }
                 next.append(FavoriteEntry(id: reference.id, title: tool.name, detail: "工具 · \(tool.category.title)",
                                           symbol: tool.systemImage, open: { ToolRunnerWindowController.shared.show(toolID: tool.identifier) },
                                           remove: { FavoritesStore.shared.set(reference.kind, id: reference.resourceID, favorite: false) }))
             case .command:
                 guard let command = commands.first(where: { $0.id == reference.resourceID }) else {
-                    FavoritesStore.shared.removeMissing(reference); continue
+                    missing.append(reference); continue
                 }
                 next.append(FavoriteEntry(id: reference.id, title: command.title, detail: command.subtitle,
                                           symbol: command.systemImage, open: command.handler,
                                           remove: { FavoritesStore.shared.set(reference.kind, id: reference.resourceID, favorite: false) }))
             case .searchResult:
                 guard let url = URL(string: reference.resourceID) else {
-                    FavoritesStore.shared.removeMissing(reference); continue
+                    missing.append(reference); continue
                 }
                 if url.isFileURL {
                     guard FileManager.default.fileExists(atPath: url.path) else {
-                        FavoritesStore.shared.removeMissing(reference); continue
+                        missing.append(reference); continue
                     }
                     next.append(FavoriteEntry(id: reference.id, title: url.lastPathComponent,
                                               detail: url.deletingLastPathComponent().path, symbol: "doc",
@@ -329,10 +368,14 @@ private struct FavoritesView: View {
                                               detail: url.path, symbol: "safari", open: { NSWorkspace.shared.open(url) },
                                               remove: { FavoritesStore.shared.set(reference.kind, id: reference.resourceID, favorite: false) }))
                 } else {
-                    FavoritesStore.shared.removeMissing(reference)
+                    missing.append(reference)
                 }
             }
         }
+        // 2026-11-26 修复（low）：渲染派生过程里不写库——失效项先收集，函数末尾一次提交。
+        // 原实现每发现一条就 removeMissing 一次，每次都触发收藏窗 reload → 本函数重跑
+        //（含 CommandCatalog 全量重建），靠「每轮至少删一条」往复收敛。
+        if !missing.isEmpty { FavoritesStore.shared.removeMissing(missing) }
         entries = next
     }
 }

@@ -27,7 +27,43 @@ enum ArchiveEntryThumbnail {
         return c
     }()
     /// 并发上限：同时最多 3 个解压任务，避免 30 个条目一起拉 7zz 进程把机器拖住
-    private static let limiter = DispatchSemaphore(value: 3)
+    ///
+    /// 2026-11-26 修复（二轮 low）：原来用 DispatchSemaphore 在 global 并发队列里 `wait()`，
+    /// 网格 30+ 行同时 onAppear 就会各占一个阻塞线程，把线程池占满。现在改成异步排队闸门：
+    /// 满 3 个时后续请求挂进等待队列（不占线程），有名额时直接转交。
+    private final class AsyncGate {
+        private let lock = NSLock()
+        private let limit: Int
+        private var active = 0
+        private var waiting: [() -> Void] = []
+
+        init(limit: Int) { self.limit = limit }
+
+        func acquire(_ work: @escaping () -> Void) {
+            lock.lock()
+            if active < limit {
+                active += 1
+                lock.unlock()
+                work()
+            } else {
+                waiting.append(work)
+                lock.unlock()
+            }
+        }
+
+        func release() {
+            lock.lock()
+            if waiting.isEmpty {
+                active -= 1
+                lock.unlock()
+            } else {
+                let next = waiting.removeFirst()
+                lock.unlock()
+                next()          // 名额直接转交下一个等待者（active 不变）
+            }
+        }
+    }
+    private static let gate = AsyncGate(limit: 3)
 
     private static let imageExts: Set<String> = [
         "png", "jpg", "jpeg", "gif", "heic", "heif", "webp", "bmp", "tiff", "tif", "ico", "icns"
@@ -63,23 +99,31 @@ enum ArchiveEntryThumbnail {
                 DispatchQueue.main.async { completion(hit) }
                 return
             }
-            limiter.wait()
-            ArchiveCore.extractEntryToTemp(url: archive, entry: entry) { tmp, _ in
-                guard let tmp else {
-                    limiter.signal()
-                    DispatchQueue.main.async { completion(nil) }
+            // 2026-11-26 修复：异步排队拿名额（不阻塞 global 队列线程）
+            gate.acquire {
+                // 排队期间同 key 的请求可能已经出图，拿名额后再查一次
+                if let hit = cache.object(forKey: key) {
+                    gate.release()
+                    DispatchQueue.main.async { completion(hit) }
                     return
                 }
-                DispatchQueue.global(qos: .utility).async {
-                    render(url: tmp, size: size) { image in
-                        try? FileManager.default.removeItem(at: ArchiveCore.extractionDirectory(containing: tmp))
-                        limiter.signal()
-                        // v128（内存优化）：按像素字节记账，配合 totalCostLimit 控制缓存驻留
-                        if let image {
-                            cache.setObject(image, forKey: key,
-                                            cost: Int(image.size.width * image.size.height * 4))
+                ArchiveCore.extractEntryToTemp(url: archive, entry: entry) { tmp, _ in
+                    guard let tmp else {
+                        gate.release()
+                        DispatchQueue.main.async { completion(nil) }
+                        return
+                    }
+                    DispatchQueue.global(qos: .utility).async {
+                        render(url: tmp, size: size) { image in
+                            try? FileManager.default.removeItem(at: ArchiveCore.extractionDirectory(containing: tmp))
+                            gate.release()
+                            // v128（内存优化）：按像素字节记账，配合 totalCostLimit 控制缓存驻留
+                            if let image {
+                                cache.setObject(image, forKey: key,
+                                                cost: Int(image.size.width * image.size.height * 4))
+                            }
+                            DispatchQueue.main.async { completion(image) }
                         }
-                        DispatchQueue.main.async { completion(image) }
                     }
                 }
             }

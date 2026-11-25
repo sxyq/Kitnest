@@ -115,10 +115,28 @@ public final class TagStore: ObservableObject {
             publishTags { $0.append(tag) }
             return tag
         } catch {
-            // 重名（NOCASE）→ 返回既有标签
-            Log.info("clipboard", "标签重名，复用既有: \(trimmed)")
-            return tags.first { $0.name.caseInsensitiveCompare(trimmed) == .orderedSame }
+            // 2026-11-26 修复（low）：以前把任何 SQL 错误都当「重名」静默复用 → 磁盘满 /
+            // SQLITE_BUSY / 句柄失效时返回既有标签（或 nil），界面无任何提示，用户以为建成了。
+            // 现在只对 UNIQUE 约束冲突走幂等复用，其余错误记日志 + Toast 上报。
+            if Self.isUniqueConstraintViolation(error) {
+                Log.info("clipboard", "标签重名，复用既有: \(trimmed)")
+                return tags.first { $0.name.caseInsensitiveCompare(trimmed) == .orderedSame }
+            }
+            Log.error("clipboard", "标签创建失败: \(error)")
+            DispatchQueue.main.async {
+                Toast.show("标签创建失败：\(error.localizedDescription)",
+                           icon: "exclamationmark.triangle", isWarning: true)
+            }
+            return nil
         }
+    }
+
+    /// UNIQUE 约束冲突判定（2026-11-26 修复）：
+    /// DatabaseError 只带 sqlite3_errmsg 文本，libsqlite3 对唯一索引违反固定产出
+    /// "UNIQUE constraint failed: <table>.<column>"，据此区分「重名」与真实写入错误。
+    private static func isUniqueConstraintViolation(_ error: Error) -> Bool {
+        let message = (error as? DatabaseError)?.message ?? error.localizedDescription
+        return message.localizedCaseInsensitiveContains("unique constraint failed")
     }
 
     @discardableResult

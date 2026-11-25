@@ -34,16 +34,26 @@ final class CaptureHistoryVM: ObservableObject {
         ) { [weak self] _ in self?.reload() }
     }
 
+    /// 2026-11-26 修复：异步 reload 加世代号。
+    /// 旧实现在 clearOnDismiss() 清空 items 后，仍在途的 completion 会把旧结果写回，
+    /// 下次 show() 时先闪一帧旧数据。现在每次 reload/清空都自增，只认最新一轮的结果。
+    private var reloadGeneration = 0
+
     func reload() {
         // 2026-11-25（函数审查 NEEDS_FIX 落实）：改走异步查询，不再在主线程
         // `queue.sync` 等缩略图生成所在串行队列（刚截完图会卡数百 ms）。
+        reloadGeneration &+= 1
+        let generation = reloadGeneration
         CaptureHistoryStore.shared.itemsAsync(query: query, mode: modeFilter) { [weak self] result in
-            self?.items = result
+            guard let self, generation == self.reloadGeneration else { return }
+            self.items = result
         }
     }
 
     /// v130.2：点外部收起时重置搜索/过滤，下次打开是干净状态
     func clearOnDismiss() {
+        // 2026-11-26 修复：作废在途查询，避免旧结果回填
+        reloadGeneration &+= 1
         query = ""
         modeFilter = "all"
         items = []
@@ -82,6 +92,10 @@ final class CaptureHistoryVM: ObservableObject {
 struct CaptureHistoryView: View {
     @ObservedObject private var vm: CaptureHistoryVM
     @Stored private var thumbCache: [String: NSImage] = [:]
+    /// 2026-11-26 修复：缩略图缓存加容量上限。
+    /// 旧实现只增不减（历史上限 500 条 × 240px 解码位图 ≈ 百 MB 级，窗口存续期不淘汰）。
+    /// 现在最多留 120 张，删除/列表变化时按需裁剪。
+    private static let thumbCacheLimit = 120
 
     init(vm: CaptureHistoryVM = CaptureHistoryVM()) {
         _vm = ObservedObject(wrappedValue: vm)
@@ -108,6 +122,27 @@ struct CaptureHistoryView: View {
         }
         .frame(minWidth: 560, minHeight: 380)
         .onAppear { vm.reload() }
+        // 2026-11-26 修复：列表变化（删除/过滤）后裁剪已不在列表里的缩略图缓存
+        .onChange(of: vm.items.map(\.id)) { _ in trimThumbCache() }
+    }
+
+    /// 缓存一张缩略图；超过上限先清掉不在当前列表的 key，仍超则按插入顺序淘汰
+    private func cacheThumbnail(_ image: NSImage, for id: String) {
+        thumbCache[id] = image
+        guard thumbCache.count > Self.thumbCacheLimit else { return }
+        trimThumbCache()
+        while thumbCache.count > Self.thumbCacheLimit, let key = thumbCache.keys.first {
+            thumbCache[key] = nil
+        }
+    }
+
+    /// 丢弃不属于当前列表的缩略图（delete / 搜索过滤后都会走到）
+    private func trimThumbCache() {
+        guard !thumbCache.isEmpty else { return }
+        let live = Set(vm.items.map(\.id))
+        for key in Array(thumbCache.keys) where !live.contains(key) {
+            thumbCache[key] = nil
+        }
     }
 
     // MARK: 过滤条
@@ -169,7 +204,7 @@ struct CaptureHistoryView: View {
         VStack(alignment: .leading, spacing: 4) {
             CaptureHistoryThumbnail(url: item.thumbnailURL ?? (item.path.isEmpty ? nil : item.url),
                                     cachedImage: thumbCache[item.id]) { image in
-                thumbCache[item.id] = image
+                cacheThumbnail(image, for: item.id)
             }
                 .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.control, style: .continuous))
                 .overlay(
@@ -215,7 +250,11 @@ struct CaptureHistoryView: View {
             Button("复制到剪贴板") { vm.copy(item) }
             Button("在访达中显示") { vm.revealInFinder(item) }
             Divider()
-            Button("删除", role: .destructive) { vm.delete(item) }
+            Button("删除", role: .destructive) {
+                vm.delete(item)
+                // 2026-11-26 修复：删记录同时丢弃对应缩略图，避免缓存只增不减
+                thumbCache[item.id] = nil
+            }
         }
     }
 

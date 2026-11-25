@@ -40,10 +40,24 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
     private let regionOrigin: CGPoint
     /// 视频像素 / 屏幕点
     private let pixelScale: CGFloat
+    /// 「降低透明度」偏好：开始时读一次（2026-11-26 修复 medium，原来每帧都读一次
+    /// NSWorkspace.accessibilityDisplayShouldReduceTransparency）
+    private let reduceTransparency: Bool
 
     private let queue = DispatchQueue(label: "kitnest.recording.pipeline")
     private let sampleQueue: DispatchQueue
     private let cameraQueue = DispatchQueue(label: "kitnest.recording.camera")
+
+    /// 本次录制**实际生效**的摄像头开关（2026-11-26 修复 medium）。
+    /// 摄像头启动失败时回落成 false，needsComposite 才能回到「原始帧直通」，
+    /// 不再让整段录制白跑 Core Image 合成 + 像素池拷贝。
+    private let effectiveLock = NSLock()
+    private var effectiveCameraValue: Bool
+
+    private var effectiveCameraEnabled: Bool {
+        get { effectiveLock.lock(); defer { effectiveLock.unlock() }; return effectiveCameraValue }
+        set { effectiveLock.lock(); effectiveCameraValue = newValue; effectiveLock.unlock() }
+    }
 
     private var writer: AVAssetWriter?
     private var videoInput: AVAssetWriterInput?
@@ -70,6 +84,8 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
         self.pixelScale = pixelScale
         self.outputURL = outputURL
         self.sampleQueue = sampleQueue
+        self.reduceTransparency = NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency
+        self.effectiveCameraValue = options.cameraEnabled
         super.init()
     }
 
@@ -78,7 +94,11 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
     func prepareWriter() throws {
         let w = Int(max(2, videoSize.width.rounded()))
         let h = Int(max(2, videoSize.height.rounded()))
-        let bitrate = min(24_000_000, max(4_000_000, Int(Double(w * h) * 0.12)))
+        // 2026-11-26 修复（low）：原公式漏乘 fps，1080p 只有 248k、4K 只有 995k，
+        // 全部被 max 抬到 4 Mbps（等于所有分辨率固定 4M）。乘上帧率后与设置页文案一致：
+        // 1080p30 ≈ 7.5M、1080p60 ≈ 15M、4K 被 24M 上限封顶。
+        let bitrate = min(24_000_000, max(4_000_000,
+                          Int(Double(w * h) * 0.12 * Double(options.fps))))
         let settings: [String: Any] = [
             AVVideoCodecKey: AVVideoCodecType.h264,
             AVVideoWidthKey: w,
@@ -174,7 +194,10 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
             ?? AVCaptureDevice.default(for: .video)
         guard let device, let input = try? AVCaptureDeviceInput(device: device),
               session.canAddInput(input) else {
-            Log.warn("Recording", "摄像头不可用，跳过画中画")
+            // 2026-11-26 修复（medium）：配置未提交就返回，语义上要显式 commit
+            session.commitConfiguration()
+            effectiveCameraEnabled = false
+            Log.warn("Recording", "摄像头不可用，跳过画中画（本次按无画中画录制）")
             return false
         }
         session.addInput(input)
@@ -182,13 +205,25 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
         output.videoSettings = [kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA]
         output.alwaysDiscardsLateVideoFrames = true
         output.setSampleBufferDelegate(self, queue: cameraQueue)
-        guard session.canAddOutput(output) else { return false }
+        guard session.canAddOutput(output) else {
+            session.commitConfiguration()
+            effectiveCameraEnabled = false
+            Log.warn("Recording", "摄像头输出不可用，跳过画中画（本次按无画中画录制）")
+            return false
+        }
         session.addOutput(output)
         session.commitConfiguration()
         session.startRunning()
         cameraSession = session
+        guard session.isRunning else {
+            // startRunning 失败也要回落，避免合成路径空转
+            effectiveCameraEnabled = false
+            cameraSession = nil
+            Log.warn("Recording", "摄像头启动失败，跳过画中画（本次按无画中画录制）")
+            return false
+        }
         Log.info("Recording", "摄像头画中画：\(device.localizedName)")
-        return session.isRunning
+        return true
     }
 
     func startMicrophone() -> Bool {
@@ -251,7 +286,8 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
         }
         if paused { return }
 
-        let needsComposite = options.cameraEnabled || options.showKeys || options.showClicks
+        // 用「实际生效」的开关判定（摄像头起不来时回落成不合成）
+        let needsComposite = effectiveCameraEnabled || options.showKeys || options.showClicks
         if !needsComposite {
             if videoInput?.isReadyForMoreMediaData == true {
                 videoInput?.append(sampleBuffer)
@@ -266,13 +302,13 @@ final class RecordingPipeline: NSObject, SCStreamOutput, SCStreamDelegate,
         guard let dest else { return }
 
         let now = CACurrentMediaTime()
-        let camera = options.cameraEnabled ? currentCameraBuffer().map { CIImage(cvPixelBuffer: $0) } : nil
+        let camera = effectiveCameraEnabled ? currentCameraBuffer().map { CIImage(cvPixelBuffer: $0) } : nil
         let image = RecordingCompositor.composite(image: CIImage(cvPixelBuffer: imageBuffer),
             camera: camera, options: options,
             keys: options.showKeys ? RecordingInputMonitor.shared.currentKeys(now: now) : [],
             clicks: options.showClicks ? RecordingInputMonitor.shared.currentClicks(now: now) : [],
             now: now, pixelScale: pixelScale, regionOrigin: regionOrigin,
-            reduceTransparency: NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency)
+            reduceTransparency: reduceTransparency)
 
         let bounds = CGRect(origin: .zero, size: videoSize)
         ciContext.render(image, to: dest, bounds: bounds, colorSpace: colorSpace)
@@ -522,6 +558,8 @@ public final class ScreenRecorder: ObservableObject {
         stream = nil
         let file = await pipeline?.finish()
         pipeline = nil
+        // 录制结束释放叠加层出图缓存（键帽/点击环位图）
+        RecordingCompositor.clearCaches()
         state = .idle
         startedAt = nil
 

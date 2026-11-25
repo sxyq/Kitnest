@@ -333,16 +333,20 @@ enum ScreenSnapshot {
             Log.warn("Capture", "抓帧预算用尽，跳过 SCK 回退")
             return finish(nil, "冻结帧预算用尽")
         }
+        // 2026-11-26 修复：SCK 段也吃预算——只拿剩余时间（并受单通道上限约束），
+        // 且把代次/预算判定透传进去，连按快捷键能在切片轮询处被提前掐断。
+        let sckTimeout = min(CaptureBudget.channelSeconds,
+                             budget?.remaining ?? CaptureBudget.channelSeconds)
         if toastVisible {
             if #available(macOS 14.0, *), let displayID {
                 sck = await Task.detached(priority: .userInitiated) {
-                    sckCaptureSync(displayID: displayID)
+                    sckCaptureSync(displayID: displayID, timeout: sckTimeout, isCancelled: shouldCancel)
                 }.value
             } else {
                 sck = nil
             }
         } else {
-            sck = await captureScreenAdaptive(screen: screen)
+            sck = await captureScreenAdaptive(screen: screen, timeout: sckTimeout, isCancelled: shouldCancel)
         }
         let sckProbeStart = DispatchTime.now().uptimeNanoseconds
         let sckProbe = sck.map { probe($0, size: screenFrame.size) }
@@ -439,7 +443,11 @@ enum ScreenSnapshot {
     private static var channelLogged = false
 
     /// 自适应抓屏总入口（异步，主线程安全）：截图族所有 UI 快照统一走这里
-    static func captureScreenAdaptive(screen: NSScreen) async -> CGImage? {
+    /// 2026-11-26 修复：透传本轮剩余预算与取消判定给 SCK 段（旧实现这里不接受预算，
+    /// 内部 sem.wait 硬等 4s，也不检查代次）。
+    static func captureScreenAdaptive(screen: NSScreen,
+                                      timeout: TimeInterval = CaptureBudget.channelSeconds,
+                                      isCancelled: (() -> Bool)? = nil) async -> CGImage? {
         let channel = preferredChannel
         if !channelLogged {
             channelLogged = true
@@ -451,8 +459,9 @@ enum ScreenSnapshot {
         case .sckAsync:
             if #available(macOS 14.0, *), let displayID = displayID(of: screen) {
                 if let image = await Task.detached(priority: .userInitiated, operation: {
-                    sckCaptureSync(displayID: displayID)
+                    sckCaptureSync(displayID: displayID, timeout: timeout, isCancelled: isCancelled)
                 }).value { return image }
+                if isCancelled?() == true { return nil }
                 Log.warn("Capture", "SCK 整屏抓取失败或超时，回退同屏 legacy 通道")
             }
             return await Task.detached(priority: .userInitiated) { cgCapture(screen: screen) }.value
@@ -498,20 +507,35 @@ enum ScreenSnapshot {
     /// legacy dlsym 路径在 macOS 15+ 被移除后返回 nil（实测 macOS 27 采帧
     /// 连续失败 → 无有效画布）；此封装在**后台队列**信号量等待异步 SCK，
     /// 禁止主线程调用。
+    ///
+    /// 2026-11-26 修复：旧实现硬写 4s 且不认代次——冻结阶段预算（2.4s）之外还要多等，
+    /// 连按快捷键时也无法被新一轮提前掐断。现在收 timeout 参数（由调用方给剩余预算），
+    /// 并按 50ms 切片轮询 isCancelled，代次失效/预算用尽立即返回。
     @available(macOS 14.0, *)
-    static func sckCaptureSync(displayID: CGDirectDisplayID) -> CGImage? {
+    static func sckCaptureSync(displayID: CGDirectDisplayID,
+                               timeout: TimeInterval = CaptureBudget.channelSeconds,
+                               isCancelled: (() -> Bool)? = nil) -> CGImage? {
         let sem = DispatchSemaphore(value: 0)
         let result = SynchronousImageResult()
         let task = Task.detached(priority: .userInitiated) {
             result.store(try? await sckCapture(displayID: displayID))
             sem.signal()
         }
-        guard sem.wait(timeout: .now() + 4) == .success else {
-            task.cancel()
-            Log.warn("Capture", "ScreenCaptureKit 整屏抓取超时")
-            return nil
+        let deadline = DispatchTime.now() + max(0.05, timeout)
+        while true {
+            if isCancelled?() == true {
+                task.cancel()
+                Log.info("Capture", "ScreenCaptureKit 整屏抓取已取消（代次失效或预算用尽）")
+                return nil
+            }
+            let slice = min(DispatchTime.now() + 0.05, deadline)
+            if sem.wait(timeout: slice) == .success { return result.load() }
+            if DispatchTime.now() >= deadline {
+                task.cancel()
+                Log.warn("Capture", "ScreenCaptureKit 整屏抓取超时")
+                return nil
+            }
         }
-        return result.load()
     }
 
     @available(macOS 14.0, *)

@@ -570,15 +570,18 @@ private struct HeatmapTooltipLayout: Layout {
     let gridWidth: CGFloat
 
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        // 占位测量：保持网格自身尺寸，不让气泡撑开布局（气泡绘制在网格上方）。
         CGSize(width: gridWidth, height: 0)
     }
 
     func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
         let tooltip = subviews[0]
         let size = tooltip.sizeThatFits(.unspecified)
-        let x = min(max(cellFrame.midX - size.width / 2, 0), gridWidth - size.width)
+        // 2026-11-26 修复：气泡比网格宽时 `gridWidth - size.width` 为负，原 min/max 顺序
+        // 会把 x 压成负数、溢出左边界。先夹上界到非负，再夹下界。
+        let x = max(0, min(cellFrame.midX - size.width / 2, gridWidth - size.width))
         tooltip.place(at: CGPoint(x: bounds.minX + x,
-                                 y: bounds.minY + cellFrame.minY - size.height - 4),
+                                  y: bounds.minY + cellFrame.minY - size.height - 4),
                       anchor: .topLeading, proposal: .unspecified)
     }
 }

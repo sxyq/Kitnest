@@ -23,12 +23,16 @@ public final class AndroidWebDAVServer {
     private let stateLock = NSLock()
     private var _running = false
     private var _port: UInt16 = AndroidWebDAVServer.defaultPort
+    /// stop() 的调用序号（受 stateLock 保护）：startAsync 用它识别「启动途中又被关掉」
+    private var stopSerial = 0
 
     public var isRunning: Bool { stateLock.lock(); defer { stateLock.unlock() }; return _running }
     public var baseURL: String { "http://127.0.0.1:\(_port)/" }
 
     private init() {}
 
+    /// 同步启动：8768 起顺延 8 个端口逐个尝试绑定，每个最多等 2s——
+    /// 最坏会阻塞调用线程 16s，**只允许在后台线程调用**（主线程请用 startAsync）。
     public func start() -> Bool {
         guard !isRunning else { return true }
         for offset in 0..<8 {
@@ -36,6 +40,25 @@ public final class AndroidWebDAVServer {
             if bind(port: port) { return true }
         }
         return false
+    }
+
+    /// 启动队列（2026-11-26 修复）：串行化，避免并发 start 各自跑一轮端口扫描
+    private static let startQueue = DispatchQueue(label: "frset.webdav.start", qos: .userInitiated)
+
+    /// 异步启动（2026-11-26 修复，二轮 low）：原来开关回调在主线程直接调 start()，
+    /// 端口全被占用时最多阻塞 16s → 界面冻结。现在整轮端口尝试挪到后台，结果回主线程。
+    public func startAsync(completion: ((Bool) -> Void)? = nil) {
+        stateLock.lock(); let serial = stopSerial; stateLock.unlock()
+        Self.startQueue.async {
+            var ok = self.start()
+            // 后台这轮端口尝试期间用户又关掉了：把刚起来的监听收掉，
+            // 避免「开关显示关、服务仍在监听」的半成品状态
+            self.stateLock.lock()
+            let superseded = serial != self.stopSerial
+            self.stateLock.unlock()
+            if ok && superseded { self.stop(); ok = false }
+            DispatchQueue.main.async { completion?(ok) }
+        }
     }
 
     private func bind(port: UInt16) -> Bool {
@@ -71,6 +94,7 @@ public final class AndroidWebDAVServer {
     }
 
     public func stop() {
+        stateLock.lock(); stopSerial &+= 1; stateLock.unlock()
         listener?.cancel(); listener = nil
         queue.sync {
             stateLock.lock(); _running = false; stateLock.unlock()
@@ -406,18 +430,38 @@ public final class AndroidWebDAVServer {
         }
     }
 
+    /// 子进程收尾（2026-11-26 修复，二轮 low）：remaining 归零后若 cat 仍在写（下载期间
+    /// 文件变大且增量超过管道缓冲），子进程会永久阻塞在 write 上，原来的
+    /// `waitUntilExit()` 会把这条 global 线程和连接一起挂死。现在改成有限等待：
+    /// 5s 不退出就 terminate，再 1s 不退出就关闭读端（子进程 write 会拿到 EPIPE 自行退出）
+    /// 并放手——线程不再被永久占用。
+    private static func reap(task: Process, handle: FileHandle) {
+        var waited = 0.0
+        while task.isRunning && waited < 5 { Thread.sleep(forTimeInterval: 0.05); waited += 0.05 }
+        if task.isRunning {
+            task.terminate()
+            waited = 0
+            while task.isRunning && waited < 1 { Thread.sleep(forTimeInterval: 0.05); waited += 0.05 }
+        }
+        if task.isRunning {
+            try? handle.close()
+            return
+        }
+        try? task.waitUntilExit()
+    }
+
     private func pumpDownload(_ conn: NWConnection, handle: FileHandle, task: Process, remaining: UInt64) {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self else { return }
             guard remaining > 0 else {
-                try? task.waitUntilExit()
+                Self.reap(task: task, handle: handle)
                 self.queue.async { self.close(conn) }
                 return
             }
             let chunk = (try? handle.read(upToCount: min(256 << 10, Int(remaining)))) ?? Data()
             if chunk.isEmpty {
                 // cat 提前退出（设备断开等）：已声明的长度发不满，只能关闭连接让客户端重试
-                try? task.waitUntilExit()
+                Self.reap(task: task, handle: handle)
                 self.queue.async { self.close(conn) }
                 return
             }

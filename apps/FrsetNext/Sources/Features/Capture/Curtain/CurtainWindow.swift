@@ -425,11 +425,49 @@ final class CurtainCardView: NSView {
         layer?.removeAnimation(forKey: Self.swayKey)
     }
 
+    /// 2026-11-26 修复：窗口上/下屏观测。
+    /// orderOut 不会让 view.window 变 nil（只有移出视图层级才回调 viewDidMoveToWindow），
+    /// 所以旧实现「收起即撤动画」的优化从未生效——图帘隐藏后微摆仍在跑。
+    /// 2026-11-26 再修：AppKit 并没有 didOrderOffScreen/OnScreen 通知（编译期报 no member），
+    /// 改为听 occlusion（被完全遮挡/恢复）+ 最小化 + 关闭，统一读 isVisible 判定。
+    private var orderObservers: [NSObjectProtocol] = []
+
     override func viewDidMoveToWindow() {
         super.viewDidMoveToWindow()
-        // 窗口收起（orderOut）时把动画撤掉：不可见的图层还在跑动画是纯浪费，
-        // 而这块架子大部分时间都是收起的。
-        if window == nil { stopSway() } else { startSway() }
+        for token in orderObservers { NotificationCenter.default.removeObserver(token) }
+        orderObservers.removeAll()
+        guard let window else {
+            stopSway()
+            cancelScrollResizeEnd()
+            return
+        }
+        syncSwayVisibility()
+        let center = NotificationCenter.default
+        let names: [Notification.Name] = [
+            NSWindow.didChangeOcclusionStateNotification,
+            NSWindow.didMiniaturizeNotification,
+            NSWindow.didDeminiaturizeNotification,
+            NSWindow.willCloseNotification,
+        ]
+        for name in names {
+            orderObservers.append(center.addObserver(forName: name, object: window, queue: .main) { [weak self] _ in
+                self?.syncSwayVisibility()
+            })
+        }
+    }
+
+    /// 窗口实际可见才跑微摆：orderOut 后 isVisible 为 false，occlusion 也会失去 .visible。
+    private func syncSwayVisibility() {
+        guard let window, window.isVisible,
+              window.occlusionState.contains(.visible) else {
+            stopSway()
+            return
+        }
+        startSway()
+    }
+
+    deinit {
+        for token in orderObservers { NotificationCenter.default.removeObserver(token) }
     }
 
     private static let swayKey = "curtain.sway"
@@ -502,6 +540,8 @@ final class CurtainCardView: NSView {
     override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
 
     override func mouseDown(with event: NSEvent) {
+        // 2026-11-26 修复：开始新手势前先取消挂起的滚轮收尾，避免它在拖动中途触发 rebuild
+        cancelScrollResizeEnd()
         mouseDownPoint = convert(event.locationInWindow, from: nil)
         didStartDrag = false
         // ⌘ + 拖动 = 调图帘大小。这个组合不能和「拖出文件」共用：
@@ -561,10 +601,19 @@ final class CurtainCardView: NSView {
     private var scrollResizeEndWork: DispatchWorkItem?
 
     private func scheduleScrollResizeEnd() {
-        scrollResizeEndWork?.cancel()
+        cancelScrollResizeEnd()
         let work = DispatchWorkItem { [weak self] in self?.onResizeEnd?() }
         scrollResizeEndWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: work)
+    }
+
+    /// 2026-11-26 修复：取消挂起的 350ms 滚轮收尾。
+    /// 旧实现只在 schedule 里 cancel：⌘ 滚轮后 350ms 内开始 ⌘ 拖动，
+    /// onResizeEnd 会在拖动中途触发一次全量 rebuild，正在跟踪鼠标的卡片视图被移出层级，
+    /// 后续 mouseDragged/mouseUp 收不到（NSCursor.pop 与 startSway 被跳过）。
+    private func cancelScrollResizeEnd() {
+        scrollResizeEndWork?.cancel()
+        scrollResizeEndWork = nil
     }
 
     /// 复制 = 同时给 PNG 和文件 URL，粘贴到聊天窗口是图片，粘到 Finder 是文件
@@ -854,6 +903,9 @@ final class CurtainHostView: NSView {
 /// 排版容器：绳子在上，卡片按顺序挂着，整体水平居中。
 /// 正式窗口和设置场景共用屏幕排版计算。
 enum CurtainLayout {
+    /// 挤压时的绝对下限：卡片窄到 36pt 仍可点/可拖；再窄就失去意义，宁可略微超出可视宽度。
+    static let absMinCardWidth: CGFloat = 36
+
     static func metrics(desired: CGFloat, count: Int, visible: NSRect, railScales: Bool)
         -> (cardWidth: CGFloat, railScale: CGFloat, maxHeight: CGFloat) {
         let n = CGFloat(max(count, 1))
@@ -865,7 +917,15 @@ enum CurtainLayout {
         for _ in 0..<2 {
             let s = scale(width)
             let fit = (available - CurtainMetrics.gap(s) * (n - 1) - CurtainMetrics.padding(s) * 2) / n
-            width = min(desired, max(CurtainPref.minCardWidth, fit))
+            // 2026-11-26 修复：旧实现无条件用 max(minCardWidth, fit) 兜底，卡片数超过可容纳数时
+            // fit 被硬下限顶回——20 张 × 72pt + 间距/留白 ≈ 1718pt，超出 1440 屏的可用 1416pt，
+            // 窗口被夹到屏宽后右侧 3-4 张被裁掉，而面板没有横向滚动，这几张在正式图帘里不可达。
+            // 现在只有 fit 本身仍在可读范围时才用 minCardWidth 兜底，否则让宽度继续下探到
+            // absMinCardWidth，保证所有卡片都排得进可见宽度。
+            let floor = fit >= CurtainPref.minCardWidth
+                ? CurtainPref.minCardWidth
+                : max(Self.absMinCardWidth, fit)
+            width = min(desired, max(floor, fit))
         }
         let s = scale(width)
         return (width, s, max(visible.height * 0.56
@@ -1024,6 +1084,8 @@ final class CurtainCanvasView: NSView {
     private var canvasResizeLastScreenX: CGFloat?
 
     override func mouseDown(with event: NSEvent) {
+        // 2026-11-26 修复：开始新手势前先取消挂起的滚轮收尾（同 CurtainCardView）
+        cancelScrollResizeEnd()
         guard event.modifierFlags.contains(.command) else {
             super.mouseDown(with: event)
             return
@@ -1068,10 +1130,22 @@ final class CurtainCanvasView: NSView {
     private var scrollResizeEndWork: DispatchWorkItem?
 
     private func scheduleScrollResizeEnd() {
-        scrollResizeEndWork?.cancel()
+        cancelScrollResizeEnd()
         let work = DispatchWorkItem { [weak self] in self?.onResizeEnd?() }
         scrollResizeEndWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35, execute: work)
+    }
+
+    /// 2026-11-26 修复：取消挂起的滚轮收尾（见 CurtainCardView 同名方法）
+    private func cancelScrollResizeEnd() {
+        scrollResizeEndWork?.cancel()
+        scrollResizeEndWork = nil
+    }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        // 2026-11-26 修复：被移出视图层级时丢弃挂起的收尾，避免对已脱离窗口的画布回调
+        if window == nil { cancelScrollResizeEnd() }
     }
 
     /// 落入动画：从上方 10pt 落下 + 淡入 + 绕顶部摆一次衰减，

@@ -231,10 +231,17 @@ public final class FloatingClipboardWindowController: NSWindowController, NSWind
         Log.info("Clipboard", "悬浮工作台 hide")
         store.setVisible(false)
         FloatingClipDeskStore.shared.suspendPreview()
-        guard let w = window, w.isVisible else { return }
+        // 2026-11-26 修复（二轮复核 low）：completion 承载的是粘贴动作（onPaste 注入
+        // ClipboardManager.copy）。窗口已不可见时也不能直接 return，否则「回车没反应」。
+        guard let w = window, w.isVisible else { completion?(); return }
         let token = revealGeneration
         WindowReveal.playOutToLastAnchor(on: w) { [weak self, weak w] in
-            guard let self, token == self.revealGeneration else { return }
+            guard let self, token == self.revealGeneration else {
+                // 2026-11-26 修复：收起动画期间 show() 顶掉了本轮（代际 token 失效），
+                // 收尾动画不能跑，但粘贴副作用必须照常执行。
+                completion?()
+                return
+            }
             w?.orderOut(nil)
             if let w { WindowReveal.reset(w) }
             completion?()

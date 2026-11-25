@@ -45,6 +45,12 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Features/TransferDock/UI/TransferDockView.swift", "removeStagingIfEmpty"):
+        "2026-11-26 二轮 low：手机拉取的暂存目录清理抽成独立函数——只搬空（忽略 .DS_Store）才 removeItem，"
+        "有残留就保留并记 warn，避免删除未搬走的用户文件；调用点在 pullFromPhone 收尾。",
+    ("Models/SearchEngine.swift", "encodeQuery"):
+        "2026-11-26 二轮 medium：搜索关键词编码的公共入口，按 RFC 3986 unreserved 编码（等价 encodeURIComponent），"
+        "供模板 searchURL 与网页结果抓取共用；此前两条路径各自用 .urlQueryAllowed，& = + 不转义会拼出额外参数。",
     ("App/AppBootstrap.swift", "frontmostForSelection"):
         "2026-11-24 性能第二轮 A2：纯本地 NSWorkspace 查询（不触发 AX IPC），岛展开时固定触发时前台应用上下文供后台选区读取；前台是 Kitnest 自身时返回 nil 沿用原语义；命令面板/划词路径不改",
     ("Features/Island/IslandController.swift", "beginSelectionRefresh"):

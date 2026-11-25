@@ -120,7 +120,20 @@ public final class LanTransferServer: ObservableObject {
     }
 
     func selectionURL(ids: [String], completion: @escaping (String) -> Void) {
-        guard let base = shareURL else { return }
+        // 2026-11-26 修复（二轮 low）：shareURL 为 nil 时旧实现直接 return，completion
+        // 永不回调——showPickQR 的 build 闭包会一直等，界面没有任何反馈（服务刚停/
+        // 端口未就绪时静默失败）。端口已知就按端口补一个地址；确实没服务则明确提示。
+        var effective = shareURL
+        if effective == nil, port != 0 {
+            effective = "http://\(Self.lanIPv4() ?? "127.0.0.1"):\(port)/s/\(Self.tokenCache)/"
+        }
+        guard let base = effective else {
+            DispatchQueue.main.async {
+                Toast.show("直传服务未就绪，请稍后重试", icon: "exclamationmark.triangle", isWarning: true)
+                completion("")
+            }
+            return
+        }
         queue.async {
             let token = UUID().uuidString
             self.selection = (token, Set(ids))
@@ -203,12 +216,22 @@ public final class LanTransferServer: ObservableObject {
     // MARK: - token
 
     /// token 缓存：监听回调里在后台队列读，避免每次读 defaults
+    /// 2026-11-26 修复（二轮 low）：`static var` 原来无同步——主线程 rotateToken →
+    /// regenerateToken 写，与 transfer 队列的 hasValidToken / selectionURL 读并发，
+    /// String 引用读写存在数据竞态。统一用 tokenLock 保护（读也走锁）。
+    private static let tokenLock = NSLock()
     private static var _tokenCache: String?
     static var tokenCache: String {
-        if let cached = _tokenCache { return cached }
+        tokenLock.lock()
+        if let cached = _tokenCache { tokenLock.unlock(); return cached }
+        tokenLock.unlock()
+        // loadToken 可能顺手生成新 token（regenerateToken 内部自行加锁写入）
         let value = loadToken()
-        _tokenCache = value
-        return value
+        tokenLock.lock()
+        if _tokenCache == nil { _tokenCache = value }
+        let result = _tokenCache ?? value
+        tokenLock.unlock()
+        return result
     }
     // v125：删掉 invalidateTokenCache（死代码）——regenerateToken 直接写 _tokenCache，
     // 全工程无外部写入方（Grep 验证 lanToken 仅 loadToken 读 / regenerateToken 写），
@@ -229,7 +252,9 @@ public final class LanTransferServer: ObservableObject {
         let alphabet = Array("abcdefghijkmnpqrstuvwxyz23456789")
         let value = String((0..<8).map { _ in alphabet.randomElement()! })
         UserDefaults.standard.set(value, forKey: TransferDockPref.lanToken)
+        tokenLock.lock()
         _tokenCache = value
+        tokenLock.unlock()
         return value
     }
 
@@ -281,6 +306,10 @@ public final class LanTransferServer: ObservableObject {
         /// 下载流式收尾防重（done 只挡超时/新请求，流式路径另用）
         var done2 = false
         var transferFailed = false
+        /// 2026-11-26 修复（二轮 low）：上传响应已排到主线程、还没发出去。
+        /// 此窗口内客户端半关闭（isComplete）或连接报错都不能按「传输失败」清场并
+        /// cancel 连接——否则上传其实成功了，客户端却拿不到响应。
+        var awaitingResponse = false
         var isFileTransfer: Bool {
             let route = path.split(separator: "?", maxSplits: 1).first ?? ""
             return (method == "POST" && route.hasSuffix("/api/upload"))
@@ -308,6 +337,13 @@ public final class LanTransferServer: ObservableObject {
     private func receive(_ context: ConnectionContext) {
         context.connection.receive(minimumIncompleteLength: 1, maximumLength: 1 << 16) { [weak self] data, _, isComplete, error in
             guard let self, !context.done else { return }
+            // 2026-11-26 修复（二轮 low）：上传的响应在主线程回调里才发（handleUpload），
+            // 这期间客户端发完 body 半关闭会走到下面的 isComplete 分支，把连接 cancel 掉，
+            // 响应就再也发不出去。等响应期间只停止读，不做失败清场。
+            if context.awaitingResponse {
+                if let data, !data.isEmpty { self.consume(context, data) }
+                return
+            }
             if error != nil {
                 context.done = true
                 if context.isFileTransfer { HapticService.shared.perform(.transferFailed) }
@@ -563,6 +599,9 @@ public final class LanTransferServer: ObservableObject {
             return
         }
 
+        // 2026-11-26 修复（二轮 low）：从这里到 respond 之间响应要跨一次主线程，
+        // 期间收包回调不能再把连接当失败 cancel（见 receive 与 ConnectionContext）。
+        context.awaitingResponse = true
         DispatchQueue.main.async {
             LocalTransferStore.shared.addUploads(staged, source: "手机") { count in
                 self.receivedCount += count

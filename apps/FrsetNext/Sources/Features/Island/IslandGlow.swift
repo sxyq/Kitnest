@@ -40,9 +40,26 @@ struct IslandGlowTarget: ViewModifier {
     }
 }
 
+/// 2026-11-26 修复：指针状态原来用 @Stored（底层 @StateObject）承载，每次指针移动写值
+/// 都会经 objectWillChange 作废整个 IslandGlowScene.body，连带重跑 overlayPreferenceValue
+/// 闭包（逐卡 geometry[anchor] 解析 + RoundedRectangle.path(in:)），等于每次移动 =
+/// O(卡片数) 重算，注释所说的「只更新一个绘制层」并未真正隔离。
+/// 改由普通引用类型承载：只有内层 IslandGlow（@ObservedObject）随指针刷新 Canvas，
+/// 外层几何/路径映射不再重算。全 App 只有一个流光场景（IslandSurface），故用共享实例，
+/// 跨视图重建也保持稳定引用。
+private struct IslandGlowPointerState: Equatable {
+    var location: CGPoint = .zero
+    var active: Bool = false
+}
+
+private final class IslandGlowPointer: ObservableObject {
+    static let shared = IslandGlowPointer()
+    @Published var state = IslandGlowPointerState()
+}
+
 private struct IslandGlowScene: ViewModifier {
     let enabled: Bool
-    @Stored private var pointer = StoredBox((location: CGPoint.zero, active: false))
+    private let pointer = IslandGlowPointer.shared
     func body(content: Content) -> some View {
         content
             .environment(\.islandGlowEnabled, enabled)
@@ -62,32 +79,32 @@ private struct IslandGlowScene: ViewModifier {
                 switch phase {
                 case .active(let point):
                     if enabled {
-                        if !pointer.value.active { Log.info("Island", "流光指针进入") }
-                        pointer.value = (point, true)
+                        if !pointer.state.active { Log.info("Island", "流光指针进入") }
+                        pointer.state = IslandGlowPointerState(location: point, active: true)
                     }
-                case .ended: pointer.value.active = false
+                case .ended: pointer.state.active = false
                 }
             }
-            .onChange(of: enabled) { if !$0 { pointer.value.active = false } }
+            .onChange(of: enabled) { if !$0 { pointer.state.active = false } }
             .onReceive(NotificationCenter.default.publisher(for: NSScrollView.willStartLiveScrollNotification)
                 .merge(with: NotificationCenter.default.publisher(for: .islandGlowShouldHide))
                 .merge(with: NotificationCenter.default.publisher(for: NSWindow.didResignKeyNotification),
                        NotificationCenter.default.publisher(for: NSApplication.didResignActiveNotification))) { _ in
-                pointer.value.active = false
+                pointer.state.active = false
             }
-            .onDisappear { pointer.value.active = false }
+            .onDisappear { pointer.state.active = false }
     }
 }
 
 /// 复用博客黑色模式：180pt 暖白表面柔光与 1pt 内侧边缘光。
 private struct IslandGlow: View {
-    @ObservedObject var pointer: StoredBox<(location: CGPoint, active: Bool)>
+    @ObservedObject var pointer: IslandGlowPointer
     let cards: [(frame: CGRect, clip: CGRect, path: Path)]
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        let point = pointer.value.location
+        let point = pointer.state.location
         // 指针流光同样属于直接操作：减弱动态时只把淡入压成瞬时，不整段关掉。
-        let visible = pointer.value.active
+        let visible = pointer.state.active
         let color = Color(red: 1, green: 244.0 / 255, blue: 227.0 / 255)
         let radius: CGFloat = 180
         Canvas { context, _ in

@@ -322,7 +322,17 @@ enum StatsProcQuitter {
             : "未保存的内容可能丢失。"
         alert.addButton(withTitle: "退出")
         alert.addButton(withTitle: "取消")
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        quit(item: item)
+        // 2026-11-26 修复：原先在 SwiftUI 按钮动作里 runModal，会起一个模态 runloop——
+        // tick 驱动的列表仍在重绘、普通 Timer(.common) 也照跑，存在重入/状态竞争面。
+        // 改为窗口级 sheet（与存储窗 confirmTrash 口径一致）；没有可挂的窗口时才退回同步确认。
+        if let window = NSApp.keyWindow ?? NSApp.mainWindow {
+            alert.beginSheetModal(for: window) { response in
+                guard response == .alertFirstButtonReturn else { return }
+                quit(item: item)
+            }
+        } else {
+            guard alert.runModal() == .alertFirstButtonReturn else { return }
+            quit(item: item)
+        }
     }
 }

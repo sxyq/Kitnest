@@ -41,9 +41,11 @@ public enum ProcessMemoryInspector {
         }
 
         let ownPath = Bundle.main.bundleURL.standardizedFileURL.path
+        // 2026-11-26 修复（F-misc-1#10）：原来是先 sorted+prefix 再 compactMap 过滤
+        // （剔除自身、非 .app），被过滤掉的空位不会由第 limit+1 名补上——调用方拿到的是
+        // 「最多 limit 条」而非「前 limit 个有效 App」，MemoryOptimizer 拿它做前后对比
+        // 会少报释放。改为先过滤再截断。
         return groups
-            .sorted { $0.value.footprint > $1.value.footprint }
-            .prefix(limit)
             .compactMap { key, value -> AppMemoryUsage? in
                 guard key != ownPath else { return nil }
                 let location = URL(fileURLWithPath: key)
@@ -60,6 +62,9 @@ public enum ProcessMemoryInspector {
                     processCount: value.count
                 )
             }
+            .sorted { $0.footprint > $1.footprint }
+            .prefix(limit)
+            .map { $0 }
     }
 
     static func resourceUsage(of pid: pid_t) -> rusage_info_v4? {

@@ -152,6 +152,43 @@ final class JSONDocument: ObservableObject {
     /// 解析失败的行号（1 起，最多记 50 条，避免坏文件撑爆 UI）
     let errorLines: [Int]
 
+    /// 2026-11-26 修复：text 入口改为异步解析，解析完成前需要一个非空占位文档。
+    /// 这里不走 JSONSerialization，直接构造空文档，避免主线程多做一次解析，也不引入强解包。
+    static let placeholder: JSONDocument = JSONDocument()
+
+    private init() {
+        isJSONL = false
+        sourceText = "null"
+        sourceLineCount = 1
+        validLineCount = 1
+        errorLineCount = 0
+        errorLines = []
+        root = JSONNodeModel(key: nil, raw: NSNull(), path: "$", depth: 0)
+        isTruncated = false
+    }
+
+    /// 2026-11-26 修复：「原始」视图的 pretty-print 按文档缓存。
+    /// 原实现每次 body 求值都重新 JSONSerialization 解析 + 序列化（数 MB JSON 数十 ms）。
+    private var cachedPrettyText: String?
+
+    func prettyText() -> String {
+        if let cachedPrettyText { return cachedPrettyText }
+        let result: String
+        if isJSONL {
+            result = sourceText
+        } else if let data = sourceText.data(using: .utf8),
+                  let object = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]),
+                  let out = try? JSONSerialization.data(withJSONObject: object,
+                                                        options: [.prettyPrinted, .sortedKeys]),
+                  let text = String(data: out, encoding: .utf8) {
+            result = text
+        } else {
+            result = sourceText
+        }
+        cachedPrettyText = result
+        return result
+    }
+
     init?(text: String) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
@@ -230,18 +267,33 @@ struct JSONInspectorView: View {
     @StateObject private var tableState = JSONTableState()
     @Stored private var matchCount: Int = 0
     private let compact: Bool
+    /// 2026-11-26 修复：text 入口不再在 View 初始化里同步解析整份 JSON。
+    /// PreviewJSONTextView 每次 body 求值都会构造本视图，原实现会在主线程重跑
+    /// JSONSerialization + 全树 walk 计数（最多 2 万节点 / 20 万字符），大 JSON 悬停掉帧。
+    /// 现在只记录原文，由 JSONLazyInspector 在后台任务里解析后再挂载检视器。
+    private let lazyText: String?
+    private let initialMode: JSONViewMode
+    private let initialQuery: String
 
     init(text: String, compact: Bool = false, initialMode: JSONViewMode = .tree,
          initialQuery: String = "") {
-        // 解析失败时给一个空的根节点（调用方已判过 kind，这里是兜底）
-        self.init(document: JSONDocument(text: text) ?? JSONDocument(text: "null")!,
-                  compact: compact, initialMode: initialMode, initialQuery: initialQuery)
+        self.compact = compact
+        self.lazyText = text
+        self.initialMode = initialMode
+        self.initialQuery = initialQuery
+        _searchText = Stored(wrappedValue: initialQuery)
+        _mode = Stored(wrappedValue: initialMode)
+        // 真实文档由后台解析产出；这里先挂占位文档保证非空引用。
+        _document = ObservedObject(wrappedValue: JSONDocument.placeholder)
     }
 
     /// 已有解析结果时直接复用（独立窗自己解析过一次，内部视图不再重复解析大文件）
     init(document: JSONDocument, compact: Bool = false, initialMode: JSONViewMode = .tree,
          initialQuery: String = "") {
         self.compact = compact
+        self.lazyText = nil
+        self.initialMode = initialMode
+        self.initialQuery = initialQuery
         _searchText = Stored(wrappedValue: initialQuery)
         // 首层自动展开：折叠的根节点只有一行，看不出结构（原版 JSON 预览打开即可见第一层）
         if document.root.isExpandable, document.root.children.isEmpty { document.root.toggle() }
@@ -273,6 +325,16 @@ struct JSONInspectorView: View {
     }
 
     var body: some View {
+        if let lazyText {
+            // text 入口：后台解析完成后再挂载真正的检视器（见 JSONLazyInspector）
+            JSONLazyInspector(text: lazyText, compact: compact,
+                              initialMode: initialMode, initialQuery: initialQuery)
+        } else {
+            coreBody
+        }
+    }
+
+    private var coreBody: some View {
         // 外层 GeometryReader 把内容宽度钉死成窗口宽度：
         // 表格/工具条的固有宽度一旦超过窗口，SwiftUI 会整体居中溢出，
         // 左右两侧被裁（实测「树形」首个分段和行号列都被切掉）。
@@ -475,13 +537,27 @@ private struct JSONCardsView: View {
         let list = document.root.kind == .array ? document.root.children : [document.root]
         let q = filter.trimmingCharacters(in: .whitespaces).lowercased()
         guard !q.isEmpty else { return Array(list.prefix(500)) }
-        return Array(list.filter { node in
+        // 2026-11-26 修复：原搜索分支对全部根子节点逐个 ensureChildren + contains，
+        // 无遍历预算；2 万节点上限下输入搜索会明显顿。这里加扫描预算并提前收集。
+        var result: [JSONNodeModel] = []
+        result.reserveCapacity(500)
+        var budget = 4000
+        for node in list {
+            if budget <= 0 || result.count >= 500 { break }
+            budget -= 1
             node.ensureChildren()
-            if let k = node.key, k.lowercased().contains(q) { return true }
-            return node.children.contains { child in
-                (child.key ?? "").lowercased().contains(q) || child.preview.lowercased().contains(q)
+            budget -= node.children.count
+            if let k = node.key, k.lowercased().contains(q) {
+                result.append(node)
+                continue
             }
-        }.prefix(500))
+            if node.children.contains(where: {
+                ($0.key ?? "").lowercased().contains(q) || $0.preview.lowercased().contains(q)
+            }) {
+                result.append(node)
+            }
+        }
+        return result
     }
 
     var body: some View {
@@ -534,14 +610,8 @@ private struct JSONRawView: View {
     let fontSize: CGFloat
 
     private var pretty: String {
-        guard !document.isJSONL else { return document.sourceText }
-        if let data = document.sourceText.data(using: .utf8),
-           let object = try? JSONSerialization.jsonObject(with: data, options: [.fragmentsAllowed]),
-           let out = try? JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys]),
-           let s = String(data: out, encoding: .utf8) {
-            return s
-        }
-        return document.sourceText
+        // 2026-11-26 修复：按文档缓存解析/序列化结果（原实现每次 body 求值重跑两遍 JSONSerialization）
+        document.prettyText()
     }
 
     var body: some View {
@@ -1205,5 +1275,50 @@ private struct JSONCellDetailView: View {
             }
         }
         .frame(minWidth: 420, minHeight: 260)
+    }
+}
+
+// MARK: - text 入口的异步解析壳（2026-11-26 修复）
+
+/// 父视图每次 body 重算都会重新构造 `JSONInspectorView(text:)`。原实现把整份
+/// JSONSerialization + 全树 walk 放在 init 里，等于主线程反复解析大 JSON。
+/// 这里把解析挪到后台，完成后才挂载真正的检视器；解析失败退回纯文本，不留白屏。
+private struct JSONLazyInspector: View {
+    let text: String
+    let compact: Bool
+    let initialMode: JSONInspectorView.JSONViewMode
+    let initialQuery: String
+    @Stored private var document: JSONDocument? = nil
+    @Stored private var failed = false
+
+    var body: some View {
+        Group {
+            if let document {
+                JSONInspectorView(document: document, compact: compact,
+                                  initialMode: initialMode, initialQuery: initialQuery)
+            } else if failed {
+                ScrollView([.vertical, .horizontal], showsIndicators: true) {
+                    Text(text)
+                        .font(.system(size: (compact ? 11 : 12.5), design: .monospaced))
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(10)
+                }
+            } else {
+                ProgressView().controlSize(.small)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+        }
+        // 按文本 id 触发：text 变化才重新解析，同一文本的重复 body 求值直接复用结果。
+        .task(id: text) {
+            // text 变了：先清掉旧文档，避免解析期间显示上一条内容
+            document = nil
+            failed = false
+            let parsed = await Task.detached(priority: .userInitiated) {
+                JSONDocument(text: text)
+            }.value
+            document = parsed
+            failed = (parsed == nil)
+        }
     }
 }

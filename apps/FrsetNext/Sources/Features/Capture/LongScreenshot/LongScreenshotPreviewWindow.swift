@@ -378,7 +378,9 @@ final class LongScreenshotPreviewController: NSObject, NSWindowDelegate {
 /// - 面板 `ignoresMouseEvents`，不挡滚动、不抢焦点；
 /// - 放在选区外侧（右 → 左 → 上 → 下），**永远不会**压在采集区里；
 /// - `sharingType = .none`：连系统捕获都取不到它（SCK 的 app 级排除对覆盖窗不生效）；
-/// - 只显示画布**顶部**一段（按宽度缩放后最多裁到 420pt 高），长图不会缩成细条；
+/// - 只显示画布**底部**一段（按宽度缩放后最多裁到 420pt 高），长图不会缩成细条；
+///   2026-11-26 改为裁底部：顶部固定会让卡片第一帧后就不再变化，看不到刚追加的内容。
+///   注意上游 `LongScreenshotStitcher.preview` 目前只给画布前 500 行，见修复报告。
 ///   选区太宽导致左右都没位置时，缩略图高度跟着可用空间缩，卡片不消失。
 final class LongScreenshotLivePreviewPanel: NSPanel {
 
@@ -475,7 +477,11 @@ final class LongScreenshotLivePreviewPanel: NSPanel {
         let scale = contentW / CGFloat(max(1, image.width))
         let limit = min(500, maxDisplayH)
         let visibleSrcH = max(1, min(CGFloat(image.height), (limit / max(scale, 0.0001)).rounded()))
-        let cropRect = CGRect(x: 0, y: 0, width: CGFloat(image.width), height: visibleSrcH)
+        // 2026-11-26 修复（二轮 low）：原来固定从 y=0（画布**顶部**）裁，
+        // 第一帧之后卡片内容和尺寸都不再变化，用户看不到刚追加的那一段，
+        // 与「边滚边确认截到哪儿」的意图相反。改成裁条带**底部**（最近追加的内容）。
+        let cropY = max(0, CGFloat(image.height) - visibleSrcH)
+        let cropRect = CGRect(x: 0, y: cropY, width: CGFloat(image.width), height: visibleSrcH)
         let cropped = image.cropping(to: cropRect) ?? image
         imageView.image = NSImage(cgImage: cropped,
                                   size: NSSize(width: cropRect.width, height: cropRect.height))

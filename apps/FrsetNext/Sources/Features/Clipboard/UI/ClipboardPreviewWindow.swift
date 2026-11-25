@@ -160,7 +160,15 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
         let wasVisible = window?.isVisible == true
         let wasClosing = isClosing
         isClosing = false
-        if wasClosing, let window { WindowReveal.reset(window) }
+        if wasClosing, let window {
+            WindowReveal.reset(window)
+            // 2026-11-26 修复（二轮复核 medium）：收起动画会把 window.alphaValue 动到 0，
+            // 而重入时只复位了 isClosing。若不复位 alpha，反向动画跑完后窗口透明，
+            // 但协调器认为 state=presented（finish 因 isClosing=false 不再 close），
+            // 于是留下「不可见却算打开」的窗口。这里先把 alpha 拉回不透明，
+            // 下面的抽屉展开分支会再平滑地把它带到终态。
+            window.alphaValue = 1
+        }
         let finishedLoading = sameItem && model.fileText == .loading && newModel.fileText != .loading
         let needsContent = !sameItem || self.showsHint != showsHint || finishedLoading
         self.showsHint = showsHint
@@ -185,6 +193,14 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
             w.orderFront(nil)
             playDrawerReveal(on: w, duration: duration)
         } else {
+            if wasClosing {
+                // 2026-11-26 修复：窗口仍在屏上但正被收起时再次呈现——用零时长动画
+                // 顶掉进行中的淡出，否则它跑完会把 alpha 停在 0。
+                NSAnimationContext.runAnimationGroup { context in
+                    context.duration = 0
+                    w.animator().alphaValue = 1
+                }
+            }
             // 轻量呈现：不激活 app、不抢面板焦点
             w.orderFront(nil)
         }
@@ -242,8 +258,13 @@ public final class ClipboardPreviewWindowController: NSWindowController, NSWindo
         let duration = reduceMotion ? 0.1 : Personalization.shared.openAnimation.duration * 0.7
         let closingSession = model.sessionID
         let finish: () -> Void = { [weak self, weak w] in
-            guard let self, self.isClosing, self.model.sessionID == closingSession,
-                  let w, w.isVisible else { return }
+            guard let self, let w, w.isVisible else { return }
+            guard self.isClosing, self.model.sessionID == closingSession else {
+                // 2026-11-26 修复：收起动画期间被 show() 重入（isClosing 已复位）或换了条目
+                // → 撤销淡出，不能让窗口停在 alpha=0 却仍被协调器当作 presented。
+                w.alphaValue = 1
+                return
+            }
             w.close()
         }
         // v282：收起与展开同一套图层动画（推回贴面板的那条边），
@@ -347,6 +368,10 @@ struct ClipboardPreviewWindowView: View {
     @Stored private var model: PreviewPopoverContentModel
     @Stored private var isEditing = false
     @Stored private var draft = ""
+    /// 编辑态字符数缓存（2026-11-26 修复，low）：原来 body 里直接 `draft.count`，
+    /// 每次击键都对可能 MB 级的全文做一遍字素分割（O(n)）。改为内容变化时用
+    /// UTF-16 长度算一次并缓存，body 求值只读整数，长文编辑不再每键可感。
+    @Stored private var draftCharCount = 0
     /// 📌 固定态（v71 起两模式共用：开 = 自动关闭全禁）
     @Stored private var pinned = MainPanelPreviewPopoverCoordinator.shared.previewPinned
     /// 关闭钮悬停态（红底白叉反馈）
@@ -466,7 +491,9 @@ struct ClipboardPreviewWindowView: View {
                 .onChange(of: isEditing) { editing in
                     onEditingChanged?(editing)
                     if editing {
-                        draft = PreviewPopoverDataBridge.shared.fullText(for: item)
+                        let full = PreviewPopoverDataBridge.shared.fullText(for: item)
+                        draft = full
+                        draftCharCount = (full as NSString).length   // 2026-11-26：同步缓存字符数
                         model = Self.makeModel(item: item, editedText: nil)
                     }
                 }
@@ -529,9 +556,13 @@ struct ClipboardPreviewWindowView: View {
                 .font(.system(size: 13, design: .monospaced))
                 .scrollContentBackground(.hidden)
                 .padding(8)
+                // 2026-11-26 修复：字符数只在正文变化时算一次，body 不再每次求值做 O(n) 字素计数
+                .onChange(of: draft) { newValue in
+                    draftCharCount = (newValue as NSString).length
+                }
             Divider()
             HStack(spacing: 10) {
-                Text("\(draft.count) 字符")
+                Text("\(draftCharCount) 字符")
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                 Spacer()

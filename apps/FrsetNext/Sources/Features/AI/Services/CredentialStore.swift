@@ -44,6 +44,7 @@ public final class CredentialStore: LLMCredentialStoring {
     private let lock = NSLock()
     private let fileURL: URL
     private let keyFileURL: URL
+    /// nil = 尚未解密（懒加载）；2026-11-26 修复：单例首次触碰不再同步读盘 + PBKDF2
     private var cache: [String: String]?
     public private(set) var lastWriteError: String?
 
@@ -51,18 +52,21 @@ public final class CredentialStore: LLMCredentialStoring {
         let dir = AppDirectories.base
         self.fileURL = fileURL ?? dir.appendingPathComponent("ai-credentials.bin")
         self.keyFileURL = keyFileURL ?? dir.appendingPathComponent(".ai-keystore")
-        load()
+        // 2026-11-26 修复（二轮 low）：构造时原本 load() → 读盘 + PBKDF2(10 万轮) + AES，
+        // 而 shared 单例首次触碰正好发生在启动主线程（迁移器读凭证）。改为首次读取时懒解密。
     }
 
     // MARK: - LLMCredentialStoring
 
     public func credential(for provider: LLMProviderKind) -> String? {
         lock.lock(); defer { lock.unlock() }
+        ensureLoadedLocked()
         return cache?[provider.rawValue]
     }
 
     public func setCredential(_ value: String?, for provider: LLMProviderKind) {
         lock.lock(); defer { lock.unlock() }
+        ensureLoadedLocked()
         var dict = cache ?? [:]
         let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         if trimmed.isEmpty { dict.removeValue(forKey: provider.rawValue) }
@@ -81,9 +85,13 @@ public final class CredentialStore: LLMCredentialStoring {
 
     // MARK: - 持久化
 
-    private func load() {
-        lock.lock()
-        defer { lock.unlock() }
+    /// 懒加载（2026-11-26 修复）：调用方必须已持有 lock；cache 为 nil 表示还没解密过
+    private func ensureLoadedLocked() {
+        guard cache == nil else { return }
+        loadLocked()
+    }
+
+    private func loadLocked() {
         guard FileManager.default.fileExists(atPath: fileURL.path) else {
             cache = [:]
             return

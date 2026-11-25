@@ -666,6 +666,10 @@ final class DiskIndexStore: ObservableObject {
             invalidateCandidates()
             largestDirectoryCache = nil
             indexRevision += 1
+            stateLock.lock()
+            mirroredSnapshot = snapshot
+            mirroredRevision = indexRevision
+            stateLock.unlock()
         }
     }
     @Published private(set) var indexRevision = 0
@@ -688,6 +692,21 @@ final class DiskIndexStore: ObservableObject {
     private let queue = DispatchQueue(label: "com.frsetnext.diskindex", qos: .utility)
     private var scanner: DiskIndexScanner?
     private var loaded = false
+
+    /// 2026-11-26 修复（F-misc-1#3）：后台队列需要读 `snapshot` / `indexRevision`，
+    /// 旧实现用 `DispatchQueue.main.sync` 去主线程取——主线程一被占（正是存储窗事故的
+    /// 场景），整条磁盘串行队列就挂死，用户看到的是「点删除没反应」。改成主线程写、
+    /// 任意线程加锁读的镜像（版本号一起取），后台零等待；版本不一致时按旧快照算出的
+    /// 结果不覆盖 UI 上的新状态。
+    private let stateLock = NSLock()
+    private var mirroredSnapshot: DiskIndexSnapshot?
+    private var mirroredRevision = 0
+
+    private func currentState() -> (snapshot: DiskIndexSnapshot?, revision: Int) {
+        stateLock.lock()
+        defer { stateLock.unlock() }
+        return (mirroredSnapshot, mirroredRevision)
+    }
 
     private var cacheDir: URL { AppDirectories.sub("disk-index") }
     private func cacheURL(for scope: DiskScanScope) -> URL {
@@ -928,10 +947,13 @@ final class DiskIndexStore: ObservableObject {
     /// 返回成功移入废纸篓的路径数；同时更新内存树与缓存。
     func trash(paths: [String], completion: @escaping (Int, Int64) -> Void) {
         let unique = Self.independentPaths(paths)
-        let root = snapshot?.root
         let caches = DiskScanScope.allCases.map { ($0, cacheURL(for: $0)) }
         queue.async { [weak self] in
             guard let self else { return }
+            // 2026-11-26 修复（F-misc-1#3）：状态快照改成加锁读镜像（见 currentState），
+            // 不再用 DispatchQueue.main.sync 去等主线程——主线程一卡就整条队列挂死。
+            let state = self.currentState()
+            let root = state.snapshot?.root
             var moved = Set<String>()
             var errors: [String] = []
             var bytes: Int64 = 0
@@ -950,7 +972,6 @@ final class DiskIndexStore: ObservableObject {
                     errors.append("\(p)：\(error.localizedDescription)")
                 }
             }
-            let state = DispatchQueue.main.sync { (snapshot: self.snapshot, revision: self.indexRevision) }
             let update = state.snapshot.map { Self.removing(moved, from: $0) }
             if !moved.isEmpty {
                 for (scope, url) in caches {
@@ -959,6 +980,15 @@ final class DiskIndexStore: ObservableObject {
                         if let update, state.snapshot?.scope == scope.rawValue {
                             mutation = update
                         } else {
+                            // 2026-11-26（F-misc-1#3）：先做路径剪枝——被移走的路径不在
+                            // 该 scope 根下时这份缓存必然不变，不必 decode 几十 MB plist。
+                            // 原来对每个 scope 都无条件读一遍再重写，全压在磁盘串行队列上。
+                            let scopeRoot = scope.rootPath
+                            let scopePrefix = scopeRoot == "/" ? "/" : scopeRoot + "/"
+                            guard moved.contains(where: { path in
+                                path == "/" || path == scopeRoot || path.hasPrefix(scopePrefix)
+                                    || scopePrefix.hasPrefix(path + "/")
+                            }) else { continue }
                             guard FileManager.default.fileExists(atPath: url.path) else { continue }
                             let data = try Data(contentsOf: url, options: .mappedIfSafe)
                             guard let snapshot = Self.decodeSnapshot(data, recomputeCategories: false) else { continue }

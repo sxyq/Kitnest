@@ -188,6 +188,12 @@ enum AdministratorShell {
         let isCancelled: Bool
     }
 
+    /// 同步执行一次管理员授权脚本。
+    ///
+    /// 2026-11-26 修复（F-misc-1#2）：`NSAppleScript` 属于主线程 API（授权弹窗本身是模态的），
+    /// 但签名里看不出这条约束，调用方很容易把它丢到后台线程（install 早期就这么干过，
+    /// 表现为静默失败、只剩 -128）。标 @MainActor，让编译器强制「切回主线程再调用」。
+    @MainActor
     static func run(_ command: String) -> Result<String, Failure> {
         let source = "do shell script \"\(appleScriptEscape(command))\" with administrator privileges"
         var error: NSDictionary?

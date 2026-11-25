@@ -64,120 +64,120 @@ public enum CaptureActionChain {
 
     // MARK: 工具注册表
 
-    public static var tools: [CaptureActionTool] {
-        [
-            CaptureActionTool(id: "copy", title: "复制", systemImage: "doc.on.doc", key: "c") { image, _ in
-                guard ScreenshotManager.shared.copyToPasteboard(image) else { return }
-                Toast.show("截图已复制", icon: "checkmark.circle.fill")
-            },
-            CaptureActionTool(id: "recentCopy", title: "近期复制", systemImage: "list.bullet.clipboard") { _, _ in
-                Task { @MainActor in ScreenshotManager.shared.openRecentClipboard() }
-            },
-            // v218（对齐 1capture / 用户：「复制、复制并 OCR 这种同一类功能」）：
-            // 复制的同时把图里的文字识别出来，省掉「先复制再单独点识字」两步。
-            // v224（用户：「不是直接复制到剪贴板，而是打开之前那个单独窗口，
-            // 信息让用户手动选择」）：这两个动作改为「识别 → 开结果窗」，
-            // 不自动写剪贴板；窗口里可框选、可点复制、可切翻译页签。
-            CaptureActionTool(id: "copyOCR", title: "复制并识别", systemImage: "doc.text.viewfinder") { image, _ in
-                ScreenshotManager.shared.recognizeShowing(image)
-            },
-            CaptureActionTool(id: "copyTranslate", title: "复制并翻译", systemImage: "character.book.closed") { image, _ in
-                ScreenshotManager.shared.recognizeAndTranslate(image)
-            },
-            // v235：动作条之前的落盘只是暂存（App 私有目录），点「保存」才复制到下载目录
-            CaptureActionTool(id: "save", title: "保存", systemImage: "square.and.arrow.down", key: "s") { _, url in
-                ScreenshotManager.shared.commitToSaveDirectory(staged: url)
-            },
-            // v233：按 1Capture 的叫法统一成「钉住」（原来叫「贴图」）
-            CaptureActionTool(id: "pin", title: "钉住", systemImage: "pin.fill", key: "p") { image, _ in
-                PinnedScreenshotManager.shared.show(image: image)
-                Toast.show("已钉在屏幕上", icon: "pin.fill")
-            },
-            // v263（用户：「钉住就变成一个图标，然后选择钉住或者是这种多形态的，
-            // 一个形态一个选项」）：四个外观形态各占一个选项，选中即按该形态钉住。
-            CaptureActionTool(id: "pinClassic", title: "经典", systemImage: "rectangle.portrait") { image, _ in
-                Self.pin(image, preset: "classic")
-            },
-            CaptureActionTool(id: "pinBorderless", title: "无边框", systemImage: "rectangle.dashed") { image, _ in
-                Self.pin(image, preset: "borderless")
-            },
-            CaptureActionTool(id: "pinCard", title: "卡片", systemImage: "rectangle.on.rectangle") { image, _ in
-                Self.pin(image, preset: "card")
-            },
-            CaptureActionTool(id: "pinAccent", title: "强调", systemImage: "rectangle.inset.filled") { image, _ in
-                Self.pin(image, preset: "accent")
-            },
-            // 图帘（原悬挂架）：把这张直接挂到屏幕顶边，不落到截图文件夹
-            CaptureActionTool(id: "curtain", title: "挂到图帘", systemImage: "rectangle.stack.badge.plus", key: "g") { _, url in
-                // 控制器是 @MainActor：动作条 handler 是同步非隔离闭包，这里显式切回主线程
-                Task { @MainActor in
-                    if ImageCurtainController.shared.attach(url: url, manual: true) {
-                        Toast.show("已挂到图帘", icon: "rectangle.stack")
-                    } else {
-                        Toast.show("图帘未开启：设置 → 截图与钉图 → 图帘",
-                                   icon: "exclamationmark.triangle", isWarning: true)
-                    }
+    /// 工具注册表（2026-11-26 修复 · 二轮 low）：原来是计算属性，每次访问都重建 20 项
+    /// 数组 + 20 个闭包，而工具条 body 的 primaryTool/tool(id:) 派生查询每帧多次触发
+    /// 全量重建 + 线性查找。数组实质不可变，改成 static let 只建一次。
+    public static let tools: [CaptureActionTool] = [
+        CaptureActionTool(id: "copy", title: "复制", systemImage: "doc.on.doc", key: "c") { image, _ in
+            guard ScreenshotManager.shared.copyToPasteboard(image) else { return }
+            Toast.show("截图已复制", icon: "checkmark.circle.fill")
+        },
+        CaptureActionTool(id: "recentCopy", title: "近期复制", systemImage: "list.bullet.clipboard") { _, _ in
+            Task { @MainActor in ScreenshotManager.shared.openRecentClipboard() }
+        },
+        // v218（对齐 1capture / 用户：「复制、复制并 OCR 这种同一类功能」）：
+        // 复制的同时把图里的文字识别出来，省掉「先复制再单独点识字」两步。
+        // v224（用户：「不是直接复制到剪贴板，而是打开之前那个单独窗口，
+        // 信息让用户手动选择」）：这两个动作改为「识别 → 开结果窗」，
+        // 不自动写剪贴板；窗口里可框选、可点复制、可切翻译页签。
+        CaptureActionTool(id: "copyOCR", title: "复制并识别", systemImage: "doc.text.viewfinder") { image, _ in
+            ScreenshotManager.shared.recognizeShowing(image)
+        },
+        CaptureActionTool(id: "copyTranslate", title: "复制并翻译", systemImage: "character.book.closed") { image, _ in
+            ScreenshotManager.shared.recognizeAndTranslate(image)
+        },
+        // v235：动作条之前的落盘只是暂存（App 私有目录），点「保存」才复制到下载目录
+        CaptureActionTool(id: "save", title: "保存", systemImage: "square.and.arrow.down", key: "s") { _, url in
+            ScreenshotManager.shared.commitToSaveDirectory(staged: url)
+        },
+        // v233：按 1Capture 的叫法统一成「钉住」（原来叫「贴图」）
+        CaptureActionTool(id: "pin", title: "钉住", systemImage: "pin.fill", key: "p") { image, _ in
+            PinnedScreenshotManager.shared.show(image: image)
+            Toast.show("已钉在屏幕上", icon: "pin.fill")
+        },
+        // v263（用户：「钉住就变成一个图标，然后选择钉住或者是这种多形态的，
+        // 一个形态一个选项」）：四个外观形态各占一个选项，选中即按该形态钉住。
+        CaptureActionTool(id: "pinClassic", title: "经典", systemImage: "rectangle.portrait") { image, _ in
+            Self.pin(image, preset: "classic")
+        },
+        CaptureActionTool(id: "pinBorderless", title: "无边框", systemImage: "rectangle.dashed") { image, _ in
+            Self.pin(image, preset: "borderless")
+        },
+        CaptureActionTool(id: "pinCard", title: "卡片", systemImage: "rectangle.on.rectangle") { image, _ in
+            Self.pin(image, preset: "card")
+        },
+        CaptureActionTool(id: "pinAccent", title: "强调", systemImage: "rectangle.inset.filled") { image, _ in
+            Self.pin(image, preset: "accent")
+        },
+        // 图帘（原悬挂架）：把这张直接挂到屏幕顶边，不落到截图文件夹
+        CaptureActionTool(id: "curtain", title: "挂到图帘", systemImage: "rectangle.stack.badge.plus", key: "g") { _, url in
+            // 控制器是 @MainActor：动作条 handler 是同步非隔离闭包，这里显式切回主线程
+            Task { @MainActor in
+                if ImageCurtainController.shared.attach(url: url, manual: true) {
+                    Toast.show("已挂到图帘", icon: "rectangle.stack")
+                } else {
+                    Toast.show("图帘未开启：设置 → 截图与钉图 → 图帘",
+                               icon: "exclamationmark.triangle", isWarning: true)
                 }
-            },
-            CaptureActionTool(id: "ocr", title: "识字", systemImage: "text.viewfinder", key: "o") { image, _ in
-                ScreenshotManager.shared.recognize(image)
-            },
-            CaptureActionTool(id: "qrCode", title: "识码", systemImage: "qrcode.viewfinder", key: "r") { image, _ in
-                QRCodeRecognizer.run(image: image)
-            },
-            CaptureActionTool(id: "ocrTranslate", title: "翻译", systemImage: "character.book.closed", key: "f") { image, _ in
-                ScreenshotManager.shared.recognizeAndTranslate(image)
-            },
-            CaptureActionTool(id: "screenTranslate", title: "屏幕翻译", systemImage: "character.book.closed", key: "t") { image, _ in
-                let origin = ScreenshotManager.shared.lastSelectionAppKit
-                ScreenTranslator.run(image: image, pinOrigin: origin.isNull ? nil : origin.origin)
-            },
-            CaptureActionTool(id: "annotate", title: "编辑", systemImage: "pencil.and.outline", key: "e") { image, _ in
-                AnnotationEditorController.shared.open(image: image)
-            },
-            CaptureActionTool(id: "beautify", title: "美化", systemImage: "wand.and.stars", key: "b") { image, _ in
-                BeautifyController.shared.show(image: image)
-            },
-            CaptureActionTool(id: "airDrop", title: "空投", systemImage: "dot.radiowaves.left.and.right", key: "d") { _, url in
-                NotificationCenter.default.post(name: .frsetAirDropFiles, object: nil,
-                                                userInfo: ["urls": [url]])
-                Toast.show("已发起隔空投送", icon: "dot.radiowaves.left.and.right")
-            },
-            CaptureActionTool(id: "history", title: "历史", systemImage: "clock.arrow.circlepath", key: "h") { _, _ in
-                CaptureHistoryWindowController.shared.show()
-            },
-            CaptureActionTool(id: "longShot", title: "长截图", systemImage: "arrow.up.and.down.text.horizontal", key: "l") { _, _ in
-                if !LongScreenshotCoordinator.shared.beginFromLastSelection() {
-                    LongScreenshotCoordinator.shared.beginSelection()
-                }
-            },
-        ]
-    }
+            }
+        },
+        CaptureActionTool(id: "ocr", title: "识字", systemImage: "text.viewfinder", key: "o") { image, _ in
+            ScreenshotManager.shared.recognize(image)
+        },
+        CaptureActionTool(id: "qrCode", title: "识码", systemImage: "qrcode.viewfinder", key: "r") { image, _ in
+            QRCodeRecognizer.run(image: image)
+        },
+        CaptureActionTool(id: "ocrTranslate", title: "翻译", systemImage: "character.book.closed", key: "f") { image, _ in
+            ScreenshotManager.shared.recognizeAndTranslate(image)
+        },
+        CaptureActionTool(id: "screenTranslate", title: "屏幕翻译", systemImage: "character.book.closed", key: "t") { image, _ in
+            let origin = ScreenshotManager.shared.lastSelectionAppKit
+            ScreenTranslator.run(image: image, pinOrigin: origin.isNull ? nil : origin.origin)
+        },
+        CaptureActionTool(id: "annotate", title: "编辑", systemImage: "pencil.and.outline", key: "e") { image, _ in
+            AnnotationEditorController.shared.open(image: image)
+        },
+        CaptureActionTool(id: "beautify", title: "美化", systemImage: "wand.and.stars", key: "b") { image, _ in
+            BeautifyController.shared.show(image: image)
+        },
+        CaptureActionTool(id: "airDrop", title: "空投", systemImage: "dot.radiowaves.left.and.right", key: "d") { _, url in
+            NotificationCenter.default.post(name: .frsetAirDropFiles, object: nil,
+                                            userInfo: ["urls": [url]])
+            Toast.show("已发起隔空投送", icon: "dot.radiowaves.left.and.right")
+        },
+        CaptureActionTool(id: "history", title: "历史", systemImage: "clock.arrow.circlepath", key: "h") { _, _ in
+            CaptureHistoryWindowController.shared.show()
+        },
+        CaptureActionTool(id: "longShot", title: "长截图", systemImage: "arrow.up.and.down.text.horizontal", key: "l") { _, _ in
+            if !LongScreenshotCoordinator.shared.beginFromLastSelection() {
+                LongScreenshotCoordinator.shared.beginSelection()
+            }
+        },
+    ]
 
     /// 主条分组（顺序即显示顺序）。每组的 primary 是点主按钮直接执行的动作，
     /// items 是右侧 chevron 展开的二级菜单。
-    public static var groups: [CaptureActionGroup] {
-        [
-            CaptureActionGroup(id: "copyGroup", title: "复制", systemImage: "doc.on.doc",
-                               primary: "copy", items: ["copyOCR", "copyTranslate", "save"]),
-            CaptureActionGroup(id: "recentCopyGroup", title: "近期复制", systemImage: "list.bullet.clipboard",
-                               primary: "recentCopy", items: []),
-            CaptureActionGroup(id: "ocrGroup", title: "识别", systemImage: "text.viewfinder",
-                               primary: "ocr", items: ["qrCode", "ocrTranslate", "screenTranslate"]),
-            // v263：钉住从「更多」里提出来单独成组。点图标 = 用当前外观钉住，
-            // 悬停展开四个形态 + 「挂到图帘」，一个形态一个选项。
-            CaptureActionGroup(id: "pinGroup", title: "钉住", systemImage: "pin.fill",
-                               primary: "pin",
-                               items: ["pin", "pinClassic", "pinBorderless", "pinCard", "pinAccent", "curtain"]),
-            // 长截图保持独立一组（v263 用户明确要求「长截图单独一下」）
-            CaptureActionGroup(id: "longGroup", title: "长截图", systemImage: "arrow.up.and.down.text.horizontal",
-                               primary: "longShot", items: []),
-            CaptureActionGroup(id: "editGroup", title: "编辑", systemImage: "pencil.and.outline",
-                               primary: "annotate", items: ["beautify"]),
-            CaptureActionGroup(id: "moreGroup", title: "更多", systemImage: "ellipsis",
-                               primary: nil, items: ["airDrop", "history"]),
-        ]
-    }
+    /// 2026-11-26 修复（二轮 low）：与 tools 同理，计算属性 → static let，只建一次。
+    public static let groups: [CaptureActionGroup] = [
+        CaptureActionGroup(id: "copyGroup", title: "复制", systemImage: "doc.on.doc",
+                           primary: "copy", items: ["copyOCR", "copyTranslate", "save"]),
+        CaptureActionGroup(id: "recentCopyGroup", title: "近期复制", systemImage: "list.bullet.clipboard",
+                           primary: "recentCopy", items: []),
+        CaptureActionGroup(id: "ocrGroup", title: "识别", systemImage: "text.viewfinder",
+                           primary: "ocr", items: ["qrCode", "ocrTranslate", "screenTranslate"]),
+        // v263：钉住从「更多」里提出来单独成组。点图标 = 用当前外观钉住，
+        // 悬停展开四个形态 + 「挂到图帘」，一个形态一个选项。
+        CaptureActionGroup(id: "pinGroup", title: "钉住", systemImage: "pin.fill",
+                           primary: "pin",
+                           items: ["pin", "pinClassic", "pinBorderless", "pinCard", "pinAccent", "curtain"]),
+        // 长截图保持独立一组（v263 用户明确要求「长截图单独一下」）
+        CaptureActionGroup(id: "longGroup", title: "长截图", systemImage: "arrow.up.and.down.text.horizontal",
+                           primary: "longShot", items: []),
+        CaptureActionGroup(id: "editGroup", title: "编辑", systemImage: "pencil.and.outline",
+                           primary: "annotate", items: ["beautify"]),
+        CaptureActionGroup(id: "moreGroup", title: "更多", systemImage: "ellipsis",
+                           primary: nil, items: ["airDrop", "history"]),
+    ]
 
     /// 按指定形态钉住（动作条四个形态选项共用）
     private static func pin(_ image: CGImage, preset: String) {

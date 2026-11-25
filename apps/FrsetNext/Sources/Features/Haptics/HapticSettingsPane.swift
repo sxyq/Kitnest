@@ -131,8 +131,12 @@ private struct HapticSettingsContent: View {
                 ForEach(Array(events.enumerated()), id: \.element) { index, event in
                     if index > 0 { SettingsDivider() }
                     SettingsRow(title: event.settingTitle, subtitle: event.settingDetail) {
+                        // 2026-11-26 修复（F-misc-1#7）：get 原来用复合 isEnabled
+                        // （全局开关 && 强度≠off && 未禁用），全局一关所有场景开关都显示「关」、
+                        // 点了立刻回弹，用户既看不到也无法编辑「单场景禁用集」。
+                        // 现在 get 只表达该场景自身偏好，全局/强度门控改用 .disabled 表达。
                         Toggle(event.settingTitle, isOn: Binding(
-                            get: { draft.configuration.isEnabled(event) },
+                            get: { !draft.configuration.disabledEvents.contains(event) },
                             set: { enabled in
                                 if enabled { draft.configuration.disabledEvents.remove(event) }
                                 else { draft.configuration.disabledEvents.insert(event) }
@@ -145,6 +149,7 @@ private struct HapticSettingsContent: View {
                         .labelsHidden()
                         .toggleStyle(.switch)
                         .controlSize(.small)
+                        .disabled(!draft.configuration.enabled || draft.configuration.intensity == .off)
                     }
                 }
             }

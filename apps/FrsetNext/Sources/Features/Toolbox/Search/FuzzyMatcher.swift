@@ -156,11 +156,13 @@ public enum FuzzyMatcher {
         // 而 rate 用它去索引 original（未转换数组）。大小写转换一旦改变长度
         //（如 "İ"→"i̇" 变两字符），索引就会越界或错位打分。长度一致才用
         // 位置评分，否则退化为长度无关的保守分。
+        // 2026-11-26 修复（二轮 low）：长度不一致时再夹一次上界，保证返回的下标
+        // 不会越出原串（高亮按 Set 判定不崩，但会整体错位）。
         let originalArray = Array(target)
-        let score = originalArray.count == lowered.count
-            ? rate(indices: indices, original: originalArray)
-            : 16 * indices.count
-        return FuzzyMatch(score: score, indices: indices)
+        let sameLength = originalArray.count == lowered.count
+        let score = sameLength ? rate(indices: indices, original: originalArray) : 16 * indices.count
+        let safeIndices = sameLength ? indices : indices.filter { $0 < originalArray.count }
+        return FuzzyMatch(score: score, indices: safeIndices)
     }
 
     /// 是否模糊命中（不关心得分与位置）

@@ -34,7 +34,23 @@ public final class RecordingInputMonitor {
     private var runLoopSource: CFRunLoopSource?
     private var tapRunLoop: CFRunLoop?
     private var thread: Thread?
-    private var running = false
+
+    // 运行状态与启动信号（2026-11-26 修复 medium/low）：
+    // running 会被 start/stop（主线程）与 runTap（tap 线程失败路径）同时访问，
+    // 统一收进 stateLock；start() 用信号量等 runTap 真正建好 tap，不再靠 Thread.sleep 猜。
+    private let stateLock = NSLock()
+    private var runningValue = false
+    private var startSignalValue: DispatchSemaphore?
+
+    private var running: Bool {
+        get { stateLock.lock(); defer { stateLock.unlock() }; return runningValue }
+        set { stateLock.lock(); runningValue = newValue; stateLock.unlock() }
+    }
+
+    private var startSignal: DispatchSemaphore? {
+        get { stateLock.lock(); defer { stateLock.unlock() }; return startSignalValue }
+        set { stateLock.lock(); startSignalValue = newValue; stateLock.unlock() }
+    }
 
     /// 事件保留时长：按键 1.6s（够看清），点击 0.65s（一圈扩散）
     static let keyTTL: CFTimeInterval = 1.6
@@ -52,19 +68,31 @@ public final class RecordingInputMonitor {
             Log.warn("Recording", "输入采集不可用：没有辅助功能/输入监控权限（按键与点击叠加将关闭）")
             return false
         }
+        // 2026-11-26 修复（medium）：原实现主线程 Thread.sleep(0.05) 靠时间猜 tap 是否建好，
+        // tapCreate 慢于 50ms 就会误报「可用」（之后 currentKeys 永远为空）。
+        // 改为信号量等 runTap 真正建好或判定失败；超时 0.5s 兜底，不无限卡主线程。
+        let signal = DispatchSemaphore(value: 0)
+        startSignal = signal
         running = true
         let t = Thread { [weak self] in self?.runTap() }
         t.name = "kitnest.recording.input"
         t.stackSize = 512 * 1024
         thread = t
         t.start()
-        // 线程起来需要一点时间；tap 创建失败会在 runTap 里把 running 置 false
-        Thread.sleep(forTimeInterval: 0.05)
-        return running
+        let ready = signal.wait(timeout: .now() + 0.5) == .success
+        startSignal = nil
+        guard ready, running else {
+            // 超时 / 建 tap 失败：把可能已半启动的 tap 收干净
+            stop()
+            return false
+        }
+        return true
     }
 
     public func stop() {
         running = false
+        // 若有 start() 正在等启动信号，立刻唤醒它（否则要等满超时）
+        startSignal?.signal()
         if let loop = tapRunLoop {
             // 2026-11-25（二轮复核 medium）：跨线程直接 CFRunLoopStop 在「runloop 还没起来
             // 或已退出」时会丢——线程于是永久卡在 CFRunLoopRun，每轮启停泄漏一个线程。
@@ -142,15 +170,34 @@ public final class RecordingInputMonitor {
                                            userInfo: refcon) else {
             Log.warn("Recording", "CGEventTap 创建失败（输入监控权限未授予）")
             running = false
+            startSignal?.signal()   // 2026-11-26 修复：立刻告诉 start() 失败，不必等超时
             return
         }
         tap = port
         runLoopSource = CFMachPortCreateRunLoopSource(kCFAllocatorDefault, port, 0)
-        guard let source = runLoopSource else { running = false; return }
+        guard let source = runLoopSource else {
+            running = false
+            CGEvent.tapEnable(tap: port, enable: false)
+            CFMachPortInvalidate(port)
+            tap = nil
+            startSignal?.signal()
+            return
+        }
         tapRunLoop = CFRunLoopGetCurrent()
         CFRunLoopAddSource(CFRunLoopGetCurrent(), source, .commonModes)
         CGEvent.tapEnable(tap: port, enable: true)
+        // start() 已超时判失败（running 被置 false）时不能把 tap 跑起来，否则线程永久泄漏
+        guard running else {
+            CFRunLoopRemoveSource(CFRunLoopGetCurrent(), source, .commonModes)
+            CGEvent.tapEnable(tap: port, enable: false)
+            CFMachPortInvalidate(port)
+            tap = nil
+            runLoopSource = nil
+            Log.warn("Recording", "输入采集启动超时后迟到的 tap 已回收")
+            return
+        }
         Log.info("Recording", "输入采集已启动（显示按键 / 点击动画）")
+        startSignal?.signal()   // 2026-11-26 修复：tap 真的可用了才唤醒 start()
         CFRunLoopRun()
     }
 

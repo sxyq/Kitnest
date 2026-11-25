@@ -37,7 +37,12 @@ public struct CalendarSectionView: View {
     /// 横滑只由展开且悬停中的日历卡消费。
     @Stored private var isHovered = false
     /// 横向滚动累积量（两指左右滑切周）
-    @Stored private var scrollAccum: CGFloat = 0
+    ///
+    /// 2026-11-26 修复（二轮 low）：原来是 @Stored（StoredBox 的 @Published），每个
+    /// scrollWheel 事件（|dx|>0.3 就写一次）都会发布 objectWillChange → 整个面板区段重算，
+    /// 而它只有跨 12pt 阈值时才有语义。改为普通静态量，只在主线程的 local monitor /
+    /// onHover 里读写，不参与渲染、不触发视图更新。
+    private static var scrollAccum: CGFloat = 0
     /// 滚动监听 token（窗口内 local monitor）
     @Stored private var scrollMonitor: Any? = nil
     /// 点选的日期（v132：此前日期点击只发通知无任何视觉反馈，观感即"点不动"）
@@ -80,7 +85,7 @@ public struct CalendarSectionView: View {
         .whiteGlassCard(Theme.Radius.card)
         .onHover { hovering in
             isHovered = hovering
-            if !hovering { scrollAccum = 0 }
+            if !hovering { Self.scrollAccum = 0 }
         }
         .onAppear {
             reload()
@@ -284,10 +289,10 @@ public struct CalendarSectionView: View {
             let dx = event.scrollingDeltaX
             let dy = event.scrollingDeltaY
             guard abs(dx) > abs(dy), abs(dx) > 0.3 else { return event }
-            scrollAccum += dx
-            if abs(scrollAccum) >= 12 {
-                shift(scrollAccum > 0 ? -7 : 7)
-                scrollAccum = 0
+            Self.scrollAccum += dx
+            if abs(Self.scrollAccum) >= 12 {
+                shift(Self.scrollAccum > 0 ? -7 : 7)
+                Self.scrollAccum = 0
             }
             return nil
         }
@@ -296,7 +301,7 @@ public struct CalendarSectionView: View {
     private func removeScrollMonitor() {
         if let monitor = scrollMonitor { NSEvent.removeMonitor(monitor) }
         scrollMonitor = nil
-        scrollAccum = 0
+        Self.scrollAccum = 0
     }
 
     /// 面板窗口（日历只在主面板里出现）

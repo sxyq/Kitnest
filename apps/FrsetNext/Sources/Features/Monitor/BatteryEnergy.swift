@@ -61,6 +61,11 @@ public final class BatteryEnergySampler: ObservableObject {
     private var timer: Timer?
     private var kickoff: DispatchWorkItem?
     private var inflight = false
+    /// 2026-11-26 修复（F-misc-1#8/#9）：采样会话代次。stop() 自增作废在途帧，
+    /// 避免「已隐藏的页面还被回写 3 个 @Published」；同时用于区分「旧会话的在途帧」——
+    /// 它收尾后为新会话补一帧基线，解决 start() 的基线 tick 被 `guard !inflight` 吞掉、
+    /// 界面要干等 5s 才有第一份数据的问题。
+    private var generation = 0
     private var loggedSample = false
     private let buffer = UnsafeMutablePointer<frset_energy_pid_t>.allocate(capacity: 512)
 
@@ -70,9 +75,10 @@ public final class BatteryEnergySampler: ObservableObject {
 
     public func start() {
         guard timer == nil else { return }
+        generation &+= 1          // 新会话：与上一轮的在途帧区分开（F-misc-1#8/#9）
         if phase == .idle { phase = .sampling }
 
-        tick()   // 建基线
+        tick()   // 建基线（若上一轮的帧还在途，会被 guard 吞掉，由那一帧收尾后补采）
         // 1.5s 后再采一次：否则用户要盯着「采样中…」等满 5 秒才看到第一份
         let kick = DispatchWorkItem { [weak self] in
             Task { @MainActor in self?.tick() }
@@ -88,6 +94,7 @@ public final class BatteryEnergySampler: ObservableObject {
     }
 
     public func stop() {
+        generation &+= 1          // 作废在途帧的发布资格（F-misc-1#9）
         timer?.invalidate()
         timer = nil
         kickoff?.cancel()
@@ -100,6 +107,7 @@ public final class BatteryEnergySampler: ObservableObject {
         guard !inflight else { return }
         inflight = true
         let ptr = buffer
+        let gen = generation
 
         DispatchQueue.global(qos: .utility).async { [weak self] in
             var elapsed: Double = 0
@@ -138,6 +146,13 @@ public final class BatteryEnergySampler: ObservableObject {
             DispatchQueue.main.async {
                 guard let self else { return }
                 self.inflight = false
+                // 2026-11-26 修复（F-misc-1#9）：stop() 之后在途的帧不再往已隐藏的视图
+                // 发布；若是「停了又开」的旧会话帧，顺手替新会话补一帧基线
+                // （start 里那次 tick 可能正被 inflight 拦下），避免界面干等 5s。
+                guard self.generation == gen else {
+                    if self.timer != nil { self.tick() }
+                    return
+                }
                 if unavailable {
                     self.phase = .unavailable
                     self.items = []

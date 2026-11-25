@@ -21,6 +21,10 @@ final class SettingsBlockProbeWindowController {
     private init() {}
 
     func open(block: String) {
+        // 2026-11-26 修复：每次调用都覆盖 self.window 且不关旧窗；连续两次深链会留下
+        // 一个仍可见、已失去引用的窗口（isReleasedWhenClosed=false，只能手动关）。
+        window?.close()
+        window = nil
         let content: AnyView
         let title: String
         switch block {

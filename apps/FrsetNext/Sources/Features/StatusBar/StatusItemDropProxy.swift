@@ -20,8 +20,31 @@ final class StatusItemDropProxy: NSView {
 
     required init?(coder: NSCoder) { fatalError("not used") }
 
-    /// 不拦点击：拖放靠 registerForDraggedTypes 派发，不依赖 hitTest
-    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    /// 2026-11-26 修复：原实现恒返回 nil，而 AppKit 选取拖放目的地的方式是「先 hitTest
+    /// 找到最深的视图，再沿 superview 链找注册过该类型的视图」——命中未注册拖放的
+    /// NSStatusBarButton 后就断链，draggingEntered / performDragOperation 永远收不到，
+    /// 拖文件到图标会静默失效。现在命中自身以承接拖放，并把鼠标事件转发给底层按钮，
+    /// 点击开合面板 / 右键菜单不受影响。
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        super.hitTest(point)
+    }
+
+    override func mouseDown(with event: NSEvent) { forwardMouse(event) }
+    override func rightMouseDown(with event: NSEvent) { forwardMouse(event) }
+    override func mouseUp(with event: NSEvent) { forwardMouse(event) }
+    override func rightMouseUp(with event: NSEvent) { forwardMouse(event) }
+
+    /// 把点击转交给底下的状态栏按钮（NSButton 的 mouseDown 会自行进入跟踪循环并在抬起时派发 action）
+    private func forwardMouse(_ event: NSEvent) {
+        guard let button = superview else { return }
+        switch event.type {
+        case .leftMouseDown:  button.mouseDown(with: event)
+        case .leftMouseUp:    button.mouseUp(with: event)
+        case .rightMouseDown: button.rightMouseDown(with: event)
+        case .rightMouseUp:   button.rightMouseUp(with: event)
+        default: break
+        }
+    }
 
     override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
         guard hasFiles(sender) else { return [] }

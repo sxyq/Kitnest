@@ -151,6 +151,10 @@ private struct CastContent: View {
             }
             // 页面重建时继续跟随已绑定的投屏进程。
             ScrcpyControlBarController.shared.attachIfScrcpyRunning()
+            // 2026-11-26 修复（二轮 low）：扩展服务开关绑定的是 @Stored 布尔（初始 false），
+            // 而 MCPServer / AndroidWebDAVServer 是进程内单例——面板关掉再打开、或从别处
+            // 启动过服务时，开关会显示「关」但服务仍在监听。挂载时按单例真实状态校正一次。
+            syncExtensionServiceToggles()
             // v166.3：进页面就后台预热应用目录（真图标首次要跑一次设备端渲染，别等展开才转圈）
             if catalogApps.isEmpty { loadApps() }
             // v159：回调必须在 guard 之外——视图重建时回调不能丢，
@@ -824,6 +828,15 @@ private struct CastContent: View {
     }
 
     // 扩展服务
+
+    /// 开关状态与单例真实状态对齐（2026-11-26 修复，见 onAppear 调用点）
+    private func syncExtensionServiceToggles() {
+        let mcpRunning = MCPServer.shared.isRunning
+        if mcpOn != mcpRunning { mcpOn = mcpRunning }
+        let webdavRunning = AndroidWebDAVServer.shared.isRunning
+        if webdavOn != webdavRunning { webdavOn = webdavRunning }
+    }
+
     private var servicesBlock: some View {
         VStack(alignment: .leading, spacing: 5) {
             subHeader("扩展服务", detail: "仅本机 127.0.0.1", refresh: nil)
@@ -848,7 +861,11 @@ private struct CastContent: View {
                        on: $webdavOn) { on in
                 if isSettingsPreview { return }
                 if on {
-                    if !AndroidWebDAVServer.shared.start() { webdavOn = false }
+                    // 2026-11-26 修复（二轮 low）：start() 会逐个端口 bind（最坏 8×2s），
+                    // 原来在开关回调（主线程）同步调用 → 端口全被占用时界面冻结。
+                    AndroidWebDAVServer.shared.startAsync { ok in
+                        if !ok { webdavOn = false }
+                    }
                 } else {
                     AndroidWebDAVServer.shared.stop()
                 }

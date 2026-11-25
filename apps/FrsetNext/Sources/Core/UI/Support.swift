@@ -213,6 +213,13 @@ extension Theme {
     private static let surfaceLock = NSLock()
     private static var surfaceCache: [String: Color] = [:]
 
+    /// 缓存键里的连续量量化到 2 位小数（2026-11-26 修复）。
+    /// 滑杆值来自 Double 全精度，直接插值会让每次拖动都写入新条目且永不淘汰；
+    /// 0.01 的量化对 alpha / 磨砂倍率这类参数无可感知差异。
+    private static func keyValue(_ v: Double) -> String {
+        String(format: "%.2f", v)
+    }
+
     private static func cachedSurface(_ key: String,
                                       _ build: @escaping (Bool) -> (NSColor, CGFloat)) -> Color {
         surfaceLock.lock()
@@ -273,7 +280,7 @@ extension Theme {
         if midnight {
             return MidnightTheme.baseBackground(for: p).opacity(opacity)
         }
-        return cachedSurface("window.\(opacity)") { isDark in
+        return cachedSurface("window.\(keyValue(opacity))") { isDark in
             let base = isDark
                 ? NSColor(srgbRed: 0.110, green: 0.110, blue: 0.118, alpha: 1)
                 : NSColor(srgbRed: 0.957, green: 0.957, blue: 0.969, alpha: 1)
@@ -328,7 +335,7 @@ extension Theme {
     }
     public static func sidebarFrost(for p: Personalization) -> Color {
         let blur = p.glassBlur
-        return cachedSurface("sidebar.frost.\(blur)") { isDark in
+        return cachedSurface("sidebar.frost.\(keyValue(blur))") { isDark in
             let b = CGFloat(blur)
             return (NSColor(white: 1, alpha: 1), isDark ? 0.055 * b : 0.10 * b)
         }
@@ -353,11 +360,11 @@ extension Theme {
         if midnight {
             let base = NSColor(MidnightTheme.baseBackground(for: p)).usingColorSpace(.sRGB)
                 ?? NSColor(srgbRed: 0.055, green: 0.067, blue: 0.105, alpha: 1)
-            return cachedDynamicColor("glassTint.m.\(opacity).\(blur)") { _ in
+            return cachedDynamicColor("glassTint.m.\(keyValue(opacity)).\(keyValue(blur))") { _ in
                 composite(base, alpha: opacity, whiteAlpha: 0.11 * blur)
             }
         }
-        return cachedDynamicColor("glassTint.\(opacity).\(blur)") { isDark in
+        return cachedDynamicColor("glassTint.\(keyValue(opacity)).\(keyValue(blur))") { isDark in
             let base = isDark
                 ? NSColor(srgbRed: 0.110, green: 0.110, blue: 0.118, alpha: 1)
                 : NSColor(srgbRed: 0.957, green: 0.957, blue: 0.969, alpha: 1)
@@ -378,7 +385,7 @@ extension Theme {
     }
     public static func glassFrost(for p: Personalization) -> Color {
         let blur = p.glassBlur
-        return cachedSurface("frost.\(blur)") { isDark in
+        return cachedSurface("frost.\(keyValue(blur))") { isDark in
             let b = CGFloat(blur)
             return (NSColor(white: 1, alpha: 1), isDark ? 0.11 * b : 0.20 * b)
         }
@@ -391,7 +398,7 @@ extension Theme {
     public static func cardFill(for p: Personalization, midnight: Bool) -> Color {
         if midnight { return MidnightTheme.cardBackground(for: p) }
         let liftValue = p.glassCardLift
-        return cachedSurface("card.\(liftValue)") { isDark in
+        return cachedSurface("card.\(keyValue(liftValue))") { isDark in
             // 浅色 0.55（贴平）…0.98（近实白）；暗色 0.035…0.10 白
             let alpha = cardFillAlpha(lift: liftValue, isDark: isDark)
             return (NSColor(white: 1, alpha: 1), alpha)
@@ -405,7 +412,7 @@ extension Theme {
     }
     public static func insetFill(for p: Personalization) -> Color {
         let opacity = p.glassOpacity
-        return cachedSurface("inset.\(opacity)") { isDark in
+        return cachedSurface("inset.\(keyValue(opacity))") { isDark in
             // 玻璃越通透，内嵌区压得越浅（否则底衬一透就糊了）
             let k = 0.6 + 0.4 * CGFloat(opacity)
             return (NSColor(white: 0, alpha: 1), isDark ? 0.22 * k : 0.045 * k)
@@ -418,7 +425,7 @@ extension Theme {
     }
     public static func cardStroke(for p: Personalization) -> Color {
         let strokeValue = p.glassStroke
-        return cachedSurface("stroke.\(strokeValue)") { isDark in
+        return cachedSurface("stroke.\(keyValue(strokeValue))") { isDark in
             let base = isDark ? NSColor(white: 1, alpha: 1) : NSColor(white: 0, alpha: 1)
             let alpha = cardStrokeAlpha(strength: strokeValue, isDark: isDark)
             return (base, alpha)

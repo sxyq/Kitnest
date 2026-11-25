@@ -94,7 +94,24 @@ public final class MonitorReader {
     private var previousDisk: IOCounters?
 
     /// 是否读取温度（关闭时完全跳过 SMC，零开销）
-    public var temperatureEnabled: Bool = true
+    ///
+    /// 2026-11-26 修复（F-misc-1#11）：写入方是主线程（applyPreferences），读取方是
+    /// samplingQueue 的 readResult，原来裸 Bool 无同步——Swift 内存模型下属 data race。
+    /// 加小锁保护；锁内只做一次赋值/读取，不涉及任何采集工作。
+    public var temperatureEnabled: Bool {
+        get {
+            temperatureLock.lock()
+            defer { temperatureLock.unlock() }
+            return temperatureEnabledStorage
+        }
+        set {
+            temperatureLock.lock()
+            defer { temperatureLock.unlock() }
+            temperatureEnabledStorage = newValue
+        }
+    }
+    private let temperatureLock = NSLock()
+    private var temperatureEnabledStorage = true
 
     public init() {}
 

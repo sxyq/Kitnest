@@ -403,7 +403,13 @@ final class ScreenshotOverlayView: NSView {
         startPoint = p
         currentPoint = p
         draggingRegion = false
+        // 2026-11-26 修复（二轮 low）：magnifier 的 frame 原本只在 mouseDragged→follow()
+        // 里设置，初值是 (0,0,120,120)。这里一按下就 isHidden=false，单击（不拖）时
+        // 会有一帧放大镜闪在屏幕左下角。按下即先按当前点摆位。
         magnifier.isHidden = snapshot == nil
+        if snapshot != nil {
+            magnifier.follow(pointInView: p, viewSize: bounds.size, snapshot: snapshot)
+        }
         dimView.isHidden = false
         updateCrosshair(p)
         invalidateCanvas()

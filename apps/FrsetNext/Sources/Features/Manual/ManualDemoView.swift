@@ -20,7 +20,15 @@ struct ManualDemoView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var lastStep: Int { steps.count - 1 }
-    private var frame: ManualDemoFrame { frames[step] }
+    /// 2026-11-26 修复：frames 来自文档 `<!-- frame: -->` 元数据，与 steps 独立，
+    /// 可能缺失或帧数少于步数——原 `frames[step]` 强下标在首帧即越界崩溃。
+    /// 这里钳制到有效范围，完全无帧时给占位帧（items 为空，不渲染步骤行）。
+    private var frame: ManualDemoFrame {
+        guard !frames.isEmpty else {
+            return ManualDemoFrame(title: title, action: "—", items: [], selected: 0)
+        }
+        return frames[min(max(0, step), frames.count - 1)]
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

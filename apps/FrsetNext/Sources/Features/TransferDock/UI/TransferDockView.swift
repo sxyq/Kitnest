@@ -200,7 +200,9 @@ private struct TransferDockContent: View {
                     }
                 }
             }
-            AirDropReceiveWatcher.shared.start()
+            // 2026-11-26 修复：接收页的「已监听」原来写死，open 失败时也在显示。
+            // 现在按监听器真实结果刷新徽标。
+            AirDropReceiveWatcher.shared.start { ok in airdropListening = ok }
             // v120：预热隔空投送服务（首次实例化会同步初始化 AWDL，1~3s）
             AirDropSendEngine.warmUp()
             runTransferProbe()
@@ -486,12 +488,22 @@ private struct TransferDockContent: View {
             receiveRow(icon: "dot.radiowaves.left.and.right", tint: Color(red: 0.15, green: 0.55, blue: 0.95),
                        title: "隔空投送",
                        detail: "iPhone / iPad 投过来，自动进暂存") {
-                Text("已监听")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(Color.green)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color.green.opacity(0.12), in: Capsule())
+                // 2026-11-26 修复：按监听器真实状态显示，不再写死「已监听」
+                if airdropListening {
+                    Text("已监听")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Color.green)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.green.opacity(0.12), in: Capsule())
+                } else {
+                    Text("未监听")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Color.secondary.opacity(0.12), in: Capsule())
+                }
             }
             receiveRow(icon: "internaldrive", tint: Color(red: 0.2, green: 0.65, blue: 0.5),
                        title: "从手机拉取",
@@ -557,18 +569,25 @@ private struct TransferDockContent: View {
             lan.startIfEnabled()
             lanStartedForTransfer = true
         }
-        let build: () -> Void = {
-            guard let base = lan.shareURL else {
-                Toast.show("直传服务未启动，无法生成二维码",
-                           icon: "exclamationmark.triangle", isWarning: true)
-                return
-            }
+        // 2026-11-26 修复（二轮 low）：原来固定等 1.0s 再读 shareURL——服务端 attemptBind
+        // 失败后会每 0.15s 顺延重试最多 9 次，端口被占用时 1s 内拿不到地址，这里就直接弹
+        // 「无法生成二维码」且不再重试，用户只看到失败一次。改为轮询等待（同 0.15s 节奏，
+        // 最多 20 次≈3s）：拿到就出码，超时才提示。
+        waitForShareURL(attempt: 0)
+    }
+
+    private func waitForShareURL(attempt: Int) {
+        if let base = lan.shareURL {
             pickShareURL = base
+            return
         }
-        if lan.shareURL != nil {
-            build()
-        } else {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0, execute: build)
+        guard attempt < 20 else {
+            Toast.show("直传服务未启动，无法生成二维码",
+                       icon: "exclamationmark.triangle", isWarning: true)
+            return
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            waitForShareURL(attempt: attempt + 1)
         }
     }
 
@@ -707,6 +726,8 @@ private struct TransferDockContent: View {
 
     @Stored private var adbFileStatus = ""
     @Stored private var adbPushing = false
+    /// 空投接收监听是否真的挂上（2026-11-26 修复：徽标不再写死「已监听」）
+    @Stored private var airdropListening = false
     // v122：传输进度（用户：「数据也要显示」）
     @Stored private var pushActive = false
     @Stored private var pushFraction: Double = 0
@@ -725,7 +746,10 @@ private struct TransferDockContent: View {
                 at: staging, includingPropertiesForKeys: nil))?
                 .filter { $0.lastPathComponent != ".DS_Store" } ?? []
             LocalTransferStore.shared.addUploads(pulled.map { (name: $0.lastPathComponent, tempURL: $0) }, source: "安卓") { n in
-                if n == pulled.count { try? FileManager.default.removeItem(at: staging) }
+                // 2026-11-26 修复（二轮 low）：旧实现只有 n == pulled.count 才删 staging，
+                // 部分失败/计数不符时整个 UUID 目录（含已移走的空壳）残留在 tmp 越积越多。
+                // 现在按目录实际状态判断：搬空即删；还有文件（搬运失败）则保留，不销毁数据。
+                Self.removeStagingIfEmpty(staging)
                 adbPushing = false
                 if let error = LocalTransferStore.shared.lastError {
                     adbFileStatus = error
@@ -737,6 +761,17 @@ private struct TransferDockContent: View {
                 }
             }
         }
+    }
+
+    /// 拉取暂存目录清理（2026-11-26 修复，见 pullFromPhone）：搬空才删，有残留就保留
+    private static func removeStagingIfEmpty(_ dir: URL) {
+        let fm = FileManager.default
+        let left = (try? fm.contentsOfDirectory(atPath: dir.path))?.filter { $0 != ".DS_Store" } ?? []
+        guard left.isEmpty else {
+            Log.warn("Transfer", "拉取暂存仍有 \(left.count) 个未搬走文件，保留 \(dir.lastPathComponent)")
+            return
+        }
+        try? fm.removeItem(at: dir)
     }
 
     // MARK: 云端（OPPO 中转）
