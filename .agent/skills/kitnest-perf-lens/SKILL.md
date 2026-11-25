@@ -53,6 +53,7 @@ description: Kitnest 全链路性能/交互/渲染热点诊断；先独立读函
 - AGENTS.md / frset-release / frset-verify 的强制重启口径已修（`c0ba36d5`）；零打扰为默认。
 - 岛展开选区读取已异步（v292 `fb415594`）：捕获前台上下文 + 后台 AX + 0.25s IPC 超时 + 代次丢弃；命令面板/划词仍同步。不要再要求"展开时同步读选区"。
 - 截图流式取消已修（v292 `7e65f000`）：Task 取消/epoch 过期后不再 addTask 后续屏幕；后续屏幕改 orderFront 不再抢 key。
+- 截图会话预算已贯穿 ScreenCaptureKit 同步等待（Lite `2631c4d6`）：每轮 SCK 最多等待剩余会话预算，30ms 检查取消/期限；过期即取消且不启动 legacy 回退。此项是源码时限约束，满载采集 20 样本和真实鼠标首次框选时延仍待授权验证。
 - **岛定位不是持续热点（v292 实测复核，勿再报 163ms）**：冷展开 36–45ms / 热展开 15–20ms；`setFrame(display:true/false)` 交替 6 轮差 <8ms，`didUpdate` 也无可比差异。163/173ms 只出现在「部署后第一次冷进程」场景，属一次性冷布局，不能当常态。`probe.islandPositionDisplay` 保留为诊断开关（默认 true）。
 - 归档 `ArchiveEntry` 字符串驻留**收益很小**（实测 100k 条：227B/条 → 182B/条，只省 4.3MB）：不要再提「驻留省 30–50%」。100k 的 293MB 峰值主要来自解析瞬态与视图快照，不是条目数组本身。
 
