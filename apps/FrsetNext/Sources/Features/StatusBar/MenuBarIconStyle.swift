@@ -406,7 +406,10 @@ enum SystemCPULoad {
         var user: Double = 0
         var system: Double = 0
         var idle: Double = 0
-        for i in 0..<Int(infoCount) {
+        // 2026-11-25（二轮复核 high）：infoCount 的单位是 integer_t（= 核数×CPU_STATE_MAX(4)），
+        // 不是 processor_cpu_load_info 的个数。按 infoCount 遍历会越界读 4 倍长度（未定义行为）。
+        // 必须按 processorCount 遍历。
+        for i in 0..<Int(processorCount) {
             user += Double(loads[i].cpu_ticks.0)
             system += Double(loads[i].cpu_ticks.1)
             idle += Double(loads[i].cpu_ticks.2)

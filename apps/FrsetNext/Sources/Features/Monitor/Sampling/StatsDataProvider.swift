@@ -820,7 +820,9 @@ public enum StatsFormat {
 
     /// 风扇转速
     public static func rpm(_ v: Double) -> String {
-        "\(Int(v.rounded())) RPM"
+        // 2026-11-25（二轮复核）：传感器偶发 NaN/Inf，Int(NaN) 直接 trap 崩面板
+        guard v.isFinite else { return "— RPM" }
+        return "\(Int(v.rounded())) RPM"
     }
 
     /// 延迟/抖动（官方 %.2f ms）
@@ -835,7 +837,8 @@ public enum StatsFormat {
 
     /// 剩余时间（秒 → h m）
     public static func remaining(_ sec: Double) -> String {
-        guard sec > 0 else { return "—" }
+        // 同上：NaN/Inf 一律按未知处理（Int(Inf) 会 trap）
+        guard sec.isFinite, sec > 0 else { return "—" }
         let h = Int(sec) / 3600
         let m = (Int(sec) % 3600) / 60
         if h > 0 { return "\(h) 小时 \(m) 分" }

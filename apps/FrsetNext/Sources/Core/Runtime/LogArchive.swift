@@ -356,7 +356,8 @@ public final class LogArchive {
         let files = (try? FileManager.default.contentsOfDirectory(
             at: directory, includingPropertiesForKeys: [.contentModificationDateKey])) ?? []
         var removed = 0
-        for f in files where f.pathExtension == "log" {
+        // 2026-11-25（二轮复核）：挂死采样落盘的 hang-*.txt 原来永不过期，反复卡死会堆积
+        for f in files where f.pathExtension == "log" || (f.pathExtension == "txt" && f.lastPathComponent.hasPrefix("hang-")) {
             guard let modified = try? f.resourceValues(forKeys: [.contentModificationDateKey])
                 .contentModificationDate else { continue }
             if modified < cutoff {

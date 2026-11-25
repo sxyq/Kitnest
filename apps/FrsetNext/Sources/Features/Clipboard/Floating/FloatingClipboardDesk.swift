@@ -1389,7 +1389,7 @@ public struct FloatingClipboardDeskView: View {
         .buttonStyle(.plain)
         // v287「拖动卡片到分类」：拖到收藏等级行 = 直接设等级；拖到「已存」= 存为项目。
         // 只改元数据，不动正文与删除（不会误删原始数据）。
-        .onDrop(of: [.text], isTargeted: nil) { providers in
+        .onDrop(of: [.text] + ([UTType("com.sxyq.frsetnext.dedupekey")].compactMap { $0 }), isTargeted: nil) { providers in
             guard let drop else { return false }
             SidebarDropSupport.handle(providers, drop)
             return true
@@ -2183,7 +2183,7 @@ private struct SidebarTagRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .onDrop(of: [.text], isTargeted: $isDropTarget) { providers in
+        .onDrop(of: [.text] + ([UTType("com.sxyq.frsetnext.dedupekey")].compactMap { $0 }), isTargeted: $isDropTarget) { providers in
             SidebarDropSupport.handle(providers) { key in
                 TagStore.shared.assign(tagID: tag.id, toDedupeKey: key)
                 NotificationCenter.default.post(name: TagStore.didChangeNotification, object: nil,

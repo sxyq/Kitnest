@@ -116,13 +116,20 @@ public extension ImageProcessor {
         guard w > 0, image.width > 0, image.height > 0 else { return nil }
         let h = targetWidth == nil ? image.height
               : max(Int((CGFloat(image.height) * CGFloat(w) / CGFloat(image.width)).rounded()), 1)
-        var raw = [UInt8](repeating: 0, count: w * h * 4)
-        guard let ctx = CGContext(data: &raw,
+        // 2026-11-25（二轮复核 medium）：绝不能把 Swift 数组的 inout 指针交给 CGContext。
+        // `CGContext(data: &raw)` 在 makeImage 前指针就随作用域失效（UB），且数组一旦被
+        // 复制（非唯一引用）会静默画到一块临时内存——取色取到全 0，长截图稳定性判定
+        // 因此误判提前收尾。与 ObjectRemovalEngine 一致，改用 UnsafeMutableRawPointer.allocate。
+        let byteCount = w * h * 4
+        let base = UnsafeMutableRawPointer.allocate(byteCount: byteCount, alignment: MemoryLayout<UInt8>.alignment)
+        defer { base.deallocate() }
+        guard let ctx = CGContext(data: base,
                                   width: w, height: h,
                                   bitsPerComponent: 8, bytesPerRow: w * 4,
                                   space: CGColorSpaceCreateDeviceRGB(),
                                   bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
         ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
-        return RGBABuffer(width: w, height: h, pixels: raw)
+        let buf = UnsafeMutableBufferPointer<UInt8>(start: base.assumingMemoryBound(to: UInt8.self), count: byteCount)
+        return RGBABuffer(width: w, height: h, pixels: Array(buf))
     }
 }

@@ -277,9 +277,11 @@ private struct TransferDockWebView: NSViewRepresentable {
 
                 guard force || looksLoggedIn || backToBiz else { return }
 
-                let candidate = Dictionary(uniqueKeysWithValues: relevant.map {
+                // 2026-11-25（二轮复核）：macOS 14+ 分区 cookie 可能同名同域同 path，
+                // uniqueKeysWithValues 遇重复键直接 trap。改去重保序取首条。
+                let candidate = Dictionary(relevant.map {
                     ("\($0.domain)|\($0.path)|\($0.name)", $0.value)
-                })
+                }, uniquingKeysWith: { first, _ in first })
                 guard force || candidate != self.lastCandidateCookies else { return }
                 guard self.onCandidate(relevant) else { return }
                 self.lastCandidateCookies = candidate

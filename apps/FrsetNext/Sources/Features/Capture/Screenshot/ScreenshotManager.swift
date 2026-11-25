@@ -1028,8 +1028,17 @@ public final class ScreenshotManager: ObservableObject {
     private func writePNG(_ data: Data, to dir: URL, pixelSize: CGSize = .zero) -> URL? {
         do {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            let url = dir.appendingPathComponent(Self.newFileName(pixelSize: pixelSize))
-            try data.write(to: url)
+            var url = dir.appendingPathComponent(Self.newFileName(pixelSize: pixelSize))
+            // 2026-11-25（二轮复核）：模板不含 {random}/{seq} 时，同日第二张会静默覆盖第一张
+            //（丢图无提示）。同名时按 -2、-3 追加序号，并以 .withoutOverwriting 兜底。
+            if FileManager.default.fileExists(atPath: url.path) {
+                let stem = url.deletingPathExtension().lastPathComponent
+                for idx in 2...99 {
+                    let candidate = dir.appendingPathComponent("\(stem)-\(idx).png")
+                    if !FileManager.default.fileExists(atPath: candidate.path) { url = candidate; break }
+                }
+            }
+            try data.write(to: url, options: .withoutOverwriting)
             return url
         } catch {
             Log.error("Capture", "保存截图失败: \(error.localizedDescription)")
@@ -1050,7 +1059,8 @@ public final class ScreenshotManager: ObservableObject {
         }
         do {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            let dest = dir.appendingPathComponent(Self.newFileName())
+            // 2026-11-25（二轮复核）：文件名模板的 {w}/{h} 需要真实像素尺寸，漏传会落成 0x0
+            let dest = dir.appendingPathComponent(Self.newFileName(pixelSize: Self.pixelSize(of: url)))
             try FileManager.default.copyItem(at: url, to: dest)
             recent.removeAll { $0.url == url }
             recent.insert(CapturedImage(url: dest, createdAt: Date()), at: 0)
@@ -1070,6 +1080,15 @@ public final class ScreenshotManager: ObservableObject {
     /// 默认模板与旧版输出完全一致，老用户不会发现名字变了。
     private static func newFileName(pixelSize: CGSize = .zero) -> String {
         CaptureFileName.make(pixelSize: pixelSize, mode: shared.currentModeTag)
+    }
+
+    /// 读图片文件的真实像素尺寸（ImageIO 只读头，不解码整图）
+    private static func pixelSize(of url: URL) -> CGSize {
+        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
+              let w = props[kCGImagePropertyPixelWidth] as? Int,
+              let h = props[kCGImagePropertyPixelHeight] as? Int else { return .zero }
+        return CGSize(width: w, height: h)
     }
 
     public func copyToPasteboard(_ image: CGImage) -> Bool {

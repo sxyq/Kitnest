@@ -95,7 +95,9 @@ struct PanelRootView: View {
         // v260：关掉「启用文件中转」或「常规 → 功能 → 文件中转」时，
         // 顶部的中转/投屏按钮一起消失，不再留一个只能显示「已关闭」的空壳按钮。
         // 「个性化 → 主面板页面」仍决定功能开启后是否显示该分段（两者 AND）。
-        case .transfer:    return segmentTransfer
+        // 2026-11-25（二轮复核）：v260 注释声明「功能开关 AND 显示开关」，实现漏了 AND——
+        // 关掉「启用文件中转」后顶部分段仍显示且能进 TransferDockView。补上。
+        case .transfer:    return segmentTransfer && transferFeatureEnabled
         case .cast:        return segmentCast
         }
     }

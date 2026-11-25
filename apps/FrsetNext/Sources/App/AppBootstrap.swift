@@ -631,11 +631,13 @@ enum AppBootstrap {
         if id.hasPrefix("tool.") { return ToolShortcutStore.binding(for: String(id.dropFirst(5))) }
         let saved = Preferences.shared.value("shortcuts.bindings", default: [String: [UInt32]]())
         if let pair = saved[id] {
-            return pair.isEmpty ? nil : (pair[0], pair[1])
+            // 2026-11-25（二轮复核）：历史导出可能是 1 元素数组，直接 [1] 会启动即崩
+            return pair.count >= 2 ? (pair[0], pair[1]) : nil
         }
         if id == "colorpicker" {
             if let binding = ToolShortcutStore.binding(for: id) { return binding }
-            if let pair = saved["colorPicker"] { return pair.isEmpty ? nil : (pair[0], pair[1]) }
+            if let pair = saved["colorPicker"] { // 2026-11-25（二轮复核）：历史导出可能是 1 元素数组，直接 [1] 会启动即崩
+            return pair.count >= 2 ? (pair[0], pair[1]) : nil }
         }
         guard let entry = defaultHotkeys.first(where: { $0.id == id }), let keyCode = entry.keyCode else { return nil }
         return (keyCode, entry.modifiers)

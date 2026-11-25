@@ -208,14 +208,16 @@ public struct ClipboardSettingsPane: View {
                         Button("加密备份…") {
                             let panel = NSSavePanel()
                             panel.nameFieldStringValue = "Kitnest-剪贴板.7z"
-                            panel.allowedContentTypes = [UTType(filenameExtension: "7z")!]
+                            // 2026-11-25：极端环境下 "7z" 扩展名可能查不到 UTType，强解包崩设置页。降级 .data。
+                            panel.allowedContentTypes = [UTType(filenameExtension: "7z") ?? .data]
                             if panel.runModal() == .OK, let url = panel.url {
                                 backupRequest = ClipboardBackupRequest(url: url, importing: false)
                             }
                         }
                         Button("恢复备份…") {
                             let panel = NSOpenPanel()
-                            panel.allowedContentTypes = [UTType(filenameExtension: "7z")!]
+                            // 2026-11-25：极端环境下 "7z" 扩展名可能查不到 UTType，强解包崩设置页。降级 .data。
+                            panel.allowedContentTypes = [UTType(filenameExtension: "7z") ?? .data]
                             panel.allowsMultipleSelection = false
                             if panel.runModal() == .OK, let url = panel.url {
                                 backupRequest = ClipboardBackupRequest(url: url, importing: true)

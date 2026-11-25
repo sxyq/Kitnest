@@ -220,22 +220,29 @@ private enum WordDocumentStore {
 private struct InlineQuickLookView: NSViewRepresentable {
     let url: URL
 
-    func makeNSView(context: Context) -> QLPreviewView {
-        let view = QLPreviewView(frame: .zero, style: .compact)!
-        view.autostarts = false
-        view.shouldCloseWithWindow = false
-        view.previewItem = url as NSURL
-        return view
+    func makeNSView(context: Context) -> NSView {
+        // 2026-11-25（二轮复核）：QL 服务不可用时（精简系统/沙盒异常）init 返回 nil，
+        // 强解包会在悬停预览 pdf/pages/pptx 时崩掉整个 App。降级为隐藏占位视图。
+        if let ql = QLPreviewView(frame: .zero, style: .compact) {
+            ql.autostarts = false
+            ql.shouldCloseWithWindow = false
+            ql.previewItem = url as NSURL
+            return ql
+        }
+        let fallback = NSView(frame: .zero)
+        fallback.isHidden = true
+        return fallback
     }
 
-    func updateNSView(_ view: QLPreviewView, context: Context) {
-        if (view.previewItem as? NSURL) != url as NSURL {
+    func updateNSView(_ view: NSView, context: Context) {
+        guard let ql = view as? QLPreviewView else { return }
+        if (ql.previewItem as? NSURL) != url as NSURL {
             // 设置新条目本身已异步加载，无须再 refreshPreviewItem。
-            view.previewItem = url as NSURL
+            ql.previewItem = url as NSURL
         }
     }
 
-    static func dismantleNSView(_ view: QLPreviewView, coordinator: ()) {
-        view.close()
+    static func dismantleNSView(_ view: NSView, coordinator: ()) {
+        (view as? QLPreviewView)?.close()
     }
 }

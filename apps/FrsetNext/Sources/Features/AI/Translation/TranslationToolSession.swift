@@ -237,6 +237,9 @@ public final class TranslationToolSession: TranslationToolRequestExecuting {
                 remember(provider)
                 return result
             } catch {
+                // 2026-11-25（二轮复核）：取消不是「该 Provider 失败」——用户已经叫停/换会话了，
+                // 继续回落会接着请求下一个 Provider 甚至弹授权弹窗（阻塞主线程）。立即上抛。
+                if error is CancellationError { throw error }
                 lastError = error
                 // 「自动」模式下这是预期路径（没配 Key），降到 debug 免得刷警告
                 Log.debug("AI", "翻译 Provider「\(provider.displayName)」失败，尝试下一个：\(error.localizedDescription)")

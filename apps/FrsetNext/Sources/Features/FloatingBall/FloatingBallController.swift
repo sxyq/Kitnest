@@ -412,7 +412,8 @@ public final class FloatingBallController: NSObject, ObservableObject, NSWindowD
         let screen = screenFor(panel.frame)
         activeDisplayID = IslandDisplay.available.first { $0.id == activeDisplayID }?.id ?? screenKey(screen)
         if FloatingBallSettings.rememberPosition,
-           let point = (UserDefaults.standard.dictionary(forKey: FloatingBallSettings.positionsKey) as? [String: [Double]])?[screenKey(displayScreen)] {
+           let point = (UserDefaults.standard.dictionary(forKey: FloatingBallSettings.positionsKey) as? [String: [Double]])?[screenKey(displayScreen)],
+           point.count >= 2 {
             ballOrigin = NSPoint(x: displayScreen.visibleFrame.minX + point[0], y: displayScreen.visibleFrame.minY + point[1])
         }
         applyConfiguration()

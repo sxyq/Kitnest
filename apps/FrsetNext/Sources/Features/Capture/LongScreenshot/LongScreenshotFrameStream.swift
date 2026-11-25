@@ -28,11 +28,16 @@ final class LongScreenshotFrameStream: NSObject, SCStreamOutput {
     private let queue = DispatchQueue(label: "com.frset.long-screenshot.frames", qos: .userInitiated)
     private(set) var connected = false
     private var loggedFrameSize = false
+    /// 2026-11-25（二轮复核）：start 的 Task 在 await SCShareableContent/startCapture 期间
+    /// stop() 可能已经跑过——旧实现 stop 只清「已赋值的 stream」，随后 Task 才把流赋回来，
+    /// 这条 30fps 流从此没人能停（屏幕录制指示灯常亮）。用代际号识别「启动中途被停」。
+    private var startGeneration = 0
 
     /// 启动帧流（后台完成；调用方不等待——tick 在帧到达前走同步回退）
     func start(displayID: CGDirectDisplayID, selectionRectCG: CGRect) {
         Task { [weak self] in
             guard let self else { return }
+            let generation = self.startGeneration
             do {
                 let content = try await SCShareableContent
                     .excludingDesktopWindows(false, onScreenWindowsOnly: true)
@@ -79,6 +84,12 @@ final class LongScreenshotFrameStream: NSObject, SCStreamOutput {
                 try s.addStreamOutput(self, type: .screen, sampleHandlerQueue: self.queue)
                 try await s.startCapture()
 
+                // 启动中途被 stop()：立即收掉这条流，绝不落回 self.stream
+                if generation != self.startGeneration {
+                    try? await s.stopCapture()
+                    Log.info("Capture", "长截图帧流启动完成前已被停止，流已收掉")
+                    return
+                }
                 self.lock.lock()
                 self.stream = s
                 self.connected = true
@@ -93,6 +104,7 @@ final class LongScreenshotFrameStream: NSObject, SCStreamOutput {
 
     func stop() {
         lock.lock()
+        startGeneration &+= 1
         let s = stream
         stream = nil
         connected = false

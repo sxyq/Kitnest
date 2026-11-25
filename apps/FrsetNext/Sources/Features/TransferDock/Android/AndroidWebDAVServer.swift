@@ -203,11 +203,18 @@ public final class AndroidWebDAVServer {
     }
 
     private func dispatch(_ conn: NWConnection, header: String, body: Data, bodyFile: URL? = nil) {
-        defer { if let f = bodyFile { try? FileManager.default.removeItem(at: f) } }
         let lines = header.components(separatedBy: "\r\n")
         let parts = (lines.first ?? "").components(separatedBy: " ")
-        guard parts.count >= 2 else { close(conn); return }
+        guard parts.count >= 2 else {
+            if let f = bodyFile { try? FileManager.default.removeItem(at: f) }
+            close(conn); return
+        }
         let method = parts[0].uppercased()
+        // 2026-11-25（二轮复核 high）：大 body 落盘文件的删除权交给对应处理器。
+        // 旧 defer 在 dispatch 返回瞬间就删文件，而 PUT 的 adb push 是异步的——
+        // push 真正开始时文件已不存在，所有 >16MB 的 WebDAV 上传必然 500。
+        // 现在：PUT 的落盘文件由 upload 的 ADB 完成回调删除；其余方法不用 bodyFile，照旧即删。
+        if let f = bodyFile, method != "PUT" { try? FileManager.default.removeItem(at: f) }
         let rawPath = parts[1]
         let path = Self.remotePath(from: rawPath)
         let depth = Self.headerValue(header, "depth") ?? "1"
@@ -443,7 +450,8 @@ public final class AndroidWebDAVServer {
             }
         }
         ADBExtrasEngine.run(["push", tmp, path], timeout: 600) { _, status in
-            if stagedFile == nil { try? FileManager.default.removeItem(atPath: tmp) }
+            // 2026-11-25：暂存文件（无论内存路径还是 >16MB 落盘）统一在 push 结束后删除
+            try? FileManager.default.removeItem(atPath: tmp)
             let ok = status == 0
             self.send(conn, status: ok ? "201 Created" : "500 Internal Server Error", headers: [:], body: Data())
         }
