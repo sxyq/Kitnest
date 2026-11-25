@@ -33,14 +33,14 @@ mkdir -p "$OUT"
 BASE_FILES=""
 for d in Core Models Storage; do
   if [ -d "$SRC/$d" ]; then
-    BASE_FILES="$BASE_FILES $(find "$SRC/$d" -name '*.swift' | sort | tr '\n' ' ')"
+    BASE_FILES="$BASE_FILES $(find "$SRC/$d" -name '*.swift' ! -name '._*' | sort | tr '\n' ' ')"
   fi
 done
 
 # App 目录（可能尚未创建，存在才参与全量编译）
 APP_FILES=""
 if [ -d "$SRC/App" ]; then
-  APP_FILES="$(find "$SRC/App" -name '*.swift' | sort | tr '\n' ' ')"
+  APP_FILES="$(find "$SRC/App" -name '*.swift' ! -name '._*' | sort | tr '\n' ' ')"
 fi
 
 overall=0
@@ -104,7 +104,7 @@ check_module() {
   local module="$1"
   local dir="$SRC/Features/$module"
   local files
-  files="$(find "$dir" -name '*.swift' | sort | tr '\n' ' ')"
+  files="$(find "$dir" -name '*.swift' ! -name '._*' | sort | tr '\n' ' ')"
 
   if [ ! -d "$dir" ]; then
     module_lines+=("SKIP    $module  (目录不存在)")
@@ -179,7 +179,7 @@ echo
 echo "== 全量 typecheck（Core + Models + Storage + Features/** + App）=="
 ALL_FILES="$BASE_FILES"
 if [ -d "$SRC/Features" ]; then
-  ALL_FILES="$ALL_FILES $(find "$SRC/Features" -name '*.swift' | sort | tr '\n' ' ')"
+  ALL_FILES="$ALL_FILES $(find "$SRC/Features" -name '*.swift' ! -name '._*' | sort | tr '\n' ' ')"
 fi
 if [ -n "$(echo "$APP_FILES" | tr -d ' ')" ]; then
   ALL_FILES="$ALL_FILES $APP_FILES"
