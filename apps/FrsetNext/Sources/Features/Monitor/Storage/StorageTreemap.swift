@@ -172,10 +172,21 @@ final class DiskLayoutStore: ObservableObject {
     /// 结果发布计数：后台算完 +1，观察者据此重画
     @Published private(set) var generation = 0
 
-    private var cache: [String: [DiskTile]] = [:]
-    private var order: [String] = []
+    private struct Key: Hashable {
+        let nodeID: String
+        let size: CGSize
+        let childCount: Int
+        let nodeSize: Int64
+        let freeSpace: Int64?
+        let indexRevision: Int
+        let contentTopRatio: CGFloat
+        let geometry: StorageSurfaceGeometry
+    }
+
+    private var cache: [Key: [DiskTile]] = [:]
+    private var order: [Key] = []
     private var lastByNode: [String: [DiskTile]] = [:]
-    private var inFlight: Set<String> = []
+    private var inFlight: Set<Key> = []
     /// 上限：一张地图 + 几个下钻层足够
     private let capacity = 6
 
@@ -183,10 +194,10 @@ final class DiskLayoutStore: ObservableObject {
                 indexRevision: Int, contentTopRatio: CGFloat,
                 geometry: StorageSurfaceGeometry) -> [DiskTile] {
         guard size.width > 40, size.height > 40 else { return [] }
-        let key = "\(node.id)|\(size.width)×\(size.height)|\(node.children.count)|\(node.size)"
-            + "|\(freeSpace ?? 0)|\(indexRevision)|\(contentTopRatio)"
-            + "|\(Int(geometry.canvas.width))×\(Int(geometry.canvas.height))"
-            + "|\(Int(geometry.tileFrame.minX))|\(Int(geometry.surfaceTop))|\(Int(geometry.sweepEnd))"
+        let key = Key(nodeID: node.id, size: size, childCount: node.children.count,
+                      nodeSize: node.size, freeSpace: freeSpace,
+                      indexRevision: indexRevision, contentTopRatio: contentTopRatio,
+                      geometry: geometry)
         if let hit = cache[key] { return hit }
         // 未命中：先给上一次的结果（同一节点），避免图块闪空
         let fallback: [DiskTile] = lastByNode[node.id] ?? []
@@ -216,7 +227,7 @@ final class DiskLayoutStore: ObservableObject {
         return fallback
     }
 
-    private func store(key: String, nodeID: String, value: [DiskTile]) {
+    private func store(key: Key, nodeID: String, value: [DiskTile]) {
         cache[key] = value
         lastByNode[nodeID] = value
         order.append(key)
@@ -321,7 +332,7 @@ private struct TilePressStyle: ButtonStyle {
 /// 单一事实来源：背景轮廓、图块裁切、悬停命中、手势区域、Voronoi 外轮廓
 /// 全部由这一份几何推导，禁止各消费方各自再画一条近似路径。
 /// 坐标系约定：所有字段都是画布坐标（窗口内容，原点在标题栏安全区以下）。
-struct StorageSurfaceGeometry: Equatable {
+struct StorageSurfaceGeometry: Hashable {
     /// 整窗内容画布尺寸。
     var canvas: CGSize = .zero
     /// 曲面顶边基线（画布 y）。顶边有机起伏，**不再是一条水平直线**。

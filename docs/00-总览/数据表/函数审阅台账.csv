@@ -2947,21 +2947,21 @@ Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageCandidateRow,
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskVoronoiLayout,make,func,45,KEEP,DiskLayoutCache.tiles:133
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskVoronoiLayout,inradius,func,136,KEEP,DiskVoronoiLayout.make 在布局时计算标签质心到各边的最小距离，供标签档位和宽度复用；悬停不再求内切圆半径
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageHoverResolver,quantize,func,153,KEEP,仅由 StorageTreemap.onContinuousHover 调用；把鼠标坐标量化到 0.5pt 后再做重复事件判定，减少亚像素事件触发的 hover 状态与弹簧重算，命中轮廓和图块选择仍使用同一量化坐标
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskLayoutStore,layout,func,182,KEEP,StorageTreemap.body 的唯一布局入口；以节点、画布、几何、索引版本和可用空间组成缓存键，命中直接返回，未命中先返同节点旧结果并在 userInitiated 后台队列执行 DiskVoronoiLayout.make，完成后回主线程发布 generation
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskLayoutStore,store,func,219,KEEP,只由 layout 的后台计算完成回调在主线程调用；写入最多 6 个布局键、更新同节点回退结果，lastByNode 超过 24 个节点时按节点 ID 淘汰，递增 generation 触发视图读取新布局
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,TilePressStyle,makeBody,func,313,KEEP,2026-11-21：v267 按压反馈——ButtonStyle 把 isPressed 经 onChange 透传给 onPress，外观保持 plain；调用点 tileView 按钮:308
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageMapShape,blob,func,351,KEEP,path(in:) 与 StorageTileShape 调用；根据 StorageSurfaceGeometry 生成整窗曲面轮廓，供裁剪和线性映射复用
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageMapShape,path,func,406,KEEP,StorageManagerRootView.rightPane 以 StorageMapShape 裁剪整栏，左缘曲线从左下连续接到上缘内收点
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageMapShape,rawPath,func,413,KEEP,路径真实构造（缓存未命中时）：轮廓 ∩ 图块画布后线性映射；CGPath 布尔运算只在这里发生，不再每个悬停事件做一次
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageShapeCache,path,func,462,KEEP,StorageMapShape 画液面外轮廓（v274：顶边抬到按钮下方，左上近垂直下落到搜索卡左侧再扫向左边缘）；StorageTileShape 用 top 裁掉搜索条上方的浅色光条，深色图块仍从搜索条下方开始
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTileShape,path,func,491,KEEP,StorageManagerRootView.rightPane 以 StorageMapShape 裁剪整栏，左缘曲线从左下连续接到上缘内收点
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,startScriptedHoverIfNeeded,func,532,KEEP,仅当 probe.storageHover=1（或深链 ?hover=1）时，按面积最大的几块中心生成巡航路线并驱动同一个 hover 状态；默认不启用，真实鼠标交互与产品行为不变
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,tileView,func,662,KEEP,body:192
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,label,func,703,KEEP,tileView:249
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,fill,func,739,KEEP,tileView:233
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,contentColor,func,752,KEEP,tileView:213
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageHoverScript,start,func,776,KEEP,30Hz 定时器沿「A→B→C→B→A」线性插值移动压力中心，仍走同一条压力场与 0.26/0.86 弹簧，因此录到的是真实形变与回弹（只是输入源非鼠标）
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageHoverScript,stop,func,802,KEEP,停表并置 nil；到时自动停、onDisappear 也停，不留下常驻定时器
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskLayoutStore,layout,func,193,KEEP,StorageTreemap.body 的唯一布局入口；以节点、画布、几何、索引版本和可用空间组成缓存键，命中直接返回，未命中先返同节点旧结果并在 userInitiated 后台队列执行 DiskVoronoiLayout.make，完成后回主线程发布 generation
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskLayoutStore,store,func,230,KEEP,只由 layout 的后台计算完成回调在主线程调用；写入最多 6 个布局键、更新同节点回退结果，lastByNode 超过 24 个节点时按节点 ID 淘汰，递增 generation 触发视图读取新布局
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,TilePressStyle,makeBody,func,324,KEEP,2026-11-21：v267 按压反馈——ButtonStyle 把 isPressed 经 onChange 透传给 onPress，外观保持 plain；调用点 tileView 按钮:308
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageMapShape,blob,func,362,KEEP,path(in:) 与 StorageTileShape 调用；根据 StorageSurfaceGeometry 生成整窗曲面轮廓，供裁剪和线性映射复用
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageMapShape,path,func,417,KEEP,StorageManagerRootView.rightPane 以 StorageMapShape 裁剪整栏，左缘曲线从左下连续接到上缘内收点
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageMapShape,rawPath,func,424,KEEP,路径真实构造（缓存未命中时）：轮廓 ∩ 图块画布后线性映射；CGPath 布尔运算只在这里发生，不再每个悬停事件做一次
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageShapeCache,path,func,473,KEEP,StorageMapShape 画液面外轮廓（v274：顶边抬到按钮下方，左上近垂直下落到搜索卡左侧再扫向左边缘）；StorageTileShape 用 top 裁掉搜索条上方的浅色光条，深色图块仍从搜索条下方开始
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTileShape,path,func,502,KEEP,StorageManagerRootView.rightPane 以 StorageMapShape 裁剪整栏，左缘曲线从左下连续接到上缘内收点
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,startScriptedHoverIfNeeded,func,543,KEEP,仅当 probe.storageHover=1（或深链 ?hover=1）时，按面积最大的几块中心生成巡航路线并驱动同一个 hover 状态；默认不启用，真实鼠标交互与产品行为不变
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,tileView,func,673,KEEP,body:192
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,label,func,714,KEEP,tileView:249
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,fill,func,750,KEEP,tileView:233
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,contentColor,func,763,KEEP,tileView:213
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageHoverScript,start,func,787,KEEP,30Hz 定时器沿「A→B→C→B→A」线性插值移动压力中心，仍走同一条压力场与 0.26/0.86 弹簧，因此录到的是真实形变与回弹（只是输入源非鼠标）
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageHoverScript,stop,func,813,KEEP,停表并置 nil；到时自动停、onDisappear 也停，不留下常驻定时器
 Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,layout,func,24,KEEP,StorageTreemap.swift:97
 Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,arcSeeds,func,123,KEEP,layout:45（arcFirst 分支）
 Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,seeds,func,181,KEEP,layout:46
