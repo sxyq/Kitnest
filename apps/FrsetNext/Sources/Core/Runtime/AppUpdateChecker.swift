@@ -24,7 +24,7 @@ public final class AppUpdateChecker {
 
     /// 官方更新清单；用户仍可在 设置 → 关于 覆盖（清空即回到默认）
     public static let defaultFeedURL = "https://calorieai.sxyq27.online/kitnest-site/kitnest/lite/stable/latest.json"
-    private static let updateSigningRequirement = "identifier \"com.sxyq.frsetnext\" and certificate leaf = H\"2efbee27cefef9f60c03ba222a972127d9286542\""
+    private static let updateSigningRequirement = "identifier \"com.sxyq.kitnestlite\" and certificate leaf = H\"2efbee27cefef9f60c03ba222a972127d9286542\""
 
     /// 清单更新后广播（WhatsNew 与状态栏用）
     public static let feedDidUpdateNotification = Notification.Name("frset.update.feedDidUpdate")

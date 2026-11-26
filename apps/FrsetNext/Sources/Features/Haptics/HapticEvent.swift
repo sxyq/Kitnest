@@ -22,7 +22,7 @@ enum HapticPatternClass: Sendable {
     case boundary
     /// 一次性操作成功：复制、截图、OCR、下载完成等。单次。
     case success
-    /// 重要任务完成：录制保存、AI 回复完成。双次，间隔略长。
+    /// 重要任务完成：隔空投送、录制保存、AI 回复完成。双次，间隔略长。
     case milestone
     /// 失败与异常：操作失败、下载失败。双次、间隔更短，强度不低于「中」。
     case failure
@@ -34,9 +34,9 @@ extension HapticEvent {
         case .gridMove, .gridResize, .mediaPlayPause, .volumeBoundary:
             return .boundary
         case .copy, .screenshot, .ocr, .recordingStarted, .layoutSaved,
-             .airDropCompleted, .downloadCompleted, .searchCompleted, .deviceConnected, .deviceDisconnected:
+             .downloadCompleted, .searchCompleted, .deviceConnected, .deviceDisconnected:
             return .success
-        case .recordingSaved, .aiCompleted:
+        case .recordingSaved, .airDropCompleted, .aiCompleted:
             return .milestone
         case .operationFailed, .transferFailed:
             return .failure

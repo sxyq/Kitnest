@@ -48,8 +48,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // v259：上次异常退出可能留下被 SIGSTOP 的应用，先无条件唤醒再干别的
         ProcessFreezer.shared.thawOrphans()
         PanelSegments.migrateLegacyVisibility()
-        IslandController.shared.start()
         AppBootstrap.start()
+        IslandController.shared.start()
         // v127（ArcZip P3）：注册 NSServices 服务提供者（访达右键「解压到此处/解压到…/压缩」）。
         // 服务项声明在 Info.plist 的 NSServices；selector 回调落到 ArchiveServicesProvider。
         NSApp.servicesProvider = ArchiveServicesProvider.shared

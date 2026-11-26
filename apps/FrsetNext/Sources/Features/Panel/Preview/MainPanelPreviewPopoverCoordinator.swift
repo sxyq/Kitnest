@@ -432,12 +432,16 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
         outsideGlobalMonitor = NSEvent.addGlobalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             guard let self, let slot = self.slot, slot.state == .presented, !self.previewPinned else { return }
+            if self.presentingWindow === IslandController.shared.panel,
+               IslandController.shared.containsEntry(at: NSEvent.mouseLocation) { return }
             self.dismiss(reason: .programmatic)
         }
         // 点本 App（面板本体等）；点击预览窗不算「外部」
         outsideLocalMonitor = NSEvent.addLocalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
             guard let self, let slot = self.slot, slot.state == .presented else { return event }
+            if self.presentingWindow === IslandController.shared.panel,
+               IslandController.shared.containsEntry(at: NSEvent.mouseLocation) { return event }
             if self.previewPinned { return event }
             if let previewWindow = slot.windowController.window,
                event.window === previewWindow {
@@ -447,7 +451,7 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
             if event.type == .leftMouseDown, let content = event.window?.contentView {
                 var view = content.hitTest(content.convert(event.locationInWindow, from: nil))
                 while let candidate = view {
-                    if candidate is RowHostingView { return event }
+                    if candidate is RowHostingView || candidate is IslandFileDragView { return event }
                     view = candidate.superview
                 }
             }
