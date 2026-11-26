@@ -569,8 +569,7 @@ public final class StatisticsManager {
         set { UserDefaults.standard.set(newValue, forKey: "analyticsEnabled") }
     }
 
-    /// 全部已跟踪事件名（54 枚举 + 5 裸串 = 59，spec 17 §4）。
-    /// 统计页会在每次刷新时读取，集合内容只由静态事件定义组成，初始化一次即可。
+    /// 全部已跟踪事件名；内容只由静态事件定义组成，初始化一次即可。
     private static let allTrackedEventNames: Set<String> = {
         var names = Set(AnalyticsEvent.allCases.map { $0.eventName })
         names.formUnion(StatisticsManager.bareStringEvents)

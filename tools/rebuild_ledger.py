@@ -114,6 +114,8 @@ EVIDENCE = {
         "2026-11-18：归档浏览控制器关窗后调用；仅取消本归档待显示预览，全部归档窗口关闭才清共享缓存；切换表格和网格不清他窗缓存",
     ("Features/Archive/Core/ArchiveCore.swift", "extractionDirectory"):
         "2026-11-17：extractEntryToTemp返回的嵌套文件路径，按临时根组件数定位本次唯一的首层提取目录；缩略图、悬停缓存与撤销快照共用精确删除单位",
+    ("Features/Archive/Core/ArchiveCore.swift", "emitNewEntriesIfDue"):
+        "listStreaming 每 150ms 调用；锁内只截取上次发布后的新增条目，并按解析顺序投递到串行队列，避免大归档反复复制和筛选完整条目数组",
     ("Features/Archive/Core/ArchiveUndoStack.swift", "deinit"):
         "2026-11-17：Snapshot仅由删除前提取和添加后复制两处构造，持有独立临时根目录；撤销重做及异步回调共享同一引用，最后引用释放才删目录，失败沿原Log提示",
     ("Features/Archive/UI/ArchiveTextPreview.swift", "header"):
