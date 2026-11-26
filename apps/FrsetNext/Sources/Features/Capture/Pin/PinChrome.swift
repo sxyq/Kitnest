@@ -198,7 +198,7 @@ final class PinMenuView: NSView {
     static let rowHeight: CGFloat = 30
     static let pad: CGFloat = 6
 
-    private var rows: [(entry: PinMenuEntry?, title: String, symbol: String, detail: String?, isBack: Bool)] = []
+    private var rows: [(entry: PinMenuEntry?, title: String, image: NSImage?, detail: String?, isBack: Bool)] = []
     private var hovered = -1
     private var tracking: NSTrackingArea?
 
@@ -243,7 +243,14 @@ final class PinMenuView: NSView {
                 built.append((e, title, symbol, detail, false))
             }
         }
-        rows = built
+        // 图标随当前菜单行一起替换，悬停重绘直接复用；保留原字号、字重与两种固定颜色。
+        rows = built.map { row in
+            let image = row.symbol.isEmpty ? nil :
+                NSImage(systemSymbolName: row.symbol, accessibilityDescription: nil)?
+                    .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 12.5, weight: .regular))
+            let color = row.isBack ? NSColor(white: 0.42, alpha: 1) : NSColor(white: 0.22, alpha: 1)
+            return (row.entry, row.title, image?.tinted(with: color), row.detail, row.isBack)
+        }
         needsDisplay = true
     }
 
@@ -313,13 +320,7 @@ final class PinMenuView: NSView {
                 NSRect(x: 10, y: y + 1, width: bounds.width - 20, height: 0.5).fill()
             }
 
-            let symbolColor = row.isBack ? NSColor(white: 0.42, alpha: 1) : NSColor(white: 0.22, alpha: 1)
-            if !row.symbol.isEmpty,
-               let image = NSImage(systemSymbolName: row.symbol, accessibilityDescription: nil)?
-                .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 12.5, weight: .regular)) {
-                let tinted = image.tinted(with: symbolColor)
-                tinted.draw(in: NSRect(x: 12, y: rect.midY - 7, width: 14, height: 14))
-            }
+            row.image?.draw(in: NSRect(x: 12, y: rect.midY - 7, width: 14, height: 14))
 
             // 右侧要放什么：箭头（子菜单）> 勾（选中/开关）> 纯数值
             var isSubmenu = false
