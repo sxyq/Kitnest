@@ -82,7 +82,7 @@ P-003,附属浮层,Capture,Features/Capture/Annotation/AnnotationToolbarView.swi
 F-007,系统保存面板,Capture,Features/Capture/Curtain/CurtainController.swift,332 · func saveAs(_ item: CurtainItem),幕帘截图另存为,系统面板决定,AppKit 文件面板；选择文件/目录规则见入口,确认或取消结束文件选择；原入口处理结果,2026-11-19,待实测,已登记,
 A-013,提示/确认对话框,Capture,Features/Capture/LongScreenshot/LongScreenshotCoordinator.swift,103 · func confirmClearAnnotations(hasAnnotations: Bool) -> Bool,开始长截图前清除标注确认,系统按内容决定,NSAlert；提示文字/按钮/输入项由入口设置,由提示按钮或绑定状态结束；结果交原入口处理,2026-11-19,待实测,已登记,
 A-014,提示/确认对话框,Capture,Features/Capture/OCR/QRCodeRecognizer.swift,41 · func run(image: CGImage),二维码识别结果,系统按内容决定,NSAlert；提示文字/按钮/输入项由入口设置,由提示按钮或绑定状态结束；结果交原入口处理,2026-11-19,待实测,已登记,
-F-008,系统打开面板,Capture,Features/Capture/Screenshot/CaptureSectionView.swift,210 · func pickAndStitch(),拼接图片多选,系统面板决定,AppKit 文件面板；选择文件/目录规则见入口,确认或取消结束文件选择；原入口处理结果,2026-11-19,待实测,已登记,
+F-008,系统打开面板,Capture,Features/Capture/Screenshot/CaptureSectionView.swift,CaptureSectionView.pickAndStitch(),拼接图片多选,系统面板决定,AppKit 文件面板；选择文件/目录规则见入口,确认或取消结束文件选择；原入口处理结果,2026-11-27,待实测,PNG编码已后台化；入口交互待实测,2026-11-27：原后台拼接闭包内连续完成PNG编码，主线程沿原顺序保存并发布状态；系统选图条件、取消和帧数提示保留。两文件正式定向类型编译通过；选图、完成反馈和失败反馈待独占时段实机确认。
 F-009,系统打开面板,Capture,Features/Capture/Screenshot/CaptureSectionView.swift,257 · func chooseSingleImage() -> URL?,截图页选择单张图片,系统面板决定,AppKit 文件面板；选择文件/目录规则见入口,确认或取消结束文件选择；原入口处理结果,2026-11-19,待实测,已登记,
 F-010,系统打开面板,Capture,Features/Capture/Screenshot/CaptureSettingsPane.swift,424 · func chooseDirectory(),截图默认保存目录,系统面板决定,AppKit 文件面板；选择文件/目录规则见入口,确认或取消结束文件选择；原入口处理结果,2026-11-19,待实测,已登记,
 A-015,提示/确认对话框,Capture,Features/Capture/Screenshot/ScreenshotManager.swift,490 · func showPermissionAlert(),截图屏幕录制权限提示,系统按内容决定,NSAlert；提示文字/按钮/输入项由入口设置,由提示按钮或绑定状态结束；结果交原入口处理,2026-11-19,待实测,已登记,
