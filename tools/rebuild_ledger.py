@@ -2540,6 +2540,10 @@ EVIDENCE.update({
         '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
     ('Features/Capture/Screenshot/ScreenSnapshot.swift', 'captureScreenAdaptive'):
         '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
+    ('Features/Capture/Annotation/MosaicTextOnly.swift', 'clearCache'):
+        'AnnotationCanvasView.deinit 按 CGImage 身份调用；释放最近截图与文本框并清除同图在途标记，使已关闭画布的 Vision 结果不再写回全局缓存',
+    ('Features/Capture/Annotation/AnnotationEditorWindow.swift', 'deinit'):
+        '标注画布销毁时清理 MosaicTextOnly 最近图缓存；后台识别完成后不再保留已关闭画布的截图',
     ('Features/Capture/Screenshot/ScreenSnapshot.swift', 'captureScreenForScreenshot'):
         '2026-11-23：随类型自 Features/Capture/Screenshot/ScreenshotManager.swift 拆出迁入（职责拆分，纯搬家，行为不变）',
     ('Features/Capture/Screenshot/ScreenSnapshot.swift', 'cgCapture'):
@@ -3450,6 +3454,10 @@ EVIDENCE.update({
     ("Features/Toolbox/Calendar/CalendarSectionView.swift", "lunarDisplay"):
         "日历单元格把已计算的农历、节气与传统节日传入展示函数；函数只按原优先级裁短节日名，"
         "不再重复调用 LunarCalendar，节气、节日、农历和节假日文案的显示顺序保持原行为",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "cleanupStagingAtLaunch"):
+        "CaptureModule.start 在启动阶段调用；utility 队列清理私有截图暂存目录，不初始化 ScreenshotManager 单例；同进程只调度一次",
+    ("Features/TransferDock/Transfer/LocalTransferStore.swift", "pruneOrphanDirectories"):
+        "LocalTransferStore.init 在 load 与 pruneMissing 后调用；串行后台遍历索引外目录，仅删除没有常规文件的空壳目录，保留含真实用户文件的目录",
 })
 
 if __name__ == "__main__":
