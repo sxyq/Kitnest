@@ -1348,10 +1348,10 @@ Capture,Features/Capture/LongScreenshot/LongScreenshotDiagnostics.swift,LongScre
 Capture,Features/Capture/LongScreenshot/LongScreenshotDiagnostics.swift,LongScreenshotDiagnostics,showPreviewDemo,func,99,KEEP,2026-11-19：FrsetNextApp长截图预览演示深链调用；后台合成图后回主线程展示预览窗
 Capture,Features/Capture/LongScreenshot/LongScreenshotDiagnostics.swift,LongScreenshotDiagnostics,describe,func,109,KEEP,2026-11-19：runStitcherCheck将正式拼接器Outcome转换为诊断行文案
 Capture,Features/Capture/LongScreenshot/LongScreenshotDiagnostics.swift,LongScreenshotDiagnostics,makeSource,func,118,KEEP,2026-11-19：拼接检查与预览演示共用确定种子的合成长图；save/restore成对恢复绘图上下文
-Capture,Features/Capture/LongScreenshot/LongScreenshotFrameStream.swift,LongScreenshotFrameStream,start,func,37,KEEP,2026-11-19：LongScreenshotSession.start调用；异步枚举SCK内容、排除本App窗口并以选区配置30fps流，启动成功后锁内写stream/connected
-Capture,Features/Capture/LongScreenshot/LongScreenshotFrameStream.swift,LongScreenshotFrameStream,stop,func,105,KEEP,2026-11-19：LongScreenshotSession.stopFrameStream调用；锁内清stream/connected/latest后异步stopCapture，启动Task若尚未完成时这里看不到其资源
-Capture,Features/Capture/LongScreenshot/LongScreenshotFrameStream.swift,LongScreenshotFrameStream,latestFrame,func,117,KEEP,2026-11-19：Session首帧等待与captureTick调用；锁内取最新CGImage及时间，超过maxAge返回nil
-Capture,Features/Capture/LongScreenshot/LongScreenshotFrameStream.swift,LongScreenshotFrameStream,stream,func,137,KEEP,2026-11-19：SCStreamOutput协议回调；仅接受有效完成屏幕帧，VideoToolbox转CGImage后锁内替换最新帧
+Capture,Features/Capture/LongScreenshot/LongScreenshotFrameStream.swift,LongScreenshotFrameStream,start,func,38,KEEP,2026-11-27：Session.start唯一正式入口；Task创建前锁内固定代次，await后同锁比较及发布stream/isConnected；stop已变更代次时沿原stopCapture收流。connected同锁读取，30fps/sourceRect/排除窗口和倍率规则保持；停止交互待实测。
+Capture,Features/Capture/LongScreenshot/LongScreenshotFrameStream.swift,LongScreenshotFrameStream,stop,func,109,KEEP,2026-11-27：Session.stopFrameStream在取消、失败、完成和deinit调用；锁内递增代次并清stream/isConnected/latest，锁外停流；与start的快照和原子发布使用同一NSLock，实际SCK资源回落待实测。
+Capture,Features/Capture/LongScreenshot/LongScreenshotFrameStream.swift,LongScreenshotFrameStream,latestFrame,func,121,KEEP,2026-11-19：Session首帧等待与captureTick调用；锁内取最新CGImage及时间，超过maxAge返回nil
+Capture,Features/Capture/LongScreenshot/LongScreenshotFrameStream.swift,LongScreenshotFrameStream,stream,func,141,KEEP,2026-11-19：SCStreamOutput协议回调；仅接受有效完成屏幕帧，VideoToolbox转CGImage后锁内替换最新帧
 Capture,Features/Capture/LongScreenshot/LongScreenshotHUD.swift,LongScreenshotSelectionBorderWindow,init,init,17,KEEP,2026-11-19：Coordinator.commitSelection/startSession构造覆盖层；状态栏级透明点击穿透，默认sharingType.none不参与系统捕获，probe.cardCapture可见
 Capture,Features/Capture/LongScreenshot/LongScreenshotHUD.swift,BorderView,draw,func,40,KEEP,2026-11-19：BorderWindow内容视图由AppKit重绘派发；绘制圆角选区边和四角高亮线，不接事件
 Capture,Features/Capture/LongScreenshot/LongScreenshotHUD.swift,LongScreenshotHUDController,show,func,79,KEEP,2026-11-19：Coordinator.startSession调用；先关闭旧panel，按鼠标/选区/可见屏定位并避开采集区，建玻璃HUD及进度/按钮后orderFrontRegardless
