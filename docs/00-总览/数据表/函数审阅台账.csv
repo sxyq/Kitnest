@@ -955,29 +955,29 @@ Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,seek,func,7
 Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,request,func,79,KEEP,2026-11-20：系统 osascript 执行读取或指令，后台取管道内容，主线程只消费当前进程；暂停保留时间锚，原脚本仍每秒编码并传送封面
 Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,loadArtwork,func,127,KEEP,2026-11-20：曲目或封面变化取消旧任务；优先从 base64 构图，其次读文件或网络URL；仅未取消时发布，现任务完成后仍持有句柄
 Capture,Features/Capture/Annotation/AnnotationCompositor.swift,Annotation,init,init,128,KEEP,2026-11-19：编辑器笔画/文本/撤销恢复与历史快照多处构造；保留原ID、工具、像素坐标及样式和辅助参数，不另归一化
-Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,composite,func,166,KEEP,2026-11-19：EditorCanvas导出/复制调用；无标注原样返回，建同尺寸context绘底图并翻左上坐标，再缓存各强度马赛克/模糊层绘制
-Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,roundedCorners,func,218,KEEP,2026-11-19：Editor导出按圆角设置调用；半径限短边一半并透明裁切，context创建或makeImage失败保留原图
-Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,draw,func,237,KEEP,2026-11-19：画布draw与composite共用；裁到给定画布范围，聚光灯先画以免压暗其它注记，再按原序绘其余
-Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,draw,func,254,KEEP,2026-11-19：外层draw分发每Annotation调用；按tool绘形状/笔刷/注记/强调，橡皮与抹除由交互层直接改底图而不产像素图元
-Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,drawMosaicBrush,func,334,KEEP,2026-11-19：mosaic/blur分支调用；有底图和图层时走strokeMosaic遮罩，无图层时用半透明轨迹预览
-Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,strokeMosaic,func,368,KEEP,2026-11-19：drawMosaicBrush正式合成分支调用；折线描边转填充裁剪区，仅在原点宽笔触内最近邻绘像素图层
-Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,drawRemark,func,408,KEEP,2026-11-19：draw的remark分支调用；锚点圆点/折线连接白底文本框，文本高度按600宽boundingRect
-Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,drawCounter,func,451,KEEP,2026-11-19：draw的counter分支调用；首点中心绘色圆和白边，文本以固定颜色居中
-Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,drawSpotlight,func,472,KEEP,2026-11-19：draw首轮spotlight调用；在整幅CG路径上用even-odd挖圆角洞并按aux压暗
-Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,drawMagnifier,func,498,KEEP,2026-11-19：draw的magnifier分支调用；以选区中点从底图裁方块，限最小尺寸并翻图后圆形裁剪绘制
-Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,blurRadius,func,540,KEEP,2026-11-19：draw的blur分支传半径时调用；优先aux，未设置则按blockSize换算且至少6px
-Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,blurred,func,549,KEEP,2026-11-19：编辑器模糊图层provider调用；按半径比例降采样再高质量放大为整图，输入小图/半径异常沿原图返回
-Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,pixelated,func,579,KEEP,2026-11-19：编辑器马赛克图层provider调用；按最小4px块降采样返回小图，由strokeMosaic最近邻放大遮罩绘制
-Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,drawArrow,func,592,KEEP,2026-11-19：draw箭头分支调用；连起末两点并按线宽构造双翼箭头
-Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,apply,func,609,KEEP,2026-11-19：形状和线条分支共用；线宽限至少1并以圆帽圆角join绘路径
-Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,rect,func,618,KEEP,2026-11-19：形状绘制和画布交互几何共用；取首末点最小坐标与绝对差建立左上原点矩形
-Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,fontSize,func,626,KEEP,2026-11-19：文字、备注及控制器测量调用；线宽乘6并限12–72px
-Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,fontWeight,func,631,KEEP,2026-11-19：文字、备注与编辑器UI调用；0 regular、2 bold，其余semibold
-Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,textBounds,func,642,KEEP,2026-11-19：编辑器文字选中/命中计算调用；复用displayText软换行与绘制字体测包围框
-Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,displayText,func,658,KEEP,2026-11-19：text绘制及textBounds调用；wrapWidth≤8原样，否则交逐字符换行
-Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,wrapText,func,665,KEEP,2026-11-19：displayText唯一调用；保留显式段落，逐字符测NSString宽度超限换行
-Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,color,func,687,KEEP,2026-11-19：TextFontPopover及编辑器颜色渲染调用；解析6位HEX至sRGB，格式不符回系统红
-Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,hex,func,697,KEEP,2026-11-19：标注颜色编辑多处调用；转sRGB四舍五入编码大写#RRGGBB，色域转换失败回默认红
+Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,composite,func,174,KEEP,2026-11-19：EditorCanvas导出/复制调用；无标注原样返回，建同尺寸context绘底图并翻左上坐标，再缓存各强度马赛克/模糊层绘制
+Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,roundedCorners,func,226,KEEP,2026-11-19：Editor导出按圆角设置调用；半径限短边一半并透明裁切，context创建或makeImage失败保留原图
+Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,draw,func,245,KEEP,2026-11-19：画布draw与composite共用；裁到给定画布范围，聚光灯先画以免压暗其它注记，再按原序绘其余
+Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,draw,func,262,KEEP,2026-11-19：外层draw分发每Annotation调用；按tool绘形状/笔刷/注记/强调，橡皮与抹除由交互层直接改底图而不产像素图元
+Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,drawMosaicBrush,func,342,KEEP,2026-11-19：mosaic/blur分支调用；有底图和图层时走strokeMosaic遮罩，无图层时用半透明轨迹预览
+Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,strokeMosaic,func,376,KEEP,2026-11-19：drawMosaicBrush正式合成分支调用；折线描边转填充裁剪区，仅在原点宽笔触内最近邻绘像素图层
+Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,drawRemark,func,416,KEEP,2026-11-19：draw的remark分支调用；锚点圆点/折线连接白底文本框，文本高度按600宽boundingRect
+Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,drawCounter,func,459,KEEP,2026-11-19：draw的counter分支调用；首点中心绘色圆和白边，文本以固定颜色居中
+Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,drawSpotlight,func,480,KEEP,2026-11-19：draw首轮spotlight调用；在整幅CG路径上用even-odd挖圆角洞并按aux压暗
+Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,drawMagnifier,func,506,KEEP,2026-11-19：draw的magnifier分支调用；以选区中点从底图裁方块，限最小尺寸并翻图后圆形裁剪绘制
+Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,blurRadius,func,548,KEEP,2026-11-19：draw的blur分支传半径时调用；优先aux，未设置则按blockSize换算且至少6px
+Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,blurred,func,557,KEEP,2026-11-19：编辑器模糊图层provider调用；按半径比例降采样再高质量放大为整图，输入小图/半径异常沿原图返回
+Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,pixelated,func,587,KEEP,2026-11-19：编辑器马赛克图层provider调用；按最小4px块降采样返回小图，由strokeMosaic最近邻放大遮罩绘制
+Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,drawArrow,func,600,KEEP,2026-11-19：draw箭头分支调用；连起末两点并按线宽构造双翼箭头
+Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,apply,func,617,KEEP,2026-11-19：形状和线条分支共用；线宽限至少1并以圆帽圆角join绘路径
+Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,rect,func,626,KEEP,2026-11-19：形状绘制和画布交互几何共用；取首末点最小坐标与绝对差建立左上原点矩形
+Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,fontSize,func,634,KEEP,2026-11-19：文字、备注及控制器测量调用；线宽乘6并限12–72px
+Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,fontWeight,func,639,KEEP,2026-11-19：文字、备注与编辑器UI调用；0 regular、2 bold，其余semibold
+Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,textBounds,func,650,KEEP,2026-11-27：文字选中框、拖动及文字/橡皮命中共用；displayText复用换行结果后按原字体boundingRect测框，保留锚点和最小尺寸。
+Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,displayText,func,666,KEEP,2026-11-19：text绘制及textBounds调用；wrapWidth≤8原样，否则交逐字符换行
+Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,wrapText,func,673,KEEP,2026-11-27：displayText调用；保留原逐字符测宽，以原文/NSFont/宽度为键复用NSCache，32项与1MiB成本预算；5905字三组设置输出一致，复用0.007–0.293ms。
+Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,color,func,701,KEEP,2026-11-19：TextFontPopover及编辑器颜色渲染调用；解析6位HEX至sRGB，格式不符回系统红
+Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,hex,func,711,KEEP,2026-11-19：标注颜色编辑多处调用；转sRGB四舍五入编码大写#RRGGBB，色域转换失败回默认红
 Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,init,init,104,KEEP,2026-11-19：ScreenshotManager与CaptureHistory入口最终构造此NSView；构造时先将惰性CGImage一次解码，后续重绘使用固定位图
 Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,deinit,deinit,116,KEEP,标注画布销毁时清理 MosaicTextOnly 最近图缓存；后台识别完成后不再保留已关闭画布的截图
 Capture,Features/Capture/Annotation/AnnotationEditorWindow.swift,AnnotationCanvasView,decoded,func,119,KEEP,2026-11-19：画布初始化唯一调用；零尺寸或位图context创建失败返回原图，其余用设备RGB绘制并生成可复用图像
@@ -1912,8 +1912,8 @@ Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,pi
 Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,copyToPasteboard,func,1194,KEEP,2026-11-20：截图与编辑图统一复制，当前重复编码PNG且教程事件冒用lastHistoryPath。
 Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,copyToPasteboard,func,1198,KEEP,单参数入口先编码原图再复用剪贴板写入；预编码重载使用调用方PNG，两个入口都保留NSImage representation、失败提示和教程通知
 Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,playShutterSound,func,1214,KEEP,2026-11-20：登记函数在原声音偏好启用时调用Pop。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,reloadRecent,func,1224,KEEP,2026-11-20：同步枚举用户与暂存两目录、按路径去重、时间排序取60项；耗时未量化。
-Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,scanCapturedImages,func,1237,KEEP,待补证据：新增函数，尚未逐个读源码填写
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,reloadRecent,func,1224,KEEP,2026-11-27：init、截图面板及保存路径设置调用；utility后台执行scanCapturedImages，再回主线程发布recent，当前源码已无主线程目录枚举。
+Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,scanCapturedImages,func,1237,KEEP,2026-11-27：reloadRecent后台闭包唯一调用；合并两目录，按png/jpg/jpeg/heic/tiff过滤及路径去重，按修改时间倒序取60条。
 Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,thumbnail,func,1259,KEEP,最近截图单元格视图读取共享NSCache；缓存未命中只显示占位图，不执行文件读取或图像解码
 Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,loadThumbnail,func,1264,KEEP,CaptureSectionView最近截图单元格task调用；先读取共享NSCache，未命中时后台ImageIO生成最长边限制缩略图，在主Actor创建NSImage并写入现有有界缓存
 Capture,Features/Capture/Screenshot/ScreenshotManager.swift,ScreenshotManager,recognize,func,1287,KEEP,2026-11-20：内存图编码PNG后进入Data识别，动作条与默认OCR消费。
