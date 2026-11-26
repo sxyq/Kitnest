@@ -8715,7 +8715,7 @@ Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,let,com
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,let,lazyText,,274,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,let,initialMode,,275,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,let,initialQuery,,276,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,init,init,"init(text: String, compact: Bool = false, initialMode: JSONViewMode = .tree, initialQuery: String = """")",278,11,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,解析失败兜底「null」文档后委托 document 版 init；失败文本会先解析一次再弃用（已过资格判定，成本小），保留,保留,—,—
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,init,init,"init(text: String, compact: Bool = false, initialMode: JSONViewMode = .tree, initialQuery: String = """")",278,11,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,d83dd27f+wt,2026-11-27：完整阅读text入口与JSONLazyInspector.task；初始化只保存原文和初始模式/查询并挂无解析placeholder，后台JSONDocument完成后复用document入口；父视图重复构造不再直接解析。,保留,本轮源码与预览、归档调用方阅读。,—
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,init,init,"init(document: JSONDocument, compact: Bool = false, initialMode: JSONViewMode = .tree, initialQuery: String = """")",291,19,5,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,复用已解析文档：根自动展开首层、对象数组采前 20 个判默认表格模式，无重复解析，保留,保留,—,—
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,var,fontSize,,318,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,var,rowHeight,,319,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
@@ -8728,81 +8728,81 @@ Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,func,ba
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,var,jsonlBanner,,378,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,var,toolbar,,401,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,var,content,,451,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,func,refreshMatches,private func refreshMatches(),476,14,2,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,搜索匹配索引：budget 6000 限流递归收集，onAppear + searchText onChange 触发；每击键全树重建但有预算上限不会卡死，保留,保留,—,—
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,func,collectMatches,"private func collectMatches(_ node: JSONNodeModel, query: String, paths: inout Set<String>, hits: inout Int, budget: inout Int) -> Bool",492,24,12,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,递归收集命中节点+祖先，budget 递减防失控，命中判定 localizedCaseInsensitiveContains，预算内可接受，保留,保留,—,—
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,-,func,displayValue,private func displayValue(_ s: String) -> String,521,7,2,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,trim + 去首尾引号，保留,保留,—,—
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCardsView,let,document,,530,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCardsView,let,fontSize,,531,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCardsView,let,filter,,532,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCardsView,var,records,,534,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCardsView,var,body,,563,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCardsView,func,card,"private func card(node: JSONNodeModel, index: Int) -> some View",574,30,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,卡片视图构建，ensureChildren 幂等，ForEach 子级键值行，保留,保留,—,—
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONRawView,let,document,,609,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONRawView,let,fontSize,,610,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONRawView,var,pretty,,612,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONRawView,var,body,,617,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTreeList,var,node,,631,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTreeList,let,depth,,632,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTreeList,let,fontSize,,633,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTreeList,let,rowHeight,,634,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTreeList,let,keyWidth,,635,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTreeList,let,filterActive,,637,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTreeList,let,matchedPaths,,638,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTreeList,let,query,,639,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTreeList,var,visible,,641,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTreeList,var,isHit,,644,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTreeList,var,body,,650,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTreeList,var,row,,666,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableRow,let,index,,759,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableRow,let,cells,,760,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,var,sortKey,,765,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,var,sortAscending,,766,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,var,columnFilters,,768,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,var,filterPopoverColumn,,769,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,var,detail,,770,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,var,page,,772,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,var,cachedDocument,,774,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,var,cachedColumnKeys,,775,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,var,cachedRows,,776,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,func,rows,"func rows(for document: JSONDocument, columns: [String], make: () -> [JSONTableRow]) -> [JSONTableRow]",778,7,4,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,按 document 身份+列名缓存全量行，命中跳过 make()；引用类型与弹层共享同一实例（v191 修复弹层失联），保留,保留,—,—
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,func,discardRows,func discardRows(),786,5,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,清行缓存，切视图时释放内存，保留,保留,—,—
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,let,document,,796,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,let,fontSize,,797,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,let,query,,798,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,var,state,,800,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,Column,let,key,,803,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,Column,let,width,,804,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,var,shape,,814,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,func,makeColumns,private func makeColumns(shape: Shape) -> [Column],828,31,9,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,objectRows 扫前 500 行推列并集与列宽，超宽钳 140pt；有界扫描，保留,保留,—,—
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,let,pageSize,,861,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,let,maxTableRows,,864,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,let,tableTopID,,866,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,func,makeAllRows,"private func makeAllRows(shape: Shape, columns: [Column]) -> [Row]",869,24,9,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NEEDS_MEASUREMENT,70030300,"全量行物化：最多 50,000 行、每行 ensureChildren+字符串化 cells；首次切表格视图在主线程 body 内一次性构建，之后走 rows 缓存",待测,"—（代码仅给 50,000 行硬上限与 500 行分页，无实测耗时）",首次进表格视图在主线程一次性物化最多 5 万行（含子节点构建），大 JSON 可能卡一帧以上，建议实测或移入后台
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,func,makeRowValues,"private func makeRowValues(rows: [Row], columns: [Column]) -> [Row]",894,38,12,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NEEDS_MEASUREMENT,70030300,搜索过滤+列筛选+排序每次 body 求值重跑（行缓存只挡物化挡不住过滤/排序）,待测,—（无实测数据）,5 万行上限下每次击键重算 localizedCaseInsensitiveContains 过滤+排序可能掉帧，建议实测并考虑结果缓存
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,func,distinctValues,"private func distinctValues(for column: String, columns: [Column], rows: [Row]) -> [String]",934,13,6,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,列去重取前 60 再排序，仅筛选弹层打开时执行，保留,保留,—,—
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,func,tapHeader,private func tapHeader(_ key: String),948,8,2,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,排序状态翻转（同列切升降），保留,保留,—,—
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,func,toggleFilterValue,"private func toggleFilterValue(column: String, value: String)",957,5,3,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,列筛选集合增删，保留,保留,—,—
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,func,isFiltered,"private func isFiltered(column: String, value: String) -> Bool",963,4,2,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,Set contains 查询，保留,保留,—,—
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,var,body,,968,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,var,hasActiveFilter,,1127,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,func,header,"private func header(columns: [Column], rows: [Row]) -> some View",1131,52,8,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,表头视图：排序按钮+筛选按钮+popover 挂接，保留,保留,—,—
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,func,isColumnFiltered,private func isColumnFiltered(_ column: String) -> Bool,1184,3,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,字典空判一行，保留,保留,—,—
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,func,filterPopover,"private func filterPopover(for column: String, columns: [Column], rows: [Row]) -> some View",1188,43,4,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,筛选弹层视图：distinctValues + ≤60 项 Toggle 列表，打开时才求值，保留,保留,—,—
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCellDetail,let,id,,1236,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCellDetail,let,column,,1237,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCellDetail,let,value,,1238,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCellDetail,let,rowNumber,,1239,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCellDetailView,let,detail,,1243,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCellDetailView,let,fontSize,,1244,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCellDetailView,var,dismiss,,1245,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCellDetailView,var,body,,1247,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONLazyInspector,let,text,,1287,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONLazyInspector,let,compact,,1288,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONLazyInspector,let,initialMode,,1289,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONLazyInspector,let,initialQuery,,1290,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONLazyInspector,var,document,,1291,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONLazyInspector,var,failed,,1292,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONLazyInspector,var,body,,1294,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,func,refreshMatches,private func refreshMatches(),476,16,3,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,FIXED,d83dd27f+wt,2026-11-27：完整阅读四模式及onAppear/searchText/mode调用链；仅树形消费matchedPaths与matchCount，其他模式直接返回；切回树形仍按当前查询重建6000节点预算的原匹配集合。,已优化,真实4159186字节JSONL、1440条记录，同机三轮原方法首次42.30–49.09ms、热态7.41–8.73ms；非树形跳过递归，切回树形的170处命中及472条路径相同；窗口输入与切换待实测。,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,func,collectMatches,"private func collectMatches(_ node: JSONNodeModel, query: String, paths: inout Set<String>, hits: inout Int, budget: inout Int) -> Bool",494,24,12,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,递归收集命中节点+祖先，budget 递减防失控，命中判定 localizedCaseInsensitiveContains，预算内可接受，保留,保留,—,—
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,-,func,displayValue,private func displayValue(_ s: String) -> String,523,7,2,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,trim + 去首尾引号，保留,保留,—,—
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCardsView,let,document,,532,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCardsView,let,fontSize,,533,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCardsView,let,filter,,534,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCardsView,var,records,,536,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCardsView,var,body,,565,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCardsView,func,card,"private func card(node: JSONNodeModel, index: Int) -> some View",576,30,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,卡片视图构建，ensureChildren 幂等，ForEach 子级键值行，保留,保留,—,—
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONRawView,let,document,,611,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONRawView,let,fontSize,,612,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONRawView,var,pretty,,614,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONRawView,var,body,,619,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTreeList,var,node,,633,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTreeList,let,depth,,634,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTreeList,let,fontSize,,635,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTreeList,let,rowHeight,,636,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTreeList,let,keyWidth,,637,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTreeList,let,filterActive,,639,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTreeList,let,matchedPaths,,640,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTreeList,let,query,,641,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTreeList,var,visible,,643,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTreeList,var,isHit,,646,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTreeList,var,body,,652,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTreeList,var,row,,668,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableRow,let,index,,761,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableRow,let,cells,,762,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,var,sortKey,,767,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,var,sortAscending,,768,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,var,columnFilters,,770,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,var,filterPopoverColumn,,771,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,var,detail,,772,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,var,page,,774,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,var,cachedDocument,,776,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,var,cachedColumnKeys,,777,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,var,cachedRows,,778,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,func,rows,"func rows(for document: JSONDocument, columns: [String], make: () -> [JSONTableRow]) -> [JSONTableRow]",780,7,4,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,按 document 身份+列名缓存全量行，命中跳过 make()；引用类型与弹层共享同一实例（v191 修复弹层失联），保留,保留,—,—
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,func,discardRows,func discardRows(),788,5,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,清行缓存，切视图时释放内存，保留,保留,—,—
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,let,document,,798,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,let,fontSize,,799,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,let,query,,800,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,var,state,,802,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,Column,let,key,,805,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,Column,let,width,,806,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,var,shape,,816,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,func,makeColumns,private func makeColumns(shape: Shape) -> [Column],830,31,9,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,objectRows 扫前 500 行推列并集与列宽，超宽钳 140pt；有界扫描，保留,保留,—,—
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,let,pageSize,,863,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,let,maxTableRows,,866,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,let,tableTopID,,868,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,func,makeAllRows,"private func makeAllRows(shape: Shape, columns: [Column]) -> [Row]",871,24,9,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NEEDS_MEASUREMENT,d83dd27f+wt,2026-11-27：完整阅读三种表型、JSONTableState.rows及discardRows；同一文档与列键命中时复用原行；首次最多50000行仍在body同步构造，真实大表首次耗时待测。,待测,"—（代码仅给 50,000 行硬上限与 500 行分页，无实测耗时）",首次进表格视图在主线程一次性物化最多 5 万行（含子节点构建），大 JSON 可能卡一帧以上，建议实测或移入后台
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,func,makeRowValues,"private func makeRowValues(rows: [Row], columns: [Column]) -> [Row]",896,38,12,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NEEDS_MEASUREMENT,d83dd27f+wt,2026-11-27：完整阅读body、列筛选弹层、排序、详情与分页；消费缓存行，按原全局搜索→多列AND→数值或本地化字符串排序；每行重复查列位置及无关body重排是候选，实际大表负载待测。,待测,—（无实测数据）,5 万行上限下每次击键重算 localizedCaseInsensitiveContains 过滤+排序可能掉帧，建议实测并考虑结果缓存
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,func,distinctValues,"private func distinctValues(for column: String, columns: [Column], rows: [Row]) -> [String]",936,13,6,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,列去重取前 60 再排序，仅筛选弹层打开时执行，保留,保留,—,—
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,func,tapHeader,private func tapHeader(_ key: String),950,8,2,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,排序状态翻转（同列切升降），保留,保留,—,—
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,func,toggleFilterValue,"private func toggleFilterValue(column: String, value: String)",959,5,3,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,列筛选集合增删，保留,保留,—,—
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,func,isFiltered,"private func isFiltered(column: String, value: String) -> Bool",965,4,2,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,Set contains 查询，保留,保留,—,—
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,var,body,,970,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,var,hasActiveFilter,,1129,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,func,header,"private func header(columns: [Column], rows: [Row]) -> some View",1133,52,8,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,表头视图：排序按钮+筛选按钮+popover 挂接，保留,保留,—,—
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,func,isColumnFiltered,private func isColumnFiltered(_ column: String) -> Bool,1186,3,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,字典空判一行，保留,保留,—,—
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,func,filterPopover,"private func filterPopover(for column: String, columns: [Column], rows: [Row]) -> some View",1190,43,4,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,筛选弹层视图：distinctValues + ≤60 项 Toggle 列表，打开时才求值，保留,保留,—,—
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCellDetail,let,id,,1238,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCellDetail,let,column,,1239,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCellDetail,let,value,,1240,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCellDetail,let,rowNumber,,1241,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCellDetailView,let,detail,,1245,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCellDetailView,let,fontSize,,1246,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCellDetailView,var,dismiss,,1247,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCellDetailView,var,body,,1249,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONLazyInspector,let,text,,1289,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONLazyInspector,let,compact,,1290,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONLazyInspector,let,initialMode,,1291,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONLazyInspector,let,initialQuery,,1292,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONLazyInspector,var,document,,1293,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONLazyInspector,var,failed,,1294,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONLazyInspector,var,body,,1296,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
 Panel,Features/Panel/Presentation/FloatingPanel.swift,FloatingPanel,init,init,"public init(contentRect: NSRect, rootView: some View)",12,64,2,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,FIXED,修正：材质角色化,读全函数。玻璃改 makeView(tint:role:.panel)（popover 材质）；容器/层序/非激活面板语义不变,—,B1,
 Panel,Features/Panel/Presentation/FloatingPanel.swift,FloatingPanel,var,canBecomeKey,,79,0,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,NOT_REVIEWED,,,,,
 Panel,Features/Panel/Presentation/FloatingPanel.swift,FloatingPanel,init,init,public required init?(coder: NSCoder),82,3,1,PANEL,docs/20-源码实现/Features/Panel/模块说明.md,,REVIEWED_OK,70030300,fatalError 阻断 nib 反序列化（对齐原作 init(coder:) 崩溃陷阱），保留,保留,—,—

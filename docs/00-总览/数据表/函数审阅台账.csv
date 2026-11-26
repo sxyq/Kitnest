@@ -3305,22 +3305,22 @@ Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONDocument,init,init,19
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,init,init,278,KEEP,2026-11-17：正式预览与归档文本入口调用；解析文本后委托文档初始化器；当前仍会在父视图重新构造时解析，文档生命周期待性能处理
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,init,init,291,KEEP,2026-11-20：文本初始化器与落盘长文的已解析文档共用；只在根子节点未建立时展开，已折叠的根保持原状态；前20个数组元素全为对象时默认表格
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,banner,func,366,KEEP,2026-11-17：body按超量标志提示节点数超过2万，原值仍保留并按需展开，移除仅解析前2万的错误文案
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,refreshMatches,func,476,KEEP,2026-11-17：onAppear搜索变化及切回树形调用；空查询清空命中，否则递归收集最多6000节点；搜索变化在非树形仍递归，待删除无消费者工作
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,collectMatches,func,492,KEEP,2026-11-17：refreshMatches启动并递归调用；按key和preview匹配，命中集合保留祖先使树形展开到结果；共享budget用尽即停止访问下一分支
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,-,displayValue,func,521,KEEP,2026-11-17：表格显示行和卡片字段只去预览首尾引号；表格详情改在点击时从对应原始节点读取fullValue，复制仍消费同一详情值
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCardsView,card,func,574,KEEP,2026-11-17：卡片body的ForEach逐记录调用；复用ensureChildren并以displayValue显示字段；标量无孩子时卡片只剩编号，待质量批次补实际值
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,rows,func,778,KEEP,JSONTableView.body调用；同一JSONDocument与列键直接返回已构造行，文档或列键变化时重建，缓存不发布界面状态
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,discardRows,func,786,KEEP,JSONInspectorView切离表格模式调用；释放缓存行、文档引用和列键，不触发表格或其他视图更新
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,makeColumns,func,828,KEEP,2026-11-17：JSONTableView.body每轮调用一次；沿原表型和前500条字段集合生成列序与宽度，同一列结果传给行构造筛选排序表头和单元格
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,makeAllRows,func,869,KEEP,2026-11-17：JSONTableView.body每轮调用一次；沿原三种表型和50000行上限构造显示行；未筛选结果同时供处理链和列筛选选项使用
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,makeRowValues,func,894,KEEP,2026-11-17：JSONTableView.body每轮调用一次；只消费传入行与列完成原搜索多列筛选和排序；行数页数及500行分页共用此结果
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,distinctValues,func,934,KEEP,2026-11-17：filterPopover调用；使用body传入的未筛选行及列查找指定单元格；按出现顺序取最多60个不同值后排序，不再触发整表构造
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,tapHeader,func,948,KEEP,2026-11-17：表头排序按钮调用；再次点同列只翻转升降序，否则切换列并恢复升序；仍由同一JSONTableState发布刷新
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,toggleFilterValue,func,957,KEEP,2026-11-17：筛选Toggle的Binding setter调用；切换指定列值集合且空集合移除列条件；不修改原JSON数据
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,isFiltered,func,963,KEEP,2026-11-17：筛选Toggle的Binding getter调用；只读取对应列已选值，复用原state.columnFilters
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,header,func,1131,KEEP,2026-11-17：JSONTableView.body把本轮列与未筛选行传入表头；排序与筛选仍写同一JSONTableState；弹层沿参数取得选项而不重建整表
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,isColumnFiltered,func,1184,KEEP,2026-11-17：表头图标与清除按钮消费；判断指定列筛选集合是否非空，不遍历整表
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,filterPopover,func,1188,KEEP,2026-11-17：header的popover闭包传入同轮列和未筛选行；选项复用distinctValues，切换及清空写原状态而不重新读取文档
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,refreshMatches,func,476,KEEP,2026-11-27：onAppear及搜索变化调用，mode切回树形时重建；仅树形消费命中集合，非树形不再递归。真实1440条JSONL原首次42.30–49.09ms、热态7.41–8.73ms；切回后170命中及472路径相同。
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONInspectorView,collectMatches,func,494,KEEP,2026-11-17：refreshMatches启动并递归调用；按key和preview匹配，命中集合保留祖先使树形展开到结果；共享budget用尽即停止访问下一分支
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,-,displayValue,func,523,KEEP,2026-11-17：表格显示行和卡片字段只去预览首尾引号；表格详情改在点击时从对应原始节点读取fullValue，复制仍消费同一详情值
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCardsView,card,func,576,KEEP,2026-11-17：卡片body的ForEach逐记录调用；复用ensureChildren并以displayValue显示字段；标量无孩子时卡片只剩编号，待质量批次补实际值
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,rows,func,780,KEEP,JSONTableView.body调用；同一JSONDocument与列键直接返回已构造行，文档或列键变化时重建，缓存不发布界面状态
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,discardRows,func,788,KEEP,JSONInspectorView切离表格模式调用；释放缓存行、文档引用和列键，不触发表格或其他视图更新
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,makeColumns,func,830,KEEP,2026-11-17：JSONTableView.body每轮调用一次；沿原表型和前500条字段集合生成列序与宽度，同一列结果传给行构造筛选排序表头和单元格
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,makeAllRows,func,871,KEEP,2026-11-27：JSONTableView.body经state.rows调用，文档身份与列键未变则复用；三种表型及50000行上限保留，未筛选行供处理链与列选项共用，首次构造耗时待测。
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,makeRowValues,func,896,KEEP,2026-11-17：JSONTableView.body每轮调用一次；只消费传入行与列完成原搜索多列筛选和排序；行数页数及500行分页共用此结果
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,distinctValues,func,936,KEEP,2026-11-17：filterPopover调用；使用body传入的未筛选行及列查找指定单元格；按出现顺序取最多60个不同值后排序，不再触发整表构造
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,tapHeader,func,950,KEEP,2026-11-17：表头排序按钮调用；再次点同列只翻转升降序，否则切换列并恢复升序；仍由同一JSONTableState发布刷新
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,toggleFilterValue,func,959,KEEP,2026-11-17：筛选Toggle的Binding setter调用；切换指定列值集合且空集合移除列条件；不修改原JSON数据
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,isFiltered,func,965,KEEP,2026-11-17：筛选Toggle的Binding getter调用；只读取对应列已选值，复用原state.columnFilters
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,header,func,1133,KEEP,2026-11-17：JSONTableView.body把本轮列与未筛选行传入表头；排序与筛选仍写同一JSONTableState；弹层沿参数取得选项而不重建整表
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,isColumnFiltered,func,1186,KEEP,2026-11-17：表头图标与清除按钮消费；判断指定列筛选集合是否非空，不遍历整表
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,filterPopover,func,1190,KEEP,2026-11-17：header的popover闭包传入同轮列和未筛选行；选项复用distinctValues，切换及清空写原状态而不重新读取文档
 Panel,Features/Panel/Presentation/FloatingPanel.swift,FloatingPanel,init,init,12,KEEP,PanelController.swift:47 创建面板窗口
 Panel,Features/Panel/Presentation/FloatingPanel.swift,FloatingPanel,init,init,82,KEEP,NSWindow/NSCoding 必需 init（编译器强制）；fatalError 防 nib
 Panel,Features/Panel/Presentation/FloatingPanel.swift,FloatingPanel,applyPersonalizedMaterial,func,116,KEEP,PanelController.swift:87 个性化变更时重套材质

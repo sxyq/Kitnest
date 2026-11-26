@@ -474,6 +474,8 @@ struct JSONInspectorView: View {
     /// 一次递归把「命中节点 + 其祖先」收进集合：树形搜索才能自动展开到命中处，
     /// 否则折叠着的树搜什么都看不见（旧实现只是给可见行加了个底色）。
     private func refreshMatches() {
+        // 其他模式不消费树形命中；切回树形时由 mode.onChange 按当前查询重建。
+        guard mode == .tree else { return }
         guard !query.isEmpty else {
             matchedPaths = []
             matchCount = 0
