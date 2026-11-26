@@ -106,10 +106,9 @@ final class AnnotationCanvasView: NSView {
         // 编辑器每帧都要画底图（光标环/笔触都触发重绘），惰性解码会让「移动橡皮擦」直接卡死。
         // 进编辑器时一次性解成设备 RGB 位图，后续每帧只做贴图。
         self.image = Self.decoded(image)
-        /// 2026-11-26 修复（二轮 low）：仅文本马赛克首次识别要在主线程跑 Vision。
-        /// 编辑器一打开就后台预热，等用户真去刷「仅文本」时缓存多半已就绪；
-        /// textLines() 仍是同步懒识别，未就绪时不会把空数组写进缓存。
-        MosaicTextOnly.prewarm(in: self.image)
+        // 仅文本模式启用时才预热，普通标注不加载 Vision 文本模型。
+        // textLines() 保留首次使用时的同步识别，预热未完成也能取得结果。
+        if MosaicTextOnly.isEnabled { MosaicTextOnly.prewarm(in: self.image) }
         super.init(frame: .zero)
         wantsLayer = true
     }

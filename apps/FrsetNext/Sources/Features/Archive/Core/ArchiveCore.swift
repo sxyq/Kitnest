@@ -1040,6 +1040,7 @@ public enum ArchiveCore {
                                    completion: @escaping (Bool, String) -> Void) -> UUID? {
         return ArchiveTaskQueue.shared.enqueue(kind: .add,
                                                title: "写回 \(entryPath)",
+                                               relatedArchiveURL: url,
                                                onCancel: { completion(false, "已取消") }) { taskID, done in
             func both(_ ok: Bool, _ msg: String) {
                 // v127：取消传播的统一收尾——被 terminate 的 7zz 可能报空错，
@@ -1092,6 +1093,7 @@ public enum ArchiveCore {
                                    completion: @escaping (Bool, String) -> Void) -> UUID? {
         return ArchiveTaskQueue.shared.enqueue(kind: .rename,
                                                title: "重命名为 \(newName)",
+                                               relatedArchiveURL: url,
                                                onCancel: { completion(false, "已取消") }) { taskID, done in
             func both(_ ok: Bool, _ msg: String) {
                 // v127：取消传播的统一收尾——被 terminate 的 7zz 可能报空错，
@@ -1129,6 +1131,7 @@ public enum ArchiveCore {
                                 completion: @escaping (Bool, String) -> Void) -> UUID? {
         return ArchiveTaskQueue.shared.enqueue(kind: .add,
                                                title: "添加 \(files.count) 个文件到 \(url.lastPathComponent)",
+                                               relatedArchiveURL: url,
                                                onCancel: { completion(false, "已取消") }) {
             taskID, done in
             func both(_ ok: Bool, _ msg: String) {
@@ -1193,6 +1196,7 @@ public enum ArchiveCore {
         }
         return ArchiveTaskQueue.shared.enqueue(kind: .remove,
                                                title: "删除 \(entryPaths.count) 项",
+                                               relatedArchiveURL: url,
                                                onCancel: { completion(false, "已取消") }) { taskID, done in
             func both(_ ok: Bool, _ msg: String) {
                 // v127：取消传播的统一收尾——被 terminate 的 7zz 可能报空错，
