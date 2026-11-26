@@ -160,6 +160,14 @@ public struct Annotation: Identifiable, Hashable {
 /// - 形状/文字统一走 AppKit（NSBezierPath / NSAttributedString），与画布预览共用 `draw`，避免两套逻辑。
 public enum AnnotationCompositor {
 
+    // 2026-11-27：5905 字实文重复换行耗时 479–1813ms，绘制与命中共用原算法结果。
+    private static let wrappedTextCache: NSCache<NSArray, NSString> = {
+        let cache = NSCache<NSArray, NSString>()
+        cache.countLimit = 32
+        cache.totalCostLimit = 1_048_576
+        return cache
+    }()
+
     // MARK: 合成入口
 
     /// 把标注烧录进底图；无标注时原样返回底图。
@@ -664,6 +672,9 @@ public enum AnnotationCompositor {
     /// 保证「输入时看到的换行」与「提交后画布上的换行」一致。
     static func wrapText(_ text: String, font: NSFont, maxWidth: CGFloat) -> String {
         guard maxWidth > 8 else { return text }
+        let source = text as NSString
+        let key = [source, font, NSNumber(value: Double(maxWidth))] as NSArray
+        if let cached = wrappedTextCache.object(forKey: key) { return cached as String }
         var lines: [String] = []
         for paragraph in text.components(separatedBy: "\n") {
             var current = ""
@@ -679,7 +690,10 @@ public enum AnnotationCompositor {
             }
             lines.append(current)
         }
-        return lines.joined(separator: "\n")
+        let wrapped = lines.joined(separator: "\n") as NSString
+        wrappedTextCache.setObject(wrapped, forKey: key,
+                                   cost: (source.length + wrapped.length) * MemoryLayout<unichar>.stride)
+        return wrapped as String
     }
 
     // MARK: 颜色工具（HEX ↔ NSColor，sRGB）
