@@ -16,7 +16,7 @@ import VideoToolbox
 //     （HUD 恰好悬在选区附近且闪烁），静态覆盖物让对齐搜索直接跑偏
 //
 // 本实现：会话期开一条 30fps 的 SCStream（sourceRect = 选区、排除本 App 全部窗口），
-// tick 只取「最新一帧」——帧龄 ≤ 33ms，且帧里永远没有 HUD/边框。
+// tick 按调用方的帧龄上限取「最新一帧」，帧中排除本 App 的 HUD/边框。
 
 @available(macOS 14.0, *)
 final class LongScreenshotFrameStream: NSObject, SCStreamOutput {
@@ -26,7 +26,8 @@ final class LongScreenshotFrameStream: NSObject, SCStreamOutput {
     private var latestAt: CFAbsoluteTime = 0
     private var stream: SCStream?
     private let queue = DispatchQueue(label: "com.frset.long-screenshot.frames", qos: .userInitiated)
-    private(set) var connected = false
+    private var isConnected = false
+    var connected: Bool { lock.withLock { isConnected } }
     private var loggedFrameSize = false
     /// 2026-11-25（二轮复核）：start 的 Task 在 await SCShareableContent/startCapture 期间
     /// stop() 可能已经跑过——旧实现 stop 只清「已赋值的 stream」，随后 Task 才把流赋回来，
@@ -35,9 +36,10 @@ final class LongScreenshotFrameStream: NSObject, SCStreamOutput {
 
     /// 启动帧流（后台完成；调用方不等待——tick 在帧到达前走同步回退）
     func start(displayID: CGDirectDisplayID, selectionRectCG: CGRect) {
+        // 入队前固定代次；stop() 可发生在 Task 第一次获得执行机会之前。
+        let generation = lock.withLock { startGeneration }
         Task { [weak self] in
             guard let self else { return }
-            let generation = self.startGeneration
             do {
                 let content = try await SCShareableContent
                     .excludingDesktopWindows(false, onScreenWindowsOnly: true)
@@ -84,16 +86,18 @@ final class LongScreenshotFrameStream: NSObject, SCStreamOutput {
                 try s.addStreamOutput(self, type: .screen, sampleHandlerQueue: self.queue)
                 try await s.startCapture()
 
-                // 启动中途被 stop()：立即收掉这条流，绝不落回 self.stream
-                if generation != self.startGeneration {
+                // 判定与发布必须锁在一起，否则 stop() 可插在两者之间。
+                let stopped = self.lock.withLock {
+                    guard generation == self.startGeneration else { return true }
+                    self.stream = s
+                    self.isConnected = true
+                    return false
+                }
+                if stopped {
                     try? await s.stopCapture()
                     Log.info("Capture", "长截图帧流启动完成前已被停止，流已收掉")
                     return
                 }
-                self.lock.lock()
-                self.stream = s
-                self.connected = true
-                self.lock.unlock()
                 Log.info("Capture", "长截图帧流已启动 \(cfg.width)×\(cfg.height)@30fps"
                          + "（选区 \(Int(local.width))×\(Int(local.height)) 点，倍率 \(String(format: "%.2f", scale))）")
             } catch {
@@ -107,7 +111,7 @@ final class LongScreenshotFrameStream: NSObject, SCStreamOutput {
         startGeneration &+= 1
         let s = stream
         stream = nil
-        connected = false
+        isConnected = false
         latest = nil
         lock.unlock()
         if let s { Task { try? await s.stopCapture() } }
