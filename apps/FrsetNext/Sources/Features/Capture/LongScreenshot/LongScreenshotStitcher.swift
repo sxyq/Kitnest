@@ -150,11 +150,14 @@ final class LongScreenshotStitcher {
         let need = canvasWidth * canvasHeight * 4
         guard bytes.count >= need else { return nil }
         var copy = Array(bytes[0..<need])
-        let ctx = CGContext(data: &copy, width: canvasWidth, height: canvasHeight,
-                            bitsPerComponent: 8, bytesPerRow: canvasWidth * 4,
-                            space: canvasColorSpace,
-                            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
-        guard let img = ctx?.makeImage() else { return nil }
+        let image = copy.withUnsafeMutableBytes { buffer -> CGImage? in
+            let ctx = CGContext(data: buffer.baseAddress, width: canvasWidth, height: canvasHeight,
+                                bitsPerComponent: 8, bytesPerRow: canvasWidth * 4,
+                                space: canvasColorSpace,
+                                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+            return ctx?.makeImage()
+        }
+        guard let img = image else { return nil }
         cachedImage = img
         cachedHeight = canvasHeight
         return img
@@ -171,11 +174,13 @@ final class LongScreenshotStitcher {
         let count = rowBytes * height
         guard offset >= 0, offset + count <= bytes.count else { return nil }
         var copy = Array(bytes[offset..<(offset + count)])
-        let ctx = CGContext(data: &copy, width: canvasWidth, height: height,
-                            bitsPerComponent: 8, bytesPerRow: rowBytes,
-                            space: canvasColorSpace,
-                            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
-        return ctx?.makeImage()
+        return copy.withUnsafeMutableBytes { buffer in
+            let ctx = CGContext(data: buffer.baseAddress, width: canvasWidth, height: height,
+                                bitsPerComponent: 8, bytesPerRow: rowBytes,
+                                space: canvasColorSpace,
+                                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)
+            return ctx?.makeImage()
+        }
     }
 
     // MARK: - 灰度签名（恒等帧判定用）
@@ -185,14 +190,18 @@ final class LongScreenshotStitcher {
         let w = max(1, min(width, image.width))
         let h = max(1, Int((CGFloat(image.height) * CGFloat(w) / CGFloat(max(image.width, 1))).rounded()))
         var bytes = [UInt8](repeating: 0, count: w * h)
-        guard let ctx = CGContext(data: &bytes,
-                                  width: w, height: h,
-                                  bitsPerComponent: 8,
-                                  bytesPerRow: w,
-                                  space: CGColorSpaceCreateDeviceGray(),
-                                  bitmapInfo: CGImageAlphaInfo.none.rawValue) else { return nil }
-        ctx.interpolationQuality = .high
-        ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+        let drawn = bytes.withUnsafeMutableBytes { buffer in
+            guard let ctx = CGContext(data: buffer.baseAddress,
+                                      width: w, height: h,
+                                      bitsPerComponent: 8,
+                                      bytesPerRow: w,
+                                      space: CGColorSpaceCreateDeviceGray(),
+                                      bitmapInfo: CGImageAlphaInfo.none.rawValue) else { return false }
+            ctx.interpolationQuality = .high
+            ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+            return true
+        }
+        guard drawn else { return nil }
         return GraySignature(width: w, height: h, bytes: bytes)
     }
 
