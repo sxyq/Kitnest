@@ -2693,6 +2693,9 @@ EVIDENCE.update({
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "handleIndexRevisionChange"):
         "2026-11-23：索引换代后的状态收拢（刷新磁盘容量/导航节点重锚/所选过滤/详情刷新/挂起下钻），"
         "从 body 的 onChange 回调抽出为独立函数（打断 ViewBuilder 修饰链的类型检查超时）；行为与原回调一致",
+    ("Features/Monitor/Storage/StorageTreemap.swift", "tiles"):
+        "StorageTreemap.body 按节点、尺寸和索引版本复用 Voronoi 图块；同时缓存曲面命中路径，"
+        "contentShape 与连续悬停共用，仅画布几何或尺寸变化时重建",
 })
 
 # ── 2026-11-23 需求 B：四类表面与交互状态令牌 ──
@@ -2707,6 +2710,12 @@ EVIDENCE.update({
     ("Core/UI/ThemeTokens.swift", "selected"):
         "2026-11-23：选中底统一口径（强调色低强度铺底，深浅分色，可传个性化强调色）；"
         "与 hover/press/disabledOpacity/focusRing 同组收编散落状态字面量",
+})
+
+EVIDENCE.update({
+    ("Features/Toolbox/Calendar/CalendarSectionView.swift", "lunarDisplay"):
+        "2026-11-24：dayCell 在农历文字开启时调用；复用同格 lunarDate、solarTerm 与 lunarFestival，"
+        "节日、节气及既有文本优先级保持",
 })
 
 def main() -> int:
