@@ -214,13 +214,14 @@ public struct CaptureSectionView: View {
         }
         isStitching = true
         manager.statusMessage = "正在拼接 \(urls.count) 张图片…"
-        // 拼接是 CPU 密集操作，放后台；落盘与 UI 刷新回主线程
+        // 拼接与 PNG 编码连续放在原后台任务；落盘与 UI 刷新回主线程。
         DispatchQueue.global(qos: .userInitiated).async {
             let result = Stitcher.stitch(urls: urls)
+            let pngData = result.flatMap { ImageProcessor.pngData($0.image) }
             DispatchQueue.main.async {
                 isStitching = false
                 if let result = result {
-                    _ = manager.saveStitchedResult(result.image, overlaps: result.overlaps)
+                    _ = manager.saveStitchedResult(result.image, pngData: pngData, overlaps: result.overlaps)
                 } else {
                     manager.statusMessage = "拼接失败：请确认图片同宽且存在重叠内容"
                 }

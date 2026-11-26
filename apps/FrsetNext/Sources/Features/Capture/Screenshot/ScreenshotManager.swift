@@ -1391,10 +1391,10 @@ public final class ScreenshotManager: ObservableObject {
     // MARK: 长截图 / 钉图
 
 
-    /// 拼接结果的落盘 + 列表刷新（拼接计算可在后台线程做，落盘回主线程调这里）
+    /// 拼接结果及其后台编码 PNG 的落盘与列表刷新（主线程调用）。
     @discardableResult
-    public func saveStitchedResult(_ image: CGImage, overlaps: [Int]) -> URL? {
-        guard let data = ImageProcessor.pngData(image) else {
+    public func saveStitchedResult(_ image: CGImage, pngData: Data?, overlaps: [Int]) -> URL? {
+        guard let data = pngData else {
             statusMessage = CaptureError.saveFailed.errorDescription
             HapticService.shared.perform(.operationFailed)
             return nil

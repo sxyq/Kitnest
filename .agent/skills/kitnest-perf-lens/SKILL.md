@@ -72,6 +72,7 @@ description: Kitnest 全链路性能/交互/渲染热点诊断；先独立读函
 - 标注文字 `wrapText` 保留逐字符测宽，以原文、完整NSFont和精确宽度缓存结果（32项、1MiB成本预算）；真实5905字三组设置输出与原方法一致，同轮原计算83.62–189.24ms、复用0.007–0.293ms。只说明换行方法，窗口拖动、字体切换与导出仍待实机交互。
 - `ScreenshotManager.reloadRecent` 当前已在utility队列调用 `scanCapturedImages` 并回主线程发布；审阅目录扫描时沿现有后台路径分析，不重复要求后台化。
 - `ScreenTranslator.runAsync` 在原detached任务中连续渲染与PNG编码，MainActor继续暂存、登记和钉图；现有1925×911截图的正式编码方法三次为131.06/140.16/174.81ms，整轮翻译完成交互仍待实机确认。
+- `CaptureSectionView.pickAndStitch` 在原后台拼接闭包中继续PNG编码，再传给 `saveStitchedResult`；失败反馈、保存、历史与触感仍按原主线程顺序执行。写盘耗时及选图完成交互仍待实机测量。
 - `ClipboardRepository.delete` 已把原文件存在条件移到共享SQL之前，首次复制才创建临时目录；真实旧历史200条的438个候选路径中229个已不存在。后续分析沿现存附件的共享查询继续取证，保留原事务、失败恢复和OCR/标签清理。
 
 ### 已实测结论（2026-11-24 授权时段，v292 同版本）
