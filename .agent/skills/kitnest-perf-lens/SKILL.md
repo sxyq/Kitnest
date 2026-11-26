@@ -31,6 +31,7 @@ description: Kitnest 全链路性能/交互/渲染热点诊断；先独立读函
 - `Features/Archive/UI/ArchiveBrowserWindow.swift` 的 `children(in:of:)` 和 `columnTrail` 每列扫描全数组；可按 parent path 构建 children 索引并在 `reload()` 时失效，保留合成空目录和辅助文件过滤语义。
 - `Features/FloatingBall/DesktopPetView.swift` 的 3fps `TimelineView` 每帧可执行 `NSImage(contentsOfFile:)`，自定义图需缓存并在配置/路径变化时失效，不能关掉动画。
 - `tools/func_table.py` 的 `doc_path` 为路径最长前缀映射，**0 条未映射≠文档正确/函数调用关系正确**；重载只有 file#owner#name 粒度。`docs/20-源码实现/Features/Clipboard/模块说明.md` 仍写两栏，源码已经三栏。
+- 外置 exFAT 工作树上的 Swift 类型编译需排除 AppleDouble `._*` 文件；`apps/FrsetNext/check.sh` 使用 `-j 2` 与 `nice -n 10`，避免边车文件误入源码列表和并发超限。
 - `AGENTS.md`、`.agent/skills/frset-release/SKILL.md`、`.agent/skills/frset-verify/SKILL.md` 仍有强制重启/探针弹窗命令，先修正规则再给 Agent 新任务。
 
 ## 回答结构

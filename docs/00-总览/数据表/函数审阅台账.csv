@@ -2871,71 +2871,78 @@ Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindow
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerWindowController,show,func,51,KEEP,2026-11-20：监测详情按钮与storage深链共用已有窗口；按参数扫描或延迟发下钻/提示词通知，下钻消费端统一退出分类显示
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageSwipeRegion,makeNSView,func,146,KEEP,2026-11-20：根视图嵌入背景手势区时创建SwipeView，传入共用navigateHistory闭包，不创建业务存储
 Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageSwipeRegion,updateNSView,func,150,KEEP,2026-11-20：Representable刷新只更新enabled和导航闭包，保留既有NSView及事件监听器
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,init,init,183,KEEP,2026-11-20：makeNSView通过init(onNavigate:)保存导航并零frame创建，实际尺寸交SwiftUI；所需coder构造无归档入口
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,init,init,190,KEEP,2026-11-20：makeNSView通过init(onNavigate:)保存导航并零frame创建，实际尺寸交SwiftUI；所需coder构造无归档入口
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,hitTest,func,192,KEEP,2026-11-20：AppKit命中恒返回nil，滚动监听在本地事件监视器处理，前景按钮继续接收点击
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,viewDidMoveToWindow,func,194,KEEP,2026-11-20：AppKit移窗回调先移除旧事件token，仅在新window非空时装一次监听
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,refreshHitPathIfNeeded,func,206,KEEP,2026-11-23：updateNSView 与 installSwipeMonitor 调用；命中区=StorageMapShape ∩ 图块画布（排除顶部搜索/面包屑光条）
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,resetGesture,func,216,KEEP,2026-11-23：手势开始/ended/enabled 关闭时清空累计与轴锁定，保证一次触控只导航一级
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,installSwipeMonitor,func,222,KEEP,2026-11-20：只处理同一可见窗口精确非惯性滚动，按手势起点命中地图并固定归属；横向达42pt且超过纵向1.2倍后只导航一次，闭包弱持有视图
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,deinit,deinit,284,KEEP,2026-11-20：视图释放移除尚存NSEvent monitor，与移窗移除共同结束事件生命周期
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,HeaderHeightKey,reduce,func,296,KEEP,待补证据：新增函数，尚未逐个读源码填写
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,refreshDiskSpace,func,374,KEEP,2026-11-20：出现、应用激活和indexRevision变化时读取可用空间、完全磁盘访问状态及数据卷f_bfree已用量，展示复用保存值
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,statusLine,func,401,KEEP,2026-11-20：header消费快照范围、扫描日期、节点数与字节，截断时列maxNodes上限；本地日期格式沿StorageFormat
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,openFullDiskAccessSettings,func,431,KEEP,2026-11-20：页头与存储设置去授权按钮共用固定系统设置URL，通过NSWorkspace打开完全磁盘访问页面
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,handleIndexRevisionChange,func,437,KEEP,2026-11-23：索引换代后的状态收拢（刷新磁盘容量/导航节点重锚/所选过滤/详情刷新/挂起下钻），从 body 的 onChange 回调抽出为独立函数（打断 ViewBuilder 修饰链的类型检查超时）；行为与原回调一致
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,surfaceBackdrop,func,459,KEEP,待补证据：新增函数，尚未逐个读源码填写
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,bodyColumns,func,471,KEEP,待补证据：新增函数，尚未逐个读源码填写
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,miniStat,func,638,KEEP,2026-11-21：v268 顶部第一层并排小指标（标签10pt+等宽数值13pt），替代原 headline 两行说明；header 第一行三处调用
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,toolbarButton,func,649,KEEP,2026-11-20：mapControls的扫描、工作记录和设置按钮共用样式，图标标题及action由调用方提供
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,leftPane,func,751,KEEP,2026-11-20：根布局沿地图轮廓采样，LazyVStack只建可见候选行，按画布坐标计算行宽；点击只改变selectedPaths
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,rightPane,func,898,KEEP,v274：由 contentTop 把液面外轮廓抬到按钮下方、深色图块仍从搜索条下方开始；rightPane 承载 StorageTreemap 的下钻/返回/选中回调与详情浮层，尺寸取自 StorageBodyLayout.mapSize
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,categoryDetail,func,1054,KEEP,2026-11-20：rightPane显示分类字节、扫描根、pathBytes与覆盖范围说明；ScrollView内用LazyVStack按可见区域构建全部明细，仍保留文本选择和缺失明细提示
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,refreshedNavigationNode,func,1096,KEEP,2026-11-20：indexRevision更新时实际路径查新树，disk-files按父ownSize更新；展示分组递归剔除消失成员并重算字节、排序和数量
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigate,func,1117,KEEP,2026-11-20：深链、面包屑、根和图块共用，先退出分类模式再判是否同目录；下钻重建前缀，回祖先保留前进记录
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigateHistory,func,1129,KEEP,2026-11-20：手势、Esc、前后按钮和地图返回共用，只将历史游标移动到已存在索引，不重建目录树
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,jellyPulse,func,1138,KEEP,2026-11-21：v267 更 Q 弹——切层先把 jelly 压到 0.965（纵向 1.035）再以 spring(0.5/0.4) 弹回；reduceMotion 时跳过；调用点 navigate:945、navigateHistory:953；scaleEffect 应用点 868
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,buildAgentPrompt,func,1147,KEEP,2026-11-20：附属页预览和复制共用当前索引快照、候选及Top目录；概况复用statusLine与coverageHelp，准确列缓存时间、排除路径、跳过原因和截断状态，不执行删除，使用通用角色且无客户端选择参数
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,copyAgentPrompt,func,1194,KEEP,2026-11-20：附属页按钮调用同一无参buildAgentPrompt，写系统剪贴板后关闭提示词页；没有客户端选择器或agentKind状态
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,selectedBytesForPending,func,1375,KEEP,2026-11-20：删除确认框先去掉pendingTrash内已被父路径覆盖的项，再从当前快照合计真实节点字节，不操作文件
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,performTrash,func,1381,KEEP,2026-11-20：确认删除取出并清空pendingTrash，非空才交store.trash；按回传成功数、字节和lastError显示结果
-Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageCandidateRow,displayPath,func,1406,KEEP,2026-11-20：候选行只把当前home本身或home/后代缩写为~，其他路径原样显示，不误缩写同名前缀
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,init,init,185,KEEP,2026-11-20：makeNSView通过init(onNavigate:)保存导航并零frame创建，实际尺寸交SwiftUI；所需coder构造无归档入口
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,init,init,192,KEEP,2026-11-20：makeNSView通过init(onNavigate:)保存导航并零frame创建，实际尺寸交SwiftUI；所需coder构造无归档入口
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,hitTest,func,194,KEEP,2026-11-20：AppKit命中恒返回nil，滚动监听在本地事件监视器处理，前景按钮继续接收点击
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,viewDidMoveToWindow,func,196,KEEP,2026-11-20：AppKit移窗回调先移除旧事件token，仅在新window非空时装一次监听
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,refreshHitPathIfNeeded,func,208,KEEP,2026-11-23：updateNSView 与 installSwipeMonitor 调用；命中区=StorageMapShape ∩ 图块画布（排除顶部搜索/面包屑光条）
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,resetGesture,func,220,KEEP,2026-11-23：手势开始/ended/enabled 关闭时清空累计与轴锁定，保证一次触控只导航一级
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,installSwipeMonitor,func,226,KEEP,2026-11-20：只处理同一可见窗口精确非惯性滚动，按手势起点命中地图并固定归属；横向达42pt且超过纵向1.2倍后只导航一次，闭包弱持有视图
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,SwipeView,deinit,deinit,288,KEEP,2026-11-20：视图释放移除尚存NSEvent monitor，与移窗移除共同结束事件生命周期
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,HeaderHeightKey,reduce,func,300,KEEP,待补证据：新增函数，尚未逐个读源码填写
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,refreshDiskSpace,func,378,KEEP,2026-11-20：出现、应用激活和indexRevision变化时读取可用空间、完全磁盘访问状态及数据卷f_bfree已用量，展示复用保存值
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,statusLine,func,405,KEEP,2026-11-20：header消费快照范围、扫描日期、节点数与字节，截断时列maxNodes上限；本地日期格式沿StorageFormat
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,openFullDiskAccessSettings,func,435,KEEP,2026-11-20：页头与存储设置去授权按钮共用固定系统设置URL，通过NSWorkspace打开完全磁盘访问页面
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,handleIndexRevisionChange,func,441,KEEP,2026-11-23：索引换代后的状态收拢（刷新磁盘容量/导航节点重锚/所选过滤/详情刷新/挂起下钻），从 body 的 onChange 回调抽出为独立函数（打断 ViewBuilder 修饰链的类型检查超时）；行为与原回调一致
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,surfaceBackdrop,func,463,KEEP,待补证据：新增函数，尚未逐个读源码填写
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,bodyColumns,func,475,KEEP,待补证据：新增函数，尚未逐个读源码填写
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,miniStat,func,645,KEEP,2026-11-21：v268 顶部第一层并排小指标（标签10pt+等宽数值13pt），替代原 headline 两行说明；header 第一行三处调用
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,toolbarButton,func,656,KEEP,2026-11-20：mapControls的扫描、工作记录和设置按钮共用样式，图标标题及action由调用方提供
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,leftPane,func,758,KEEP,2026-11-20：根布局沿地图轮廓采样，LazyVStack只建可见候选行，按画布坐标计算行宽；点击只改变selectedPaths
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,rightPane,func,905,KEEP,v274：由 contentTop 把液面外轮廓抬到按钮下方、深色图块仍从搜索条下方开始；rightPane 承载 StorageTreemap 的下钻/返回/选中回调与详情浮层，尺寸取自 StorageBodyLayout.mapSize
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,categoryDetail,func,1061,KEEP,2026-11-20：rightPane显示分类字节、扫描根、pathBytes与覆盖范围说明；ScrollView内用LazyVStack按可见区域构建全部明细，仍保留文本选择和缺失明细提示
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,refreshedNavigationNode,func,1103,KEEP,2026-11-20：indexRevision更新时实际路径查新树，disk-files按父ownSize更新；展示分组递归剔除消失成员并重算字节、排序和数量
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigate,func,1124,KEEP,2026-11-20：深链、面包屑、根和图块共用，先退出分类模式再判是否同目录；下钻重建前缀，回祖先保留前进记录
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,navigateHistory,func,1136,KEEP,2026-11-20：手势、Esc、前后按钮和地图返回共用，只将历史游标移动到已存在索引，不重建目录树
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,jellyPulse,func,1145,KEEP,2026-11-21：v267 更 Q 弹——切层先把 jelly 压到 0.965（纵向 1.035）再以 spring(0.5/0.4) 弹回；reduceMotion 时跳过；调用点 navigate:945、navigateHistory:953；scaleEffect 应用点 868
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,buildAgentPrompt,func,1154,KEEP,2026-11-20：附属页预览和复制共用当前索引快照、候选及Top目录；概况复用statusLine与coverageHelp，准确列缓存时间、排除路径、跳过原因和截断状态，不执行删除，使用通用角色且无客户端选择参数
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,copyAgentPrompt,func,1201,KEEP,2026-11-20：附属页按钮调用同一无参buildAgentPrompt，写系统剪贴板后关闭提示词页；没有客户端选择器或agentKind状态
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,selectedBytesForPending,func,1382,KEEP,2026-11-20：删除确认框先去掉pendingTrash内已被父路径覆盖的项，再从当前快照合计真实节点字节，不操作文件
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageManagerRootView,performTrash,func,1388,KEEP,2026-11-20：确认删除取出并清空pendingTrash，非空才交store.trash；按回传成功数、字节和lastError显示结果
+Monitor,Features/Monitor/Storage/StorageManagerWindow.swift,StorageCandidateRow,displayPath,func,1413,KEEP,2026-11-20：候选行只把当前home本身或home/后代缩写为~，其他路径原样显示，不误缩写同名前缀
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskVoronoiLayout,make,func,45,KEEP,DiskLayoutCache.tiles:133
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskVoronoiLayout,inradius,func,136,KEEP,DiskVoronoiLayout.make 在布局时计算标签质心到各边的最小距离，供标签档位和宽度复用；悬停不再求内切圆半径
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskLayoutCache,tiles,func,161,KEEP,StorageTreemap.body 按节点、尺寸和索引版本复用 Voronoi 图块；同时缓存曲面命中路径，contentShape 与连续悬停共用，仅画布几何或尺寸变化时重建
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,TilePressStyle,makeBody,func,272,KEEP,2026-11-21：v267 按压反馈——ButtonStyle 把 isPressed 经 onChange 透传给 onPress，外观保持 plain；调用点 tileView 按钮:308
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageMapShape,blob,func,310,KEEP,背景与图块路径共用整窗画布几何；StorageTreemap.body 将指针位置逆映射至 geometry.canvas 后直接调用 blob.contains，省去事件内 CGPath 求交和路径变换
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageMapShape,path,func,365,KEEP,StorageManagerRootView.rightPane 以 StorageMapShape 裁剪整栏，左缘曲线从左下连续接到上缘内收点
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTileShape,path,func,392,KEEP,StorageManagerRootView.rightPane 以 StorageMapShape 裁剪整栏，左缘曲线从左下连续接到上缘内收点
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,startScriptedHoverIfNeeded,func,431,KEEP,仅当 probe.storageHover=1（或深链 ?hover=1）时，按面积最大的几块中心生成巡航路线并驱动同一个 hover 状态；默认不启用，真实鼠标交互与产品行为不变
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,tileView,func,551,KEEP,body:192
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,label,func,592,KEEP,tileView:249
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,fill,func,628,KEEP,tileView:233
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,contentColor,func,641,KEEP,tileView:213
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageHoverScript,start,func,665,KEEP,30Hz 定时器沿「A→B→C→B→A」线性插值移动压力中心，仍走同一条压力场与 0.26/0.86 弹簧，因此录到的是真实形变与回弹（只是输入源非鼠标）
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageHoverScript,stop,func,691,KEEP,停表并置 nil；到时自动停、onDisappear 也停，不留下常驻定时器
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageHoverResolver,quantize,func,153,KEEP,2026-11-26：悬停坐标量化到 0.5pt，亚像素重复点不触发新的压力状态更新
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskLayoutStore,layout,func,196,KEEP,2026-11-26：StorageTreemap.body 提交当前 node、完整几何和索引版本；Voronoi 在后台计算，布局缓存最多 6 组
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskLayoutStore,startLayout,func,228,KEEP,2026-11-26：只运行一个布局请求；完成后启动最新待算请求，过时尺寸的计算结果不发布
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,DiskLayoutStore,storeLayout,func,250,KEEP,2026-11-26：将完成布局写入有界缓存并发布 generation；同 node 的最近结果供计算期间过渡显示
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,TilePressStyle,makeBody,func,345,KEEP,2026-11-21：v267 按压反馈——ButtonStyle 把 isPressed 经 onChange 透传给 onPress，外观保持 plain；调用点 tileView 按钮:308
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageMapShape,blob,func,383,KEEP,背景与图块路径共用整窗画布几何；StorageTreemap.body 将指针位置逆映射至 geometry.canvas 后直接调用 blob.contains，省去事件内 CGPath 求交和路径变换
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageMapShape,path,func,438,KEEP,StorageManagerRootView.rightPane 以 StorageMapShape 裁剪整栏，左缘曲线从左下连续接到上缘内收点
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageMapShape,rawPath,func,444,KEEP,2026-11-26：StorageMapShape 的唯一路径构造与画布到目标矩形映射，由 StorageShapeCache 缓存入口调用
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageShapeCache,path,func,479,KEEP,StorageMapShape / StorageTileShape 共用 StorageShapeCache 的曲面与裁切路径；缓存键含完整轮廓几何、目标矩形和裁切比例，容量 24；外轮廓与图块坐标映射保持原口径
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageShapeCache,path,func,487,KEEP,StorageMapShape / StorageTileShape 共用 StorageShapeCache 的曲面与裁切路径；缓存键含完整轮廓几何、目标矩形和裁切比例，容量 24；外轮廓与图块坐标映射保持原口径
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageShapeCache,cached,func,495,KEEP,2026-11-26：线程安全查找与写入 24 项曲面路径缓存；并发构建后复查已有键，避免重复队列项
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTileShape,path,func,522,KEEP,StorageManagerRootView.rightPane 以 StorageMapShape 裁剪整栏，左缘曲线从左下连续接到上缘内收点
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,startScriptedHoverIfNeeded,func,564,KEEP,仅当 probe.storageHover=1（或深链 ?hover=1）时，按面积最大的几块中心生成巡航路线并驱动同一个 hover 状态；默认不启用，真实鼠标交互与产品行为不变
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,tileView,func,689,KEEP,body:192
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,label,func,730,KEEP,tileView:249
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,fill,func,766,KEEP,tileView:233
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,contentColor,func,779,KEEP,tileView:213
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageHoverScript,start,func,803,KEEP,30Hz 定时器沿「A→B→C→B→A」线性插值移动压力中心，仍走同一条压力场与 0.26/0.86 弹簧，因此录到的是真实形变与回弹（只是输入源非鼠标）
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageHoverScript,stop,func,829,KEEP,停表并置 nil；到时自动停、onDisappear 也停，不留下常驻定时器
 Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,layout,func,24,KEEP,StorageTreemap.swift:97
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,arcSeeds,func,110,KEEP,layout:45（arcFirst 分支）
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,seeds,func,168,KEEP,layout:46
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,cells,func,204,KEEP,layout:62 每轮迭代
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,triangulate,func,232,KEEP,将凹形存储图边界耳切为三角片，使加权 Voronoi 裁切覆盖原容器形状
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,signedArea,func,278,KEEP,计算多边形有向面积，为耳切判断顶点顺序
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,cross,func,286,KEEP,计算三点叉积，供耳切凸角与点内判定使用
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,polygonPath,func,290,KEEP,将三角裁切轮廓闭合为 SwiftUI Path，供图块填充与命中区域复用
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,PointKey,init,init,303,KEEP,将裁切交点量化到百万分之一坐标精度，使相邻三角片的共享边可合并
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,PointKey,func,func,310,KEEP,按坐标字典序排列 PointKey，统一共享边的端点方向
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,mergedContours,func,320,KEEP,抵消三角片间的内部边并追踪剩余外轮廓，避免图块出现分片接缝
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,clockwiseTurn,func,371,KEEP,在轮廓分叉处按转角选择下一条边，连续追踪凹形边界
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,area,func,378,KEEP,layout:42、67
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,centroid,func,382,KEEP,layout:77、inset:279
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,clipHalfPlane,func,393,KEEP,cells:223
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,area,func,414,KEEP,分别汇总三角片面积和单片面积，供权重收敛与质心加权使用
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,centroid,func,424,KEEP,分别计算多片面积加权中心与单个多边形质心，供站点松弛和图块定位使用
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,inset,func,439,KEEP,StorageTreemap:203、238
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,boundingBox,func,445,KEEP,StorageTreemap:113
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,sampledPoints,func,456,KEEP,按指定间距采样正式曲线路径，为异形布局与液态轮廓提供静态点集，悬停时复用缓存
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,sampledContours,func,508,KEEP,按间距采样 Path 曲线并保留分离轮廓，供图块边界、标签区域与命中路径生成
-Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,roundedPath,func,574,KEEP,DiskVoronoiLayout.make 生成静态命中轮廓；LiquidTileDrawing.body 每帧共用一次圆角路径绘制填色、裁切和描边
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,arcSeeds,func,117,KEEP,layout:45（arcFirst 分支）
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,seeds,func,175,KEEP,layout:46
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,cells,func,211,KEEP,layout:62 每轮迭代
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,triangulate,func,239,KEEP,将凹形存储图边界耳切为三角片，使加权 Voronoi 裁切覆盖原容器形状
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,signedArea,func,285,KEEP,计算多边形有向面积，为耳切判断顶点顺序
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,cross,func,293,KEEP,计算三点叉积，供耳切凸角与点内判定使用
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,polygonPath,func,297,KEEP,将三角裁切轮廓闭合为 SwiftUI Path，供图块填充与命中区域复用
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,PointKey,init,init,310,KEEP,将裁切交点量化到百万分之一坐标精度，使相邻三角片的共享边可合并
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,PointKey,func,func,317,KEEP,按坐标字典序排列 PointKey，统一共享边的端点方向
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,mergedContours,func,327,KEEP,抵消三角片间的内部边并追踪剩余外轮廓，避免图块出现分片接缝
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,clockwiseTurn,func,378,KEEP,在轮廓分叉处按转角选择下一条边，连续追踪凹形边界
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,area,func,385,KEEP,layout:42、67
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,centroid,func,389,KEEP,layout:77、inset:279
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,clipHalfPlane,func,400,KEEP,cells:223
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,area,func,421,KEEP,分别汇总三角片面积和单片面积，供权重收敛与质心加权使用
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,centroid,func,431,KEEP,分别计算多片面积加权中心与单个多边形质心，供站点松弛和图块定位使用
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,inset,func,446,KEEP,StorageTreemap:203、238
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,boundingBox,func,452,KEEP,StorageTreemap:113
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,sampledPoints,func,463,KEEP,按指定间距采样正式曲线路径，为异形布局与液态轮廓提供静态点集，悬停时复用缓存
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,sampledContours,func,515,KEEP,按间距采样 Path 曲线并保留分离轮廓，供图块边界、标签区域与命中路径生成
+Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,roundedPath,func,581,KEEP,DiskVoronoiLayout.make 生成静态命中轮廓；LiquidTileDrawing.body 每帧共用一次圆角路径绘制填色、裁切和描边
 Monitor,Features/Monitor/Views/BatteryPanel.swift,BatteryStatsContent,init,init,54,KEEP,BatteryStatsContent 接收 StatsSnapshot、可选电量和可选 LowPowerModeController；真实页注入控制器，固定预览传 nil，低电量开关只改本地状态
 Monitor,Features/Monitor/Views/BatteryPanel.swift,BatteryStatsContent,hero,func,82,KEEP,用传入电池百分比或 batteryLevel 绘制74pt电量环，按充电/接电状态显示标题、副标题及状态色
 Monitor,Features/Monitor/Views/BatteryPanel.swift,BatteryStatsContent,headline,func,116,KEEP,按传入电池的充电、充满和外接电源状态返回正在充电、已充满、接电未充或电池供电，缺值显示状态未知
