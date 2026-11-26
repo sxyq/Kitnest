@@ -813,6 +813,7 @@ public enum ArchiveCore {
                                completion: @escaping (Bool, String) -> Void) -> UUID? {
         let title = entry.map { "解压 \($0)" } ?? "解压 \(url.lastPathComponent)"
         return ArchiveTaskQueue.shared.enqueue(kind: .extract, title: title, output: dir,
+                                               relatedArchiveURL: url,
                                                onCancel: { completion(false, "已取消") }) { taskID, done in
             // 队列记账 + 原调用方回调（一次 work 只收尾一次）
             func both(_ ok: Bool, _ msg: String) {
@@ -1379,6 +1380,7 @@ public enum ArchiveCore {
                                          completion: @escaping (Bool, String) -> Void) -> UUID? {
         return ArchiveTaskQueue.shared.enqueue(kind: .encrypt,
                                                title: "加密另存 \(dest.lastPathComponent)",
+                                               relatedArchiveURL: url,
                                                onCancel: { completion(false, "已取消") }) {
             taskID, done in
             func both(_ ok: Bool, _ msg: String) {
