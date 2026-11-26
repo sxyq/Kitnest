@@ -393,7 +393,7 @@ final class LongScreenshotPreviewController: NSObject, NSWindowDelegate {
 /// - `sharingType = .none`：连系统捕获都取不到它（SCK 的 app 级排除对覆盖窗不生效）；
 /// - 只显示画布**底部**一段（按宽度缩放后最多裁到 420pt 高），长图不会缩成细条；
 ///   2026-11-26 改为裁底部：顶部固定会让卡片第一帧后就不再变化，看不到刚追加的内容。
-///   注意上游 `LongScreenshotStitcher.preview` 目前只给画布前 500 行，见修复报告。
+///   上游 `LongScreenshotStitcher.preview` 提供画布底部至多 500 行，随追加内容更新。
 ///   选区太宽导致左右都没位置时，缩略图高度跟着可用空间缩，卡片不消失。
 final class LongScreenshotLivePreviewPanel: NSPanel {
 
