@@ -674,6 +674,14 @@ public final class ArchiveBrowserModel: ObservableObject {
     /// v127 接线（arch-engine P2-2）：添加前扫 Windows 文件名问题 → 对话框三选一
     public func addFiles(_ files: [URL]) {
         guard !files.isEmpty else { return }
+        // 2026-11-26 修复（二轮 low）：pickAndAddFiles 只挡了索引期，底部「…」菜单与右键
+        // 「添加文件到此文件夹…」都能对 rar/dmg 等只读包发起写入，只能等 7zz 报错。
+        // 这里统一补上「索引未完成」与「只读格式」两道前置。
+        if gateIfPreliminary("添加文件") { return }
+        guard editable else {
+            Toast.show("此格式仅支持浏览，无法添加文件", icon: "lock", isWarning: true)
+            return
+        }
         guard confirmOverwriteIfSourceChanged() else { return }
         let issues = ArchiveCore.windowsNameIssues(files.map { $0.lastPathComponent })
         guard !issues.isEmpty else {

@@ -581,18 +581,36 @@ public struct ClipboardRow: View {
     }()
 
     private static func imageSizeText(at path: String) -> String? {
-        if let hit = sizeTextCache.object(forKey: path as NSString) { return hit as String }
+        // 2026-11-26 修复（low）：空串作为「负结果」占位缓存（NSCache 不能存 nil）。
+        // 原来失败结果不缓存，.file 行（首行路径）每次 body 求值都会 CGImageSourceCreateWithURL
+        // 一次——zip/文本等非图片必然失败，等于每帧每行一次开文件 + 头解析。
+        if let hit = sizeTextCache.object(forKey: path as NSString) {
+            return hit.length > 0 ? (hit as String) : nil
+        }
         // v128（内存优化）：包 autoreleasepool——滚动热路径每行 body 求值都可能
         // CGImageSource 读盘取元数据（产生 CFString/NSDictionary 桥接对象），
         // 列表重绘是成批触发，不显式 drain 会堆积
         return autoreleasepool {
+            // 2026-11-26 修复（low）：先用扩展名挡掉明显非图片的文件（zip / 文本 / 视频…），
+            // 连打开文件都不做；无扩展名的路径仍走下面的 ImageIO 探测。
+            let ext = (path as NSString).pathExtension
+            if !ext.isEmpty, UTType(filenameExtension: ext)?.conforms(to: .image) != true {
+                sizeTextCache.setObject("" as NSString, forKey: path as NSString)
+                return nil
+            }
             // v101 性能审计：原实现 NSImage(contentsOfFile:) 整图解码只为取像素宽高——
             // 图片行每次 body 求值都同步解码整图（滑动掉帧源）。改 ImageIO 只读元数据。
             guard let src = CGImageSourceCreateWithURL(URL(fileURLWithPath: path) as CFURL, nil),
-                  let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any] else { return nil }
+                  let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any] else {
+                sizeTextCache.setObject("" as NSString, forKey: path as NSString)
+                return nil
+            }
             let width = props[kCGImagePropertyPixelWidth] as? Int ?? 0
             let height = props[kCGImagePropertyPixelHeight] as? Int ?? 0
-            guard width > 0, height > 0 else { return nil }
+            guard width > 0, height > 0 else {
+                sizeTextCache.setObject("" as NSString, forKey: path as NSString)
+                return nil
+            }
             let text = "\(width)×\(height) pt"
             sizeTextCache.setObject(text as NSString, forKey: path as NSString)
             return text
@@ -776,7 +794,11 @@ public struct ClipboardThumbnailView: View {
         }
         let ext = URL(fileURLWithPath: filePath).pathExtension
         guard !ext.isEmpty, let type = UTType(filenameExtension: ext) else { return nil }
-        return NSWorkspace.shared.icon(for: type)
+        // 2026-11-26 修复（low）：文件不存在分支同样写缓存——原来不写，已消失文件的行
+        // 每次 body 求值都重查 UTType + IconServices（滚动时每帧每行）。
+        let icon = NSWorkspace.shared.icon(for: type)
+        Self.fileIconCache.setObject(icon, forKey: key)
+        return icon
     }
 
     private var symbolName: String {

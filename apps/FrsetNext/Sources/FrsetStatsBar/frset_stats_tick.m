@@ -167,6 +167,16 @@ static frset_battery_t s_batt;
 #include <stdatomic.h>
 static frset_sensor_t  s_sensors[600];
 static _Atomic int     s_sensorCountA = 0;
+// 2026-11-26 修复（二轮复核）：
+// ① s_sensors 有两条写路径（设置页 FSBarCopySensorKeys 懒扫描 / tick 每 6s 的后台扫描），
+//    原实现只靠原子计数发布，两个 memcpy 并发写同一块数组会撕裂；
+// ② frset_smc_scan 依赖全局 g_conn，FSStatsTickStop 关停时后台扫描可能仍在飞，
+//    会对已 IOServiceClose 的连接发 IOConnect（use-after-close）。
+// 用同一把锁串行化「两条扫描写路径」与「开/关 SMC」，关停前先拿到锁即等于等在飞扫描结束；
+// s_smcOpen 防止 stop 之后才被调度起来的旧扫描再去碰已关闭的 g_conn。
+// 锁只在扫描/开关时持有（~150ms，低频），主线程每 tick 的读取仍走原子的 lock-free 快照。
+static pthread_mutex_t s_sensorLock = PTHREAD_MUTEX_INITIALIZER;
+static BOOL            s_smcOpen = NO;   // 受 s_sensorLock 保护
 static int             s_tickCount = 0;
 static uint64_t        s_diskTotal = 0, s_diskFree = 0;
 
@@ -192,7 +202,10 @@ void FSBarOpenMonitor(int module) {
 /// 设置界面传感器选择：返回 SMC 扫描到的传感器 key/value（按扫描序）
 int FSBarCopySensorKeys(char keys[][8], double *values, int max) {
     // v49：懒扫描保留（设置页低频操作），计数改走原子发布
-    if (atomic_load_explicit(&s_sensorCountA, memory_order_acquire) <= 0) {
+    // 2026-11-26 修复：懒扫描与 tick 后台扫描互斥（见 s_sensorLock 注释），
+    // 关闭后不再发起新扫描，避免碰已关闭的 g_conn。
+    pthread_mutex_lock(&s_sensorLock);
+    if (atomic_load_explicit(&s_sensorCountA, memory_order_acquire) <= 0 && s_smcOpen) {
         frset_sensor_t tmp[600];
         int n = frset_smc_scan(tmp, 600);
         if (n > 0) {
@@ -211,6 +224,7 @@ int FSBarCopySensorKeys(char keys[][8], double *values, int max) {
         if (values) values[cnt] = s_sensors[i].value;
         cnt++;
     }
+    pthread_mutex_unlock(&s_sensorLock);
     return cnt;
 }
 
@@ -252,14 +266,20 @@ static void statsTick(void) {
     if (s_tickCount % 60 == 1) frset_disk_capacity(&s_diskTotal, &s_diskFree);
     if (s_tickCount % 12 == 1) {
         // v49 性能修复：SMC 全量扫描（~150ms）放后台线程，主线程零尖峰。
-        // g_conn 已在 FSStatsTickStart 主线程打开，之后只读（IOKit 驱动侧串行化），跨线程安全。
+        // 2026-11-26 修复：扫描与 s_sensors 写入都在 s_sensorLock 内（与设置页懒扫描互斥、
+        // 也与 FSStatsTickStop 的 frset_smc_close 互斥）；s_smcOpen 兜住「stop 之后才被
+        // 调度起来的旧块」，不再对已关闭的 g_conn 发 IOConnect。
         dispatch_async(dispatch_get_global_queue(QOS_CLASS_UTILITY, 0), ^{
-            frset_sensor_t tmp[600];
-            int n = frset_smc_scan(tmp, 600);
-            if (n > 0) {
-                memcpy(s_sensors, tmp, (size_t)n * sizeof(frset_sensor_t));
-                atomic_store_explicit(&s_sensorCountA, n, memory_order_release);
+            pthread_mutex_lock(&s_sensorLock);
+            if (s_smcOpen) {
+                frset_sensor_t tmp[600];
+                int n = frset_smc_scan(tmp, 600);
+                if (n > 0) {
+                    memcpy(s_sensors, tmp, (size_t)n * sizeof(frset_sensor_t));
+                    atomic_store_explicit(&s_sensorCountA, n, memory_order_release);
+                }
             }
+            pthread_mutex_unlock(&s_sensorLock);
         });
     }
 
@@ -337,7 +357,13 @@ static void statsTick(void) {
 /// 合并条路径（与注入版「原生项全隐藏、合并条呈现」的最终观感一致）。
 void FSStatsTickStart(void) {
     if (s_tickTimer) return;
-    frset_smc_open();
+    // 2026-11-26 修复：SMC 打开也走 s_sensorLock，与扫描/关闭串行化
+    pthread_mutex_lock(&s_sensorLock);
+    if (!s_smcOpen) {
+        frset_smc_open();
+        s_smcOpen = YES;
+    }
+    pthread_mutex_unlock(&s_sensorLock);
     frset_conn_start();          // Net 面板连通性历史（ICMP 后台线程，幂等）
     statsTick();                 // 立即采一次，避免首帧空值
     s_tickTimer = [NSTimer timerWithTimeInterval:kSampleInterval repeats:YES block:^(NSTimer *t) {
@@ -363,7 +389,13 @@ void FSStatsTickStop(void) {
     pthread_mutex_lock(&s_cpuLock);
     s_hasCPU = NO;
     pthread_mutex_unlock(&s_cpuLock);
+    // 2026-11-26 修复：先关调度闸（s_smcOpen=NO），再拿 s_sensorLock ——
+    // 若后台扫描正在飞，这里会等它用完 g_conn 再 close，杜绝 use-after-close；
+    // 之后才被调度起来的扫描块看到 s_smcOpen=NO 会直接跳过。
+    pthread_mutex_lock(&s_sensorLock);
+    s_smcOpen = NO;
     frset_smc_close();
+    pthread_mutex_unlock(&s_sensorLock);
     NSLog(@"[FrsetStatsBar] 采样 tick 停止");
 }
 

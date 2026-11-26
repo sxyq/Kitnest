@@ -14,11 +14,12 @@ public final class LLMSessionStore {
 
     // MARK: 会话
 
-    /// 新建会话
+    /// 新建会话；写库失败返回 nil（2026-11-26 修复：旧实现只打日志仍返回「看起来已存在」的
+    /// 会话，调用方继续 appendMessage 也是静默吞错 → 内存里有内容、库里没有，重启整段丢失）
     @discardableResult
     public func createSession(title: String = "新会话",
                               provider: LLMProviderKind = AISettings.providerKind,
-                              model: String? = nil) -> LLMChatSession {
+                              model: String? = nil) -> LLMChatSession? {
         let now = Date()
         let session = LLMChatSession(title: title,
                                      messages: [],
@@ -34,6 +35,7 @@ public final class LLMSessionStore {
                       .text(session.model ?? ""), .real(now.timeIntervalSince1970), .real(now.timeIntervalSince1970)])
         } catch {
             Log.error("AI", "新建会话失败：\(error.localizedDescription)")
+            return nil
         }
         return session
     }

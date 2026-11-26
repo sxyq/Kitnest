@@ -318,6 +318,7 @@ public final class AudioMixerController: ObservableObject {
         var size: UInt32 = 0
         guard AudioObjectGetPropertyDataSize(sys, &listAddr, 0, nil, &size) == 0, size > 0 else {
             playingApps = []
+            iconCache.removeAll()   // 没有任何有声进程：缓存一并清空（F-misc-1#5）
             return
         }
         var ids = [AudioObjectID](repeating: 0, count: Int(size) / MemoryLayout<AudioObjectID>.size)
@@ -350,6 +351,11 @@ public final class AudioMixerController: ObservableObject {
                                      name: running?.localizedName ?? "PID \(pid)",
                                      icon: icon))
         }
+        // 2026-11-26 修复（F-misc-1#5）：缓存原来只按 pid 建键且永不淘汰——长会话里
+        // pid 复用会让新进程取到上一个 App 的图标，条目数也随历史音频 App 无限增长。
+        // 每轮按当前在播进程修剪，缓存规模恒等于「同时有声的 App 数」。
+        let live = Set(apps.map { Int32($0.id) })
+        iconCache = iconCache.filter { live.contains($0.key) }
         // 进程顺序不变时不发布，避免每 2s 重绘设置页。
         if apps.map(\.id) != playingApps.map(\.id) {
             playingApps = apps

@@ -163,7 +163,10 @@ final class QuickTutorialController: ObservableObject {
     }
 
     var clipboardSampleSaved: Bool {
-        ClipboardManager.shared.items.contains { $0.content == sampleText }
+        // 2026-11-26 修复：原实现对全部历史做全量线性扫描 + 全文比较，被 0.5s 轮询和
+        // 250ms 重试循环反复调用。示例条目刚写入时位于最前，只扫最近 200 条即可，
+        // 把周期性主线程开销钳住。
+        ClipboardManager.shared.items.prefix(200).contains { $0.content == sampleText }
     }
 
     var isScreenshotActive: Bool {

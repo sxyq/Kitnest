@@ -144,8 +144,22 @@ final class IslandController: NSObject, ObservableObject {
         }
     }
     var peekOrder: [IslandPeek] { configuration.peekOrder }
+    /// 最近一次成功解析到的屏幕（2026-11-26 修复用）
+    private var lastResolvedScreen: NSScreen?
     var displayScreen: NSScreen {
-        displays.first { $0.id == activeDisplayID }?.screen ?? displays.first?.screen ?? NSScreen.screens[0]
+        // 2026-11-26 修复：原来 displays 与 NSScreen.screens 均为空时 strong index
+        // `NSScreen.screens[0]` 会越界崩溃（无屏/极早期启动边界）。改为 first + 逐级兜底，
+        // 并缓存最近一次成功解析结果。NSScreen 无公开构造器，属性签名又是非可选，
+        // 因此保留最后一级 `screens[0]` 仅作类型兜底——实际已被前置分支覆盖。
+        if let screen = displays.first(where: { $0.id == activeDisplayID })?.screen
+            ?? displays.first?.screen
+            ?? NSScreen.screens.first
+            ?? NSScreen.main {
+            lastResolvedScreen = screen
+            return screen
+        }
+        if let cached = lastResolvedScreen { return cached }
+        return NSScreen.screens[0]
     }
     var effectiveWidth: CGFloat { min(max(configuration.width, configuration.minimumWidth), displayScreen.frame.width - 40) }
     var effectiveHeight: CGFloat { min(max(configuration.height, configuration.minimumHeight), displayScreen.frame.height - 40) }

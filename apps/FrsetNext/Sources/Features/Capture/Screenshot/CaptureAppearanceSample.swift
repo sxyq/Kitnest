@@ -42,20 +42,54 @@ enum CaptureAppearanceSample {
 
 struct CaptureWatermarkPreview: View {
     let configuration: Watermark.Configuration
+    /// 2026-11-26 修复：旧实现每次 body 求值都对 960×540 样例做整幅 Watermark.applied 合成，
+    /// 设置页拖动不透明度/角度/字号滑杆时逐帧在主线程重绘（无节流），拖一下就掉帧。
+    /// 现在结果缓存在本地状态里，并用 task(id:) + 100ms 防抖只渲染最后一帧。
+    @Stored private var rendered: NSImage?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("效果预览 · 固定示意画面")
                 .font(.system(size: 11)).foregroundStyle(.secondary)
-            if let image = CaptureAppearanceSample.image.cgImage(forProposedRect: nil, context: nil, hints: nil) {
-                Image(nsImage: NSImage(cgImage: Watermark.applied(to: image, configuration: configuration),
-                                       size: CaptureAppearanceSample.image.size))
-                    .resizable().aspectRatio(contentMode: .fit)
-                    .frame(maxWidth: 480)
-                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.control))
-                    .frame(maxWidth: .infinity)
-                    .accessibilityLabel("水印预览，使用正式水印绘制和固定示意画面")
+            Group {
+                if let image = rendered {
+                    Image(nsImage: image)
+                        .resizable().aspectRatio(contentMode: .fit)
+                        .frame(maxWidth: 480)
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.control))
+                        .accessibilityLabel("水印预览，使用正式水印绘制和固定示意画面")
+                } else {
+                    Color.clear.frame(height: 270)
+                }
             }
+            .frame(maxWidth: .infinity)
         }
+        .task(id: configuration) {
+            // 防抖：id 变化会取消上一个 task，连续拖动只在停下后渲染一次
+            try? await Task.sleep(nanoseconds: 100_000_000)
+            if Task.isCancelled { return }
+            rendered = Self.render(configuration)
+        }
+    }
+
+    /// 用半尺寸底图合成：预览最大只显示 480pt，没必要按 960×540 全幅算水印
+    private static func render(_ configuration: Watermark.Configuration) -> NSImage? {
+        guard let source = CaptureAppearanceSample.image
+            .cgImage(forProposedRect: nil, context: nil, hints: nil) else { return nil }
+        let base = downscaled(source, maxWidth: 640) ?? source
+        let out = Watermark.applied(to: base, configuration: configuration)
+        return NSImage(cgImage: out, size: NSSize(width: out.width, height: out.height))
+    }
+
+    private static func downscaled(_ image: CGImage, maxWidth: Int) -> CGImage? {
+        guard image.width > maxWidth else { return image }
+        let h = max(1, Int((Double(image.height) * Double(maxWidth) / Double(image.width)).rounded()))
+        guard let ctx = CGContext(data: nil, width: maxWidth, height: h,
+                                  bitsPerComponent: 8, bytesPerRow: 0,
+                                  space: CGColorSpaceCreateDeviceRGB(),
+                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        ctx.interpolationQuality = .high
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: maxWidth, height: h))
+        return ctx.makeImage()
     }
 }

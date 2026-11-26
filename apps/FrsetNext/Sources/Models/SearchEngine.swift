@@ -147,13 +147,20 @@ public final class SearchServiceManager: ObservableObject {
 
     // MARK: 搜索动作
 
+    /// 搜索关键词编码（2026-11-26 修复·二轮 medium）：抽成公共入口，供
+    /// `searchURL` 与 `WebResultScraper.searchURL`（SearchSectionView）共用。
+    /// 按 RFC 3986 unreserved（字母数字 + `-._~`）编码，等价 encodeURIComponent：
+    /// `&` `=` `+` `#` `%` 与空格全部转义，「Tom & Jerry」不会再被拆成额外参数。
+    public static func encodeQuery(_ query: String) -> String {
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
+        return query.addingPercentEncoding(withAllowedCharacters: allowed) ?? query
+    }
+
     /// 由模板构造可打开的搜索 URL（{query} → URL 编码后的关键词；{tl} → 目标语言码）
     public static func searchURL(for engine: SearchEngine, query: String) -> URL? {
         // 2026-11-25（函数审查 NEEDS_FIX 落实）：.urlQueryAllowed 不转义 & = + 等保留字符，
-        // 「Tom & Jerry」会把 & 拼成模板的额外参数、+ 被服务端当空格。按 RFC 3986
-        // unreserved（字母数字 + -._~）编码，等价于 encodeURIComponent。
-        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-._~"))
-        let encoded = query.addingPercentEncoding(withAllowedCharacters: allowed) ?? query
+        // 「Tom & Jerry」会把 & 拼成模板的额外参数、+ 被服务端当空格。
+        let encoded = encodeQuery(query)
         var template = engine.urlTemplate
             .replacingOccurrences(of: "{query}", with: encoded)
         if template.contains("{tl}") {
@@ -223,9 +230,11 @@ public final class SearchServiceManager: ObservableObject {
         customEngines.removeAll { $0.id == engineID }
         activeBarItems.removeAll { $0 == engineID }
         // 2026-11-25（二轮复核）：删掉最后一个栏内引擎会把搜索栏清空（≥1 不变式破坏，
-        // 之后所有 removeFromSearchBar 都返回 false 且搜索栏没有可用引擎）。补默认引擎。
-        if activeBarItems.isEmpty, let first = Self.defaultActiveBarItems.first {
-            activeBarItems = [first]
+        // 之后所有 removeFromSearchBar 都返回 false 且搜索栏没有可用引擎）。
+        // 2026-11-26（二轮 low 复审）：原补丁只塞回第一个默认引擎，栏里仍只有一项；
+        // 这里按 load() 的口径恢复完整默认集（都是内置引擎，恒存在）。
+        if activeBarItems.isEmpty {
+            activeBarItems = Self.defaultActiveBarItems
         }
         persistActiveBarItems()
         rebuildOrder()

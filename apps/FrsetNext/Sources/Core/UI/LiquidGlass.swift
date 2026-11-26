@@ -95,6 +95,10 @@ struct LiquidGlassBackground: NSViewRepresentable {
     /// 「面板顿一下」的主要来源之一。签名没变就不碰材质。
     final class Coordinator {
         var signature: String?
+        /// 2026-11-26（F-misc-1#4）：上次校正过窗口属性的窗口 / 阴影开关。
+        /// SwiftUI 复用或把 NSView 挪到新窗口时用来判断「是否需要重新挂一次」。
+        weak var window: NSWindow?
+        var appliedWindowShadow: Bool?
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -120,6 +124,10 @@ struct LiquidGlassBackground: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
+        // 2026-11-26 修复（F-misc-1#4）：窗口属性（透明底 / 阴影）以前只在 makeNSView
+        // 的 async 块里设一次，SwiftUI 换窗或复用换成新窗口（sheet 重建）后就不跟随。
+        // 这里做一次幂等校正（只在换窗口 / 阴影开关变化时才异步补，不每帧排队）。
+        syncWindowAttributes(nsView, context: context)
         guard context.coordinator.signature != signature else {
             // 圆角/材质没变：只在预览模式下补一次外观（预览是另一个窗口实例）
             if isSettingsPreview { applyPreviewStyle(to: nsView) }
@@ -137,6 +145,22 @@ struct LiquidGlassBackground: NSViewRepresentable {
         }
     }
 
+    /// 幂等地把窗口调到「透明底 + 指定阴影」；预览窗不接管。
+    private func syncWindowAttributes(_ view: NSView, context: Context) {
+        guard !isSettingsPreview else { return }
+        let window = view.window
+        let shadow = appliesWindowShadow
+        guard context.coordinator.window !== window || context.coordinator.appliedWindowShadow != shadow
+        else { return }
+        context.coordinator.window = window
+        context.coordinator.appliedWindowShadow = shadow
+        DispatchQueue.main.async {
+            guard let w = view.window else { return }
+            w.applyOfficialBackground()
+            if w.hasShadow != shadow { w.hasShadow = shadow }
+        }
+    }
+
     /// 与玻璃观感相关的全部输入。
     ///
     /// 2026-11-24 v293：**去掉 glassOpacity / glassBlur**。这两个参数只作用于
@@ -145,6 +169,8 @@ struct LiquidGlassBackground: NSViewRepresentable {
     /// 旧签名把她们算进来，于是拖一下「通透度」滑块就重套一次材质 = 整窗重采样，
     /// 正是「拖滑块时面板顿一下」的来源。
     /// 新增：外观（深浅）、降透明度、实际后端与焦点策略——这三项才真正决定材质。
+    /// 2026-11-26（F-misc-1#4）：再补 `appliesWindowShadow`——它只在 makeNSView 里被
+    /// 消费过一次，不进签名的话切「窗口阴影」永远不会生效（update 早退分支不碰窗口）。
     private var signature: String {
         let dark = colorScheme == .dark
         let style = LiquidGlass.Style(role: .panel,
@@ -153,6 +179,7 @@ struct LiquidGlassBackground: NSViewRepresentable {
                                       focus: .stable)
         let resolved = LiquidGlass.resolve(style)
         return "\(resolved.signature)|dark\(dark ? 1 : 0)|preview\(isSettingsPreview ? 1 : 0)"
+            + "|shadow\(appliesWindowShadow ? 1 : 0)"
     }
 
     private func applyPreviewStyle(to view: NSView) {

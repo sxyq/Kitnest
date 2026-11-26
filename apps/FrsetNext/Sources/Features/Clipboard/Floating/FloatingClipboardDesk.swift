@@ -1389,10 +1389,10 @@ public struct FloatingClipboardDeskView: View {
         .buttonStyle(.plain)
         // v287「拖动卡片到分类」：拖到收藏等级行 = 直接设等级；拖到「已存」= 存为项目。
         // 只改元数据，不动正文与删除（不会误删原始数据）。
-        .onDrop(of: [.text] + ([UTType("com.sxyq.frsetnext.dedupekey")].compactMap { $0 }), isTargeted: nil) { providers in
+        .onDrop(of: SidebarDropSupport.acceptedDropTypes, isTargeted: nil) { providers in
             guard let drop else { return false }
-            SidebarDropSupport.handle(providers, drop)
-            return true
+            // 2026-11-26 修复：只受理带 dedupeKey 的应用内拖拽，返回值与实际动作一致
+            return SidebarDropSupport.handle(providers, drop)
         }
     }
 
@@ -1728,8 +1728,9 @@ public struct FloatingClipboardDeskView: View {
             provider = NSItemProvider(object: ClipboardManager.shared.fullText(for: item) as NSString)
         }
         // v287：注册 dedupeKey（应用内拖放识别用，不影响外部拖出）
+        // 2026-11-26：类型标识改为共用常量，避免落点声明与注册处字符串漂移
         let key = item.dedupeKey
-        provider.registerDataRepresentation(forTypeIdentifier: "com.sxyq.frsetnext.dedupekey",
+        provider.registerDataRepresentation(forTypeIdentifier: SidebarDropSupport.dedupeKeyTypeIdentifier,
                                             visibility: .ownProcess) { completion in
             completion(key.data(using: .utf8), nil)
             return nil
@@ -2127,13 +2128,34 @@ private struct SplitSidebarDivider: View {
 /// 卡片拖拽时注册的自定义表示（com.sxyq.frsetnext.dedupekey）。
 /// 侧栏所有落点共用这一份解析，避免各写一套。
 enum SidebarDropSupport {
-    static func handle(_ providers: [NSItemProvider], _ perform: @escaping (String) -> Void) {
-        for provider in providers {
-            _ = provider.loadDataRepresentation(forTypeIdentifier: "com.sxyq.frsetnext.dedupekey") { data, _ in
+    /// 应用内拖放识别用的自定义 UTI（dragProvider 注册 / 落点声明共用同一常量）
+    static let dedupeKeyTypeIdentifier = "com.sxyq.frsetnext.dedupekey"
+
+    /// 落点声明的可接受类型（2026-11-26 修复）：
+    /// 原来只声明 `.text` + 自定义 UTI，而图片分支 provider 来自 `NSItemProvider(contentsOf:)`
+    /// （public.file-url / public.image）、文件分支同理，都不符合 public.text——AppKit 在
+    /// 命中判定阶段就判不接收，`handle` 根本不会被调用，整条拖放链路对图片/文件条目失效。
+    /// 这里把落点类型表补齐（文本 / 文件 URL / 图片）后，handle 里的 dedupeKey 解析才拿得到载荷。
+    static var acceptedDropTypes: [UTType] {
+        var types: [UTType] = [.text, .fileURL, .image]
+        if let custom = UTType(dedupeKeyTypeIdentifier) { types.append(custom) }
+        return types
+    }
+
+    /// 解析拖放载荷。返回是否真的接下了这次拖放（有 dedupeKey 表示才会执行落点动作）。
+    /// 2026-11-26 修复：用同步可用的 hasItemConformingToTypeIdentifier 判定受理，
+    /// 避免「光标显示可放下、松手却什么都没发生」。
+    @discardableResult
+    static func handle(_ providers: [NSItemProvider], _ perform: @escaping (String) -> Void) -> Bool {
+        var accepted = false
+        for provider in providers where provider.hasItemConformingToTypeIdentifier(dedupeKeyTypeIdentifier) {
+            accepted = true
+            _ = provider.loadDataRepresentation(forTypeIdentifier: dedupeKeyTypeIdentifier) { data, _ in
                 guard let data, let key = String(data: data, encoding: .utf8), !key.isEmpty else { return }
                 DispatchQueue.main.async { perform(key) }
             }
         }
+        return accepted
     }
 }
 
@@ -2183,13 +2205,13 @@ private struct SidebarTagRow: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .onDrop(of: [.text] + ([UTType("com.sxyq.frsetnext.dedupekey")].compactMap { $0 }), isTargeted: $isDropTarget) { providers in
-            SidebarDropSupport.handle(providers) { key in
+        .onDrop(of: SidebarDropSupport.acceptedDropTypes, isTargeted: $isDropTarget) { providers in
+            // 2026-11-26 修复：受理与否跟 handle 的实际结果一致（图片/文件拖拽也能命中）
+            return SidebarDropSupport.handle(providers) { key in
                 TagStore.shared.assign(tagID: tag.id, toDedupeKey: key)
                 NotificationCenter.default.post(name: TagStore.didChangeNotification, object: nil,
                                                 userInfo: ["keys": [key]])
             }
-            return true
         }
     }
 }

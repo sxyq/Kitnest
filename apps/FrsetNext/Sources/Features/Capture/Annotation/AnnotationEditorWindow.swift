@@ -16,6 +16,8 @@ final class AnnotationCanvasView: NSView {
     /// 当前工具与样式
     var tool: AnnotationTool = .rectangle {
         didSet {
+            // 2026-11-26 修复：换工具即打断撤销合并（跨工具的连续改写不该并成一条）
+            breakCoalescing()
             // 换工具即取消文字选中（选中框只属于文字工具）
             if tool != .text, selectedTextID != nil { selectText(nil) }
             if tool != oldValue, selectedShapeID != nil { selectShape(nil) }
@@ -52,13 +54,32 @@ final class AnnotationCanvasView: NSView {
     private var ops: [EditOp] = []
     /// 重做栈（v100：撤销后可重做；产生新编辑时清空）
     private var redoOps: [EditOp] = []
+    // 2026-11-26 修复（撤销栈无上限）：旧实现只增不减，而 .imageSnapshot 同时持有
+    // 抹除前后的两张整图位图（4K ≈ 33MB/张），连续抹除十余次可达数百 MB，
+    // 只有 clear()/关窗才释放。现在总深度封顶，imageSnapshot 再单独封顶。
+    private static let maxUndoDepth = 40
+    private static let maxImageSnapshots = 8
+    // 2026-11-26 修复（合并缺少手势边界）：旧实现只比对「上一条是否同 id 的 .modify」，
+    // 于是「拖动形状（coalescing:false 单独成条）后紧接着一次改粗细」或
+    // 「切描边样式 → 改颜色」会被并成一条，一次 ⌘Z 回退两步。
+    // 现在要求同一操作会话（token 相同）且时间连续才合并。
+    private var coalesceToken = 0
+    private var lastModifyToken = -1
+    private var lastModifyTime: CFTimeInterval = 0
+    private static let coalesceWindow: CFTimeInterval = 1.5
     /// 笔刷光标位置（图像坐标）与悬停跟踪
     private var cursorPoint: CGPoint?
     private var trackingAreaRef: NSTrackingArea?
     /// 马赛克像素化缓存（按块大小；底图变化时失效）
     private var mosaicPixelCache: [Int: CGImage] = [:]
     /// 高斯模糊缓存（按半径；底图变化时失效）
+    /// 2026-11-26 修复：加容量上限——每项都是整幅原尺寸模糊图（4K ≈ 33MB），
+    /// 旧实现按半径无限累积（半径来自笔刷宽度，可连续取值），一晚上能囤上 GB。
+    /// 现在最多保留 4 档（正好覆盖块大小 6/10/16/24 四档，不至于每帧互相淘汰），
+    /// 超出按插入顺序淘汰最旧的。
     private var blurImageCache: [Int: CGImage] = [:]
+    private var blurCacheOrder: [Int] = []
+    private static let blurCacheLimit = 4
     private var mosaicCacheBase: CGImage?
     /// v264：仅文本马赛克的文本行缓存（底图变化时与马赛克缓存一起失效）
     private var textLineCache: [CGRect]?
@@ -85,6 +106,10 @@ final class AnnotationCanvasView: NSView {
         // 编辑器每帧都要画底图（光标环/笔触都触发重绘），惰性解码会让「移动橡皮擦」直接卡死。
         // 进编辑器时一次性解成设备 RGB 位图，后续每帧只做贴图。
         self.image = Self.decoded(image)
+        /// 2026-11-26 修复（二轮 low）：仅文本马赛克首次识别要在主线程跑 Vision。
+        /// 编辑器一打开就后台预热，等用户真去刷「仅文本」时缓存多半已就绪；
+        /// textLines() 仍是同步懒识别，未就绪时不会把空数组写进缓存。
+        MosaicTextOnly.prewarm(in: self.image)
         super.init(frame: .zero)
         wantsLayer = true
     }
@@ -223,6 +248,7 @@ final class AnnotationCanvasView: NSView {
         if mosaicCacheBase !== image {
             mosaicPixelCache.removeAll()
             blurImageCache.removeAll()
+            blurCacheOrder.removeAll()
             textLineCache = nil
             mosaicCacheBase = image
         }
@@ -239,8 +265,26 @@ final class AnnotationCanvasView: NSView {
             let key = Int(radius)
             if let cached = self.blurImageCache[key] { return cached }
             guard let b = AnnotationCompositor.blurred(self.image, radius: radius) else { return nil }
+            // 2026-11-26 修复：按插入顺序淘汰，最多留 blurCacheLimit 档（整幅模糊图很占内存）
             self.blurImageCache[key] = b
+            self.blurCacheOrder.removeAll { $0 == key }
+            self.blurCacheOrder.append(key)
+            while self.blurCacheOrder.count > Self.blurCacheLimit {
+                let evicted = self.blurCacheOrder.removeFirst()
+                self.blurImageCache[evicted] = nil
+            }
             return b
+        }
+        // 2026-11-26 修复：标注绘制也纳入与底图相同的圆角裁切。
+        // 旧实现圆角 clip 只包住底图（上面的 save/restore 已结束），标注在 restore 之后绘制、
+        // 仅被 canvasRect 裁剪，于是贴近四角的标注在编辑区完整可见，而导出（composite
+        // 先烧标注再切圆角）后被切掉，与 v176 注释宣称的「所见即所得」不符。
+        ctx.saveGState()
+        if radius > 0 {
+            let ir = radius / max(scale, 0.0001)
+            ctx.addPath(CGPath(roundedRect: canvasRect, cornerWidth: ir, cornerHeight: ir,
+                               transform: nil))
+            ctx.clip()
         }
         AnnotationCompositor.draw(annotations, in: canvasRect, base: image,
                                   mosaicCache: mosaicProvider, blurCache: blurProvider)
@@ -248,6 +292,7 @@ final class AnnotationCanvasView: NSView {
             AnnotationCompositor.draw([draft], in: canvasRect, base: image,
                                       mosaicCache: mosaicProvider, blurCache: blurProvider)
         }
+        ctx.restoreGState()
 
         // 备注工具：起点已点下、还没放文本框时，画一个准星提示「再点空白处」
         if let anchor = remarkAnchor {
@@ -415,6 +460,9 @@ final class AnnotationCanvasView: NSView {
     // MARK: 鼠标
 
     override func mouseDown(with event: NSEvent) {
+        // 2026-11-26 修复：新手势开始即打断撤销合并，
+        // 避免「上一步滑杆/取色」被并进即将产生的拖动/落笔记录
+        breakCoalescing()
         // 正在输入文字时，先提交未完成的文本（与原版「点别处即落字」一致）
         if textEditor != nil { finishTextEditing(commit: true) }
 
@@ -632,7 +680,9 @@ final class AnnotationCanvasView: NSView {
             }
             guard textDragMoved, let old = textDragOld,
                   let updated = annotations.first(where: { $0.id == old.id }) else { return }
-            record(.modify(old: old, new: updated))
+            // 2026-11-26 修复：拖动收尾单独成条、并作为合并屏障（与形状拖动 L605 一致），
+            // 免得紧随其后的滑杆/取色改动被并进这一条，一次 ⌘Z 回退两步
+            record(.modify(old: old, new: updated), coalescing: false)
             onTextSelectionChange?(updated)
             return
         }
@@ -883,8 +933,10 @@ final class AnnotationCanvasView: NSView {
                 self.removalInProgress = false
                 guard self.image === base else { return }
                 guard let cleaned else {
-                    Log.warn("Capture", "抹除：修复引擎返回空")
-                    Toast.show("抹除失败：修复引擎返回空", icon: "exclamationmark.triangle")
+                    // 2026-11-26 修复：引擎对「无洞 / 全洞」也返回 nil（见 ObjectRemovalEngine），
+                    // 这里不再谎报「已抹除」，也不产生空的撤销记录。
+                    Log.warn("Capture", "抹除：修复引擎未产出结果（区域无需/无法抹除）")
+                    Toast.show("抹除未生效：该区域无需或无法抹除", icon: "exclamationmark.triangle")
                     return
                 }
                 self.image = cleaned
@@ -934,16 +986,22 @@ final class AnnotationCanvasView: NSView {
     }
 
     private func selectShape(_ annotation: Annotation?) {
+        // 2026-11-26 修复：切换选中即打断撤销合并（换了目标的改写绝不能并进同一条）
+        breakCoalescing()
         selectedShapeID = annotation?.id
         onShapeSelectionChange?(annotation)
         needsDisplay = true
     }
 
     func applyShapeStyleToSelection(_ style: AnnotationShapeStyle) {
+        // 2026-11-26 修复：切描边/实色填充是离散动作，打断合并，
+        // 免得紧随其后的一次改颜色被并进同一条撤销项
+        breakCoalescing()
         mutateSelectedShape { $0.shapeStyle = style }
     }
 
     func applyShapeSizeToSelection(_ width: CGFloat) {
+        // 滑杆连续拖动不打断，交给 record 的会话/时间窗口合并
         mutateSelectedShape { $0.lineWidth = width }
     }
 
@@ -1047,6 +1105,8 @@ final class AnnotationCanvasView: NSView {
 
     /// 选中 / 取消选中文字
     func selectText(_ annotation: Annotation?) {
+        // 2026-11-26 修复：切换选中即打断撤销合并
+        breakCoalescing()
         if annotation == nil { closeFontPopover() }
         selectedTextID = annotation?.id
         onTextSelectionChange?(annotation)
@@ -1319,24 +1379,64 @@ final class AnnotationCanvasView: NSView {
 
     /// 记录一次编辑：入撤销栈并清空重做栈。
     /// 连续改写同一条标注（拖字号滑杆 / 拖动文字）合并成一条，避免撤销栈被几十个中间态塞满。
+    /// 2026-11-26 修复：合并还要满足「同一操作会话 + 时间连续」，见字段注释。
     private func record(_ op: EditOp, coalescing: Bool = true) {
+        let now = CACurrentMediaTime()
         if coalescing, case .modify(let old, let new) = op,
            case .modify(let prevOld, let prevNew)? = ops.last,
-           prevNew.id == new.id {
+           prevNew.id == new.id,
+           lastModifyToken == coalesceToken,
+           now - lastModifyTime < Self.coalesceWindow {
             ops[ops.count - 1] = .modify(old: prevOld, new: new)
+            lastModifyTime = now
             redoOps.removeAll()
             needsDisplay = true
             onChange?()
             return
         }
         ops.append(op)
+        if coalescing, case .modify = op {
+            lastModifyToken = coalesceToken
+            lastModifyTime = now
+        } else {
+            // 非合并入栈（新建标注 / 拖动收尾 / 抹除快照）是天然的合并屏障
+            lastModifyToken = -1
+        }
+        trimOps()
         redoOps.removeAll()
         needsDisplay = true
         onChange?()
     }
 
+    /// 2026-11-26 修复：打断撤销合并（新手势 / 切换选中 / 换工具 / 离散样式切换时调用）
+    private func breakCoalescing() {
+        coalesceToken &+= 1
+        lastModifyToken = -1
+    }
+
+    /// 2026-11-26 修复：撤销栈容量上限。
+    /// 总深度封顶 maxUndoDepth；.imageSnapshot（抹除前后两张整图）另外单独封顶
+    /// maxImageSnapshots——丢弃最旧的快照，避免 4K 图连续抹除把内存涨到数百 MB。
+    private func trimOps() {
+        if ops.count > Self.maxUndoDepth {
+            ops.removeFirst(ops.count - Self.maxUndoDepth)
+        }
+        var snapshotIndices: [Int] = []
+        for (i, op) in ops.enumerated() {
+            if case .imageSnapshot = op { snapshotIndices.append(i) }
+        }
+        let overflow = snapshotIndices.count - Self.maxImageSnapshots
+        if overflow > 0 {
+            let drop = Set(snapshotIndices.prefix(overflow))
+            ops = ops.enumerated().filter { !drop.contains($0.offset) }.map { $0.element }
+        }
+    }
+
     func undo() {
         guard let op = ops.popLast() else { return }
+        // 2026-11-26 修复：撤销后必须重开会话，否则新编辑可能并回更早的同类撤销项
+        coalesceToken &+= 1
+        lastModifyToken = -1
         redoOps.append(op)
         apply(op, forward: false)
         needsDisplay = true
@@ -1345,6 +1445,8 @@ final class AnnotationCanvasView: NSView {
 
     func redo() {
         guard let op = redoOps.popLast() else { return }
+        coalesceToken &+= 1
+        lastModifyToken = -1
         ops.append(op)
         apply(op, forward: true)
         needsDisplay = true

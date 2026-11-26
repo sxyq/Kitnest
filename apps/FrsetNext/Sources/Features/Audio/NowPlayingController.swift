@@ -33,6 +33,9 @@ final class NowPlayingController: ObservableObject {
     private var timer: Timer?
     private var process: Process?
     private var artworkTask: Task<Void, Never>?
+    /// 2026-11-26 修复：封面任务的代际号。任务结束时只有「仍是最新一次」才清 artworkTask，
+    /// 避免旧任务收尾把新任务句柄抹掉。
+    private var artworkGeneration = 0
 
     var position: Double? {
         guard let elapsed = snapshot.elapsed else { return nil }
@@ -123,12 +126,21 @@ final class NowPlayingController: ObservableObject {
 
     private func loadArtwork(_ item: Snapshot) {
         artworkTask?.cancel()
+        artworkTask = nil
         artwork = nil
+        artworkGeneration &+= 1
+        let generation = artworkGeneration
         if let encoded = item.artworkData, let data = Data(base64Encoded: encoded) {
             artwork = NSImage(data: data)
         } else if let value = item.artworkURL, let url = URL(string: value) {
             // 只读取当前曲目由播放器提供的封面地址；不搜索替代唱片或生成封面。
             artworkTask = Task {
+                // 2026-11-26 修复：任务无论成功、失败还是取消都要清掉句柄 ——
+                // 否则「失败一次」后 request 里的 `artwork == nil && artworkTask == nil`
+                // 永远为假，同一曲目再也不重试封面。
+                defer {
+                    if artworkGeneration == generation { artworkTask = nil }
+                }
                 do {
                     let data: Data
                     if url.isFileURL {

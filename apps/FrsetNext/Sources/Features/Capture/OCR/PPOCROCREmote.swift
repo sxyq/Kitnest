@@ -24,6 +24,26 @@ enum PPOCROCREmote {
         let confidence: Double
     }
 
+    /// 2026-11-26 修复：管道读取结果的跨线程容器。
+    /// 旧实现用 `var output = Data()` 被后台队列写、调用线程在信号量之后读，
+    /// 只靠 semaphore 兜同步（写法上是跨线程可变捕获）。改成锁保护的槽位。
+    private final class PipeResult: @unchecked Sendable {
+        private let lock = NSLock()
+        private var data = Data()
+
+        func store(_ value: Data) {
+            lock.lock()
+            data = value
+            lock.unlock()
+        }
+
+        func load() -> Data {
+            lock.lock()
+            defer { lock.unlock() }
+            return data
+        }
+    }
+
     /// helper 可执行文件位置（与主 App 同包，构建时一起签名）
     private static var helperURL: URL {
         Bundle.main.bundleURL
@@ -92,21 +112,33 @@ enum PPOCROCREmote {
         }
 
         // 后台读管道（子进程输出很小，但别在主线程阻塞；同时留超时兜底）
-        var output = Data()
-        let done = DispatchSemaphore(value: 0)
+        // 2026-11-26 修复：stdout / stderr **并发**读。旧实现只读 stdout，成功后进程退出才读
+        // stderr——helper 若把 stderr 写满 64KB 管道会与父进程互锁，只能等 10s 超时误判失败。
+        let outBox = PipeResult()
+        let errBox = PipeResult()
+        let outDone = DispatchSemaphore(value: 0)
+        let errDone = DispatchSemaphore(value: 0)
         DispatchQueue.global(qos: .userInitiated).async {
-            output = outPipe.fileHandleForReading.readDataToEndOfFile()
-            done.signal()
+            outBox.store(outPipe.fileHandleForReading.readDataToEndOfFile())
+            outDone.signal()
         }
-        if done.wait(timeout: .now() + 10) == .timedOut {
+        DispatchQueue.global(qos: .userInitiated).async {
+            errBox.store(errPipe.fileHandleForReading.readDataToEndOfFile())
+            errDone.signal()
+        }
+        if outDone.wait(timeout: .now() + 10) == .timedOut {
+            // 2026-11-26 修复：terminate 之后补 waitUntilExit，既回收进程（避免僵尸），
+            // 也保证 defer 删除临时目录时子进程已不再读 raw/boxes。
             process.terminate()
+            process.waitUntilExit()
             Log.warn("Capture", "本地 OCR：子进程超时（10s），已终止")
             return []
         }
         process.waitUntilExit()
+        _ = errDone.wait(timeout: .now() + 2)   // 进程已退出，stderr 立即 EOF
+        let output = outBox.load()
         guard process.terminationStatus == 0, !output.isEmpty else {
-            let err = (try? errPipe.fileHandleForReading.readDataToEndOfFile()) ?? Data()
-            let message = String(data: err, encoding: .utf8)?
+            let message = String(data: errBox.load(), encoding: .utf8)?
                 .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
             Log.warn("Capture", "本地 OCR：子进程失败（status \(process.terminationStatus)）\(message)")
             return []

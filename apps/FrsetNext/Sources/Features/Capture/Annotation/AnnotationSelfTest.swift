@@ -203,13 +203,18 @@ public enum AnnotationSelfTest {
     private static func pixels(of image: CGImage) -> [UInt8] {
         let w = image.width, h = image.height
         var buf = [UInt8](repeating: 0, count: w * h * 4)
-        guard let ctx = CGContext(data: &buf, width: w, height: h,
-                                  bitsPerComponent: 8, bytesPerRow: w * 4,
-                                  space: CGColorSpaceCreateDeviceRGB(),
-                                  bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
-            return buf
+        // 2026-11-26 修复：旧实现把 `&buf` 的 inout 指针交给 CGContext，而真正的写入发生在
+        // 之后的 ctx.draw——inout 指针只在调用期间有效，属未定义行为（非唯一引用时可能静默得到全 0，
+        // 让 14 个工具全部误报 FAIL）。改在 withUnsafeMutableBytes 作用域内建上下文并绘制。
+        buf.withUnsafeMutableBytes { raw in
+            guard let ctx = CGContext(data: raw.baseAddress, width: w, height: h,
+                                      bitsPerComponent: 8, bytesPerRow: w * 4,
+                                      space: CGColorSpaceCreateDeviceRGB(),
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else {
+                return
+            }
+            ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
         }
-        ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
         return buf
     }
 

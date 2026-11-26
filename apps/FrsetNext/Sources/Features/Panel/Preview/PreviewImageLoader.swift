@@ -23,15 +23,25 @@ public final class PreviewImageLoader {
     private let syncDecodeCache: NSCache<NSString, NSImage> = {
         let c = NSCache<NSString, NSImage>()
         c.countLimit = 8
+        // 2026-11-26 修复：补字节级上限（1600px 图约 10MB/张；原来只限张数，
+        // 最坏常驻约 80MB，且与 loadImage 的 64MB 尺度不一致）。
+        c.totalCostLimit = 96 * 1024 * 1024
         return c
     }()
 
     /// 带缓存的同步解码（可后台线程调用）
     public func cachedDecode(_ url: URL, maxPixel: CGFloat) -> NSImage? {
-        let key = "sync-\(url.path)-\(Int(maxPixel))" as NSString
+        // 2026-11-26 修复：key 拼入 mtime + 文件大小，同路径图片被改写后不再命中旧图。
+        let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
+        let mtime = (attrs?[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
+        let size = (attrs?[.size] as? NSNumber)?.int64Value ?? 0
+        let key = "sync-\(url.path)-\(Int(maxPixel))-\(Int(mtime))-\(size)" as NSString
         if let hit = syncDecodeCache.object(forKey: key) { return hit }
         let image = Self.decode(url, maxPixel: maxPixel)
-        if let image { syncDecodeCache.setObject(image, forKey: key) }
+        if let image {
+            let cost = Int(image.size.width * image.size.height * 4)
+            syncDecodeCache.setObject(image, forKey: key, cost: cost)
+        }
         return image
     }
 

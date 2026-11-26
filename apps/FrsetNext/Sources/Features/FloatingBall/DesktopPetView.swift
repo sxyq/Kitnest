@@ -81,8 +81,11 @@ struct DesktopPetView: View {
         let breathe = sin(t * 2 * .pi / 3.5) * 0.015
         // 漂浮：±1 pt 垂直偏移，周期 5.2 s（与呼吸异频，更自然）
         let floatY = sin(t * 2 * .pi / 5.2) * 1.0
-        // 眨眼：每 5.5 s 眨一次，持续 0.12 s
-        let isBlinking = t > 0 && t.truncatingRemainder(dividingBy: 5.5) < 0.12
+        // 眨眼：每 5.5 s 眨一次，持续一个时钟间隔（0.3 s）
+        // 2026-11-26 修复（F-misc-1#6）：原来是 0.12 s 窗口，而时钟每 0.3 s 才采一帧——
+        // 只有约 40% 的采样点会落进窗口，六成眨眼根本不会被渲染（表现为「偶尔才眨一次」）。
+        // 窗口放到与时钟间隔一致，任何一帧都能命中。
+        let isBlinking = t > 0 && t.truncatingRemainder(dividingBy: 5.5) < Self.clockInterval
         Group {
             if let path = appearance.customImagePath,
                let image = PetImageCache.image(at: path) {

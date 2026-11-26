@@ -1018,7 +1018,11 @@ final class PinnedScreenshotContentView: PinImageView {
         showChrome()
     }
     override func mouseExited(with event: NSEvent) {
-        let p = convert(NSEvent.mouseLocation, from: nil)
+        // 2026-11-26 修复：旧实现 convert(NSEvent.mouseLocation, from: nil) 把屏幕坐标
+        // 当窗口坐标解释（与 scheduleChromeHide 同源缺陷，那里已改）。
+        // 改用窗口自身的坐标流，与 893 行口径统一。
+        let windowPoint = window?.mouseLocationOutsideOfEventStream ?? NSEvent.mouseLocation
+        let p = convert(windowPoint, from: nil)
         // 移到控制条上不算离开
         if toolbar.frame.contains(p) || closeButton.frame.contains(p) { return }
         bubblePanel.hide()
@@ -1028,7 +1032,18 @@ final class PinnedScreenshotContentView: PinImageView {
     // MARK: 拖动 / 调尺寸
 
     override func mouseDown(with event: NSEvent) {
-        guard !isSmallMode else { return }
+        // 2026-11-26 修复：小模式（宽<200 或高<60）下无边窗口没有标题栏可拖，
+        // 工具条与拖拽柄又被隐藏，旧实现直接 return 让小图既不能移动也不能调尺寸，
+        // 只能靠 Esc / 关闭钮。现在小模式仍允许整体拖动（body），只是不做边缘缩放。
+        if isSmallMode {
+            if event.clickCount == 2 {
+                setScale(1.0)
+                return
+            }
+            beginWindowDrag(event)
+            activeZone = .body
+            return
+        }
         if event.clickCount == 2 {
             setScale(1.0)
             return
@@ -1453,7 +1468,11 @@ final class PinnedScreenshotContentView: PinImageView {
 final class PinnedScreenshotWindow: NSPanel {
 
     init(image: CGImage, origin: NSPoint, appearance: PinAppearance = .current) {
-        let size = Self.initialSize(for: image)
+        // 2026-11-26 修复：按 origin 所在屏幕取初始尺寸与可见域。
+        // 旧实现一律用 NSScreen.main：调用方显式给 origin（ScreenTranslator 按翻译区域定位）
+        // 而主屏在另一块屏时，窗口会被整体拉回主屏；副屏更小时初窗还可能超出屏幕。
+        let screen = Self.screen(containing: origin) ?? NSScreen.main ?? NSScreen.screens.first
+        let size = Self.initialSize(for: image, visible: screen?.visibleFrame)
         super.init(contentRect: NSRect(origin: origin, size: size),
                    styleMask: [.borderless, .nonactivatingPanel],
                    backing: .buffered, defer: false)
@@ -1477,7 +1496,7 @@ final class PinnedScreenshotWindow: NSPanel {
         // v233：初始位置可能被调用方给到屏幕外（实测 y=160 时窗底落到屏幕下方，
         // 工具条整条看不见）。这里统一夹进可见区域，保证钉上去第一眼就完整可见。
         var frame = NSRect(origin: origin, size: size)
-        if let v = (NSScreen.main ?? NSScreen.screens.first)?.visibleFrame {
+        if let v = screen?.visibleFrame {
             frame.origin.x = min(max(v.minX + 12, frame.origin.x), v.maxX - size.width - 12)
             frame.origin.y = min(max(v.minY + 12, frame.origin.y), v.maxY - size.height - 12)
         }
@@ -1485,11 +1504,20 @@ final class PinnedScreenshotWindow: NSPanel {
         makeKeyAndOrderFront(nil)
     }
 
+    /// 2026-11-26 新增：定位点所在屏幕；不在任何屏内时取最近的屏幕
+    private static func screen(containing point: NSPoint) -> NSScreen? {
+        if let hit = NSScreen.screens.first(where: { $0.frame.contains(point) }) { return hit }
+        return NSScreen.screens.min {
+            hypot($0.frame.midX - point.x, $0.frame.midY - point.y)
+                < hypot($1.frame.midX - point.x, $1.frame.midY - point.y)
+        }
+    }
+
     /// 初始尺寸：等比放进屏幕可见域，最大 420×360，最小 60
-    private static func initialSize(for image: CGImage) -> NSSize {
-        let visible = NSScreen.main?.visibleFrame.size ?? NSSize(width: 1440, height: 900)
-        let maxW = min(visible.width * 0.58, 420)
-        let maxH = min(visible.height * 0.74, 360)
+    private static func initialSize(for image: CGImage, visible: NSRect? = nil) -> NSSize {
+        let visibleSize = visible?.size ?? NSSize(width: 1440, height: 900)
+        let maxW = min(visibleSize.width * 0.58, 420)
+        let maxH = min(visibleSize.height * 0.74, 360)
         let w = CGFloat(image.width), h = CGFloat(image.height)
         guard w > 0, h > 0 else { return NSSize(width: 60, height: 60) }
         let scale = min(1, maxW / w, maxH / h)

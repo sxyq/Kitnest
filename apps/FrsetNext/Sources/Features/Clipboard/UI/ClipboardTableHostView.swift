@@ -631,7 +631,17 @@ public struct ClipboardTableHostView: NSViewRepresentable {
 
         /// 行容器：接管系统选中绘制（见 ClipboardRowChromeView 注释）
         public func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
-            let view = ClipboardRowChromeView()
+            // 2026-11-26 修复（low）：加 identifier 走 makeView 复用——原来每次
+            // reloadData / 滚动入视口都为每行新建一个 NSTableRowView 子类实例
+            //（约每屏 8-10 个/次刷新，含 personalization 赋值），属可避免的分配 churn。
+            let identifier = NSUserInterfaceItemIdentifier("clipboard.rowChrome")
+            let view: ClipboardRowChromeView
+            if let reused = tableView.makeView(withIdentifier: identifier, owner: nil) as? ClipboardRowChromeView {
+                view = reused
+            } else {
+                view = ClipboardRowChromeView()
+                view.identifier = identifier
+            }
             view.personalization = owner.personalization
             return view
         }

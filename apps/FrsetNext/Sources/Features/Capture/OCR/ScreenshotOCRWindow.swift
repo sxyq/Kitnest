@@ -363,6 +363,16 @@ final class ScreenshotOCRResultWindow: NSWindow {
         performClose(nil)
     }
 
+    /// 2026-11-26 修复（二轮 low）：init 里给结果文本视图注册了
+    /// didChangeSelectionNotification 的块观察者，但窗口没有任何移除路径——
+    /// 每弹一次识别结果窗，NotificationCenter 就永久多一个闭包（自愈性靠 weak self，
+    /// 但属泄漏，长时间多次识字会持续累积）。窗口释放时注销自己持有的 token。
+    deinit {
+        if let selectionObserver {
+            NotificationCenter.default.removeObserver(selectionObserver)
+        }
+    }
+
     /// 右栏页签内容布局（识别文本 / 二维码 重叠切换）
     private func setupRightPane() {
         resultScroll.frame = NSRect(x: 0, y: 28, width: 380, height: 310)
@@ -632,7 +642,9 @@ public final class ScreenshotOCRWindowController: NSObject, NSWindowDelegate {
     private var isTranslating = false
     private var translationTask: Task<Void, Never>?
     private var translationGeneration = 0
-    private var resignObserver: NSObjectProtocol?
+    // 2026-11-26 修复（二轮 low）：这里原有的 `resignObserver` 是**声明后从未赋值**的死属性
+    // （「失焦即关」在 v166.6 已删除），windowWillClose 对它 removeObserver 只是空操作，
+    // 真正需要注销的 selectionObserver 反而在窗口侧、由窗口 deinit 负责。已移除。
 
     private override init() { super.init() }
 
@@ -813,10 +825,7 @@ public final class ScreenshotOCRWindowController: NSObject, NSWindowDelegate {
             window = nil
             sourceImage = nil
             imageData = nil
-            if let resignObserver {
-                NotificationCenter.default.removeObserver(resignObserver)
-                self.resignObserver = nil
-            }
+            // selectionObserver 由窗口自己 deinit 注销（见 ScreenshotOCRResultWindow.deinit）
         }
     }
 }

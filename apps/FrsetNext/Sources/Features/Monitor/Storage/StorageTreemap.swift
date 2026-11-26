@@ -462,26 +462,43 @@ final class StorageShapeCache {
         let sweepEnd: CGFloat
         let tile: CGRect
         let rect: CGRect
+        /// 图块形状的顶部裁切比例；地图轮廓/背景消费方恒为 0。
+        var top: CGFloat = 0
     }
 
     private let lock = NSLock()
     private var storage: [Key: Path] = [:]
     private var order: [Key] = []
-    /// 只保留最近 8 个（一张地图 + 几个 Voronoi 单位矩形足够）。
-    private let capacity = 8
+    /// 只保留最近 24 个（一张地图 + 若干 Voronoi 单位矩形 + 图块形状足够）。
+    private let capacity = 24
 
     func path(for geometry: StorageSurfaceGeometry, in rect: CGRect,
               build: (StorageSurfaceGeometry, CGRect) -> Path) -> Path {
         let key = Key(canvas: geometry.canvas, surfaceTop: geometry.surfaceTop,
                       crestLeft: geometry.crestLeft, sweepEnd: geometry.sweepEnd,
                       tile: geometry.tileFrame, rect: rect)
+        return cached(key) { build(geometry, rect) }
+    }
+
+    /// 图块形状（StorageTileShape）专用：键里额外带顶部裁切比例。
+    /// 2026-11-26 修复：图块的 `outer ∩ clip` 布尔运算原先每次 path(in:) 都做，
+    /// 一旦被放进 contentShape / clipShape 就会按指针事件频率重建；纳入同一份 LRU。
+    func path(for geometry: StorageSurfaceGeometry, in rect: CGRect, top: CGFloat,
+              build: (StorageSurfaceGeometry, CGRect) -> Path) -> Path {
+        let key = Key(canvas: geometry.canvas, surfaceTop: geometry.surfaceTop,
+                      crestLeft: geometry.crestLeft, sweepEnd: geometry.sweepEnd,
+                      tile: geometry.tileFrame, rect: rect, top: top)
+        return cached(key) { build(geometry, rect) }
+    }
+
+    private func cached(_ key: Key, build: () -> Path) -> Path {
         lock.lock()
         if let hit = storage[key] {
             lock.unlock()
             return hit
         }
         lock.unlock()
-        let path = build(geometry, rect)
+        let path = build()
         lock.lock()
         storage[key] = path
         order.append(key)
@@ -500,12 +517,16 @@ struct StorageTileShape: Shape {
     var top: CGFloat = 0
 
     func path(in rect: CGRect) -> Path {
-        let outer = StorageMapShape(geometry: geometry).path(in: rect)
         let t = min(max(top, 0), 0.95)
-        guard t > 0 else { return outer }
-        let clip = CGRect(x: rect.minX, y: rect.minY + rect.height * t,
-                          width: rect.width, height: rect.height * (1 - t))
-        return Path(outer.cgPath.intersection(CGPath(rect: clip, transform: nil)))
+        // 2026-11-26 修复：`outer ∩ clip` 走 StorageShapeCache（键含 top），
+        // 不再每次 path(in:) 都做一次 CGPath 布尔运算。
+        return StorageShapeCache.shared.path(for: geometry, in: rect, top: t) { g, target in
+            let outer = StorageMapShape(geometry: g).path(in: target)
+            guard t > 0 else { return outer }
+            let clip = CGRect(x: target.minX, y: target.minY + target.height * t,
+                              width: target.width, height: target.height * (1 - t))
+            return Path(outer.cgPath.intersection(CGPath(rect: clip, transform: nil)))
+        }
     }
 }
 

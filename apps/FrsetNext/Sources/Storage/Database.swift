@@ -24,6 +24,8 @@ public final class SQLiteDatabase {
     private var handle: OpaquePointer?
     // 同一连接还有标签与保留期写入；事务期间不能插入另一线程的 SQL。
     let accessLock = NSRecursiveLock()
+    /// 是否处在 transaction() 内（受 accessLock 保护，用于防嵌套 BEGIN）。
+    private var inTransaction = false
 
     public init(path: String) throws {
         self.path = path
@@ -121,11 +123,17 @@ public final class SQLiteDatabase {
         let countInt = Int(count)
         var names: [String] = []
         names.reserveCapacity(countInt)
+        // 2026-11-26 修复：`SELECT a.id, b.id …` 这类重名列原来后者覆盖前者，
+        // 行字典静默丢一列且无提示。重名时追加序号后缀，保证每一列都能取到。
+        var seenNames: [String: Int] = [:]
         for i in 0..<countInt {
-            if let cName = sqlite3_column_name(s, Int32(i)) {
-                names.append(String(cString: cName))
+            let base = sqlite3_column_name(s, Int32(i)).map { String(cString: $0) } ?? "c\(i)"
+            if let n = seenNames[base] {
+                seenNames[base] = n + 1
+                names.append("\(base)#\(n)")
             } else {
-                names.append("c\(i)")
+                seenNames[base] = 1
+                names.append(base)
             }
         }
         var rows: [Result] = []
@@ -158,21 +166,58 @@ public final class SQLiteDatabase {
     }
 
     public func scalarInt(_ sql: String, _ values: [SQLiteValue] = []) throws -> Int64 {
-        let rows = try query(sql, values)
-        if case .int(let n)? = rows.first?.values.first { return n }
-        return 0
+        // 2026-11-26 修复：原实现走 query 后取 `rows.first?.values.first` ——
+        // Dictionary 的「首个 value」顺序不确定，多列查询会取到随机一列；
+        // 非整型还静默返回 0。改为按列 0 直接取值，并要求单列 + 整型。
+        accessLock.lock(); defer { accessLock.unlock() }
+        guard let h = handle else { throw DatabaseError(message: "db closed") }
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(h, sql, -1, &stmt, nil) == SQLITE_OK, let s = stmt else {
+            throw DatabaseError(message: "prepare failed: \(String(cString: sqlite3_errmsg(h)))")
+        }
+        defer { sqlite3_finalize(s) }
+        bindValues(s, values)
+        let step = sqlite3_step(s)
+        if step == SQLITE_DONE { return 0 }        // 无行：沿用原语义返回 0
+        guard step == SQLITE_ROW else {
+            throw DatabaseError(message: "step failed: \(String(cString: sqlite3_errmsg(h)))")
+        }
+        let columns = sqlite3_column_count(s)
+        guard columns == 1 else {
+            throw DatabaseError(message: "scalarInt 需要单列查询，实际 \(columns) 列")
+        }
+        guard sqlite3_column_type(s, 0) == SQLITE_INTEGER else {
+            throw DatabaseError(message: "scalarInt 结果为非整型（REAL/TEXT/NULL）")
+        }
+        return sqlite3_column_int64(s, 0)
     }
 
     /// 事务包装
     public func transaction<T>(_ body: (SQLiteDatabase) throws -> T) throws -> T {
         accessLock.lock(); defer { accessLock.unlock() }
+        // 2026-11-26 修复：accessLock 是 NSRecursiveLock，嵌套 transaction() 能过锁，
+        // 但内层 BEGIN 会报「within a transaction」。再入时直接复用外层事务。
+        if inTransaction { return try body(self) }
         try exec("BEGIN;")
+        inTransaction = true
         do {
             let r = try body(self)
             try exec("COMMIT;")
+            inTransaction = false
             return r
         } catch {
-            try? exec("ROLLBACK;")
+            do {
+                try exec("ROLLBACK;")
+            } catch let rollbackError {
+                // 2026-11-26 修复：回滚失败（连接已断/磁盘满）原先被 try? 吞掉，
+                // 连接停在未结束事务里 → 之后每次 BEGIN 都失败，上游又几乎都写 try?，
+                // 写库从此静默停摆且无日志。这里记 error 并丢弃连接，让后续调用
+                // 明确报 "db closed" 而不是永久静默失败。
+                Log.error("Database", "事务回滚失败，已丢弃连接：\(rollbackError)")
+                if let h = handle { sqlite3_close(h) }
+                handle = nil
+            }
+            inTransaction = false
             throw error
         }
     }

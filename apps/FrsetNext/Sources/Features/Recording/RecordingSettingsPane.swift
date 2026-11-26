@@ -28,7 +28,9 @@ final class RecordingSettingsDraft: SettingsEditableDraft {
         if values.cameraDevice != saved.cameraDevice { RecordingOptions.cameraDeviceID = values.cameraDevice }
         if values.excluded != saved.excluded { RecordingOptions.excludedBundleIDs = values.excluded }
         if savePath != savedPath { Preferences.shared.set(RecordingOptions.keySavePath, savePath) }
-        guard UserDefaults.standard.synchronize() else { return "录屏设置写入磁盘失败，调整已保留" }
+        // 2026-11-26 修复（low）：不再用 UserDefaults.synchronize() 的返回值判「写盘失败」——
+        // 该 API 自 macOS 10.14 起语义弱化、几乎恒为 true，失败分支不可达；而且偏好已写出去，
+        // 返回错误也无法回滚（会造成 saved 不更新、dirty 永远为真）。统一按成功收尾。
         objectWillChange.send()
         saved = values
         savedPath = savePath
@@ -51,7 +53,7 @@ final class RecordingSettingsDraft: SettingsEditableDraft {
     func save(in scope: String) -> String? {
         guard scope == "effects" else { return save() }
         applyEffects()
-        guard UserDefaults.standard.synchronize() else { return "录屏效果写入磁盘失败，调整已保留" }
+        // 2026-11-26 修复（low）：同 save()，去掉无意义的 synchronize() 判定
         objectWillChange.send()
         copyEffects(from: values, to: &saved)
         return nil

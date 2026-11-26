@@ -607,7 +607,10 @@ static int frset_compare_proc_rank(void *context, const void *a, const void *b) 
     double l = kind == 0 ? left->cpu : kind == 1 ? left->mem : left->dr + left->dw;
     double r = kind == 0 ? right->cpu : kind == 1 ? right->mem : right->dr + right->dw;
     if (l != r) return (l < r) - (l > r);
-    return (left > right) - (left < right); /* 同值保留原枚举顺序。 */
+    /* 2026-11-26 修复（F-misc-1#18）：原来比较的是 ranked 指针地址（left > right），
+       实际按地址排，与注释「同值保留原枚举顺序」意图不符——cur[] 是静态数组时地址序
+       恰等于插入序，属碰巧正确的脆弱写法。改成按 pid 升序，确定性且与 frset_compare_pid 口径一致。 */
+    return (left->pid > right->pid) - (left->pid < right->pid);
 }
 
 // v86：每个维度（0=CPU 1=内存 2=磁盘 3=网络）各自保留上一轮快照。
@@ -1392,7 +1395,10 @@ static int frset_compare_energy_rank(const void *a, const void *b) {
     const frset_energy_pid_t *left = *(const frset_energy_pid_t *const *)a;
     const frset_energy_pid_t *right = *(const frset_energy_pid_t *const *)b;
     if (left->watts != right->watts) return (left->watts < right->watts) - (left->watts > right->watts);
-    return (left > right) - (left < right);
+    /* 2026-11-26 修复（F-misc-1#19）：同值 tie-break 原来比 ranked 指针地址，
+       与 frset_compare_pid 的整型比较不一致、也与注释意图不符（rows[] 静态数组
+       使地址序碰巧等于插入序）。改成按 pid 升序。 */
+    return (left->pid > right->pid) - (left->pid < right->pid);
 }
 
 int frset_proc_energy_pids(frset_energy_pid_t *out, int max, double *elapsedSec) {

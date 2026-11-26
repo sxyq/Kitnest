@@ -29,8 +29,10 @@ public final class ScreenshotManager: ObservableObject {
     @Published public private(set) var hasPermission: Bool = false
     /// 是否已完成一次「权威探测」（真实抓屏通道）
     private var permissionProbed = false
-    /// 探测进行中（防重入）
+    /// 探测进行中（防重入；读写都在 permissionProbeLock 内，见 probePermission）
     private var permissionProbing = false
+    /// 防重入闸门的锁（2026-11-26 修复：probePermission 是非隔离 async，跨执行器并发）
+    private let permissionProbeLock = NSLock()
 
     // MARK: 私有
 
@@ -175,9 +177,22 @@ public final class ScreenshotManager: ObservableObject {
     /// 因此用它做权威判据：能枚举到显示器 = 权限真实可用 → UI 不再提示授权。
     @discardableResult
     public func probePermission() async -> Bool {
-        if permissionProbing { return hasPermission }
-        permissionProbing = true
-        defer { permissionProbing = false }
+        // 2026-11-26 修复（二轮 low）：permissionProbing 是普通存储属性，本方法又是
+        // 非隔离 async —— 两个并发调用可以在不同执行器上同时读到 false 一起过闸，
+        // 造成重复的 SCShareableContent 往返与状态发布时序错乱。这里用锁做原子闸门；
+        // 已在探测时也回主线程读 @Published 的 hasPermission（原来在非主线程直接读）。
+        permissionProbeLock.lock()
+        let alreadyProbing = permissionProbing
+        if !alreadyProbing { permissionProbing = true }
+        permissionProbeLock.unlock()
+        if alreadyProbing {
+            return await MainActor.run { self.hasPermission }
+        }
+        defer {
+            permissionProbeLock.lock()
+            permissionProbing = false
+            permissionProbeLock.unlock()
+        }
 
         if CGPreflightScreenCaptureAccess() {
             await MainActor.run {
@@ -762,6 +777,11 @@ public final class ScreenshotManager: ObservableObject {
         closeOverlays()
         isCapturing = false
         currentModeTag = "window"
+        // 2026-11-26 修复（二轮 low）：下面要 await SCK 抓窗（最多约 4s），
+        // 这期间用户可能已经发起新一轮截图，pendingFlow / currentModeTag 会被覆盖。
+        // 先把本轮的分流与标签快照下来，整个收尾只用快照，不再读共享字段。
+        let flow = pendingFlow
+        let modeTag = "window"
 
         let global = rect.offsetBy(dx: screenFrame.origin.x, dy: screenFrame.origin.y)
         lastSelectionAppKit = global
@@ -800,9 +820,10 @@ public final class ScreenshotManager: ObservableObject {
                 return
             }
             // 与区域截图同一条收尾路径（落盘 + 广播 + 动作工具条/默认动作）
-            switch self.pendingFlow {
+            // 2026-11-26：用 await 前快照的 flow / modeTag（见上方注释）
+            switch flow {
             case .direct(let action):
-                self.handle(image, action: action)
+                self.handle(image, action: action, mode: modeTag)
             case .toolbar:
                 let pixel = CGSize(width: image.width, height: image.height)
                 guard let data = ImageProcessor.pngData(image),
@@ -812,7 +833,7 @@ public final class ScreenshotManager: ObservableObject {
                     self.finishCaptureSession()
                     return
                 }
-                self.registerCaptured(url: url, data: data, playSound: true)
+                self.registerCaptured(url: url, data: data, playSound: true, mode: modeTag)
                 HapticService.shared.perform(.screenshot)
                 self.autoDetectQR(in: image)   // v130⑤：自动检测二维码
                 CaptureActionChain.present(image: image, url: url, selectionAppKit: global,
@@ -836,6 +857,10 @@ public final class ScreenshotManager: ObservableObject {
         isCapturing = false
         currentModeTag = "window"
         guard !items.isEmpty else { finishCaptureSession(); return }
+        // 2026-11-26 修复：与 commitWindow 同源——逐个 await SCK 期间可能被新一轮截图覆盖，
+        // 逐项收尾的分流与标签先用快照。
+        let flow = pendingFlow
+        let modeTag = "window"
 
         Task { @MainActor in
             var images: [CGImage] = []
@@ -877,9 +902,10 @@ public final class ScreenshotManager: ObservableObject {
             }
             Log.info("Capture", "窗口多选：\(images.count) 个窗口 → \(composed.width)×\(composed.height)px")
             self.lastSelectionAppKit = .zero
-            switch self.pendingFlow {
+            // 2026-11-26：用 await 前快照的 flow / modeTag
+            switch flow {
             case .direct(let action):
-                self.handle(composed, action: action)
+                self.handle(composed, action: action, mode: modeTag)
             case .toolbar:
                 guard let data = ImageProcessor.pngData(composed),
                       let url = self.stagePNG(data, pixelSize: CGSize(width: composed.width,
@@ -889,7 +915,7 @@ public final class ScreenshotManager: ObservableObject {
                     self.finishCaptureSession()
                     return
                 }
-                self.registerCaptured(url: url, data: data, playSound: true)
+                self.registerCaptured(url: url, data: data, playSound: true, mode: modeTag)
                 HapticService.shared.perform(.screenshot)
                 CaptureActionChain.present(image: composed, url: url, selectionAppKit: .zero,
                                            completion: self.takeCaptureSessionCompletion())
@@ -941,7 +967,10 @@ public final class ScreenshotManager: ObservableObject {
     // MARK: 产出分流
 
     /// 统一收尾：落盘 + 事件广播 + 按动作分流
-    private func handle(_ image: CGImage, action: CaptureDefaultAction) {
+    ///
+    /// - Parameter mode: 历史库模式标签。异步收尾路径必须在 await 前把标签快照传进来，
+    ///   否则登记时读到的 `currentModeTag` 可能已被下一轮截图改写（2026-11-26 修复）。
+    private func handle(_ image: CGImage, action: CaptureDefaultAction, mode: String? = nil) {
         guard let data = ImageProcessor.pngData(image) else {
             statusMessage = CaptureError.saveFailed.errorDescription
             HapticService.shared.perform(.operationFailed)
@@ -957,7 +986,7 @@ public final class ScreenshotManager: ObservableObject {
             HapticService.shared.perform(.operationFailed)
             return
         }
-        registerCaptured(url: url, data: data, playSound: true)
+        registerCaptured(url: url, data: data, playSound: true, mode: mode)
         HapticService.shared.perform(.screenshot)
         autoDetectQR(in: image)   // v130（SnowShot 对齐）⑤：截图完成后自动检测二维码
         apply(action, to: image, url: url)
@@ -1026,7 +1055,56 @@ public final class ScreenshotManager: ObservableObject {
     /// 写入 PNG 到**私有暂存目录**（动作条各工具都拿到这个 URL，但不算用户保存）
     @discardableResult
     public func stagePNG(_ data: Data, pixelSize: CGSize = .zero) -> URL? {
-        writePNG(data, to: stagingDirectory, pixelSize: pixelSize)
+        let url = writePNG(data, to: stagingDirectory, pixelSize: pixelSize)
+        // 2026-11-26 修复（二轮 low）：原来只写不清理——用户只点复制/识别/钉住时，
+        // 每张截图都在私有目录留一个 1-3MB 的 PNG，工作区无上限、无保留期。
+        // 这里每写成功一次就排一次后台清理（自带节流，见 scheduleStagingCleanup）。
+        if url != nil { scheduleStagingCleanup() }
+        return url
+    }
+
+    /// 暂存目录是否已排了一次后台清理（避免每次截图都排一个 Task）
+    private var stagingCleanupScheduled = false
+
+    /// 暂存目录清理：后台执行，不占主线程。
+    private func scheduleStagingCleanup() {
+        guard !stagingCleanupScheduled else { return }
+        stagingCleanupScheduled = true
+        let dir = stagingDirectory
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let removed = Self.pruneStagingDirectory(dir)
+            if removed > 0 {
+                Log.info("Capture", "暂存目录清理：删除 \(removed) 个旧暂存文件（\(dir.path)）")
+            }
+            DispatchQueue.main.async { self?.stagingCleanupScheduled = false }
+        }
+    }
+
+    /// 保留最新 200 个暂存文件；超出的按「超过 3 天」删，再超出 400 个则不看年龄也删，
+    /// 给磁盘占用一个硬上限（约 400 张 × 1-3MB）。近期文件不动，避免误删仍在用的 URL。
+    private static func pruneStagingDirectory(_ dir: URL) -> Int {
+        let fm = FileManager.default
+        let keySet: Set<URLResourceKey> = [.contentModificationDateKey]
+        guard let files = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: Array(keySet),
+                                                      options: [.skipsHiddenFiles]) else { return 0 }
+        let pngs = files.filter { $0.pathExtension.lowercased() == "png" }
+        let keepNewest = 200
+        guard pngs.count > keepNewest else { return 0 }
+        let sorted = pngs.sorted { lhs, rhs in
+            let l = (try? lhs.resourceValues(forKeys: keySet))?.contentModificationDate ?? .distantPast
+            let r = (try? rhs.resourceValues(forKeys: keySet))?.contentModificationDate ?? .distantPast
+            return l > r
+        }
+        let maxAge: TimeInterval = 3 * 24 * 3600
+        let hardLimit = keepNewest * 2
+        let now = Date()
+        var removed = 0
+        for (index, url) in sorted.enumerated() where index >= keepNewest {
+            let date = (try? url.resourceValues(forKeys: keySet))?.contentModificationDate ?? .distantPast
+            guard index >= hardLimit || now.timeIntervalSince(date) > maxAge else { continue }
+            if (try? fm.removeItem(at: url)) != nil { removed += 1 }
+        }
+        return removed
     }
 
     private func writePNG(_ data: Data, to dir: URL, pixelSize: CGSize = .zero) -> URL? {

@@ -711,18 +711,22 @@ private struct IslandSettingsOrderControls<Item: Equatable>: View {
     @Binding var order: [Item]
     let item: Item
     let title: String
-    private var index: Int { order.firstIndex(of: item)! }
+    /// 2026-11-26 修复：order 经 Binding 异步刷新后 item 可能失配，原 `firstIndex(of:)!`
+    /// 会直接崩溃。改为可选，失配时禁用两个按钮。
+    private var index: Int? { order.firstIndex(of: item) }
 
     var body: some View {
+        let index = self.index
         HStack(spacing: 4) {
-            Button { order.islandMove(item, to: index - 1) } label: { Image(systemName: "chevron.up") }
-                .disabled(index == 0).accessibilityLabel("\(title)上移")
-            Button { order.islandMove(item, to: index + 1) } label: { Image(systemName: "chevron.down") }
-                .disabled(index == order.count - 1).accessibilityLabel("\(title)下移")
+            Button { if let index { order.islandMove(item, to: index - 1) } } label: { Image(systemName: "chevron.up") }
+                .disabled(index == nil || (index ?? 0) <= 0).accessibilityLabel("\(title)上移")
+            Button { if let index { order.islandMove(item, to: index + 1) } } label: { Image(systemName: "chevron.down") }
+                .disabled(index == nil || (index ?? 0) + 1 >= order.count).accessibilityLabel("\(title)下移")
         }
         .buttonStyle(.bordered)
         .focusable()
         .onMoveCommand { direction in
+            guard let index else { return }
             if direction == .up, index > 0 { order.islandMove(item, to: index - 1) }
             if direction == .down, index < order.count - 1 { order.islandMove(item, to: index + 1) }
         }

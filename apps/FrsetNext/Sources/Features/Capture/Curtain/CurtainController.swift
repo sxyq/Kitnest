@@ -85,18 +85,27 @@ public final class ImageCurtainController: NSObject {
     private func insert(url: URL, size: CGSize, image: CGImage?, generation: Int) {
         guard generation == lifecycleGeneration, forceEnabled || CurtainPref.enabled else { return }
         let item = CurtainItem(fileURL: url, pixelSize: size)
-        items.insert(item, at: 0)
+        // 2026-11-26 修复（二轮 low）：原来一律 insert(at: 0)。attach 的解码是各自独立的
+        // Task，连拍时大图解码更慢、反而后插入，最左就不再是「最新」。
+        // 这里按 createdAt 降序插入（等时间戳时仍排在最前，保持「刚挂的在左」）。
+        let index = items.firstIndex { $0.createdAt < item.createdAt } ?? items.count
+        items.insert(item, at: index)
         if let image { thumbnails[item.id] = image }
 
         // 超上限：从最旧的开始挤掉（只从帘上移除，不删文件）
-        let limit = CurtainPref.maxCards
-        if items.count > limit {
-            for stale in items[limit...] { thumbnails.removeValue(forKey: stale.id) }
-            items = Array(items.prefix(limit))
-        }
+        trimToMaxCards()
 
         rebuild()
         showPanel()
+    }
+
+    /// 把 items 裁剪到当前 `CurtainPref.maxCards`，并同步清掉对应缩略图。
+    /// items 是「最新在左」，所以保留前缀即保留最新的那些。
+    private func trimToMaxCards() {
+        let limit = CurtainPref.maxCards
+        guard items.count > limit else { return }
+        for stale in items[limit...] { thumbnails.removeValue(forKey: stale.id) }
+        items = Array(items.prefix(limit))
     }
 
     // MARK: - 对外：显示 / 收起 / 清空
@@ -135,6 +144,9 @@ public final class ImageCurtainController: NSObject {
             hide()
             panel = nil
             canvas = nil
+            // 2026-11-26 修复（二轮 low）：与 dismissAll 对齐——⌘ 缩放未收尾时删掉最后一张，
+            // 残留的 liveCardWidth 会带到下一次 attach，导致帘子排版与设置页显示不一致。
+            liveCardWidth = nil
         } else {
             rebuild(animate: false)
             showPanel()
@@ -245,8 +257,12 @@ public final class ImageCurtainController: NSObject {
     private func resizeEnd() {
         guard let width = liveCardWidth else { return }
         liveCardWidth = nil
+        // 2026-11-26 修复（二轮 low）：cardWidth 的 setter 会同步 post 通知，
+        // preferencesChanged 在 isShowing 时已经 rebuild(animate: false) 一次；
+        // 这里再 rebuild 就是每轮缩放收尾做两遍全量 reload（全部卡片视图 remove+重建）。
+        // 只在「窗口收起着」时兜底一次，让下次 show 直接拿到新宽度。
         CurtainPref.cardWidth = width
-        rebuild(animate: false)
+        if !isShowing { rebuild(animate: false) }
         Toast.show("图帘大小 \(Int(width.rounded())) pt", icon: "arrow.up.left.and.arrow.down.right")
         upgradeThumbnailsIfNeeded()
     }
@@ -311,6 +327,16 @@ public final class ImageCurtainController: NSObject {
         }
     }
 
+    /// 顺延自动收起（2026-11-26 修复 · 二轮 low）。
+    ///
+    /// 悬停唤出（CurtainRevealController.tick）在鼠标停留期间每秒调一次：
+    /// 否则 displayDuration（默认 12s）到点仍会把帘子收走，用户明明把鼠标停在帘子上，
+    /// 帘子却凭空消失，必须离开再回热区才能唤回。
+    public func extendAutoHide() {
+        guard isShowing else { return }
+        scheduleAutoHide()
+    }
+
     // MARK: - 偏好变化
 
     @objc private func toggleRequested() { toggle() }
@@ -325,6 +351,11 @@ public final class ImageCurtainController: NSObject {
             return
         }
         guard wasEnabled else { return }   // 刚打开：等截图，不空show
+
+        // 2026-11-26 修复（二轮 low）：用户把「最多几张」从 8 改成 2 时，原来只 rebuild，
+        // 帘上还挂着 8 张，要等下一次 insert 才裁剪（设置项不即时生效，且与
+        // CurtainLayout.metrics 的挤宽叠加可能超屏）。这里先按新上限裁剪再重排。
+        trimToMaxCards()
 
         // 样式 / 宽度 / 数量变了：按新样子重排（原本收起的仍然保持收起）。
         // 不重播落入动画——设置页拖滑块的每一格都重播一次会像在闪。

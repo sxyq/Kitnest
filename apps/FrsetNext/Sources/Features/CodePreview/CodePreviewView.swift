@@ -44,6 +44,8 @@ public struct CodePreviewView: View {
     @Stored private var cached: NSAttributedString
     /// 已完成的渲染键，切换配置期间不呈现旧配色。
     @Stored private var cachedKey: String = ""
+    /// 派生值记忆（语言识别 / 行数统计）。普通引用类型：写入不触发 SwiftUI 更新。
+    @Stored private var derivedCache = CodePreviewDerivedCache()
 
     public init(code: String, fileName: String? = nil) {
         self.code = code
@@ -71,10 +73,17 @@ public struct CodePreviewView: View {
     private var muted: Color { Color(nsColor: theme.lineNumber) }
 
     private var resolvedLanguage: String {
-        if languageID == "auto" {
-            return CodeLanguageCatalog.detect(code, fileName: fileName)
+        // 2026-11-26 修复（二轮 low）：同一渲染内 options / 状态栏 / 语言菜单都会读它，
+        // 而 auto 模式要跑 CodeLanguageCatalog.detect（前 8000 字符、30+ 次 contains）。
+        // 按「语言设置 + 文件名 + 代码内容」记忆，一次求值只算一次。
+        let languageID = self.languageID
+        let fileName = self.fileName
+        let code = self.code
+        return derivedCache.language(for: "\(languageID)|\(fileName ?? "-")|\(code)") {
+            languageID == "auto"
+                ? CodeLanguageCatalog.detect(code, fileName: fileName)
+                : languageID
         }
-        return languageID
     }
 
     /// 影响高亮结果的输入组合。值一变就必须重新着色（见 body 里的 onChange）。
@@ -95,7 +104,10 @@ public struct CodePreviewView: View {
     }
 
     private var statistics: (lines: Int, characters: Int) {
-        CodeHighlighter.statistics(code)
+        // 2026-11-26 修复（二轮 low）：行数/字符数按全文逐字符统计是 O(n)，
+        // 300KB 上限时每次 body 求值都要扫一遍主线程。内容不变就复用上次结果。
+        let code = self.code
+        return derivedCache.statistics(for: code) { CodeHighlighter.statistics(code) }
     }
 
     // MARK: 视图
@@ -758,5 +770,36 @@ private struct WindowThemeSync: NSViewRepresentable {
             window.backgroundColor = saved.backgroundColor
             coordinator.saved = nil
         }
+    }
+}
+
+// MARK: - 派生值记忆（2026-11-26 修复·二轮 low）
+
+/// `CodePreviewView` 的派生值缓存：语言识别与字符统计都是 O(n)，
+/// 而同一渲染里会被 options / 状态栏 / 语言菜单反复读取。
+/// 用普通引用类型承载——在 body 求值中写入不会触发 SwiftUI 的「更新期间改状态」。
+private final class CodePreviewDerivedCache {
+    private var languageKey = ""
+    private var cachedLanguage = ""
+    private var statsKey = ""
+    private var cachedLines = 0
+    private var cachedCharacters = 0
+
+    func language(for key: String, compute: () -> String) -> String {
+        if key != languageKey {
+            languageKey = key
+            cachedLanguage = compute()
+        }
+        return cachedLanguage
+    }
+
+    func statistics(for key: String, compute: () -> (lines: Int, characters: Int)) -> (lines: Int, characters: Int) {
+        if key != statsKey {
+            statsKey = key
+            let value = compute()
+            cachedLines = value.lines
+            cachedCharacters = value.characters
+        }
+        return (cachedLines, cachedCharacters)
     }
 }

@@ -672,7 +672,17 @@ final class InstanceLock {
 
     private var url: URL { AppDirectories.base.appendingPathComponent("instance.lock") }
     /// 心跳文件：mtime 就是「最后一次证明自己活着」的时间。
-    private var heartbeatURL: URL { AppDirectories.base.appendingPathComponent("instance.heartbeat") }
+    ///
+    /// 2026-11-26 修复（F-misc-1#1）：原来全局共用一份 `instance.heartbeat`，谁
+    /// startHeartbeat 谁覆盖 —— 一旦出现第二个实例（无锁接管分支就会造成），它的
+    /// 2s 心跳会持续刷新 mtime，让第三方误判「持锁方还活着」，卡死检测被彻底旁路；
+    /// 反过来旧实例死后残留的 mtime 也可能被新实例当成别人的心跳。改成按 pid 分文件，
+    /// 读的时候只读锁文件里记录的 holderPid 那一份，并比对文件内容里的 pid。
+    private func heartbeatURL(for pid: pid_t) -> URL {
+        AppDirectories.base.appendingPathComponent("instance.heartbeat.\(pid)")
+    }
+    /// 本进程自己的心跳文件
+    private var ownHeartbeatURL: URL { heartbeatURL(for: getpid()) }
     /// 当前二进制的构建戳（用可执行文件的 mtime），用来识别「锁被更旧的构建占着」
     private var buildStamp: String {
         let path = Bundle.main.executableURL?.path ?? CommandLine.arguments[0]
@@ -747,6 +757,8 @@ final class InstanceLock {
 
     /// 持锁期间维持心跳：2s 一次写文件，纯后台队列，不碰主线程。
     private func startHeartbeat() {
+        // 清理旧心跳放到后台：acquire() 在启动路径上，不该在主线程做目录遍历。
+        DispatchQueue.global(qos: .utility).async { Self.pruneForeignHeartbeats() }
         touchHeartbeat()
         let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .utility))
         timer.schedule(deadline: .now() + 2, repeating: 2)
@@ -756,13 +768,38 @@ final class InstanceLock {
     }
 
     private func touchHeartbeat() {
-        try? "\(getpid())\n".write(to: heartbeatURL, atomically: true, encoding: .utf8)
+        try? "\(getpid())\n".write(to: ownHeartbeatURL, atomically: true, encoding: .utf8)
+    }
+
+    /// 清掉别人留下的、已经过期的心跳文件（按 pid 分文件后的清理；只碰本 App 目录）。
+    private static func pruneForeignHeartbeats() {
+        let fm = FileManager.default
+        let own = "instance.heartbeat.\(getpid())"
+        guard let items = try? fm.contentsOfDirectory(at: AppDirectories.base,
+                                                      includingPropertiesForKeys: [.contentModificationDateKey])
+        else { return }
+        for item in items where item.lastPathComponent.hasPrefix("instance.heartbeat.")
+            && item.lastPathComponent != own {
+            let mtime = (try? item.resourceValues(forKeys: [.contentModificationDateKey]))?
+                .contentModificationDate
+            if mtime.map({ Date().timeIntervalSince($0) > 60 }) ?? true {
+                try? fm.removeItem(at: item)
+            }
+        }
     }
 
     /// 心跳过期（文件不存在也算）→ 持锁方已经不省人事
+    ///
+    /// 2026-11-26 修复（F-misc-1#1）：只看 `holderPid` 那份心跳，且内容里的 pid 必须与
+    /// 锁文件一致（防 pid 复用 / 文件被别的实例写脏）。holderPid 无效时直接判过期。
     private func heartbeatStale(within seconds: TimeInterval = 12) -> Bool {
+        let holder = holderPid
+        guard holder > 0 else { return true }
+        let heartbeatURL = heartbeatURL(for: holder)
         guard let attrs = try? FileManager.default.attributesOfItem(atPath: heartbeatURL.path),
               let mtime = attrs[.modificationDate] as? Date else { return true }
+        guard let text = try? String(contentsOf: heartbeatURL, encoding: .utf8),
+              pid_t(text.trimmingCharacters(in: .whitespacesAndNewlines)) == holder else { return true }
         return Date().timeIntervalSince(mtime) > seconds
     }
 

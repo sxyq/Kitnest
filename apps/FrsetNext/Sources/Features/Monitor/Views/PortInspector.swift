@@ -151,19 +151,23 @@ final class PortInspector: ObservableObject {
         let out = Pipe()
         p.standardOutput = out
         p.standardError = FileHandle.nullDevice
-        do {
-            try p.run()
-        } catch {
-            return .failure("无法执行 lsof：\(error.localizedDescription)")
-        }
         // 看门狗：lsof 正常 <100ms，超过 3s 视为卡死
+        // 2026-11-26 修复：terminationHandler 必须在 run() 之前挂，否则 lsof 在这两步
+        // 之间就退出时回调可能丢失，白白等满 3s 超时（把「快」变成「慢」）。
         let deadline = DispatchTime.now() + .seconds(3)
         let done = DispatchSemaphore(value: 0)
         p.terminationHandler = { _ in done.signal() }
+        do {
+            try p.run()
+        } catch {
+            p.terminationHandler = nil
+            return .failure("无法执行 lsof：\(error.localizedDescription)")
+        }
         if done.wait(timeout: deadline) == .timedOut {
             p.terminate()
             return .failure("lsof 超时")
         }
+        // 端口数量级下 lsof 输出很小（KB 级），进程已退出后再读管道不会互相等待。
         let data = out.fileHandleForReading.readDataToEndOfFile()
         guard let text = String(data: data, encoding: .utf8) else {
             return .failure("lsof 输出不可解码")

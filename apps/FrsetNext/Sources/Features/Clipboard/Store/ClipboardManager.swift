@@ -74,12 +74,24 @@ public enum ClipboardFilterKind: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// 链接判定（2026-11-26 修复）：与 ClipboardRepository.appendClauses 的 urlLikeOnly
+    /// 保持同一口径（type='url' OR content LIKE http(s)://、www.）。此前这里只认
+    /// .url 与 "https://" 前缀，示例/预览过滤会漏掉 http:// 与 www. 开头的文本条目，
+    /// 与真实列表（SQL）结果对不上。
+    private static func isLinkLike(_ item: ClipboardItem) -> Bool {
+        if item.type == .url { return true }
+        guard let content = item.content else { return false }
+        return content.hasPrefix("http://") || content.hasPrefix("https://") || content.hasPrefix("www.")
+    }
+
     func matches(_ item: ClipboardItem) -> Bool {
         switch self {
         case .all: return true
-        case .text: return item.type == .text || item.type == .richtext
+        // 2026-11-26 修复：SQL 侧 text 过滤只有 type='text'，这里不再额外并入 richtext，
+        // 否则预览/示例列表与真实分类结果不一致。
+        case .text: return item.type == .text
         case .image: return item.type == .image
-        case .link: return item.type == .url || (item.content ?? "").hasPrefix("https://")
+        case .link: return Self.isLinkLike(item)
         case .file: return item.type == .file
         case .pdf: return item.type == .file && item.fileCategories & ClipboardFileCategories.pdf != 0
         case .media: return item.type == .file && item.fileCategories & ClipboardFileCategories.media != 0
@@ -422,14 +434,39 @@ public final class ClipboardManager: ObservableObject {
                 // 图片条目：有 OCR 能力时后台补识别文本（无能力则静默跳过）
                 if result.type == .image, let data = result.imageData { scheduleOCR(dedupeKey: key, imageData: data) }
             } else {
-                // INSERT 失败且行已存在（并发窗口）→ 退化为置顶
-                ClipboardFileStore.remove(imagePath)
-                ClipboardFileStore.remove(thumbnailPath)
-                ClipboardFileStore.remove(richTextPath)
-                ClipboardTextStorage.remove(textPath)
-                repository.touch(dedupeKey: key)
+                // 2026-11-26 修复（二轮复核 medium）：Repository.insert 对任何 SQL 错误都只
+                // 返回 false，不区分 UNIQUE 冲突与真实错误。原来这里一律当「并发去重窗口」
+                // 处理——删掉刚写好的四个文件 + touch 一个不存在的行 → 内容彻底消失且无提示。
+                // 现在先确认该行是否真的已存在：存在才是并发窗口（置顶 + 清理本次落盘文件），
+                // 不存在就是真实写入错误（磁盘满 / busy / schema 漂移）→ 保留文件并上报。
+                if repository.exists(dedupeKey: key) {
+                    ClipboardFileStore.remove(imagePath)
+                    ClipboardFileStore.remove(thumbnailPath)
+                    ClipboardFileStore.remove(richTextPath)
+                    ClipboardTextStorage.remove(textPath)
+                    repository.touch(dedupeKey: key)
+                    Log.debug("clipboard", "并发去重窗口，退化为置顶：\(key.prefix(24))")
+                } else {
+                    Log.error("clipboard", "入库失败（非去重冲突），已保留落盘文件：\(key.prefix(24))")
+                    reportInsertFailure()
+                }
             }
             scheduleReloadCoalesced()
+        }
+    }
+
+    /// 入库失败上报节流时间（只在持久化串行 `queue` 上读写）
+    private var lastInsertFailureReportAt: Date = .distantPast
+
+    /// 真实写入错误上报（2026-11-26 修复）：Toast 必须回主线程；30s 内只弹一次，
+    /// 避免磁盘满 / busy 时每次捕获都刷一条通知。
+    private func reportInsertFailure() {
+        let now = Date()
+        guard now.timeIntervalSince(lastInsertFailureReportAt) > 30 else { return }
+        lastInsertFailureReportAt = now
+        DispatchQueue.main.async {
+            Toast.show("剪贴板保存失败：这条内容未能入库，请检查磁盘空间后重试",
+                       icon: "exclamationmark.triangle", isWarning: true)
         }
     }
 
@@ -617,6 +654,22 @@ public final class ClipboardManager: ObservableObject {
         if let readFailure {
             Toast.show(readFailure, icon: "exclamationmark.triangle", isWarning: true)
             return readFailure
+        }
+        // 2026-11-26 修复（二轮复核 medium）：纯文本通道以前不校验正文——图片条目的
+        // textPath/content 都为空，fullText 得到 ""，而 `setString("")` 仍返回 true，
+        // 于是粘贴板被替换成空串、还提示「已复制纯文本」并接着发 ⌘V（键盘 ⌥Enter 路径）。
+        // 这里明确拒绝并提示，不再假装成功。
+        if asPlainText {
+            if item.type == .image {
+                let reason = "无法复制为纯文本：图片条目没有文字内容，请使用普通复制"
+                Toast.show(reason, icon: "exclamationmark.triangle", isWarning: true)
+                return reason
+            }
+            if text.isEmpty {
+                let reason = "无法复制为纯文本：这条记录没有可复制的文字"
+                Toast.show(reason, icon: "exclamationmark.triangle", isWarning: true)
+                return reason
+            }
         }
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()

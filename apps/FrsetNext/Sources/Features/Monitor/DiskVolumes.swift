@@ -75,7 +75,24 @@ final class DiskVolumeStore: ObservableObject {
         for token in tokens { center.removeObserver(token) }
     }
 
+    /// 2026-11-26 修复：挂载/卸载/改名通知的同步回调在主线程，而每卷一次
+    /// resourceValues(8 键) 遇到网络卷或休眠中的外置盘可能阻塞数百 ms。
+    /// 枚举挪到串行后台队列（串行保证先后两次通知不会乱序覆盖），
+    /// 只有「排序结果真的变了」才回主线程发布。
+    private static let scanQueue = DispatchQueue(label: "kitnest.diskvolumes.scan", qos: .utility)
+
     func refresh() {
+        Self.scanQueue.async { [weak self] in
+            let found = Self.scanVolumes()
+            DispatchQueue.main.async {
+                guard let self, found != self.volumes else { return }
+                self.volumes = found
+            }
+        }
+    }
+
+    /// 实际枚举（只在后台队列调用）
+    private static func scanVolumes() -> [DiskVolume] {
         let keys: [URLResourceKey] = [
             .volumeNameKey, .volumeTotalCapacityKey, .volumeAvailableCapacityKey,
             .volumeIsRemovableKey, .volumeIsEjectableKey, .volumeIsInternalKey,
@@ -109,9 +126,8 @@ final class DiskVolumeStore: ObservableObject {
                 isLocal: local))
         }
 
-        let sorted = found.sorted {
+        return found.sorted {
             $0.name.localizedStandardCompare($1.name) == .orderedAscending
         }
-        if sorted != volumes { volumes = sorted }
     }
 }

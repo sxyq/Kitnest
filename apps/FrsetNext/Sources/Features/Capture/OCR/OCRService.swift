@@ -105,9 +105,20 @@ public final class OCRService: OCRServiceProtocol {
             return try Self.singlePass(image: image)
         case .thorough:
             // 整段多遍识别丢到后台线程（多遍合计几百毫秒，不能占主线程）
-            return await Task.detached(priority: .userInitiated) {
+            // 2026-11-26 修复：Task.detached 不继承调用方取消——用户关掉结果窗 / 取消翻译后，
+            // 仍会把多遍 Vision（含 PP-OCR 子进程、往 /tmp 写整幅 RGBA）跑完。
+            // 这里用 withTaskCancellationHandler 把外层取消转给内层任务，
+            // 且在结果返回后再查一次取消，确保取消后不把结果交回去。
+            let task = Task.detached(priority: .userInitiated) {
                 Self.multiPassSync(image: image)
-            }.value
+            }
+            return try await withTaskCancellationHandler {
+                let result = await task.value
+                try Task.checkCancellation()
+                return result
+            } onCancel: {
+                task.cancel()
+            }
         }
     }
 
@@ -262,6 +273,8 @@ public final class OCRService: OCRServiceProtocol {
 
         // ① 先跑锚（原尺寸 + 自动语言）——实测这一遍最准
         let anchor = (try? runPass(image: image, variant: anchorVariant)) ?? []
+        // 2026-11-26 修复：每段之间检查取消，取消后不再白跑后续多遍
+        if Task.isCancelled { return [] }
         var observations: [OCRTextObservation] = anchor.map {
             OCRTextObservation(text: $0.text, boundingBox: $0.box)
         }
@@ -274,6 +287,7 @@ public final class OCRService: OCRServiceProtocol {
         // v151：小字/空结果 → 直接跑一次放大版（这是「大截图里的小链接认不出」的根因：
         // 原生尺寸下 Vision 连行都检测不到，放大 2 倍后 100% 可读）。
         if let scale = enhancementScale(image: image, lines: anchor) {
+            if Task.isCancelled { return [] }
             let enhanced = (try? runPass(image: image,
                                          variant: .init(autoDetect: autoDetectEnabled,
                                                         languages: nil,
@@ -295,6 +309,8 @@ public final class OCRService: OCRServiceProtocol {
             var passes = [anchor]
             var rest = variants
             rest.removeFirst()
+            // 2026-11-26 修复：多倍率补跑前先看取消（这里最贵，可能连续跑两遍 + 写临时图）
+            if Task.isCancelled { return [] }
             passes.append(contentsOf: rest.map { (try? runPass(image: image, variant: $0)) ?? [] })
             observations = merge(passes)
             Log.debug("Capture", "OCR 多遍补识别：逐遍行数 "
@@ -307,6 +323,8 @@ public final class OCRService: OCRServiceProtocol {
         //    `system` = 只用 Apple Vision。
         //    注意必须在所有合并之后做：合并分支会用锚的原始文本重建结果，先复核会被冲掉
         //    （实测「杂底小字」用例复核 3/3 行但最终文本仍是 Vision 的）。
+        // 2026-11-26 修复：复核会起 PP-OCR 子进程，取消后直接返回已有结果
+        if Task.isCancelled { return observations }
         return OCRRefinerRegistry.shared.active.refine(observations, image: image)
     }
 
@@ -514,13 +532,33 @@ public final class OCRService: OCRServiceProtocol {
     /// 按几何位置重排：自上而下（容差 ≈ 行高一半），同一行内从左到右。
     /// boundingBox 是归一化、左下原点，转成「行顶 y」比较。
     public static func readingOrder(_ list: [OCRTextObservation]) -> [OCRTextObservation] {
-        list.sorted { a, b in
-            let ay = 1 - a.boundingBox.maxY
-            let by = 1 - b.boundingBox.maxY
-            let tolerance = max(a.boundingBox.height, b.boundingBox.height) * 0.5
-            if abs(ay - by) > tolerance { return ay < by }
+        guard list.count > 1 else { return list }
+        // 2026-11-26 修复：旧比较器用「两行高度最大值的 0.5 倍」作容差，这种关系不满足传递性
+        // （A≈B、B≈C 但 A≉C），而 sort 要求严格弱序——同一行被拆成多个碎片时顺序取决于输入排列，
+        // 进而影响 assemble 的段落切分与译文布局。
+        // 改成先按 top 排序，再顺序聚类成「行桶」（每项只和桶锚点比较，构造上传递），
+        // 桶内按 minX 排序，最后按桶顶顺序摊平。
+        func top(_ o: OCRTextObservation) -> CGFloat { 1 - o.boundingBox.maxY }
+        func halfHeight(_ o: OCRTextObservation) -> CGFloat { max(o.boundingBox.height, 0.0001) * 0.5 }
+
+        let sorted = list.sorted { a, b in
+            let ta = top(a), tb = top(b)
+            if ta != tb { return ta < tb }
             return a.boundingBox.minX < b.boundingBox.minX
         }
+        var buckets: [[OCRTextObservation]] = []
+        for obs in sorted {
+            if !buckets.isEmpty {
+                let anchor = buckets[buckets.count - 1][0]
+                if abs(top(obs) - top(anchor)) <= max(halfHeight(anchor), halfHeight(obs)) {
+                    buckets[buckets.count - 1].append(obs)
+                    buckets[buckets.count - 1].sort { $0.boundingBox.minX < $1.boundingBox.minX }
+                    continue
+                }
+            }
+            buckets.append([obs])
+        }
+        return buckets.flatMap { $0 }
     }
 
     /// 拼段：同一段落内行与行之间只换行，行距明显更大时插空行分段

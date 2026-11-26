@@ -6,16 +6,22 @@ import AppKit
 // MARK: 时间戳转换
 
 public enum TimestampConverter {
-    private static let inputFormatters: [(pattern: String, formatter: DateFormatter)] = [
+    /// 2026-11-26 修复（二轮 low）：原来是 static 的 (pattern, DateFormatter) 数组——
+    /// ToolRegistry.run 是 nonisolated async（execute 跑在协作线程池），两个工具窗并发执行
+    /// 会共享同一个 DateFormatter，而 DateFormatter 并发使用属未定义行为（可能崩溃/错值）。
+    /// 现在只缓存格式串，formatter 每次调用本地新建（命中即返回，通常只建 1 个）。
+    private static let inputPatterns: [String] = [
         "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd HH:mm", "yyyy-MM-dd",
         "yyyy/MM/dd HH:mm:ss", "yyyy/MM/dd HH:mm", "yyyy/MM/dd",
         "yyyy年M月d日 HH:mm:ss", "yyyy年M月d日", "yyyy.MM.dd"
-    ].map { pattern in
+    ]
+
+    private static func makeInputFormatter(_ pattern: String) -> DateFormatter {
         let formatter = DateFormatter()
         formatter.dateFormat = pattern
         formatter.locale = Locale(identifier: "zh_CN")
         formatter.timeZone = .current
-        return (pattern, formatter)
+        return formatter
     }
 
     /// 自动识别：纯数字 → 按位数判定秒/毫秒/微秒/纳秒并输出日期；否则按日期字符串 → 输出各精度时间戳
@@ -70,10 +76,10 @@ public enum TimestampConverter {
             let now = Date()
             return "当前时间戳\n秒：\(Int64(now.timeIntervalSince1970))\n毫秒：\(Int64(now.timeIntervalSince1970 * 1_000))"
         }
-        for entry in inputFormatters {
-            if let date = entry.formatter.date(from: input) {
+        for pattern in inputPatterns {
+            if let date = makeInputFormatter(pattern).date(from: input) {
                 var lines: [String] = []
-                lines.append("解析格式：\(entry.pattern)")
+                lines.append("解析格式：\(pattern)")
                 lines.append("秒：\(Int64(date.timeIntervalSince1970))")
                 lines.append("毫秒：\(Int64(date.timeIntervalSince1970 * 1_000))")
                 lines.append("纳秒：\(Int64(date.timeIntervalSince1970 * 1_000_000_000))")

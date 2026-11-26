@@ -342,7 +342,12 @@ enum IslandPeek: String, CaseIterable, Codable, Identifiable {
 enum IslandWidget: String, CaseIterable, Codable, Identifiable {
     case monitor, media, calendar, clipboard, tools, volume, search, capture, recording, ocr, ai, statistics, archive, downloads
     var id: String { rawValue }
-    var page: IslandPage { self == .volume ? .media : IslandPage(rawValue: rawValue)! }
+    var page: IslandPage {
+        // 2026-11-26 修复：原 `IslandPage(rawValue: rawValue)!` 依赖两枚举一一对应，
+        // 新增 widget 而没有同名 page 会运行时崩溃。改为解析失败回退首页。
+        if self == .volume { return .media }
+        return IslandPage(rawValue: rawValue) ?? .home
+    }
     var title: String {
         switch self {
         case .media: return "正在播放"
