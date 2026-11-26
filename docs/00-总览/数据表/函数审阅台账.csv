@@ -1489,14 +1489,14 @@ Capture,Features/Capture/OCR/PPOCROCREmote.swift,PPOCROCREmote,writeRaw,func,164
 Capture,Features/Capture/OCR/QRCodeRecognizer.swift,QRCodeRecognizer,recognize,func,14,KEEP,2026-11-19：run及ScreenshotManager自动扫码调用；后台执行Vision多制式检测、去空值去重并主线程回调
 Capture,Features/Capture/OCR/QRCodeRecognizer.swift,QRCodeRecognizer,run,func,29,KEEP,2026-11-19：CaptureActionChain识码动作调用；无命中警示，有内容先复制全部，再给最多600字符结果窗并可打开首个http(s)
 Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,run,func,38,KEEP,2026-11-19：动作链和ScreenshotManager翻译入口调用；建MainActor Task交runAsync，避免同步阻塞发起方
-Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,runAsync,func,45,KEEP,2026-11-19：run的MainActor任务调用；Vision取坐标并截80块/每块600字，按全文决定目标语言批译，后台渲染后暂存并钉回选区
-Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,translateBlocks,func,108,KEEP,2026-11-19：runAsync调用；按batchSize=24切片串行交translateBatch并按offset放回原序
-Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,translateBatch,func,123,KEEP,2026-11-19：translateBlocks每批调用；优先行号协议整批结果且数量/空值完整，否则逐块请求并用原文兜底
-Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,render,func,146,KEEP,2026-11-19：runAsync detached绘制调用；归一RGBA画布，按Vision框采背景并用CoreText自适应绘制译文
-Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,rgbaBuffer,func,221,KEEP,2026-11-19：render唯一调用；CGContext生成指定插值质量的RGBA8888图缓冲
-Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,sampleBackground,func,234,KEEP,2026-11-19：render每个有效文本框调用；在框四边外环采样RGB均值取盖字底色
-Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,foregroundColor,func,263,KEEP,2026-11-19：render每译文块调用；按加权RGB亮度选择深色或浅色文本
-Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,layout,func,278,KEEP,2026-11-19：render按块多次调用；逐字符测CoreText宽度并按maxWidth/换行符生成行与总高度
+Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,runAsync,func,45,KEEP,2026-11-27：run的MainActor任务调用，默认动作与动作条共用；OCR截80块/每块600字后批译，原detached任务依次渲染及PNG编码，MainActor沿原顺序暂存、登记与钉回选区；现有1925×911图编码131–175ms。
+Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,translateBlocks,func,109,KEEP,2026-11-19：runAsync调用；按batchSize=24切片串行交translateBatch并按offset放回原序
+Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,translateBatch,func,124,KEEP,2026-11-19：translateBlocks每批调用；优先行号协议整批结果且数量/空值完整，否则逐块请求并用原文兜底
+Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,render,func,147,KEEP,2026-11-19：runAsync detached绘制调用；归一RGBA画布，按Vision框采背景并用CoreText自适应绘制译文
+Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,rgbaBuffer,func,222,KEEP,2026-11-19：render唯一调用；CGContext生成指定插值质量的RGBA8888图缓冲
+Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,sampleBackground,func,235,KEEP,2026-11-19：render每个有效文本框调用；在框四边外环采样RGB均值取盖字底色
+Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,foregroundColor,func,264,KEEP,2026-11-19：render每译文块调用；按加权RGB亮度选择深色或浅色文本
+Capture,Features/Capture/OCR/ScreenTranslator.swift,ScreenTranslator,layout,func,279,KEEP,2026-11-19：render按块多次调用；逐字符测CoreText宽度并按maxWidth/换行符生成行与总高度
 Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,SourceNSTextView,init,init,8,KEEP,2026-11-19：SourceScroll与OCRReadOnly实例都使用带NSTextContainer的构造；禁编辑/可选择纯文本，关闭富文本与背景
 Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,SourceNSTextView,init,init,18,KEEP,2026-11-19：NSView必需coder构造但当前窗口只程序化创建，故明确不支持归档
 Capture,Features/Capture/OCR/ScreenshotOCRWindow.swift,ScreenshotOCRSourceScrollView,init,init,36,KEEP,2026-11-19：结果窗构造scroll view；配置双向滚动、无边框透明背景，image/text document由不同入口替换
