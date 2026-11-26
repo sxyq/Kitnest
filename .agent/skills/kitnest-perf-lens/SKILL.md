@@ -77,12 +77,13 @@ description: Kitnest 全链路性能/交互/渲染热点诊断；先独立读函
 - `PinMenuView.setEntries` 按原字号与固定色准备当前行图标，`draw`复用；换菜单替换行，不建立全局缓存。原15种符号两色1x/2x离屏像素一致，同轮24次图标绘制49.98–58.41ms→2.35–2.92ms；首次符号初始化准备151.34ms，窗口悬停及子菜单交互仍待实测。
 - `ClipboardRepository.delete` 已把原文件存在条件移到共享SQL之前，首次复制才创建临时目录；真实旧历史200条的438个候选路径中229个已不存在。后续分析沿现存附件的共享查询继续取证，保留原事务、失败恢复和OCR/标签清理。
 - `JSONInspectorView.refreshMatches` 只在树形模式建立命中集合，切回树形按当前查询重建；表格、卡片与原始模式不再额外递归。真实1440条JSONL的原首次遍历42.30–49.09ms、热态7.41–8.73ms，切回后170命中及472路径相同；表格行构建、筛选排序及窗口输入仍待各自测量。
+- `LongScreenshotPreviewController` 的保存与复制共用串行后台队列执行原PNG编码，主线程继续保存登记与剪贴板写入；复制的PNG失败时保留原NSImage分支。真实2745×1365图的工作队列编码21.80–22.82ms、输出字节相同；大长图、连续点击、关闭及落盘仍待窗口实测。
 
 ### 已实测结论（2026-11-24 授权时段，v292 同版本）
 
 - **CPU 基线**（`proc_pid_rusage` 差分，20s 中位）：干净空闲 **0.3%**；岛展开态 0.3%；主面板 0.3%；剪贴板工作台 0.2%；十万条归档静置 0.2%；存储窗 2.4%；传输坞 0.3%；投屏页 0.4%；桌面精灵（静态）0.3%。
 - **内存基线**（footprint）：冷启动 90–128MB；主面板 141MB；存储窗落定 **229MB**（打开 1.4s 内 +121~170MB，磁盘索引 plist 解码；关窗后仍常驻 **~120MB**，`DiskIndexStore.shared.snapshot` 是单例）；剪贴板工作台 97MB；十万条归档峰值 **293MB** / 落定 190MB。
-- **已知缺陷（未修，v292 实测确认）**：关闭存储窗会把主线程卡死 **20s+**。对照实验（不含任何关窗钩子的版本）同样复现，属既有问题。卡死栈：`SwiftUI ViewGraph → DynamicPreferenceCombiner → GeometryReader → Path.contains(_:eoFill:)`（302/577 样本在 `Path.contains`）。可疑来源：`StorageTreemap` 的 `.contentShape(StorageMapShape(geometry:))` 与 `onContinuousHover` 里每次 `StorageMapShape(...).path(in:).contains(location)`——**每次命中测试都重建整张地图路径**。修法方向：按 geometry+rect 缓存 Path，或改逐 tile `frame + 多边形` 判定；修好之前**不要**做「关窗释放快照」——关窗本身不返回，释放执行不到。
+- **存储关窗历史现场（v292）**：2026-11-24曾观察到20s+等待，302/577个样本在`Path.contains`。2026-11-27完整阅读当前路径与窗口调用链：地图悬停派发使用矩形，曲面路径按几何/矩形/top复用24项缓存，Voronoi由DiskLayoutStore后台计算；旧「每次命中重建整图」描述已过时。当前安装版关闭耗时待独占时段实测，窗口与快照驻留沿现有实现。
 - **文件索引是当前最大单点（已优化）**：144.7 万条 / 177MB 池。原实现每个命中都构造 `path` 串 + `URL` + `lastPathComponent`，短词 `deck`（47 万命中）实测 **19.0s**；改为「字节取 name → 先跑 name 模糊 → path 串惰性构造 → `.all` 不建 URL」+ `FuzzyMatcher` 纯 ASCII 字节快路径后：`deck` **683ms**、多词 `workbuddy skill` 395ms / `kitnest perf` 319ms，命中集不变（22 万例随机对拍 0 不一致、144.7 万条 name 取法与 URL 0 不一致）。改匹配语义（分词 `strcasestr`）会快到 173-204ms 但命中从 3371 掉到 161，**不能**未经产品确认就换。
 - `FuzzyMatcher.match` 的慢在 `Array<Character>`（每字符 16B）：127B 路径≈2KB/次。ASCII 快路径实测 **6.3-6.5×**（10 万条 91ms→14ms），非 ASCII 原样回退。
 - 搜索是 **250ms 防抖 + detached 任务**：detached 不继承取消，必须 `withTaskCancellationHandler` 显式 `job.cancel()`，`FileNameIndex.search` 里每 8192 条的 `Task.isCancelled` 才会生效。

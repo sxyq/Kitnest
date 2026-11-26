@@ -1382,17 +1382,17 @@ Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,Closur
 Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,ClosureButtonAction,bind,func,220,KEEP,2026-11-19：EditorContainerView循环三按钮调用；绑定button.target/action，并由associated object持有target
 Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,ClosureButtonAction,fire,func,227,KEEP,2026-11-19：NSButton target-action经#selector派发；执行持有的保存/复制/关闭闭包
 Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotEditorWindow,init,init,236,KEEP,2026-11-19：PreviewController.show构造；按图像宽高及屏可视尺寸算窗体并装EditorContainerView与统一Chrome
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotPreviewController,init,init,279,KEEP,2026-11-19：shared单例静态构造；NSObject初始化且持有唯一编辑窗口
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotPreviewController,show,func,281,KEEP,2026-11-19：Session完成和诊断演示调用；先关旧窗，建新长图文档及保存/复制/关闭动作，再激活呈现
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotPreviewController,windowWillClose,func,365,KEEP,2026-11-19：NSWindowDelegate关闭回调；仅关闭当前EditorWindow时清控制器强引用
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,init,init,403,KEEP,2026-11-19：Coordinator.startSession及debugShow构造；浮动不激活点击穿透面板，默认屏幕捕获排除并装玻璃、图像及尺寸标签
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,update,func,464,KEEP,2026-11-19：Session.onPreview主Actor回调和debugShow调用；解位置槽，裁画布顶部适配卡片尺寸，动画定位并仅首次orderFront
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,slotMaxHeight,func,524,KEEP,2026-11-19：update限制可见图片高度调用；从side/above/below槽位取可用高度
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,slotOrigin,func,530,KEEP,2026-11-19：update求目标窗frame调用；按三种槽位将左下坐标top锚点换窗口origin
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,debugShow,func,541,KEEP,2026-11-19：CaptureModule长图预览演示深链调用；保存静态debugInstance并显示合成图
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,resolveSlot,func,550,KEEP,2026-11-19：update每帧定位调用；按选区所属屏幕依右/左/上/下找不相交可用槽位，无足够空间收起
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,clampX,func,590,KEEP,2026-11-19：resolveSlot上下方卡片调用；限制卡片横坐标于屏幕可见范围
-Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,screen,func,595,KEEP,2026-11-19：resolveSlot定位调用；选与框区相交面积最大的显示屏，否则主屏/首屏
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotPreviewController,init,init,282,KEEP,2026-11-19：shared单例静态构造；NSObject初始化且持有唯一编辑窗口
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotPreviewController,show,func,284,KEEP,2026-11-27：会话收尾与诊断入口调用；原窗口/绘制/关闭顺序保持。保存与复制按点击顺序在串行队列编码，主线程消费结果并保留原失败反馈、保存登记和剪贴板NSImage分支；真实2745×1365图工作队列21.80–22.82ms、输出字节一致，窗口交互待实测。
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotPreviewController,windowWillClose,func,378,KEEP,2026-11-19：NSWindowDelegate关闭回调；仅关闭当前EditorWindow时清控制器强引用
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,init,init,416,KEEP,2026-11-19：Coordinator.startSession及debugShow构造；浮动不激活点击穿透面板，默认屏幕捕获排除并装玻璃、图像及尺寸标签
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,update,func,477,KEEP,2026-11-19：Session.onPreview主Actor回调和debugShow调用；解位置槽，裁画布顶部适配卡片尺寸，动画定位并仅首次orderFront
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,slotMaxHeight,func,537,KEEP,2026-11-19：update限制可见图片高度调用；从side/above/below槽位取可用高度
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,slotOrigin,func,543,KEEP,2026-11-19：update求目标窗frame调用；按三种槽位将左下坐标top锚点换窗口origin
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,debugShow,func,554,KEEP,2026-11-19：CaptureModule长图预览演示深链调用；保存静态debugInstance并显示合成图
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,resolveSlot,func,563,KEEP,2026-11-19：update每帧定位调用；按选区所属屏幕依右/左/上/下找不相交可用槽位，无足够空间收起
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,clampX,func,603,KEEP,2026-11-19：resolveSlot上下方卡片调用；限制卡片横坐标于屏幕可见范围
+Capture,Features/Capture/LongScreenshot/LongScreenshotPreviewWindow.swift,LongScreenshotLivePreviewPanel,screen,func,608,KEEP,2026-11-19：resolveSlot定位调用；选与框区相交面积最大的显示屏，否则主屏/首屏
 Capture,Features/Capture/LongScreenshot/LongScreenshotSession.swift,LongScreenshotSession,samplingInterval,func,68,KEEP,2026-11-19：Coordinator日志及startSampling共用；按帧高估算间隔并限制60–200ms
 Capture,Features/Capture/LongScreenshot/LongScreenshotSession.swift,LongScreenshotSession,init,init,146,KEEP,2026-11-19：Coordinator.startSession构造；保留AppKit/CG选区坐标、显示器及窗口ID
 Capture,Features/Capture/LongScreenshot/LongScreenshotSession.swift,LongScreenshotSession,deinit,deinit,154,KEEP,2026-11-19：Coordinator结束时释放；清空事件处理器并取消采样timer
@@ -3307,8 +3307,8 @@ Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONCardsView,card,func,5
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,rows,func,780,KEEP,JSONTableView.body调用；同一JSONDocument与列键直接返回已构造行，文档或列键变化时重建，缓存不发布界面状态
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableState,discardRows,func,788,KEEP,JSONInspectorView切离表格模式调用；释放缓存行、文档引用和列键，不触发表格或其他视图更新
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,makeColumns,func,830,KEEP,2026-11-17：JSONTableView.body每轮调用一次；沿原表型和前500条字段集合生成列序与宽度，同一列结果传给行构造筛选排序表头和单元格
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,makeAllRows,func,871,KEEP,2026-11-27：JSONTableView.body经state.rows调用，文档身份与列键未变则复用；三种表型及50000行上限保留，未筛选行供处理链与列选项共用，首次构造耗时待测。
-Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,makeRowValues,func,896,KEEP,2026-11-17：JSONTableView.body每轮调用一次；只消费传入行与列完成原搜索多列筛选和排序；行数页数及500行分页共用此结果
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,makeAllRows,func,871,KEEP,2026-11-27：body经state.rows按文档身份与列键复用，三种表型和50000行上限保持；真实1440行5列，列准备3.64–6.58ms，其后首次构造7.98–8.59ms；更大负载及呈现待测。
+Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,makeRowValues,func,896,KEEP,2026-11-27：body消费缓存行，原搜索→多列AND→数值/本地化字符串排序和500行分页保持；真实1440行5列按type排序2.46–2.63ms；大表搜索与窗口输入待测。
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,distinctValues,func,936,KEEP,2026-11-17：filterPopover调用；使用body传入的未筛选行及列查找指定单元格；按出现顺序取最多60个不同值后排序，不再触发整表构造
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,tapHeader,func,950,KEEP,2026-11-17：表头排序按钮调用；再次点同列只翻转升降序，否则切换列并恢复升序；仍由同一JSONTableState发布刷新
 Panel,Features/Panel/Inspector/JSONInspectorView.swift,JSONTableView,toggleFilterValue,func,959,KEEP,2026-11-17：筛选Toggle的Binding setter调用；切换指定列值集合且空集合移除列条件；不修改原JSON数据

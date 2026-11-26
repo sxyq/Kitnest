@@ -275,6 +275,9 @@ final class LongScreenshotPreviewController: NSObject, NSWindowDelegate {
     static let shared = LongScreenshotPreviewController()
 
     private var window: LongScreenshotEditorWindow?
+    /// 保存与复制按点击顺序编码，避免长图占用主线程或同时创建多份编码缓冲。
+    private static let imageEncodingQueue = DispatchQueue(label: "com.sxyq.frsetnext.longshot-preview-encode",
+                                                          qos: .userInitiated)
 
     private override init() { super.init() }
 
@@ -292,16 +295,21 @@ final class LongScreenshotPreviewController: NSObject, NSWindowDelegate {
                     Log.warn("Capture", "长截图保存：取不到文档图")
                     return
                 }
-                guard let data = ImageProcessor.pngData(image) else {
-                    Log.warn("Capture", "长截图保存：PNG 编码失败")
-                    return
+                Self.imageEncodingQueue.async {
+                    let data = ImageProcessor.pngData(image)
+                    DispatchQueue.main.async {
+                        guard let data else {
+                            Log.warn("Capture", "长截图保存：PNG 编码失败")
+                            return
+                        }
+                        guard let url = ScreenshotManager.shared.savePNG(data, pixelSize: CGSize(width: image.width, height: image.height)) else {
+                            Log.warn("Capture", "长截图保存：savePNG 返回 nil")
+                            return
+                        }
+                        ScreenshotManager.shared.registerCaptured(url: url, data: data, playSound: true, mode: "long")   // v130②
+                        Log.info("Capture", "长截图保存：\(url.path)")
+                    }
                 }
-                guard let url = ScreenshotManager.shared.savePNG(data, pixelSize: CGSize(width: image.width, height: image.height)) else {
-                    Log.warn("Capture", "长截图保存：savePNG 返回 nil")
-                    return
-                }
-                ScreenshotManager.shared.registerCaptured(url: url, data: data, playSound: true, mode: "long")   // v130②
-                Log.info("Capture", "长截图保存：\(url.path)")
             },
             onCopy: { [weak self] in
                 guard let doc = self?.window?.editorContent,
@@ -309,9 +317,14 @@ final class LongScreenshotPreviewController: NSObject, NSWindowDelegate {
                     Log.warn("Capture", "长截图复制：内容视图/文档图不可用")
                     return
                 }
-                guard ScreenshotManager.shared.copyToPasteboard(image) else { return }
-                Toast.show("长截图已复制", icon: "checkmark.circle.fill")
-                Log.info("Capture", "长截图复制：已写入剪贴板")
+                Self.imageEncodingQueue.async {
+                    let data = ImageProcessor.pngData(image)
+                    DispatchQueue.main.async {
+                        guard ScreenshotManager.shared.copyToPasteboard(image, encodedPNG: data) else { return }
+                        Toast.show("长截图已复制", icon: "checkmark.circle.fill")
+                        Log.info("Capture", "长截图复制：已写入剪贴板")
+                    }
+                }
             },
             onClose: { [weak self] in
                 // v200（用户「保存/复制/关闭点了没反应」）：工具栏关闭原来走 performClose，
