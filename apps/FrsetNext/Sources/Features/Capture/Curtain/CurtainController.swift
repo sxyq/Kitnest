@@ -374,7 +374,13 @@ public final class ImageCurtainController: NSObject {
         panel.begin { response in
             guard response == .OK, let url = panel.url else { return }
             do {
-                try Data(contentsOf: item.fileURL).write(to: url, options: .atomic)
+                if FileManager.default.fileExists(atPath: url.path) {
+                    // 覆盖已有文件仍沿用原子写，保持 Save Panel 的替换语义。
+                    let data = try Data(contentsOf: item.fileURL)
+                    try data.write(to: url, options: .atomic)
+                } else {
+                    try FileManager.default.copyItem(at: item.fileURL, to: url)
+                }
                 Toast.show("已保存", icon: "checkmark.circle")
             } catch {
                 Toast.show("保存失败：\(error.localizedDescription)", icon: "exclamationmark.triangle", isWarning: true)
