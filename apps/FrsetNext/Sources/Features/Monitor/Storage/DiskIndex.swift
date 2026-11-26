@@ -770,7 +770,11 @@ final class DiskIndexStore: ObservableObject {
         } else {
             return nil
         }
-        if recomputeCategories { snap.recomputeDataCategories() }
+        // 早期 schema=6 尚未保存逐路径字节，仍需按旧规则汇总或提示重扫。
+        if recomputeCategories,
+           snap.dataCategories.isEmpty || snap.dataCategories.contains(where: { $0.pathBytes == nil }) {
+            snap.recomputeDataCategories()
+        }
         return snap
     }
 
