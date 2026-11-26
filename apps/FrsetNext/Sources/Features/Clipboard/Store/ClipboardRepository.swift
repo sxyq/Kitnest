@@ -400,15 +400,19 @@ public final class ClipboardRepository: @unchecked Sendable {
             var paths = Set(["image_path", "thumbnail_path", "text_path", "rich_text_path"].compactMap { row.string($0) })
             paths.insert(ClipboardOCRTextStorage.relativePath(dedupeKey: dedupeKey))
             let stage = fm.temporaryDirectory.appendingPathComponent("kitnest-clipboard-delete-\(UUID().uuidString)", isDirectory: true)
-            try fm.createDirectory(at: stage, withIntermediateDirectories: true)
-            temporaryDirectory = stage
             for path in paths {
+                // 2026-11-27：旧历史200条中229/438个附件已不存在，无需再查共享引用。
+                let original = ClipboardFileStore.url(forRelativePath: path)
+                if !fm.fileExists(atPath: original.path) { continue }
                 let shared = try db.scalarInt("""
                     SELECT COUNT(*) FROM clipboard_items WHERE dedupe_key != ?
                     AND (image_path = ? OR thumbnail_path = ? OR text_path = ? OR rich_text_path = ?)
                     """, [.text(dedupeKey)] + Array(repeating: .text(path), count: 4))
-                let original = ClipboardFileStore.url(forRelativePath: path)
-                if shared > 0 || !fm.fileExists(atPath: original.path) { continue }
+                if shared > 0 { continue }
+                if temporaryDirectory == nil {
+                    try fm.createDirectory(at: stage, withIntermediateDirectories: true)
+                    temporaryDirectory = stage
+                }
                 let saved = stage.appendingPathComponent(UUID().uuidString)
                 try fm.copyItem(at: original, to: saved)
                 copies.append((original, saved))
