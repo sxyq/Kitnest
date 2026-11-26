@@ -10,6 +10,9 @@ public enum CaptureModule: AppModule {
     public static let identifier = "capture"
 
     public static func start() {
+        // 2026-11-26（存储治理）：截图暂存目录的清理原来只在真截图（stagePNG）时触发，
+        // 长期不截图的历史堆积永远不回收。引导期后台补跑一次（幂等，不初始化单例重活）。
+        ScreenshotManager.cleanupStagingAtLaunch()
         // 排障探针（v264）：文件命名模板 / 固定比例的纯函数自检。
         // 这两条不依赖鼠标，直接用环境变量跑一遍并打日志，验收时不用手动框选。
         if ProcessInfo.processInfo.environment["FRSET_CAPTURE_NAMEPROBE"] == "1" {

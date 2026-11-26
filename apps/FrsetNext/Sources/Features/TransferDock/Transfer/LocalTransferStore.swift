@@ -111,6 +111,7 @@ public final class LocalTransferStore: ObservableObject {
         indexURL = LocalTransferPaths.root.appendingPathComponent("index.json")
         load()
         pruneMissing()
+        pruneOrphanDirectories()
     }
 
     // MARK: 索引
@@ -149,6 +150,39 @@ public final class LocalTransferStore: ObservableObject {
             DispatchQueue.main.async {
                 self.items.removeAll { missing.contains($0.id) }
                 self.persist()
+            }
+        }
+    }
+
+    /// 2026-11-26（存储治理）：反向清理——索引里已经没有、但磁盘上残留的孤儿暂存目录。
+    /// 场景：index.json 被重置/损坏后，历史暂存目录永远没人认领，白占磁盘。
+    /// 安全边界：只回收「目录内没有任何常规文件」的孤儿（纯符号链接 / 空目录 /
+    /// 只剩子目录壳），有真实文件的目录一律保留——那是用户拖进来的数据，宁留勿删。
+    private func pruneOrphanDirectories() {
+        let root = stagingRoot
+        let indexed = Set(items.map { $0.relativePath.split(separator: "/", maxSplits: 1).first.map(String.init) ?? "" })
+        queue.async {
+            let fm = FileManager.default
+            guard let dirs = try? fm.contentsOfDirectory(atPath: root.path) else { return }
+            var removedDirs = 0
+            for name in dirs where !indexed.contains(name) {
+                let dir = root.appendingPathComponent(name, isDirectory: true)
+                var isDir: ObjCBool = false
+                guard fm.fileExists(atPath: dir.path, isDirectory: &isDir), isDir.boolValue else { continue }
+                guard let entries = try? fm.contentsOfDirectory(atPath: dir.path) else { continue }
+                // 有真实常规文件就保留：符号链接 / 目录壳不算（都是零拷贝形态，重建无成本）
+                let hasRealFile = entries.contains { entry in
+                    let p = dir.appendingPathComponent(entry).path
+                    if (try? fm.destinationOfSymbolicLink(atPath: p)) != nil { return false }
+                    var isDir: ObjCBool = false
+                    guard fm.fileExists(atPath: p, isDirectory: &isDir) else { return false }
+                    return !isDir.boolValue
+                }
+                guard !hasRealFile else { continue }
+                if (try? fm.removeItem(at: dir)) != nil { removedDirs += 1 }
+            }
+            if removedDirs > 0 {
+                Log.info("TransferDock", "中转站孤儿目录回收：\(removedDirs) 个（索引外且无真实文件）")
             }
         }
     }

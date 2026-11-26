@@ -22,6 +22,11 @@ fi
 BUILD_ROOT="${KITNEST_BUILD_ROOT:-$ROOT/build.noindex}"
 # 并行工作台/Lite 构建曾改写共用目标文件；本次暂存与链接输入由同一目录持有。
 mkdir -p "$BUILD_ROOT/.staging"
+# 2026-11-26（存储治理）：trap 只清「本次」的暂存包；构建被强杀（kill -9 / 断电 /
+# 并行抢占）时残留的 kitnest.XXXXXX 没人认领——实测累积过 8 个 ≈ 744MB。
+# 启动时先回收超 1 天的旧暂存（正在跑的并行构建不会误伤，它们的 mtime 是新的）。
+find "$BUILD_ROOT/.staging" -maxdepth 1 -name "kitnest.*" -type d -mtime +1 \
+    -exec rm -rf {} + 2>/dev/null || true
 STAGE=$(mktemp -d "$BUILD_ROOT/.staging/kitnest.XXXXXX")
 APP="$STAGE/$APP_NAME.app"
 BUILD_LOG="$STAGE/build.log"

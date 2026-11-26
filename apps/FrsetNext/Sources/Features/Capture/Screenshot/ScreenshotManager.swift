@@ -80,6 +80,11 @@ public final class ScreenshotManager: ObservableObject {
             Log.info("Capture", "屏幕录制权限启动实况：\(granted ? "已获得" : "未获得")（bundle=\(Bundle.main.bundleIdentifier ?? "?")）")
             DispatchQueue.main.async { self?.hasPermission = granted }
         }
+        // 2026-11-26（存储治理）：暂存清理原来只在 stagePNG（真截图）时触发，
+        // 长期不截图的历史堆积（实测 873 个文件）永远不会被回收。
+        // 注意 ScreenshotManager 是懒加载单例：不碰截图功能就不会 init，
+        // 所以清理入口必须由 CaptureModule.start() 在引导期调用（cleanupStagingAtLaunch）。
+        Self.cleanupStagingAtLaunch()
         // v77（2026-10-19 全盘排查）：启动不再用 SCK 探测。
         // `SCShareableContent` 属于屏幕录制 TCC 授权 API——放在 init 里会导致
         // **每次启动都请求一次权限**（用户实测「一直重复请求」）。改为只在用户
@@ -1077,6 +1082,21 @@ public final class ScreenshotManager: ObservableObject {
                 Log.info("Capture", "暂存目录清理：删除 \(removed) 个旧暂存文件（\(dir.path)）")
             }
             DispatchQueue.main.async { self?.stagingCleanupScheduled = false }
+        }
+    }
+
+    /// 2026-11-26（存储治理）：引导期清理入口。CaptureModule.start() 调用；
+    /// 幂等（同一次进程生命周期只跑一次后台任务），不初始化单例。
+    private static var stagingLaunchCleanupDone = false
+    static func cleanupStagingAtLaunch() {
+        guard !stagingLaunchCleanupDone else { return }
+        stagingLaunchCleanupDone = true
+        DispatchQueue.global(qos: .utility).async {
+            let dir = AppDirectories.sub("screenshots")
+            let removed = pruneStagingDirectory(dir)
+            if removed > 0 {
+                Log.info("Capture", "启动暂存清理：删除 \(removed) 个旧暂存文件（\(dir.path)）")
+            }
         }
     }
 
