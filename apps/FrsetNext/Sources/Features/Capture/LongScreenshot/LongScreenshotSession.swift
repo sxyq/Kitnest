@@ -37,8 +37,8 @@ enum LongScreenshotCaptureStatus {
 ///
 /// 旧实现由全局 `scrollWheel` 事件 + 55ms 去抖驱动：滚动一快就漏帧、光标移出选区
 /// 就静默停采、事件到达时画面仍在动（抓到的帧滞后）。ScrollSnap（macOS 开源，
-/// MIT）的做法是**完全不监听滚轮**——用 0.25s 定时器主动取帧。本实现照此：
-///   · 每 250ms 取一次连续帧流的最新帧（帧龄 ≤33ms）；
+/// MIT）的做法是**完全不监听滚轮**——用 0.25s 定时器主动取帧。本实现按帧高调节：
+///   · 每 60–200ms 取一次连续帧流的最新帧（正常采样帧龄 ≤150ms）；
 ///   · 滚轮事件只累积「位移提示」，用于估算对齐搜索窗，不再决定是否采帧；
 ///   · 去掉「光标必须在选区内」的限制（手一抖就不采是旧版最隐蔽的坑）；
 ///   · 收尾前强制补采一帧，避免「点了完成但最后一小段没进去」。
@@ -124,10 +124,18 @@ final class LongScreenshotSession {
     }
 
     /// 当前状态
-    private(set) var state: LongScreenshotState = .idle {
-        didSet {
-            guard oldValue != state else { return }
-            onStateChange?(state)
+    private var currentState: LongScreenshotState = .idle
+    private(set) var state: LongScreenshotState {
+        get { lock.withLock { currentState } }
+        set {
+            let changed = lock.withLock {
+                // 会话不复用；在途tick不能覆盖已经发布的终态。
+                guard currentState != newValue,
+                      currentState == .idle || currentState.isActive else { return false }
+                currentState = newValue
+                return true
+            }
+            if changed { onStateChange?(newValue) }
         }
     }
 
@@ -152,8 +160,7 @@ final class LongScreenshotSession {
     }
 
     deinit {
-        sampleTimer?.setEventHandler {}
-        sampleTimer?.cancel()
+        stopSampling()
         // 2026-11-25（二轮复核 medium）：deinit 原来只停采样定时器，不停帧流。
         // SCStream 强引用着 FrameStream（30fps 持续出帧、屏幕录制指示灯常亮），
         // 会话被丢弃后流还活着。
@@ -164,7 +171,7 @@ final class LongScreenshotSession {
 
     // MARK: 生命周期
 
-    /// 启动会话：开连续帧流 → 等首帧 → 采首帧 → 启动 250ms 采样
+    /// 启动会话：开连续帧流 → 等首帧 → 采首帧 → 按帧高启动采样
     func start() {
         guard state == .idle else { return }
         state = .running
@@ -172,11 +179,14 @@ final class LongScreenshotSession {
         if #available(macOS 14.0, *), !frameStreamStarted {
             frameStreamStarted = true
             let fs = LongScreenshotFrameStream()
-            fs.start(displayID: displayID, selectionRectCG: captureRectCG)
-            frameStream = fs
+            let shouldStart = lock.withLock {
+                frameStream = fs
+                return !isStopped && !isCancelled
+            }
+            if shouldStart { fs.start(displayID: displayID, selectionRectCG: captureRectCG) }
             streamStarted = true
         }
-        // 首帧作为画布底图。等帧流连上再采（≤600ms）——同步路径的首帧尺寸
+        // 首帧作为画布底图。等帧流连上再采（≤1200ms）——同步路径的首帧尺寸
         // 可能与流不一致，混用会让后续对齐算出 dx=1，整幅图横向错 1px。
         queue.async { [weak self] in
             guard let self else { return }
@@ -186,9 +196,10 @@ final class LongScreenshotSession {
                 // 实测表现为「开头几帧永远对不上」。
                 var waited = 0
                 while waited < 1200 {
-                    if let fs = self.frameStream as? LongScreenshotFrameStream,
+                    let stream = self.lock.withLock { self.frameStream }
+                    if let fs = stream as? LongScreenshotFrameStream,
                        fs.latestFrame(maxAge: 0.2) != nil { break }
-                    if self.frameStream == nil { break }        // 已收尾/取消
+                    if stream == nil { break }        // 已收尾/取消
                     usleep(50_000)
                     waited += 50
                 }
@@ -200,7 +211,8 @@ final class LongScreenshotSession {
 
     /// 启动定时采样（在 session 串行队列上）
     private func startSampling(frameHeight: Int) {
-        guard sampleTimer == nil, !isStopped else { return }
+        lock.lock()
+        guard sampleTimer == nil, !isStopped else { lock.unlock(); return }
         let interval = Self.samplingInterval(frameHeight: frameHeight)
         let timer = DispatchSource.makeTimerSource(queue: queue)
         timer.schedule(deadline: .now() + interval,
@@ -211,23 +223,30 @@ final class LongScreenshotSession {
         }
         timer.resume()
         sampleTimer = timer
+        lock.unlock()
         Log.info("Capture", "长截图采样已启动：每 \(Int(interval * 1000))ms 取一帧"
                  + "（帧高 \(frameHeight)px，自适应）")
     }
 
     private func stopSampling() {
-        if let timer = sampleTimer {
+        let timer = lock.withLock {
+            let timer = sampleTimer
+            sampleTimer = nil
+            return timer
+        }
+        if let timer {
             timer.setEventHandler {}
             timer.cancel()
-            sampleTimer = nil
         }
     }
 
     /// Esc 取消
     func cancel() {
         guard state.isActive else { return }
-        isStopped = true
-        isCancelled = true
+        lock.withLock {
+            isStopped = true
+            isCancelled = true
+        }
         stopSampling()
         stopFrameStream()
         state = .cancelled
@@ -237,7 +256,12 @@ final class LongScreenshotSession {
     /// 正常收尾：**先补采一帧**（用户可能刚滚完就点完成），再出图
     func finish() {
         guard state.isActive else { return }
-        isStopped = true
+        let shouldFinish = lock.withLock {
+            guard !isStopped else { return false }
+            isStopped = true
+            return true
+        }
+        guard shouldFinish else { return }
         stopSampling()
         queue.async { [weak self] in
             guard let self else { return }
@@ -245,19 +269,30 @@ final class LongScreenshotSession {
                 self.captureTick(force: true)
             }
             self.stopFrameStream()
+            // 补采可能与 Esc 并行；取消后不再复制整张长图。
+            guard !self.lock.withLock({ self.isCancelled }) else { return }
             let image = self.stitcher.canvas
-            self.state = .finished
-            Log.info("Capture", "长截图收尾：画布 \(self.stitcher.canvasWidth)×\(self.stitcher.canvasHeight)，追加 \(self.stitcher.appendedRows) 行"
-                     + (self.stitcher.didDropContent ? "，⚠️ 有一段因滚动过快未能对齐" : ""))
-            DispatchQueue.main.async { self.onFinish?(.finished, image) }
+            let summary = "长截图收尾：画布 \(self.stitcher.canvasWidth)×\(self.stitcher.canvasHeight)，追加 \(self.stitcher.appendedRows) 行"
+                + (self.stitcher.didDropContent ? "，⚠️ 有一段因滚动过快未能对齐" : "")
+            DispatchQueue.main.async {
+                // 成图期间也可取消；终态和结果一并在主线程发布。
+                guard self.state.isActive else { return }
+                self.state = .finished
+                Log.info("Capture", summary)
+                self.onFinish?(.finished, image)
+            }
         }
     }
 
     private func stopFrameStream() {
-        if #available(macOS 14.0, *), let fs = frameStream as? LongScreenshotFrameStream {
+        let stream = lock.withLock {
+            let stream = frameStream
+            frameStream = nil
+            return stream
+        }
+        if #available(macOS 14.0, *), let fs = stream as? LongScreenshotFrameStream {
             fs.stop()
         }
-        frameStream = nil
     }
 
     // MARK: 事件入口（全局监视器只观察不拦截）
@@ -265,13 +300,14 @@ final class LongScreenshotSession {
     /// 滚轮事件：只累积位移提示（供对齐搜索估算窗口），不再决定是否采帧。
     /// v150：去掉「光标必须在选区内」——采样由定时器驱动，光标在哪都能采。
     func onScroll(deltaY: Double, deltaX: Double) {
-        guard state.isActive, !isStopped else { return }
+        guard state.isActive else { return }
         guard abs(deltaY) > LongScreenshotStitcher.scrollEpsilon
                 || abs(deltaX) > LongScreenshotStitcher.scrollEpsilon else { return }
         lock.lock()
+        defer { lock.unlock() }
+        guard !isStopped else { return }
         pendingDelta += deltaY
         pendingDeltaX += deltaX
-        lock.unlock()
     }
 
     /// 诊断日志节流（同一原因 2s 内只记一条；跨会话也能看到，不刷屏）
@@ -298,7 +334,7 @@ final class LongScreenshotSession {
         let stopped = isStopped
         let cancelled = isCancelled
         lock.unlock()
-        if cancelled { return }
+        if cancelled || !state.isActive { return }
         if stopped && !force { return }
 
         state = .capturing
@@ -307,7 +343,8 @@ final class LongScreenshotSession {
         // 此时用旧帧去对齐没有意义（位移必然算成 0），直接跳过本 tick 最省事。
         var frame: CGImage?
         var streamStale = false
-        if #available(macOS 14.0, *), let fs = frameStream as? LongScreenshotFrameStream {
+        if #available(macOS 14.0, *),
+           let fs = lock.withLock({ frameStream }) as? LongScreenshotFrameStream {
             if let img = fs.latestFrame(maxAge: Self.maxFrameAge) {
                 frame = img
             } else if fs.connected {
@@ -329,25 +366,27 @@ final class LongScreenshotSession {
             frame = captureFrameSync()
         }
 
+        guard !lock.withLock({ isCancelled }), state.isActive else { return }
         guard let frame else {
             if streamStale {
                 // 不是失败：只是这一 tick 没有新画面（画面静止）
                 Self.logOnce("staleFrame", "长截图：帧流暂无新帧（画面静止），本 tick 跳过")
-                if !isStopped { state = .running }
+                if !lock.withLock({ isStopped }) { state = .running }
                 return
             }
             captureFailures += 1
             Log.warn("Capture", "长截图采帧失败（第 \(captureFailures) 次）——若连续 3 次将终止")
             if captureFailures >= 3 {
-                isStopped = true
+                lock.withLock { isStopped = true }
                 stopSampling()
                 // 2026-11-26 修复（二轮 medium）：失败收尾原来只停采样，帧流还开着——
                 // SCStream 继续 30fps 采集、屏幕录制指示灯常亮直到进程退出。
                 // 与 cancel()/finish() 对齐，这里也停一次。
                 stopFrameStream()
-                state = .failed
                 DispatchQueue.main.async { [weak self] in
-                    self?.onFinish?(.failed, self?.stitcher.canvas)
+                    guard let self, self.state.isActive else { return }
+                    self.state = .failed
+                    self.onFinish?(.failed, self.stitcher.canvas)
                 }
             } else {
                 state = .running
@@ -413,15 +452,21 @@ final class LongScreenshotSession {
             }
         }
         let finalStatus: LongScreenshotCaptureStatus = stitcher.didDropContent ? .lost : status
-        DispatchQueue.main.async { [weak self] in self?.onProgress?(height, finalStatus) }
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.state.isActive else { return }
+            self.onProgress?(height, finalStatus)
+        }
 
         // v176：只有真的追加了内容才更新预览卡（unchanged/failed 不必重画）
         if case .appended = outcome, let preview = stitcher.preview {
             let canvasSize = CGSize(width: stitcher.canvasWidth, height: stitcher.canvasHeight)
-            DispatchQueue.main.async { [weak self] in self?.onPreview?(preview, canvasSize) }
+            DispatchQueue.main.async { [weak self] in
+                guard let self, self.state.isActive else { return }
+                self.onPreview?(preview, canvasSize)
+            }
         }
 
-        if !isStopped { state = .running }
+        if !lock.withLock({ isStopped }) { state = .running }
     }
 
     // MARK: 运动区检测（静止后台 → 只截滚动区）

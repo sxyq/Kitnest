@@ -29,15 +29,23 @@ final class LongScreenshotFrameStream: NSObject, SCStreamOutput {
     private var isConnected = false
     var connected: Bool { lock.withLock { isConnected } }
     private var loggedFrameSize = false
+    private var startRequested = false
+    private var stopped = false
     /// 2026-11-25（二轮复核）：start 的 Task 在 await SCShareableContent/startCapture 期间
     /// stop() 可能已经跑过——旧实现 stop 只清「已赋值的 stream」，随后 Task 才把流赋回来，
     /// 这条 30fps 流从此没人能停（屏幕录制指示灯常亮）。用代际号识别「启动中途被停」。
     private var startGeneration = 0
 
-    /// 启动帧流（后台完成；调用方不等待——tick 在帧到达前走同步回退）
+    /// 启动帧流（后台完成；调用方不等待——tick 在帧到达前走同步回退）。
+    /// 实例一旦 stop，迟到的 start 不再重新打开 SCK。
     func start(displayID: CGDirectDisplayID, selectionRectCG: CGRect) {
         // 入队前固定代次；stop() 可发生在 Task 第一次获得执行机会之前。
-        let generation = lock.withLock { startGeneration }
+        let generation: Int? = lock.withLock {
+            guard !startRequested, !stopped else { return nil }
+            startRequested = true
+            return startGeneration
+        }
+        guard let generation else { return }
         Task { [weak self] in
             guard let self else { return }
             do {
@@ -109,6 +117,7 @@ final class LongScreenshotFrameStream: NSObject, SCStreamOutput {
     func stop() {
         lock.lock()
         startGeneration &+= 1
+        stopped = true
         let s = stream
         stream = nil
         isConnected = false
