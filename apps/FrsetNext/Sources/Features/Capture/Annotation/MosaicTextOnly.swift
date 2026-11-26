@@ -50,11 +50,24 @@ public enum MosaicTextOnly {
         guard !done, !running else { return }
         DispatchQueue.global(qos: .utility).async {
             let rects = recognize(in: image)
-            store(rects, for: image)
             cacheLock.lock()
-            if inFlightImage === image { inFlightImage = nil }
+            if inFlightImage === image {
+                cachedImage = image
+                cachedLineRects = rects
+                inFlightImage = nil
+            }
             cacheLock.unlock()
         }
+    }
+
+    static func clearCache(for image: CGImage) {
+        cacheLock.lock()
+        if cachedImage === image {
+            cachedImage = nil
+            cachedLineRects = []
+        }
+        if inFlightImage === image { inFlightImage = nil }
+        cacheLock.unlock()
     }
 
     /// 实际识别（可能在任意线程调用）

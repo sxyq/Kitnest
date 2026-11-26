@@ -1107,13 +1107,12 @@ public final class ScreenshotManager: ObservableObject {
         let keySet: Set<URLResourceKey> = [.contentModificationDateKey]
         guard let files = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: Array(keySet),
                                                       options: [.skipsHiddenFiles]) else { return 0 }
-        let pngs = files.compactMap { url -> (url: URL, date: Date)? in
-            guard url.pathExtension.lowercased() == "png" else { return nil }
-            return (url, (try? url.resourceValues(forKeys: keySet))?.contentModificationDate ?? .distantPast)
-        }
+        let pngs = files.filter { $0.pathExtension.lowercased() == "png" }
         let keepNewest = 200
         guard pngs.count > keepNewest else { return 0 }
-        let sorted = pngs.sorted { $0.date > $1.date }
+        let sorted = pngs.map { url in
+            (url: url, date: (try? url.resourceValues(forKeys: keySet))?.contentModificationDate ?? .distantPast)
+        }.sorted { $0.date > $1.date }
         let maxAge: TimeInterval = 3 * 24 * 3600
         let hardLimit = keepNewest * 2
         let now = Date()
