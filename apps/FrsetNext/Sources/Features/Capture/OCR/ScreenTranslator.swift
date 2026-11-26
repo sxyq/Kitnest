@@ -75,10 +75,11 @@ public enum ScreenTranslator {
             return
         }
 
-        // ③ 画回（后台线程渲染，图可能很大）
+        // ③ 画回并编码（2026-11-27：现有截图 PNG 编码实测 131–175ms，沿渲染任务后台完成）
         let pairs = zip(blocks.map { $0.0 }, translated).map { ($0, $1) }
-        let rendered = await Task.detached(priority: .userInitiated) {
-            Self.render(image: image, blocks: pairs)
+        let (rendered, data) = await Task.detached(priority: .userInitiated) {
+            let rendered = Self.render(image: image, blocks: pairs)
+            return (rendered, rendered.flatMap(ImageProcessor.pngData))
         }.value
         guard let rendered else {
             Toast.show("屏幕翻译失败：渲染出错", icon: "exclamationmark.triangle", isWarning: true)
@@ -88,7 +89,7 @@ public enum ScreenTranslator {
         // ④ 落盘 + 钉回原位
         // v235：这里只是翻译结果的中间产物，用户没点保存 → 只进私有暂存目录，
         // 不往下载目录写文件（和截图「复制不落下载目录」同一条规则）。
-        guard let data = ImageProcessor.pngData(rendered),
+        guard let data,
               let url = ScreenshotManager.shared.stagePNG(data, pixelSize: CGSize(width: rendered.width, height: rendered.height)) else {
             Toast.show("屏幕翻译结果保存失败", icon: "exclamationmark.triangle", isWarning: true)
             return
