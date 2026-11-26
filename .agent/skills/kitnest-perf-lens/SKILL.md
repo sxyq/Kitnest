@@ -81,6 +81,7 @@ description: Kitnest 全链路性能/交互/渲染热点诊断；先独立读函
 - `JSONInspectorView.refreshMatches` 只在树形模式建立命中集合，切回树形按当前查询重建；表格、卡片与原始模式不再额外递归。真实1440条JSONL的原首次遍历42.30–49.09ms、热态7.41–8.73ms，切回后170命中及472路径相同；表格行构建、筛选排序及窗口输入仍待各自测量。
 - `LongScreenshotPreviewController` 的保存与复制共用串行后台队列执行原PNG编码，主线程继续保存登记与剪贴板写入；复制的PNG失败时保留原NSImage分支。真实2745×1365图的工作队列编码21.80–22.82ms、输出字节相同；大长图、连续点击、关闭及落盘仍待窗口实测。
 - `LongScreenshotStitcher` 的canvas、preview及graySignature均在数组withUnsafeMutableBytes作用域内创建和使用位图上下文；保持原复制范围、DeviceGray插值及画布缓存。真实2745×1365图三轮完整画布、底部500行和512×255签名字节均相同；实时卡片的上游已提供尾部至多500行，沿当前源码分析，滚动交互待实测。
+- `LongScreenshotStitcher.append` 先完成原尺寸归一化与静帧签名判定，随后才转换整帧RGBA。实际2745×1365图三组12次调用均unchanged、画布及状态相同，原均值0.79–6.18ms、新均值0.26–0.44ms，命中时跳过14987700字节RGBA构造。Session已在上游跳过过期流帧，方法结果只覆盖进入append的静帧；会话CPU及峰值内存另测。
 
 ### 已实测结论（2026-11-24 授权时段，v292 同版本）
 

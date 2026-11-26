@@ -234,22 +234,21 @@ final class LongScreenshotStitcher {
     ///   - hintDY: 上一次 tick 以来累积的滚动量（像素，仅用于多候选之间的取舍）
     @discardableResult
     func append(frame: CGImage, hintDY: Double, scrollSinceAppend: Double = 0) -> Outcome {
-        let raw = LongShotRGBA(image: frame)
-        guard raw.w > 0, raw.h > 0 else {
+        guard frame.width > 0, frame.height > 0 else {
             lastReason = "无法解码帧"
             return .failed(lastReason)
         }
-        var fb = raw
+        var normalizedFrame = frame
 
         // 帧宽必须与画布一致；±4px 以内（同步回退路径可能差 1-2px）重绘对齐，
         // 超过就丢帧——宽度不一致继续拼会把整幅图拉宽。
-        if canvasWidth > 0, fb.w != canvasWidth {
-            guard abs(fb.w - canvasWidth) <= 4,
+        if canvasWidth > 0, frame.width != canvasWidth {
+            guard abs(frame.width - canvasWidth) <= 4,
                   let fixed = Self.redraw(image: frame, width: canvasWidth) else {
-                lastReason = "帧宽 \(fb.w) 与画布 \(canvasWidth) 不一致"
+                lastReason = "帧宽 \(frame.width) 与画布 \(canvasWidth) 不一致"
                 return .failed(lastReason)
             }
-            fb = LongShotRGBA(image: fixed)
+            normalizedFrame = fixed
         }
 
         let sig = Self.graySignature(frame, width: Self.identitySignatureWidth)
@@ -262,6 +261,8 @@ final class LongScreenshotStitcher {
             return .unchanged(lastReason)
         }
 
+        // 静止帧无需整帧RGBA；只有内容变化才构造像素缓冲。
+        let fb = LongShotRGBA(image: normalizedFrame)
         let fg = Self.grayBuffer(fb)
         let fRowMeans = Self.rowMeans(fg, w: fb.w, h: fb.h)
 
