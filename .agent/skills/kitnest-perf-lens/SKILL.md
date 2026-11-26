@@ -68,6 +68,8 @@ description: Kitnest 全链路性能/交互/渲染热点诊断；先独立读函
 - 存储缓存的早期和现行格式都可能是 schema=6。复用分类汇总应依据非空 `dataCategories` 及每类 `pathBytes` 的存在；缺明细或空分类仍调用原整树汇总，不能仅凭版本跳过旧缓存处理。
 - 清理孤儿目录时，递归删除必须以全部层级的内容为依据；只读第一层会漏掉嵌套用户文件。沿原后台队列使用原生递归枚举，遇到文件或读取失败保留目录，不跟随符号链接。
 - 文件名索引按剩余映射长度使用 `strnlen` 定位终止符；`min(offset + strlen(...), length)` 无法约束 `strlen` 自身的读取。保持 main 与 Lite 共用相同实现。
+- 磁盘「可清除」查询的正式方法独立调用实测首次64ms、热态中位17ms；`diskPanel` 按原 `extra.updatedAt` 在后台查询，渲染只读状态，预览不查询真实卷；离页及采样换代取消旧任务。窗口交互与整窗收益仍按安装版实测。
+- `TagStore.delete` 的关联删除已由 `SQLiteDatabase.init` 启用的外键及 `clipboard_item_tags.tag_id ON DELETE CASCADE` 实现；实际库表声明一致。旧审阅中「需确认级联」的问题已经核实，不额外补写关联删除 SQL。
 
 ### 已实测结论（2026-11-24 授权时段，v292 同版本）
 

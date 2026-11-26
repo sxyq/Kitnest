@@ -2245,7 +2245,7 @@ Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,create,func,106,KEEP,
 Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,isUniqueConstraintViolation,func,137,KEEP,待补证据：新增函数，尚未逐个读源码填写
 Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,rename,func,143,KEEP,2026-11-20：标签管理保存调用；排除其他同名标签后参数绑定更新名称与时间，成功经publishTags主线程更新排序，失败返回false给原表单
 Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,setColor,func,168,KEEP,只改标签颜色不动归属与排序；写入后按分组顺序重排内存数组
-Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,delete,func,181,KEEP,2026-11-17：标签设置删除按钮调用；删除tags后由已启用外键清理关联并refresh；没有删除剪贴板条目或附件
+Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,delete,func,181,KEEP,2026-11-27：设置标签删除按钮调用；连接初始化启用foreign_keys，tag_id声明ON DELETE CASCADE；删除成功后锁内增量移除mapping，再由publishTags在主线程更新标签与通知；实际库表声明一致
 Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,assign,func,201,KEEP,2026-11-17：标签创建后的分配与toggle调用；INSERT OR IGNORE后锁内增量维护当前key的tag列表；不重读两张表
 Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,unassign,func,224,KEEP,2026-11-17：toggle的已选标签路径调用；绑定key及tagID删除关联并同步移除内存条目；空标签列表释放key
 Clipboard,Features/Clipboard/Store/TagStore.swift,TagStore,removeMapping,func,245,KEEP,2026-11-17：Repository.delete事务成功后调用；在既有索引锁内移除被删除去重键；不重读标签与关联全表
@@ -3111,27 +3111,27 @@ Monitor,Features/Monitor/Views/MonitorCharts.swift,MonitorSectionTitle,init,init
 Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailSelection,init,init,10,KEEP,MonitorCenterView.swift:19 与 DetailView:49 构造
 Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorPerformanceContent,init,init,40,KEEP,PanelRootView.swift:693、PopoutRootView:54 构造
 Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailView,init,init,71,KEEP,同名重载错挂：init(selection:pageMode:fixedWidth:) 是 :25 在用；init(module:) 已删
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,init,init,151,KEEP,MonitorDetailView 保存选择/页模式/宽度；MonitorDetailContent 接收采样、历史、Stats、额外指标和卷列表及可选真实控制器，固定预览使用独立选择与静态数据
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,ensureSelection,func,196,KEEP,模块显隐改变后在仍可见的模块中保留当前选择；设置侧栏指定的单模块详情不改成另一模块。
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,modulePicker,func,261,KEEP,待补证据：新增函数，尚未逐个读源码填写
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,moduleButton,func,269,KEEP,整行切换统一模块，悬停不切换；分别绘制悬停、选中与键盘焦点，方向键定位相邻模块。
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,currentValue,func,299,KEEP,模块列表读取正式当前采样，预览读取固定场景；无 GPU、电池或整机功耗时显示对应状态。
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,availableModules,func,320,KEEP,预览返回全部 MonitorModuleID；真实页按模块偏好、温度开关、电池可用性和GPU数据决定分类，并保留当前选中项
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,powerGrid,func,419,KEEP,功耗页六项芯片读数按两列或三列排布，ViewThatFits 随窗口宽度选择；共享 powerMetric，不重采样
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,powerMetric,func,435,KEEP,功耗页系统/适配器、芯片及原始传感器共用标签与瓦数排版，沿用网络页 18pt 数字层级并保持缺读数状态
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,chipStrip,func,536,KEEP,正式页显示实际CPU品牌、核数、热压力及系统版本，设置预览使用Apple M3/8核/macOS15.0固定值，P/E核数量取传入Stats
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,uptimeText,func,571,KEEP,正式CPU页从 ProcessInfo.systemUptime 格式化天/小时/分钟，设置预览显示固定2天4小时，不读取运行时启动时长
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,loadCell,func,580,KEEP,CPU平均负载的1/5/15分钟值复用紧凑标题和等宽数值显示，调用方传 extra.loadAverages
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,primaryTemperature,func,591,KEEP,先从传入 sample.temperatures 取CPU包温/二极管/邻近温度，再用同一 stats.sensors 构建CPU热区取得最热点
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,legendItem,func,659,KEEP,内存和网络图例共用6pt颜色圆点与次级文字，颜色由各数据系列传入
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,networkFlowNodes,func,673,KEEP,按传入十分钟窗口快照取limit个应用，余量与未归因字节归为其他/未采集；预览不读取应用图标，当前流量高于1024B/s标为活跃
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,flowCoverageText,func,729,KEEP,网络统计覆盖不足60秒显示已统计秒数，未满10分钟显示实际分钟，满窗显示最近10分钟
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,connCellColor,func,875,KEEP,连通性格子的整数状态1使用MonitorColors.battery、0使用MonitorColors.system，其余使用低透明底色，供真实与固定连通性网格共用
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,externalVolumeCard,func,978,KEEP,传入 DiskVolume 直接显示名称、类型/只读标记、已用/空闲容量条和总容量，固定预览不查询卷目录
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,sensorCategorySection,func,1129,KEEP,按传入类别筛选并降序显示，温度<110、电压<300、电流<100；温度最多6行，其余3行，温度条用20…110°C标尺
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,temperatureDetailSection,func,1166,KEEP,筛选0…110°C温度并降序，折叠组最多展示30颗传感器，展开态由本地 showsAllTemperatures 持有
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,sensorBarRow,func,1194,KEEP,温度和风扇共用168pt两行名称、68pt进度条和62pt数值列，保留完整名称help并用传入ratio绘宽
-Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,sensorValueText,func,1236,KEEP,将传入值按温度、电压、电流、功率及瓦时单位交给 MonitorFormat/StatsFormat 格式化，统一传感器行文案
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,init,init,152,KEEP,MonitorDetailView 保存选择/页模式/宽度；MonitorDetailContent 接收采样、历史、Stats、额外指标和卷列表及可选真实控制器，固定预览使用独立选择与静态数据
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,ensureSelection,func,197,KEEP,模块显隐改变后在仍可见的模块中保留当前选择；设置侧栏指定的单模块详情不改成另一模块。
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,modulePicker,func,262,KEEP,待补证据：新增函数，尚未逐个读源码填写
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,moduleButton,func,270,KEEP,整行切换统一模块，悬停不切换；分别绘制悬停、选中与键盘焦点，方向键定位相邻模块。
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,currentValue,func,300,KEEP,模块列表读取正式当前采样，预览读取固定场景；无 GPU、电池或整机功耗时显示对应状态。
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,availableModules,func,321,KEEP,预览返回全部 MonitorModuleID；真实页按模块偏好、温度开关、电池可用性和GPU数据决定分类，并保留当前选中项
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,powerGrid,func,420,KEEP,功耗页六项芯片读数按两列或三列排布，ViewThatFits 随窗口宽度选择；共享 powerMetric，不重采样
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,powerMetric,func,436,KEEP,功耗页系统/适配器、芯片及原始传感器共用标签与瓦数排版，沿用网络页 18pt 数字层级并保持缺读数状态
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,chipStrip,func,537,KEEP,正式页显示实际CPU品牌、核数、热压力及系统版本，设置预览使用Apple M3/8核/macOS15.0固定值，P/E核数量取传入Stats
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,uptimeText,func,572,KEEP,正式CPU页从 ProcessInfo.systemUptime 格式化天/小时/分钟，设置预览显示固定2天4小时，不读取运行时启动时长
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,loadCell,func,581,KEEP,CPU平均负载的1/5/15分钟值复用紧凑标题和等宽数值显示，调用方传 extra.loadAverages
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,primaryTemperature,func,592,KEEP,先从传入 sample.temperatures 取CPU包温/二极管/邻近温度，再用同一 stats.sensors 构建CPU热区取得最热点
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,legendItem,func,660,KEEP,内存和网络图例共用6pt颜色圆点与次级文字，颜色由各数据系列传入
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,networkFlowNodes,func,674,KEEP,按传入十分钟窗口快照取limit个应用，余量与未归因字节归为其他/未采集；预览不读取应用图标，当前流量高于1024B/s标为活跃
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,flowCoverageText,func,730,KEEP,网络统计覆盖不足60秒显示已统计秒数，未满10分钟显示实际分钟，满窗显示最近10分钟
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,connCellColor,func,876,KEEP,连通性格子的整数状态1使用MonitorColors.battery、0使用MonitorColors.system，其余使用低透明底色，供真实与固定连通性网格共用
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,externalVolumeCard,func,995,KEEP,传入 DiskVolume 直接显示名称、类型/只读标记、已用/空闲容量条和总容量，固定预览不查询卷目录
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,sensorCategorySection,func,1146,KEEP,按传入类别筛选并降序显示，温度<110、电压<300、电流<100；温度最多6行，其余3行，温度条用20…110°C标尺
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,temperatureDetailSection,func,1183,KEEP,筛选0…110°C温度并降序，折叠组最多展示30颗传感器，展开态由本地 showsAllTemperatures 持有
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,sensorBarRow,func,1211,KEEP,温度和风扇共用168pt两行名称、68pt进度条和62pt数值列，保留完整名称help并用传入ratio绘宽
+Monitor,Features/Monitor/Views/MonitorDetailView.swift,MonitorDetailContent,sensorValueText,func,1253,KEEP,将传入值按温度、电压、电流、功率及瓦时单位交给 MonitorFormat/StatsFormat 格式化，统一传感器行文案
 Monitor,Features/Monitor/Views/MonitorFlow.swift,MonitorFlowCard,thickness,func,59,KEEP,同文件:214 ribbonArea 调用
 Monitor,Features/Monitor/Views/MonitorFlow.swift,MonitorFlowCard,nodeIcon,func,152,KEEP,同文件:132、170 调用
 Monitor,Features/Monitor/Views/MonitorFlow.swift,MonitorFlowCard,branchTile,func,165,KEEP,同文件:92 body ForEach 调用
@@ -3139,7 +3139,7 @@ Monitor,Features/Monitor/Views/MonitorFlow.swift,MonitorThermalZones,build,func,
 Monitor,Features/Monitor/Views/MonitorFlow.swift,MonitorThermalZones,color,func,296,KEEP,MonitorFlow.swift:321、DetailView:1114 调用
 Monitor,Features/Monitor/Views/MonitorFlow.swift,MonitorZoneHeatStrip,row,func,320,KEEP,同文件:314 ForEach 调用
 Monitor,Features/Monitor/Views/MonitorFlow.swift,MonitorZoneHeatStrip,dot,func,361,KEEP,同文件:353-355 legend 调用
-Monitor,Features/Monitor/Views/MonitorFlow.swift,MonitorDiskSpace,purgeableBytes,func,375,KEEP,MonitorDetailView.swift:783 调用
+Monitor,Features/Monitor/Views/MonitorFlow.swift,MonitorDiskSpace,purgeableBytes,func,375,KEEP,2026-11-27：MonitorDetailContent.diskPanel按extra.updatedAt在utility任务调用，沿原容量公式；取消后不发布旧值；正式方法本机启动卷8次测量首次64.08ms与热态中位16.92ms，渲染只读diskPurgeableBytes
 Monitor,Features/Monitor/Views/MonitorFormat.swift,MonitorFormat,u64,func,17,KEEP,2026-11-21：采样与MonitorDetailView进程读数共用；有限正数饱和转换为UInt64，保留睡眠唤醒异常计数的既有处理
 Monitor,Features/Monitor/Views/MonitorFormat.swift,MonitorFormat,bytes,func,26,KEEP,2026-11-21：MonitorDetailView内存磁盘网络总量及rate共用；按1024进制到PB选择单位，低于100保留一位小数
 Monitor,Features/Monitor/Views/MonitorFormat.swift,MonitorFormat,rate,func,38,KEEP,2026-11-21：MonitorDetailView网络峰值和磁盘进程表消费；复用bytes并追加每秒单位，保留当前数值格式

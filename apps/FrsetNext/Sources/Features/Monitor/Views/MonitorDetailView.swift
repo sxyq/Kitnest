@@ -146,6 +146,7 @@ private struct MonitorDetailContent: View {
     @Stored private var showsAllTemperatures = false
     @Stored private var hoveredModule: MonitorModuleID? = nil
     @Stored private var thermalSensor = ""
+    @Stored private var diskPurgeableBytes: UInt64 = 0
     @FocusState private var focusedModule: MonitorModuleID?
 
     init(selection: MonitorDetailSelection, sample: MonitorSample, history: MonitorSampler.History,
@@ -884,7 +885,7 @@ private struct MonitorDetailContent: View {
 
     private var diskPanel: some View {
         let used = stats.diskTotalBytes > stats.diskFreeBytes ? stats.diskTotalBytes - stats.diskFreeBytes : 0
-        let purgeable: UInt64 = isSettingsPreview ? 24 * 1_073_741_824 : MonitorDiskSpace.purgeableBytes(freeBytes: stats.diskFreeBytes)
+        let purgeable: UInt64 = isSettingsPreview ? 24 * 1_073_741_824 : diskPurgeableBytes
         return VStack(alignment: .leading, spacing: 10) {
             storageEntryButton
 
@@ -971,6 +972,22 @@ private struct MonitorDetailContent: View {
                         .lineLimit(1)
                 }
             }
+        }
+        // 容量查询实测首次 64ms、热态中位 17ms；只随采样更新，不占渲染线程。
+        .task(id: extra.updatedAt) {
+            guard !isSettingsPreview else { return }
+            let freeBytes = stats.diskFreeBytes
+            let query = Task.detached(priority: .utility) {
+                try Task.checkCancellation()
+                return MonitorDiskSpace.purgeableBytes(freeBytes: freeBytes)
+            }
+            let value = try? await withTaskCancellationHandler {
+                try await query.value
+            } onCancel: {
+                query.cancel()
+            }
+            guard !Task.isCancelled, let value else { return }
+            if diskPurgeableBytes != value { diskPurgeableBytes = value }
         }
     }
 
