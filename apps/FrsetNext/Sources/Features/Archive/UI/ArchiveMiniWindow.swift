@@ -329,8 +329,8 @@ public final class ArchiveMiniWindowController: NSWindowController, NSWindowDele
         // 忙：该压缩包仍有进行中的任务（解压/压缩/回写都在任务队列记账）
         // 2026-11-26 修复（二轮 low）：原来是 task.title.contains(包名) 的裸子串匹配——
         // a.zip 会命中 aa.zip（误拦），而「写回 <包内路径>」「重命名为 x」这类标题根本不含
-        // 包名（漏拦，正在写这个包时仍放行切 Mini）。现在优先用结构化字段（outputURL）
-        // 判归属，标题只在「完整文件名按边界出现」时才算命中。
+        // 包名（漏拦，正在写这个包时仍放行切 Mini）。现在优先用 relatedArchiveURL / outputURL
+        // 判归属，标题只作旧任务的「完整文件名按边界出现」兜底。
         if ArchiveTaskQueue.shared.tasks.contains(where: { !$0.isFinished && taskBelongs($0, to: archiveURL) }) {
             let alert = NSAlert()
             alert.messageText = "切换到 Mini"
