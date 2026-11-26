@@ -450,12 +450,12 @@ private final class IslandMaterialView: NSView {
             samplingInset = inset
             needsLayout = true
         }
-        let samePlace = abs(lastInterpolated.width - interpolated.width) <= 0.5
-            && abs(lastInterpolated.height - interpolated.height) <= 0.5
-        if settled, !samePlace {
-            flushStats(settledAt: interpolated)
+        if Self.statsEnabled {
+            let samePlace = abs(lastInterpolated.width - interpolated.width) <= 0.5
+                && abs(lastInterpolated.height - interpolated.height) <= 0.5
+            if settled, !samePlace { flushStats(settledAt: interpolated) }
+            lastInterpolated = interpolated
         }
-        lastInterpolated = interpolated
     }
 
     private func flushStats(settledAt size: CGSize) {

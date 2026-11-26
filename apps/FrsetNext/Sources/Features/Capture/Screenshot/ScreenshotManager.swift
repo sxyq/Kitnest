@@ -1087,20 +1087,19 @@ public final class ScreenshotManager: ObservableObject {
         let keySet: Set<URLResourceKey> = [.contentModificationDateKey]
         guard let files = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: Array(keySet),
                                                       options: [.skipsHiddenFiles]) else { return 0 }
-        let pngs = files.filter { $0.pathExtension.lowercased() == "png" }
+        let pngs = files.compactMap { url -> (url: URL, date: Date)? in
+            guard url.pathExtension.lowercased() == "png" else { return nil }
+            return (url, (try? url.resourceValues(forKeys: keySet))?.contentModificationDate ?? .distantPast)
+        }
         let keepNewest = 200
         guard pngs.count > keepNewest else { return 0 }
-        let sorted = pngs.sorted { lhs, rhs in
-            let l = (try? lhs.resourceValues(forKeys: keySet))?.contentModificationDate ?? .distantPast
-            let r = (try? rhs.resourceValues(forKeys: keySet))?.contentModificationDate ?? .distantPast
-            return l > r
-        }
+        let sorted = pngs.sorted { $0.date > $1.date }
         let maxAge: TimeInterval = 3 * 24 * 3600
         let hardLimit = keepNewest * 2
         let now = Date()
         var removed = 0
-        for (index, url) in sorted.enumerated() where index >= keepNewest {
-            let date = (try? url.resourceValues(forKeys: keySet))?.contentModificationDate ?? .distantPast
+        for (index, file) in sorted.enumerated() where index >= keepNewest {
+            let (url, date) = file
             guard index >= hardLimit || now.timeIntervalSince(date) > maxAge else { continue }
             if (try? fm.removeItem(at: url)) != nil { removed += 1 }
         }
