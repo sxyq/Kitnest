@@ -113,6 +113,8 @@ final class AnnotationCanvasView: NSView {
         wantsLayer = true
     }
 
+    deinit { MosaicTextOnly.clearCache(for: image) }
+
     /// 一次性解码到内存位图（RGBA8，sRGB），返回可高速重复绘制的 CGImage
     private static func decoded(_ image: CGImage) -> CGImage {
         let w = image.width, h = image.height

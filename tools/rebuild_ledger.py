@@ -3521,6 +3521,10 @@ EVIDENCE.update({
         "截图与剪贴板通知的统一发送入口；空 URL 给提示，冷缓存转后台创建，主线程仅触发系统分享面板",
     ("Features/Capture/AirDrop/AirDropSendEngine.swift", "beginSend"):
         "分享服务就绪后激活 App 并延迟 0.12 秒调用 perform，让点击反馈先完成绘制并显示系统 AirDrop 面板",
+    ("Features/Capture/Annotation/MosaicTextOnly.swift", "clearCache"):
+        "AnnotationCanvasView.deinit 按 CGImage 身份调用；释放最近截图与对应文本框，清除同图未完成识别标记，使 Vision 结果回调不再把已关闭编辑器的图像写回全局缓存",
+    ("Features/Capture/Annotation/AnnotationEditorWindow.swift", "deinit"):
+        "标注画布释放时调用 MosaicTextOnly.clearCache(for:)，释放全局最近图缓存；正在运行的 Vision 任务完成后因图像身份标记已清除而不再驻留该图",
 })
 
 if __name__ == "__main__":

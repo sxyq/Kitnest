@@ -448,6 +448,7 @@ enum ScreenSnapshot {
     static func captureScreenAdaptive(screen: NSScreen,
                                       timeout: TimeInterval = CaptureBudget.channelSeconds,
                                       isCancelled: (() -> Bool)? = nil) async -> CGImage? {
+        if isCancelled?() == true { return nil }
         let channel = preferredChannel
         if !channelLogged {
             channelLogged = true

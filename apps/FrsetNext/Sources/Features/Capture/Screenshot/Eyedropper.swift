@@ -218,6 +218,7 @@ public final class Eyedropper: ObservableObject {
 
     private var window: EyedropperWindow?
     private var sessionGeneration = 0
+    private var snapshotCancellation: DispatchWorkItem?
     /// 程序化取色的挂起回调（同一时刻至多一个）
     private var pendingPick: ((String?) -> Void)?
     /// v130⑥：手动取色（start）完成后弹色值面板；程序化取色（pickColor）不弹
@@ -270,6 +271,8 @@ public final class Eyedropper: ObservableObject {
 
     /// 结束取色（传 nil 表示只是关闭窗口）
     public func finish(_ color: NSColor?) {
+        snapshotCancellation?.cancel()
+        snapshotCancellation = nil
         sessionGeneration += 1
         window?.orderOut(nil)
         window = nil
@@ -294,8 +297,13 @@ public final class Eyedropper: ObservableObject {
     private func presentPicker(on screen: NSScreen, generation: Int) {
         // v162：统一走自适应通道（按系统版本选 SCK/legacy，legacy 恒在后台，防 macOS 27 主线程死锁）
         isPicking = true
+        snapshotCancellation?.cancel()
+        let cancellation = DispatchWorkItem {}
+        snapshotCancellation = cancellation
         Task { @MainActor in
-            let snapshot = await ScreenSnapshot.captureScreenAdaptive(screen: screen)
+            let snapshot = await ScreenSnapshot.captureScreenAdaptive(
+                screen: screen, isCancelled: { cancellation.isCancelled })
+            if generation == self.sessionGeneration { self.snapshotCancellation = nil }
             guard generation == self.sessionGeneration else { return }
             guard let snapshot else {
                 self.message = "屏幕快照失败，无法取色"
