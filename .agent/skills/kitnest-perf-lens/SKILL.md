@@ -70,6 +70,7 @@ description: Kitnest 全链路性能/交互/渲染热点诊断；先独立读函
 - 文件名索引按剩余映射长度使用 `strnlen` 定位终止符；`min(offset + strlen(...), length)` 无法约束 `strlen` 自身的读取。保持 main 与 Lite 共用相同实现。
 - 磁盘「可清除」查询的正式方法独立调用实测首次64ms、热态中位17ms；`diskPanel` 按原 `extra.updatedAt` 在后台查询，渲染只读状态，预览不查询真实卷；离页及采样换代取消旧任务。窗口交互与整窗收益仍按安装版实测。
 - `TagStore.delete` 的关联删除已由 `SQLiteDatabase.init` 启用的外键及 `clipboard_item_tags.tag_id ON DELETE CASCADE` 实现；实际库表声明一致。旧审阅中「需确认级联」的问题已经核实，不额外补写关联删除 SQL。
+- `DatabaseManager.migrate` 已合并重复的收藏插入，保留level列就绪后的显式level=1缺失收藏迁移及反向兼容字段同步；不额外增加迁移版本标记。实际库3318条、剪贴板收藏0条，level默认1及索引已只读核实；完整启动及大量收藏耗时仍待实测。
 - 标注文字 `wrapText` 保留逐字符测宽，以原文、完整NSFont和精确宽度缓存结果（32项、1MiB成本预算）；真实5905字三组设置输出与原方法一致，同轮原计算83.62–189.24ms、复用0.007–0.293ms。只说明换行方法，窗口拖动、字体切换与导出仍待实机交互。
 - `ScreenshotManager.reloadRecent` 当前已在utility队列调用 `scanCapturedImages` 并回主线程发布；审阅目录扫描时沿现有后台路径分析，不重复要求后台化。
 - `ScreenTranslator.runAsync` 在原detached任务中连续渲染与PNG编码，MainActor继续暂存、登记和钉图；现有1925×911截图的正式编码方法三次为131.06/140.16/174.81ms，整轮翻译完成交互仍待实机确认。

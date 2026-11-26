@@ -367,7 +367,6 @@ public final class DatabaseManager {
             }
         }
         try clipboard.exec("CREATE INDEX IF NOT EXISTS idx_items_favorite ON clipboard_items(is_favorite, timestamp DESC)")
-        try clipboard.exec("INSERT OR IGNORE INTO resource_favorites(resource_type,resource_id,added_at) SELECT 'clipboard',dedupe_key,timestamp FROM clipboard_items WHERE is_favorite=1")
 
         if !(try clipboard.query("PRAGMA table_info(clipboard_items)")).contains(where: { $0.string("name") == "file_categories" }) {
             try clipboard.transaction { db in
@@ -393,6 +392,7 @@ public final class DatabaseManager {
         // ① 历史收藏只有 clipboard_items.is_favorite=1、没有关系行 → 补成普通收藏(level=1)，
         //    否则侧栏「全部收藏」计数与卡片星标会对不上；
         // ② 反向：有关系行但兼容字段还是 0 → 补 1，保证两个口径一致。
+        // 2026-11-27：统一在 level 列就绪后迁移，移除此前重复的 INSERT OR IGNORE。
         try clipboard.exec("""
         INSERT INTO resource_favorites(resource_type, resource_id, added_at, level)
         SELECT 'clipboard', ci.dedupe_key, ci.timestamp, 1

@@ -4282,7 +4282,7 @@ Storage,Storage/Database.swift,Dictionary,int,func,230,KEEP,2026-11-17：模型�
 Storage,Storage/Database.swift,Dictionary,real,func,231,KEEP,2026-11-17：条目标签及会话时间戳映射使用；仅提取real否则0；不进行新类型转换
 Storage,Storage/Database.swift,Dictionary,bool,func,232,KEEP,2026-11-17：ClipboardRepository.makeItem的is_note及工具标记使用；复用int取值后判断非0
 Storage,Storage/Database.swift,DatabaseManager,init,init,243,KEEP,2026-11-17：shared唯一构造；剪贴板与统计数据库独立打开与既有降级；统一migrate错误记录；不新建数据库副本
-Storage,Storage/Database.swift,DatabaseManager,migrate,func,270,KEEP,2026-11-17：初始化调用；幂等创建既有表索引并按需增加file_categories；已读完整事务迁移与旧统计合并入口
+Storage,Storage/Database.swift,DatabaseManager,migrate,func,270,KEEP,2026-11-27：DatabaseManager.init唯一调用；删除早期重复收藏INSERT，保留level列就绪后的显式level=1迁移及反向同步；真实库3318条、收藏0条、level默认1和两侧索引已只读核实，定向类型编译通过。
 Storage,Storage/Database.swift,DatabaseManager,migrateLegacyDailyStats,func,448,KEEP,2026-11-17：migrate调用；旧表读取计数合并与DROP在同一原SQLite事务内；查询或写入失败回滚并向原迁移错误日志抛出；旧表保留避免数据丢失
 Storage,Storage/Database.swift,DatabaseManager,normalizedDay,func,469,KEEP,2026-11-17：旧统计迁移与bumpStat日期入口共用；仅将8位日期数值改成yyyy-MM-dd其余原样；保留既有历史日期兼容
 Storage,Storage/Database.swift,DatabaseManager,bumpStat,func,488,KEEP,2026-11-17：ClipboardManager与AppBootstrap历史事件入口；旧列名映射5种事件后交StatisticsManager；未引入第二统计写入链
