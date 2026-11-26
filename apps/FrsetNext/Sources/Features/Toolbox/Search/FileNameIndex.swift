@@ -143,8 +143,10 @@ final class FileNameIndex: ObservableObject {
                 if scanned & 0x1FFF == 0, Task.isCancelled { cancelled = true; return }
                 let pathStart = offset
                 let bytes = paths.advanced(by: offset)
-                // 2026-11-26：坏文件末尾可能没有 \0，strlen 会越过映射末尾 → 夹一次上界
-                let end = min(offset + strlen(bytes), length)
+                // 有界查找 NUL；损坏缓存末尾缺少终止符时丢弃该项，避免越过 mmap。
+                let pathLength = strnlen(bytes, length - offset)
+                guard pathLength < length - offset else { break }
+                let end = offset + pathLength
                 var matched = 0
                 if literal {
                     matched = strcasestr(bytes, literalKey) == nil ? 0 : needle.count
