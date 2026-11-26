@@ -169,16 +169,22 @@ public final class LocalTransferStore: ObservableObject {
                 let dir = root.appendingPathComponent(name, isDirectory: true)
                 var isDir: ObjCBool = false
                 guard fm.fileExists(atPath: dir.path, isDirectory: &isDir), isDir.boolValue else { continue }
-                guard let entries = try? fm.contentsOfDirectory(atPath: dir.path) else { continue }
-                // 有真实常规文件就保留：符号链接 / 目录壳不算（都是零拷贝形态，重建无成本）
-                let hasRealFile = entries.contains { entry in
-                    let p = dir.appendingPathComponent(entry).path
-                    if (try? fm.destinationOfSymbolicLink(atPath: p)) != nil { return false }
-                    var isDir: ObjCBool = false
-                    guard fm.fileExists(atPath: p, isDirectory: &isDir) else { return false }
-                    return !isDir.boolValue
+                var canRemove = true
+                let keys: Set<URLResourceKey> = [.isDirectoryKey, .isSymbolicLinkKey]
+                guard let entries = fm.enumerator(at: dir, includingPropertiesForKeys: Array(keys),
+                    errorHandler: { _, _ in canRemove = false; return false }) else { continue }
+                // 递归删除前遍历全部子目录；只看第一层会漏掉嵌套目录中的用户文件。
+                for case let entry as URL in entries {
+                    guard let values = try? entry.resourceValues(forKeys: keys) else {
+                        canRemove = false
+                        break
+                    }
+                    if values.isSymbolicLink != true && values.isDirectory != true {
+                        canRemove = false
+                        break
+                    }
                 }
-                guard !hasRealFile else { continue }
+                guard canRemove else { continue }
                 if (try? fm.removeItem(at: dir)) != nil { removedDirs += 1 }
             }
             if removedDirs > 0 {

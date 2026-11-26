@@ -4441,20 +4441,20 @@ TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransf
 TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,load,func,119,KEEP,2026-11-20：init同步读取index.json并解码条目数组，按addedAt降序恢复；读取或解码失败设空items，原文件未覆盖
 TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,persist,func,128,KEEP,2026-11-20：新增刷新和移除后调用；取消前一pendingPersist并捕获items快照，在同一串行暂存队列编码并原子写索引；错误写日志，当前保存的work仍持有最后快照
 TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,pruneMissing,func,145,KEEP,2026-11-20：init取条目快照后后台逐项确认暂存路径，收集缺失id；仅主线程移除这些索引并persist，未移除实际文件
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,pruneOrphanDirectories,func,161,KEEP,LocalTransferStore.init 在 load 与 pruneMissing 后调用；串行后台遍历索引外目录，仅删除没有常规文件的空壳目录，保留含真实用户文件的目录
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,add,func,193,KEEP,2026-11-20：拖入选文件图片压缩结果及自动暂存共用；串行队列逐项在安全作用域内建UUID目录并stage，失败删本次空目录；主线程发布成功项和错误并回调数量；入口无条件记录发送统计，自动暂存也被统计为发送待处理
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,autoStage,func,247,KEEP,2026-11-20：AppBootstrap收到剪贴板文件通知后按开关调用；标准化去重且pendingAutoStagePaths合并在途，原路径或暂存路径命中只刷新addedAt排序及通知，其余交add并回传实际数量和错误，不限制扩展名
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,addUploads,func,283,KEEP,2026-11-20：LanTransferServer手机上传及TransferDockView安卓拉取调用；串行队列把临时文件移入UUID目录，失败沿现有拷贝再删源路径；主线程发布成功upload条目并显示真实来源和错误，原temp路径仅记录元数据
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,stage,func,333,KEEP,2026-11-20：仅add调用，目录符号链接、文件先硬链接失败再拷贝，实际Mode写索引；删除原样throw的重复catch，拷贝失败直接交add统一处理
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,sizeOf,func,354,KEEP,2026-11-20：add和addUploads入库前读取fileSize与isDirectory元数据；目录或失败返回0，列表以破折号显示，不递归扫描目录内容
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,startRetentionCleanup,func,362,KEEP,2026-11-20：AppBootstrap启动或保留期变更和相应配置导入调用；取消释放旧计时，0结束，正数注册每3600秒弱引用计时并立即pruneExpired一次；加入主runloop common模式
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,pruneExpired,func,374,KEEP,2026-11-20：原计时和设置立即清理按钮调用；按正式retentionDays及addedAt筛选，截止为当前时间减天数乘86400秒，过期项交统一remove；0直接回调none，不执行文件操作
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,remove,func,381,KEEP,2026-11-20：单项删除清空和保留期共用；后台逐项把stagingRoot/item.id目录送废纸篓，主线程仅删成功索引并persist及通知，失败项保留且列原因；回调成功数量及0回收字节，不操作原文件
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,remove,func,405,KEEP,2026-11-20：列表菜单及手机删除调用，单条转数组重载，统一异步送废纸篓及发布真实结果
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,clearAll,func,409,KEEP,2026-11-20：设置清空及列表清空交remove(items)；由同一异步删除链确认每项实际结果，不先清索引也不直接递归删除原目录
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,reveal,func,413,KEEP,2026-11-20：文件卡片和右键在Finder显示调用；交NSWorkspace选择暂存URL，定位到暂存链接或副本，不切原始路径
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,open,func,417,KEEP,2026-11-20：文件卡片及右键打开调用，NSWorkspace按暂存URL启动默认应用；目录符号链接按系统语义进入目标
-TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,openStagingFolder,func,421,KEEP,2026-11-20：中转列表打开目录及本地设置打开按钮调用NSWorkspace.open(stagingRoot)，复用现有暂存根目录
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,pruneOrphanDirectories,func,161,KEEP,2026-11-27：init在load与pruneMissing后调用；串行队列递归枚举索引外目录全部层级；有非链接文件或枚举与元数据读取失败时保留整目录；只回收空壳与符号链接；Lite已移除此模块
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,add,func,199,KEEP,2026-11-20：拖入选文件图片压缩结果及自动暂存共用；串行队列逐项在安全作用域内建UUID目录并stage，失败删本次空目录；主线程发布成功项和错误并回调数量；入口无条件记录发送统计，自动暂存也被统计为发送待处理
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,autoStage,func,253,KEEP,2026-11-20：AppBootstrap收到剪贴板文件通知后按开关调用；标准化去重且pendingAutoStagePaths合并在途，原路径或暂存路径命中只刷新addedAt排序及通知，其余交add并回传实际数量和错误，不限制扩展名
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,addUploads,func,289,KEEP,2026-11-20：LanTransferServer手机上传及TransferDockView安卓拉取调用；串行队列把临时文件移入UUID目录，失败沿现有拷贝再删源路径；主线程发布成功upload条目并显示真实来源和错误，原temp路径仅记录元数据
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,stage,func,339,KEEP,2026-11-20：仅add调用，目录符号链接、文件先硬链接失败再拷贝，实际Mode写索引；删除原样throw的重复catch，拷贝失败直接交add统一处理
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,sizeOf,func,360,KEEP,2026-11-20：add和addUploads入库前读取fileSize与isDirectory元数据；目录或失败返回0，列表以破折号显示，不递归扫描目录内容
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,startRetentionCleanup,func,368,KEEP,2026-11-20：AppBootstrap启动或保留期变更和相应配置导入调用；取消释放旧计时，0结束，正数注册每3600秒弱引用计时并立即pruneExpired一次；加入主runloop common模式
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,pruneExpired,func,380,KEEP,2026-11-20：原计时和设置立即清理按钮调用；按正式retentionDays及addedAt筛选，截止为当前时间减天数乘86400秒，过期项交统一remove；0直接回调none，不执行文件操作
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,remove,func,387,KEEP,2026-11-20：单项删除清空和保留期共用；后台逐项把stagingRoot/item.id目录送废纸篓，主线程仅删成功索引并persist及通知，失败项保留且列原因；回调成功数量及0回收字节，不操作原文件
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,remove,func,411,KEEP,2026-11-20：列表菜单及手机删除调用，单条转数组重载，统一异步送废纸篓及发布真实结果
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,clearAll,func,415,KEEP,2026-11-20：设置清空及列表清空交remove(items)；由同一异步删除链确认每项实际结果，不先清索引也不直接递归删除原目录
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,reveal,func,419,KEEP,2026-11-20：文件卡片和右键在Finder显示调用；交NSWorkspace选择暂存URL，定位到暂存链接或副本，不切原始路径
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,open,func,423,KEEP,2026-11-20：文件卡片及右键打开调用，NSWorkspace按暂存URL启动默认应用；目录符号链接按系统语义进入目标
+TransferDock,Features/TransferDock/Transfer/LocalTransferStore.swift,LocalTransferStore,openStagingFolder,func,427,KEEP,2026-11-20：中转列表打开目录及本地设置打开按钮调用NSWorkspace.open(stagingRoot)，复用现有暂存根目录
 TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,init,init,49,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：shared单例创建；进程令牌由既有UUID生成；服务仍须CastView手动开启
 TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,start,func,53,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：CastView开关调用；顺延8端口并复用bind；与WebDAV相同的同步监听等待待后续性能处理
 TransferDock,Features/TransferDock/Transfer/MCPServer.swift,MCPServer,bind,func,64,KEEP,2026-11-19安全复审：复核源码与动态入口；2026-11-17：start调用；只绑定IPv4回环并记录不含令牌的基础地址；回调ok同步和主线程等待待处理
