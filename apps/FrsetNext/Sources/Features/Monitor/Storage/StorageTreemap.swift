@@ -678,10 +678,7 @@ struct StorageTreemap: View {
                            value: hover.active)
             }
         }
-        // v286：底衬与 1pt 外轮廓描边上移到窗口级的曲面背景层（StorageManagerRootView），
-        // 这里只保留裁切——否则图块画布会在芯片行下沿画出一条水平接缝，
-        // 与整条轮廓的连续曲线相接处出现双线。
-        .clipShape(StorageMapShape(geometry: geometry))
+        // 由 rightPane 以相同几何统一裁切，避免图块树重复应用整窗路径。
         .onChange(of: indexRevision) { _ in hover = (.zero, nil, false); pressedID = nil }
     }
 

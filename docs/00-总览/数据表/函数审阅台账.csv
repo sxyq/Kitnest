@@ -3010,12 +3010,12 @@ Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageShapeCache,path,fun
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageShapeCache,cached,func,494,KEEP,2026-11-26：线程安全查找与写入 24 项曲面路径缓存；并发构建后复查已有键，避免重复队列项
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTileShape,path,func,521,KEEP,StorageManagerRootView.rightPane 以 StorageMapShape 裁剪整栏，左缘曲线从左下连续接到上缘内收点
 Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,startScriptedHoverIfNeeded,func,563,KEEP,仅当 probe.storageHover=1（或深链 ?hover=1）时，按面积最大的几块中心生成巡航路线并驱动同一个 hover 状态；默认不启用，真实鼠标交互与产品行为不变
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,tileView,func,688,KEEP,body:192
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,label,func,729,KEEP,tileView:249
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,fill,func,765,KEEP,tileView:233
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,contentColor,func,778,KEEP,tileView:213
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageHoverScript,start,func,802,KEEP,30Hz 定时器沿「A→B→C→B→A」线性插值移动压力中心，仍走同一条压力场与 0.26/0.86 弹簧，因此录到的是真实形变与回弹（只是输入源非鼠标）
-Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageHoverScript,stop,func,828,KEEP,停表并置 nil；到时自动停、onDisappear 也停，不留下常驻定时器
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,tileView,func,685,KEEP,body:192
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,label,func,726,KEEP,tileView:249
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,fill,func,762,KEEP,tileView:233
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageTreemap,contentColor,func,775,KEEP,tileView:213
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageHoverScript,start,func,799,KEEP,30Hz 定时器沿「A→B→C→B→A」线性插值移动压力中心，仍走同一条压力场与 0.26/0.86 弹簧，因此录到的是真实形变与回弹（只是输入源非鼠标）
+Monitor,Features/Monitor/Storage/StorageTreemap.swift,StorageHoverScript,stop,func,825,KEEP,停表并置 nil；到时自动停、onDisappear 也停，不留下常驻定时器
 Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,layout,func,24,KEEP,StorageTreemap.swift:97
 Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,arcSeeds,func,123,KEEP,layout:45（arcFirst 分支）
 Monitor,Features/Monitor/Storage/StorageVoronoi.swift,VoronoiTreemap,seeds,func,181,KEEP,layout:46
