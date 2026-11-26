@@ -571,17 +571,19 @@ public final class StatisticsManager {
         set { UserDefaults.standard.set(newValue, forKey: "analyticsEnabled") }
     }
 
-    /// 全部已跟踪事件名（54 枚举 + 5 裸串 = 59，spec 17 §4）
-    public var trackedEventNames: Set<String> {
+    /// 全部已跟踪事件名；内容只由静态事件定义组成，初始化一次即可。
+    private static let allTrackedEventNames: Set<String> = {
         var names = Set(AnalyticsEvent.allCases.map { $0.eventName })
-        names.formUnion(Self.bareStringEvents)
+        names.formUnion(StatisticsManager.bareStringEvents)
         // 重建扩展事件：ai_request_count 由旧 bumpStat("ai_request_count") 路径写入
         // （LLMService 等调用点），并非枚举 case。此前未列入本集合 → record 写入成功，
         // 但 Q3/Q4/Q5 的 `event_name IN (...)` 绑定把它过滤掉，统计窗永不显示（静默丢失）。
         // 原作 53 事件中无此项，属重建的有意扩展（见 specs/17 §4 注释），故在此显式并入。
         names.insert("ai_request_count")
         return names
-    }
+    }()
+
+    public var trackedEventNames: Set<String> { Self.allTrackedEventNames }
     /// 裸串事件（主面板 4 个 + 权限 1 个）
     public static let bareStringEvents: Set<String> = [
         "main_panel_item", "main_panel_preview", "main_panel_search_result",
