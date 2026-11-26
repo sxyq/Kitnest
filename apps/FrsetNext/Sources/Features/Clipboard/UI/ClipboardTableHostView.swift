@@ -947,6 +947,12 @@ public final class ClipboardNativeMenuPresenter: NSObject {
                 }
             }
         }
+        addItem("隔空投送", systemImage: "dot.radiowaves.left.and.right", enabled: item.airDropFileURL != nil) {
+            if let url = item.airDropFileURL {
+                NotificationCenter.default.post(name: .frsetAirDropFiles, object: nil,
+                                                userInfo: ["urls": [url]])
+            }
+        }
         addItem("编辑", systemImage: "pencil") { ClipboardItemEditWindowRecord.open(for: item) }
         addItem("重命名", systemImage: "character.cursor.ibeam") { ClipboardItemEditWindowRecord.open(for: item) }
         addItem(item.isFavorite ? "取消收藏" : "收藏", systemImage: item.isFavorite ? "star.fill" : "star") {

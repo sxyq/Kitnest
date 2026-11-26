@@ -3491,6 +3491,16 @@ EVIDENCE.update({
         "映射快照最后一个引用释放时 munmap 对应只读区；搜索期间保留快照使缓存替换不释放正在读取的内存",
     ("Features/Archive/Core/ArchiveCore.swift", "emitNewEntriesIfDue"):
         "ArchiveCore.listStreaming 每 150ms 调用；锁内只截取上次发射后的新增条目，并在锁内按解析顺序提交给串行投递队列，避免 100k 条索引反复保留完整 Array 快照并触发追加时 O(N) 复制",
+    ("Features/Capture/AirDrop/AirDropSendEngine.swift", "sharingService"):
+        "NSSharingServiceDelegate 的成功/失败回调分别触发隔空投送完成或失败触觉；用户取消不记失败",
+    ("Features/Capture/AirDrop/AirDropSendEngine.swift", "freshService"):
+        "只在发送入口读取缓存；缓存超过 300 秒即回到后台创建路径，避免主线程同步初始化 NSSharingService",
+    ("Features/Capture/AirDrop/AirDropSendEngine.swift", "warmUp"):
+        "剪贴板模块启动时在 utility 队列预热系统 AirDrop 服务，防止首次点击承担 AWDL 初始化等待",
+    ("Features/Capture/AirDrop/AirDropSendEngine.swift", "send"):
+        "截图与剪贴板通知的统一发送入口；空 URL 给提示，冷缓存转后台创建，主线程仅触发系统分享面板",
+    ("Features/Capture/AirDrop/AirDropSendEngine.swift", "beginSend"):
+        "分享服务就绪后激活 App 并延迟 0.12 秒调用 perform，让点击反馈先完成绘制并显示系统 AirDrop 面板",
 })
 
 if __name__ == "__main__":

@@ -8,6 +8,7 @@ public enum ClipboardModule: AppModule {
     public static let identifier = "clipboard"
 
     public static func start() {
+        AirDropSendEngine.warmUp()
         // v200（用户：悬浮剪贴板快捷键要能自行自定义）：
         // 删掉这里硬编码的「双击 ⌘」监听——它与「设置 → 工具与快捷键 → 快捷键」里
         // `floatingClipboard` 的可配置项（组合键 / 2× 双击修饰键）重复且无法改。

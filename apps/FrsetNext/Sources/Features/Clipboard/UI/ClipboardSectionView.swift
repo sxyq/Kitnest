@@ -332,6 +332,15 @@ public struct ClipboardRowMenuContent: View {
                                                                      anchorView: nil, isFloatingSource: false)
                 }
             },
+            ClipboardMenuActionItem(id: "airDrop", title: "隔空投送", systemImage: "dot.radiowaves.left.and.right",
+                                    isEnabled: item.airDropFileURLCandidate != nil) {
+                guard let url = item.airDropFileURL else {
+                    Toast.show("文件已不在原位置，无法隔空投送", icon: "exclamationmark.triangle")
+                    return
+                }
+                NotificationCenter.default.post(name: .frsetAirDropFiles, object: nil,
+                                                userInfo: ["urls": [url]])
+            },
             ClipboardMenuActionItem(id: "edit", title: "编辑", systemImage: "pencil") {
                 ClipboardItemEditWindowRecord.open(for: item)
             },

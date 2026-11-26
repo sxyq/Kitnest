@@ -177,6 +177,12 @@ enum AppBootstrap {
     // MARK: - 事件总线接线
 
     private static func wireEventBuses() {
+        NotificationCenter.default.addObserver(
+            forName: .frsetAirDropFiles, object: nil, queue: .main) { note in
+                guard let urls = note.userInfo?["urls"] as? [URL], !urls.isEmpty else { return }
+                AirDropSendEngine.send(urls: urls)
+            }
+
         // 截图完成 → 写入剪贴板历史（若剪贴板模块可用）
         CaptureEventBus.onImageCaptured = { url, data in
             ClipboardManager.shared.insertImage(data: data, fileURL: url, sourceApp: "Kitnest")

@@ -1,12 +1,14 @@
 import AppKit
 
-/// 真实业务事件（17 类）。
+/// 真实业务事件（18 类）。
 ///
 /// `rawValue` 会写进用户配置（`disabledEvents`）；旧配置中的已移除事件会被忽略。
 /// 这里只描述「发生了什么」，不涉及任何设备调用；节奏与强弱由 `HapticPatternClass` 决定。
 enum HapticEvent: String, Codable, CaseIterable, Sendable {
     case gridMove, gridResize, layoutSaved, copy, screenshot, ocr
-    case recordingStarted, recordingSaved, downloadCompleted, transferFailed
+    case recordingStarted, recordingSaved
+    case airDropCompleted = "transferCompleted"
+    case downloadCompleted, transferFailed
     case aiCompleted, searchCompleted, deviceConnected, deviceDisconnected, operationFailed
     case mediaPlayPause, volumeBoundary
 }
@@ -32,7 +34,7 @@ extension HapticEvent {
         case .gridMove, .gridResize, .mediaPlayPause, .volumeBoundary:
             return .boundary
         case .copy, .screenshot, .ocr, .recordingStarted, .layoutSaved,
-             .downloadCompleted, .searchCompleted, .deviceConnected, .deviceDisconnected:
+             .airDropCompleted, .downloadCompleted, .searchCompleted, .deviceConnected, .deviceDisconnected:
             return .success
         case .recordingSaved, .aiCompleted:
             return .milestone
@@ -52,8 +54,9 @@ extension HapticEvent {
         case .ocr: return "文字识别完成"
         case .recordingStarted: return "录制开始"
         case .recordingSaved: return "录制保存完成"
+        case .airDropCompleted: return "隔空投送完成"
         case .downloadCompleted: return "下载完成"
-        case .transferFailed: return "下载失败"
+        case .transferFailed: return "隔空投送或下载失败"
         case .aiCompleted: return "AI 输出完成"
         case .searchCompleted: return "搜索完成"
         case .deviceConnected: return "设备接入"
@@ -74,8 +77,9 @@ extension HapticEvent {
         case .ocr: return "OCR 识别结果准备完成"
         case .recordingStarted: return "录制正式开始"
         case .recordingSaved: return "录制文件成功保存"
+        case .airDropCompleted: return "通过系统隔空投送发送文件"
         case .downloadCompleted: return "下载文件成功保存"
-        case .transferFailed: return "下载中断或失败"
+        case .transferFailed: return "隔空投送失败或下载中断"
         case .aiCompleted: return "模型生成结束并出现完整回复"
         case .searchCompleted: return "搜索结果准备完成"
         case .deviceConnected: return "设备成功建立连接"
@@ -89,8 +93,8 @@ extension HapticEvent {
     /// 设置页分组（顺序即展示顺序）。
     static let settingGroups: [(title: String, events: [HapticEvent])] = [
         ("布局与复制", [.gridMove, .gridResize, .layoutSaved, .copy]),
-        ("截图与录制", [.screenshot, .ocr, .recordingStarted, .recordingSaved,
-                        .downloadCompleted, .transferFailed]),
+        ("截图与录制", [.screenshot, .ocr, .recordingStarted, .recordingSaved]),
+        ("文件与下载", [.airDropCompleted, .downloadCompleted, .transferFailed]),
         ("AI、搜索与设备", [.aiCompleted, .searchCompleted, .deviceConnected, .deviceDisconnected]),
         ("提醒与媒体", [.operationFailed, .mediaPlayPause, .volumeBoundary])
     ]

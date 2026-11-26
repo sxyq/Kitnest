@@ -2,24 +2,24 @@
 App,App/AppBootstrap.swift,AppBootstrap,start,func,11,KEEP,启动接线与更新安装探针共用；探针只记更新URL是否提供及校验值是否提供，不将源URL或校验内容写日志
 App,App/AppBootstrap.swift,AppBootstrap,stop,func,173,KEEP,FrsetNextApp:101 applicationWillTerminate 调用
 App,App/AppBootstrap.swift,AppBootstrap,wireEventBuses,func,179,KEEP,start L45 调用；接线截图/OCR/取色/AI/工具箱产出到剪贴板
-App,App/AppBootstrap.swift,AppBootstrap,registerAppLevelTools,func,242,KEEP,start L91 调用；注册取色器工具砖（跨模块）
-App,App/AppBootstrap.swift,AppBootstrap,supportsDoubleTap,func,298,KEEP,仅既有全局动作显示双按模式，工具组合键不新增双按行为
-App,App/AppBootstrap.swift,AppBootstrap,defaultShortcutValue,func,302,KEEP,从正式默认热键表生成单项默认，未配置按键的功能保留未绑定状态
-App,App/AppBootstrap.swift,AppBootstrap,shortcutSettingsValue,func,308,KEEP,统一读取全局与工具已有绑定，取色归入colorpicker，双按沿用原修饰键存储
-App,App/AppBootstrap.swift,AppBootstrap,registerDefaultHotkeys,func,448,KEEP,start L105 与 restoreDefaultShortcuts L531 调用
-App,App/AppBootstrap.swift,AppBootstrap,doubleTapModifier,func,479,KEEP,ShortcutSettingsPane:78 / ClipboardSettingsPane:23 查询双击态
-App,App/AppBootstrap.swift,AppBootstrap,installDoubleTapBindings,func,486,KEEP,registerDefaultHotkeys L402 先注入双击 handler 与已存绑定
-App,App/AppBootstrap.swift,AppBootstrap,applyShortcuts,func,501,KEEP,集中保存时注册实际变动动作，组合键批量替换成功后应用双按；冲突返回功能名称并保留原注册
-App,App/AppBootstrap.swift,AppBootstrap,presentDoubleTapCompatibilityTipIfNeeded,func,567,KEEP,setDoubleTap L463 首次开启且无辅助功能权限时提示
-App,App/AppBootstrap.swift,AppBootstrap,shortcutBinding,func,574,KEEP,registerDefaultHotkeys L415 / setDoubleTap L469 / ShortcutSettingsPane:77 / ClipboardSettingsPane:26
-App,App/AppBootstrap.swift,AppBootstrap,beginScreenshotTranslate,func,600,KEEP,截图翻译热键 L349 与 .frsetScreenshotTranslate 通知 L231
-App,App/AppBootstrap.swift,AppBootstrap,takeScreenshotTranslatePending,func,619,KEEP,onTextRecognized L246 一次性消费挂起标志
-App,App/AppBootstrap.swift,AppBootstrap,translateAndIngest,func,634,KEEP,onTextRecognized L247 / runTranslateSelection L590 翻译并回写剪贴板
-App,App/AppBootstrap.swift,AppBootstrap,runTranslateSelection,func,652,KEEP,划词翻译热键 L361 与 .frsetTranslateSelection 通知 L235
-App,App/AppBootstrap.swift,AppBootstrap,readSelection,func,665,KEEP,命令面板、划词快捷键及刘海展开前读取真实前台AX焦点的SelectedText，拒绝自身前台及密码字段，不取系统剪贴板，返回具体授权或应用选区错误
+App,App/AppBootstrap.swift,AppBootstrap,registerAppLevelTools,func,248,KEEP,start L91 调用；注册取色器工具砖（跨模块）
+App,App/AppBootstrap.swift,AppBootstrap,supportsDoubleTap,func,304,KEEP,仅既有全局动作显示双按模式，工具组合键不新增双按行为
+App,App/AppBootstrap.swift,AppBootstrap,defaultShortcutValue,func,308,KEEP,从正式默认热键表生成单项默认，未配置按键的功能保留未绑定状态
+App,App/AppBootstrap.swift,AppBootstrap,shortcutSettingsValue,func,314,KEEP,统一读取全局与工具已有绑定，取色归入colorpicker，双按沿用原修饰键存储
+App,App/AppBootstrap.swift,AppBootstrap,registerDefaultHotkeys,func,454,KEEP,start L105 与 restoreDefaultShortcuts L531 调用
+App,App/AppBootstrap.swift,AppBootstrap,doubleTapModifier,func,485,KEEP,ShortcutSettingsPane:78 / ClipboardSettingsPane:23 查询双击态
+App,App/AppBootstrap.swift,AppBootstrap,installDoubleTapBindings,func,492,KEEP,registerDefaultHotkeys L402 先注入双击 handler 与已存绑定
+App,App/AppBootstrap.swift,AppBootstrap,applyShortcuts,func,507,KEEP,集中保存时注册实际变动动作，组合键批量替换成功后应用双按；冲突返回功能名称并保留原注册
+App,App/AppBootstrap.swift,AppBootstrap,presentDoubleTapCompatibilityTipIfNeeded,func,573,KEEP,setDoubleTap L463 首次开启且无辅助功能权限时提示
+App,App/AppBootstrap.swift,AppBootstrap,shortcutBinding,func,580,KEEP,registerDefaultHotkeys L415 / setDoubleTap L469 / ShortcutSettingsPane:77 / ClipboardSettingsPane:26
+App,App/AppBootstrap.swift,AppBootstrap,beginScreenshotTranslate,func,606,KEEP,截图翻译热键 L349 与 .frsetScreenshotTranslate 通知 L231
+App,App/AppBootstrap.swift,AppBootstrap,takeScreenshotTranslatePending,func,625,KEEP,onTextRecognized L246 一次性消费挂起标志
+App,App/AppBootstrap.swift,AppBootstrap,translateAndIngest,func,640,KEEP,onTextRecognized L247 / runTranslateSelection L590 翻译并回写剪贴板
+App,App/AppBootstrap.swift,AppBootstrap,runTranslateSelection,func,658,KEEP,划词翻译热键 L361 与 .frsetTranslateSelection 通知 L235
 App,App/AppBootstrap.swift,AppBootstrap,readSelection,func,671,KEEP,命令面板、划词快捷键及刘海展开前读取真实前台AX焦点的SelectedText，拒绝自身前台及密码字段，不取系统剪贴板，返回具体授权或应用选区错误
-App,App/AppBootstrap.swift,AppBootstrap,frontmostForSelection,func,722,KEEP,2026-11-24 性能第二轮 A2：纯本地 NSWorkspace 查询（不触发 AX IPC），岛展开时固定触发时前台应用上下文供后台选区读取；前台是 Kitnest 自身时返回 nil 沿用原语义；命令面板/划词路径不改
-App,App/AppBootstrap.swift,AppBootstrap,runSelectionAction,func,728,KEEP,快捷键、命令面板和刘海OCR划词按钮共用已捕获SelectionResult或readSelection；失败Toast，翻译取消旧请求交translateAndIngest，其他动作交正式ToolRunnerWindow自动执行
+App,App/AppBootstrap.swift,AppBootstrap,readSelection,func,677,KEEP,命令面板、划词快捷键及刘海展开前读取真实前台AX焦点的SelectedText，拒绝自身前台及密码字段，不取系统剪贴板，返回具体授权或应用选区错误
+App,App/AppBootstrap.swift,AppBootstrap,frontmostForSelection,func,728,KEEP,2026-11-24 性能第二轮 A2：纯本地 NSWorkspace 查询（不触发 AX IPC），岛展开时固定触发时前台应用上下文供后台选区读取；前台是 Kitnest 自身时返回 nil 沿用原语义；命令面板/划词路径不改
+App,App/AppBootstrap.swift,AppBootstrap,runSelectionAction,func,734,KEEP,快捷键、命令面板和刘海OCR划词按钮共用已捕获SelectionResult或readSelection；失败Toast，翻译取消旧请求交translateAndIngest，其他动作交正式ToolRunnerWindow自动执行
 App,App/FrsetNextApp.swift,AppDelegate,applicationDidFinishLaunching,func,33,KEEP,NSApplicationDelegate启动回调；启动日志与更新探针只记阶段和凭据是否提供，不记更新URL或校验值
 App,App/FrsetNextApp.swift,AppDelegate,isZombie,func,92,KEEP,"单实例检查过滤用；proc_pidinfo取pbi_status==SZOMB(5)判定僵尸，NSRunningApplication与kill(pid,0)都会把僵尸当成活进程"
 App,App/FrsetNextApp.swift,AppDelegate,enforceSingleMenubarOwner,func,108,KEEP,applicationDidFinishLaunching L37 调用；同 bundle 多实例退出 + 原版并存提示
@@ -954,6 +954,12 @@ Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,send,func,7
 Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,seek,func,75,KEEP,媒体进度松手把秒数用MediaRemote命令24及seconds交request；2026-11-20：媒体进度条松手传秒数；命令24与秒数共用读取结果回调
 Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,request,func,79,KEEP,同一osascript JXA脚本读取或控制MediaRemote，后台收stdout并在主线程仅接纳当前Process结果；解码快照、反馈commandAccepted，曲目或封面变化才loadArtwork；2026-11-20：系统 osascript 执行读取或指令，后台取管道内容，主线程只消费当前进程；暂停保留时间锚，原脚本仍每秒编码并传送封面
 Audio,Features/Audio/NowPlayingController.swift,NowPlayingController,loadArtwork,func,127,KEEP,新快照先取消旧封面任务，优先解播放器base64图片，否则读取播放器提供的文件或网络URL；取消后不发布，失败给实际读取原因；2026-11-20：曲目或封面变化取消旧任务；优先从 base64 构图，其次读文件或网络URL；仅未取消时发布，现任务完成后仍持有句柄
+Capture,Features/Capture/AirDrop/AirDropSendEngine.swift,FeedbackDelegate,sharingService,func,14,KEEP,NSSharingServiceDelegate 的成功/失败回调分别触发隔空投送完成或失败触觉；用户取消不记失败
+Capture,Features/Capture/AirDrop/AirDropSendEngine.swift,FeedbackDelegate,sharingService,func,18,KEEP,NSSharingServiceDelegate 的成功/失败回调分别触发隔空投送完成或失败触觉；用户取消不记失败
+Capture,Features/Capture/AirDrop/AirDropSendEngine.swift,AirDropSendEngine,freshService,func,36,KEEP,只在发送入口读取缓存；缓存超过 300 秒即回到后台创建路径，避免主线程同步初始化 NSSharingService
+Capture,Features/Capture/AirDrop/AirDropSendEngine.swift,AirDropSendEngine,warmUp,func,43,KEEP,剪贴板模块启动时在 utility 队列预热系统 AirDrop 服务，防止首次点击承担 AWDL 初始化等待
+Capture,Features/Capture/AirDrop/AirDropSendEngine.swift,AirDropSendEngine,send,func,51,KEEP,截图与剪贴板通知的统一发送入口；空 URL 给提示，冷缓存转后台创建，主线程仅触发系统分享面板
+Capture,Features/Capture/AirDrop/AirDropSendEngine.swift,AirDropSendEngine,beginSend,func,74,KEEP,分享服务就绪后激活 App 并延迟 0.12 秒调用 perform，让点击反馈先完成绘制并显示系统 AirDrop 面板
 Capture,Features/Capture/Annotation/AnnotationCompositor.swift,Annotation,init,init,128,KEEP,2026-11-19：编辑器笔画/文本/撤销恢复与历史快照多处构造；保留原ID、工具、像素坐标及样式和辅助参数，不另归一化
 Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,composite,func,166,KEEP,2026-11-19：EditorCanvas导出/复制调用；无标注原样返回，建同尺寸context绘底图并翻左上坐标，再缓存各强度马赛克/模糊层绘制
 Capture,Features/Capture/Annotation/AnnotationCompositor.swift,AnnotationCompositor,roundedCorners,func,218,KEEP,2026-11-19：Editor导出按圆角设置调用；半径限短边一半并透明裁切，context创建或makeImage失败保留原图
@@ -2290,21 +2296,21 @@ Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardTagFilterMen
 Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardMenuActionItem,init,init,202,KEEP,:308-329 菜单项构造
 Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRowMenuContent,init,init,250,KEEP,Desk:602/:615 contextMenu
 Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRowMenuContent,favoriteLevelRow,func,311,KEEP,右键菜单单个收藏等级项：当前等级打勾，点击写入等级（不改正文与标签）
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardFavoriteButton,init,init,363,KEEP,2026-11-20：主列表与浮动窗卡片或行视图传入item；只保存输入，按钮消费原manager.toggleFavorite，设置演示不写入
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardTagBadges,init,init,385,KEEP,2026-11-20：主列表与浮动窗卡片或行视图传入item；只保存输入，body消费共享tagStore和当前tagIDs，最多显示三个名称与颜色
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,init,init,421,KEEP,TableHostView:573 行渲染
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imagePixelSize,func,562,KEEP,:460 图片行调用
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imagePixelSize,func,568,KEEP,:467 文件行调用
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imageSizeText,func,583,KEEP,:475/:479 调用
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,iconButton,func,620,KEEP,:400/:401 悬停按钮
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,quickActions,func,654,KEEP,按 JSON、链接和富文本类型提供对应的剪贴板快捷动作
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,items,func,666,KEEP,按记录类型提供复制图片文件、格式化、二维码、去重、纯文本与清链动作
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,body,func,680,KEEP,读取记录完整正文；读取失败时将原因显示为提示并终止动作
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,tool,func,686,KEEP,把正文交给工具窗执行，并先关闭预览和主面板
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,plainText,func,693,KEEP,通过 ClipboardManager.copyText 复制富文本记录的纯文本
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,cleanLink,func,699,KEEP,清除可移除的链接追踪参数，并明确保留签名参数时的结果提示
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardThumbnailView,init,init,723,KEEP,:370、Desk:1021
-Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,Color,init,init,819,KEEP,SettingsPanes:586 标签色
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardFavoriteButton,init,init,372,KEEP,2026-11-20：主列表与浮动窗卡片或行视图传入item；只保存输入，按钮消费原manager.toggleFavorite，设置演示不写入
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardTagBadges,init,init,394,KEEP,2026-11-20：主列表与浮动窗卡片或行视图传入item；只保存输入，body消费共享tagStore和当前tagIDs，最多显示三个名称与颜色
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,init,init,430,KEEP,TableHostView:573 行渲染
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imagePixelSize,func,571,KEEP,:460 图片行调用
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imagePixelSize,func,577,KEEP,:467 文件行调用
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,imageSizeText,func,592,KEEP,:475/:479 调用
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardRow,iconButton,func,629,KEEP,:400/:401 悬停按钮
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,quickActions,func,663,KEEP,按 JSON、链接和富文本类型提供对应的剪贴板快捷动作
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,items,func,675,KEEP,按记录类型提供复制图片文件、格式化、二维码、去重、纯文本与清链动作
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,body,func,689,KEEP,读取记录完整正文；读取失败时将原因显示为提示并终止动作
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,tool,func,695,KEEP,把正文交给工具窗执行，并先关闭预览和主面板
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,plainText,func,702,KEEP,通过 ClipboardManager.copyText 复制富文本记录的纯文本
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardContentActions,cleanLink,func,708,KEEP,清除可移除的链接追踪参数，并明确保留签名参数时的结果提示
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,ClipboardThumbnailView,init,init,732,KEEP,:370、Desk:1021
+Clipboard,Features/Clipboard/UI/ClipboardSectionView.swift,Color,init,init,828,KEEP,SettingsPanes:586 标签色
 Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardHistorySettingsDraft,init,init,10,KEEP,历史与备份草稿订阅偏好外观变化，保留历史清理的正式执行入口
 Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardHistorySettingsDraft,save,func,13,KEEP,历史保留期容量与捕获隐私分别只写实际变动值，错误反馈保留对应草稿
 Clipboard,Features/Clipboard/UI/ClipboardSettingsPane.swift,ClipboardHistorySettingsDraft,discard,func,21,KEEP,取消历史或捕获页只重读该页保存值，不清理数据库内容
@@ -2381,9 +2387,9 @@ Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleM
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,Coordinator,handleReturnKey,func,869,KEEP,2026-11-20：多选使用Manager批量复制并展示返回原因，单选走owner.onCopy，两种路径均关闭预览
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,symbol,func,906,KEEP,2026-11-20：原生右键菜单图标与标签共用32项NSCache，命中复用图像，未命中才创建SF Symbol
 Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,presentMenu,func,914,KEEP,2026-11-20：viewFor右键闭包实际入口，按当前条目和选中集合构建复制、粘贴、预览、内容动作、标签及删除菜单；删除直接走Manager
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,menuAction,func,999,KEEP,2026-11-20：原生菜单及标签的target/action入口，从representedObject取得BlockMenuItemAction并执行run
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,BlockMenuItemAction,init,init,1007,KEEP,2026-11-20：原生菜单项、标签及管理标签动作持有的闭包载体，保存传入动作
-Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,BlockMenuItemAction,run,func,1008,KEEP,2026-11-20：menuAction唯一执行出口，运行保存的Swift闭包，连接原生target/action
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,ClipboardNativeMenuPresenter,menuAction,func,1005,KEEP,2026-11-20：原生菜单及标签的target/action入口，从representedObject取得BlockMenuItemAction并执行run
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,BlockMenuItemAction,init,init,1013,KEEP,2026-11-20：原生菜单项、标签及管理标签动作持有的闭包载体，保存传入动作
+Clipboard,Features/Clipboard/UI/ClipboardTableHostView.swift,BlockMenuItemAction,run,func,1014,KEEP,2026-11-20：menuAction唯一执行出口，运行保存的Swift闭包，连接原生target/action
 Clipboard,Features/Clipboard/UI/FileHoverPreview.swift,FilePreviewBuilder,readText,func,20,KEEP,文件与剪贴板共用的正文读取：mappedIfSafe读取完整文件，依次解码UTF-8和Latin-1，无法解码抛出fileReadInapplicableStringEncoding，不再截前8KB
 Clipboard,Features/Clipboard/UI/FileHoverPreview.swift,FileHoverPreviewController,scheduleShow,func,39,KEEP,取消共用协调器的悬停关闭任务并替换showWork，按同一hoverPreviewOpenDelay延时调用showNow，传屏幕锚点和弱引用sourceWindow
 Clipboard,Features/Clipboard/UI/FileHoverPreview.swift,FileHoverPreviewController,showNow,func,53,KEEP,取消待显示任务、记录currentURL，再交MainPanelPreviewPopoverCoordinator.presentFile；不再创建独立文件预览Panel或保存另一套尺寸
@@ -3861,23 +3867,23 @@ StatusBar,Features/StatusBar/MenuBarIconStyle.swift,RotatingLayerView,applyRotat
 StatusBar,Features/StatusBar/MenuBarIconStyle.swift,RotatingLayerView,spin,func,243,KEEP,调用方 startFan:487
 StatusBar,Features/StatusBar/MenuBarIconStyle.swift,RotatingLayerView,stop,func,250,KEEP,调用方 stopRotating:534
 StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconDrawing,configure,func,261,KEEP,正式图标应用器和预览共用按钮绘制：logo/custom 使用模板 SF Symbol，date 写日期标题，fan 挂居中的 18pt RotatingLayerView 并返回视图
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconDrawing,dateTitle,func,299,KEEP,使用 en_US_POSIX 的 M/d 日期格式，正式状态项传当前时间，菜单栏预览传固定日期
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconPreview,makeCoordinator,func,321,KEEP,菜单栏图标设置预览创建Coordinator保存style/symbol及rotatingView，update只在样式变化重建，拆除时停止旋转
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconPreview,makeNSView,func,323,KEEP,建立 40×22pt 内嵌图标容器，预览不安装 NSStatusItem 或采样器
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconPreview,updateNSView,func,324,KEEP,移除旧预览内容；小猫调用固定第3帧 FSRunCatCreatePreview，其余样式用 MenuBarIconDrawing.configure 绘制固定日期图标，并设置 aqua/darkAqua
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconPreview,dismantleNSView,func,371,KEEP,菜单栏图标预览卸载时移除容器所有子视图，释放风扇或小猫绘制组件
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleMenuActions,openCustomIconSettings,func,385,KEEP,@objc；#selector StatusBarMenuBuilder.swift:214
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,SystemCPULoad,current,func,402,KEEP,调用方 updateFanSpeed:508
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,SystemCPULoad,readTotals,func,417,KEEP,调用方 current:301（私有）
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,init,init,473,KEEP,shared:348 初始化，经 StatusBarModule.swift:14 start() 触达
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,start,func,477,KEEP,调用方 StatusBarModule.swift:14
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,refresh,func,503,KEEP,调用方同文件 :261/:266/:283（菜单动作）
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,apply,func,507,KEEP,UserDefaults 观察者 :376/:387，start:389 亦调用
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,startDateTimer,func,535,KEEP,调用方 apply:431（date 样式）
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,startFan,func,549,KEEP,调用方 apply:441（fan 样式）
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,updateFanSpeed,func,563,KEEP,调用方 startFan:502 及 cpu 定时器回调:498
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,stopRotating,func,589,KEEP,调用方 apply:414
-StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,stopTimers,func,596,KEEP,调用方 apply:413
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconDrawing,dateTitle,func,292,KEEP,使用 en_US_POSIX 的 M/d 日期格式，正式状态项传当前时间，菜单栏预览传固定日期
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconPreview,makeCoordinator,func,314,KEEP,菜单栏图标设置预览创建Coordinator保存style/symbol及rotatingView，update只在样式变化重建，拆除时停止旋转
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconPreview,makeNSView,func,316,KEEP,建立 40×22pt 内嵌图标容器，预览不安装 NSStatusItem 或采样器
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconPreview,updateNSView,func,317,KEEP,移除旧预览内容；小猫调用固定第3帧 FSRunCatCreatePreview，其余样式用 MenuBarIconDrawing.configure 绘制固定日期图标，并设置 aqua/darkAqua
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconPreview,dismantleNSView,func,364,KEEP,菜单栏图标预览卸载时移除容器所有子视图，释放风扇或小猫绘制组件
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleMenuActions,openCustomIconSettings,func,378,KEEP,@objc；#selector StatusBarMenuBuilder.swift:214
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,SystemCPULoad,current,func,395,KEEP,调用方 updateFanSpeed:508
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,SystemCPULoad,readTotals,func,410,KEEP,调用方 current:301（私有）
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,init,init,466,KEEP,shared:348 初始化，经 StatusBarModule.swift:14 start() 触达
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,start,func,470,KEEP,调用方 StatusBarModule.swift:14
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,refresh,func,496,KEEP,调用方同文件 :261/:266/:283（菜单动作）
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,apply,func,500,KEEP,UserDefaults 观察者 :376/:387，start:389 亦调用
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,startDateTimer,func,528,KEEP,调用方 apply:431（date 样式）
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,startFan,func,542,KEEP,调用方 apply:441（fan 样式）
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,updateFanSpeed,func,556,KEEP,调用方 startFan:502 及 cpu 定时器回调:498
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,stopRotating,func,582,KEEP,调用方 apply:414
+StatusBar,Features/StatusBar/MenuBarIconStyle.swift,MenuBarIconStyleApplier,stopTimers,func,589,KEEP,调用方 apply:413
 StatusBar,Features/StatusBar/StatisticsRootView.swift,StatisticsChartsView,cardValue,func,213,KEEP,调用方 overviewCards:217
 StatusBar,Features/StatusBar/StatisticsRootView.swift,StatisticsChartsView,summaryRow,func,233,KEEP,调用方 overviewSummary:233/235/237
 StatusBar,Features/StatusBar/StatisticsRootView.swift,StatisticsChartsView,loadData,func,251,KEEP,调用方 .onAppear(perform:):164（SwiftUI 派发）
