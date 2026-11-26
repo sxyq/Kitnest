@@ -898,12 +898,14 @@ EVIDENCE.update({
         "LiquidTileDrawing.animatableData 传入 SwiftUI 动画的顶点向量按弹性插值比例缩放，单次插值共用填色、裁切、同心线和描边",
     ("Features/Monitor/Storage/StorageTreemap.swift", "inradius"):
         "DiskVoronoiLayout.make 在布局时计算标签质心到各边的最小距离，供标签档位和宽度复用；悬停不再求内切圆半径",
+    ("Features/Monitor/Storage/StorageTreemap.swift", "make"):
+        "DiskLayoutStore 在后台调用 DiskVoronoiLayout.make；按节点数据、索引版本和完整曲面几何生成真实面积布局，超出 maxTiles=14 的尾部节点聚合，可用空间单列",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "displayPath"):
         "StorageCandidateRow 显示当前用户目录的短路径，唯一实现从根视图迁入候选行，悬停只更新当前行",
     ("Features/Monitor/Storage/StorageTreemap.swift", "func"):
         "PolygonAnimatableVector 的 + / - 实现 VectorArithmetic，逐顶点合成与相减动画向量",
     ("Features/Monitor/Storage/StorageTreemap.swift", "path"):
-        "StorageMapShape 画液面外轮廓（v274：顶边抬到按钮下方，左上近垂直下落到搜索卡左侧再扫向左边缘）；StorageTileShape 用 top 裁掉搜索条上方的浅色光条，深色图块仍从搜索条下方开始",
+        "StorageMapShape / StorageTileShape 共用 StorageShapeCache 的曲面与裁切路径；缓存键含完整轮廓几何、目标矩形和裁切比例，容量 24；外轮廓与图块坐标映射保持原口径",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "rightPane"):
         "v274：由 contentTop 把液面外轮廓抬到按钮下方、深色图块仍从搜索条下方开始；rightPane 承载 StorageTreemap 的下钻/返回/选中回调与详情浮层，尺寸取自 StorageBodyLayout.mapSize",
     ("Features/Monitor/Storage/StorageTreemap.swift", "liquidPoints"):
@@ -2693,9 +2695,18 @@ EVIDENCE.update({
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "handleIndexRevisionChange"):
         "2026-11-23：索引换代后的状态收拢（刷新磁盘容量/导航节点重锚/所选过滤/详情刷新/挂起下钻），"
         "从 body 的 onChange 回调抽出为独立函数（打断 ViewBuilder 修饰链的类型检查超时）；行为与原回调一致",
-    ("Features/Monitor/Storage/StorageTreemap.swift", "tiles"):
-        "StorageTreemap.body 按节点、尺寸和索引版本复用 Voronoi 图块；同时缓存曲面命中路径，"
-        "contentShape 与连续悬停共用，仅画布几何或尺寸变化时重建",
+    ("Features/Monitor/Storage/StorageTreemap.swift", "layout"):
+        "2026-11-26：StorageTreemap.body 提交当前 node、完整几何和索引版本；Voronoi 在后台计算，布局缓存最多 6 组",
+    ("Features/Monitor/Storage/StorageTreemap.swift", "startLayout"):
+        "2026-11-26：只运行一个布局请求；完成后启动最新待算请求，过时尺寸的计算结果不发布",
+    ("Features/Monitor/Storage/StorageTreemap.swift", "storeLayout"):
+        "2026-11-26：将完成布局写入有界缓存并发布 generation；同 node 的最近结果供计算期间过渡显示",
+    ("Features/Monitor/Storage/StorageTreemap.swift", "rawPath"):
+        "2026-11-26：StorageMapShape 的唯一路径构造与画布到目标矩形映射，由 StorageShapeCache 缓存入口调用",
+    ("Features/Monitor/Storage/StorageTreemap.swift", "cached"):
+        "2026-11-26：线程安全查找与写入 24 项曲面路径缓存；并发构建后复查已有键，避免重复队列项",
+    ("Features/Monitor/Storage/StorageTreemap.swift", "quantize"):
+        "2026-11-26：悬停坐标量化到 0.5pt，亚像素重复点不触发新的压力状态更新",
 })
 
 # ── 2026-11-23 需求 B：四类表面与交互状态令牌 ──

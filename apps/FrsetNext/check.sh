@@ -33,14 +33,14 @@ mkdir -p "$OUT"
 BASE_FILES=""
 for d in Core Models Storage; do
   if [ -d "$SRC/$d" ]; then
-    BASE_FILES="$BASE_FILES $(find "$SRC/$d" -name '*.swift' ! -name '._*' | sort | tr '\n' ' ')"
+    BASE_FILES="$BASE_FILES $(find "$SRC/$d" -name '*.swift' -not -name '._*' | sort | tr '\n' ' ')"
   fi
 done
 
 # App 目录（可能尚未创建，存在才参与全量编译）
 APP_FILES=""
 if [ -d "$SRC/App" ]; then
-  APP_FILES="$(find "$SRC/App" -name '*.swift' ! -name '._*' | sort | tr '\n' ' ')"
+  APP_FILES="$(find "$SRC/App" -name '*.swift' -not -name '._*' | sort | tr '\n' ' ')"
 fi
 
 overall=0
@@ -86,7 +86,7 @@ run_typecheck() {
     # shellcheck disable=SC2086
     # v153：补 ObjC 桥接头（PP-OCR 的 FSPPOCR* 等 C 接口在其中）。此前漏传，
     # 全量检查恒定报 6 处 "cannot find FSPPOCR*"，是脚本缺陷不是代码问题。
-    swiftc -typecheck -sdk "$SDK" -target "$TARGET" -swift-version "$SWIFT_VERSION" \
+    nice -n 10 swiftc -typecheck -j 2 -sdk "$SDK" -target "$TARGET" -swift-version "$SWIFT_VERSION" \
       ${BRIDGE_ARG:-} "$@" > "$tmp" 2>&1
     code=$?   # 紧跟 swiftc 捕获退出码（注意：for 循环中的 break 会把 $? 吞成 0，不能循环后再取）
     # 并行开发时文件可能被同伴改写：swiftc 报 "was modified during the build" 时重试一次
@@ -104,7 +104,7 @@ check_module() {
   local module="$1"
   local dir="$SRC/Features/$module"
   local files
-  files="$(find "$dir" -name '*.swift' ! -name '._*' | sort | tr '\n' ' ')"
+  files="$(find "$dir" -name '*.swift' -not -name '._*' | sort | tr '\n' ' ')"
 
   if [ ! -d "$dir" ]; then
     module_lines+=("SKIP    $module  (目录不存在)")
@@ -179,7 +179,7 @@ echo
 echo "== 全量 typecheck（Core + Models + Storage + Features/** + App）=="
 ALL_FILES="$BASE_FILES"
 if [ -d "$SRC/Features" ]; then
-  ALL_FILES="$ALL_FILES $(find "$SRC/Features" -name '*.swift' ! -name '._*' | sort | tr '\n' ' ')"
+  ALL_FILES="$ALL_FILES $(find "$SRC/Features" -name '*.swift' -not -name '._*' | sort | tr '\n' ' ')"
 fi
 if [ -n "$(echo "$APP_FILES" | tr -d ' ')" ]; then
   ALL_FILES="$ALL_FILES $APP_FILES"

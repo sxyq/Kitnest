@@ -155,21 +155,12 @@ enum StorageHoverResolver {
     }
 }
 
-/// 布局调度器（2026-11-25 体验时段挂死修复）。
-///
-/// 现场（-Onone 符号化栈）：`StorageTreemap.body.getter → DiskLayoutCache.tiles
-/// → DiskVoronoiLayout.make → VoronoiTreemap.layout`——整张权重 Voronoi 在**主线程
-/// body 求值里**跑，5s 采样里主线程一次都没出来。正式版 -O 下单次约数百 ms，
-/// 而存储窗打开期间 body 会被索引发布/磁盘空间刷新反复触发，主线程永远追不上，
-/// 表现就是「打开存储窗就卡死，几小时不恢复」。
-///
-/// 现在：命中缓存立即返回；未命中返回该节点上一次的结果（没有则空），
-/// 后台队列算一次，完成后发布 generation 让视图重画。
-/// 主线程不再有任何 Voronoi 计算。
+/// 布局调度器：Voronoi 计算只在后台执行，主线程只读取缓存结果。
+/// 2026-11-25 挂死现场的主线程栈为 body → make → VoronoiTreemap.layout；
+/// 连续缩放只保留最新待算请求，避免旧尺寸的计算任务积压。
 @MainActor
 final class DiskLayoutStore: ObservableObject {
     static let shared = DiskLayoutStore()
-    /// 结果发布计数：后台算完 +1，观察者据此重画
     @Published private(set) var generation = 0
 
     private struct Key: Hashable {
@@ -177,17 +168,26 @@ final class DiskLayoutStore: ObservableObject {
         let size: CGSize
         let childCount: Int
         let nodeSize: Int64
+        let ownSize: Int64
+        let isDirectory: Bool
         let freeSpace: Int64?
         let indexRevision: Int
         let contentTopRatio: CGFloat
         let geometry: StorageSurfaceGeometry
     }
 
+    private struct Request {
+        let key: Key
+        let nodes: [DiskNode]
+        let parentPath: String
+    }
+
     private var cache: [Key: [DiskTile]] = [:]
     private var order: [Key] = []
     private var lastByNode: [String: [DiskTile]] = [:]
-    private var inFlight: Set<Key> = []
-    /// 上限：一张地图 + 几个下钻层足够
+    private var lastNodeOrder: [String] = []
+    private var activeKey: Key?
+    private var pending: Request?
     private let capacity = 6
 
     func layout(for node: DiskNode, size: CGSize, freeSpace: Int64?,
@@ -195,14 +195,19 @@ final class DiskLayoutStore: ObservableObject {
                 geometry: StorageSurfaceGeometry) -> [DiskTile] {
         guard size.width > 40, size.height > 40 else { return [] }
         let key = Key(nodeID: node.id, size: size, childCount: node.children.count,
-                      nodeSize: node.size, freeSpace: freeSpace,
+                      nodeSize: node.size, ownSize: node.ownSize, isDirectory: node.isDirectory,
+                      freeSpace: freeSpace,
                       indexRevision: indexRevision, contentTopRatio: contentTopRatio,
                       geometry: geometry)
-        if let hit = cache[key] { return hit }
-        // 未命中：先给上一次的结果（同一节点），避免图块闪空
-        let fallback: [DiskTile] = lastByNode[node.id] ?? []
-        guard !inFlight.contains(key) else { return fallback }
-        inFlight.insert(key)
+        if let hit = cache[key] {
+            pending = nil
+            return hit
+        }
+        let fallback = lastByNode[node.id] ?? []
+        if activeKey == key {
+            pending = nil
+            return fallback
+        }
 
         var nodes = node.children
         if node.isDirectory, node.ownSize > 0 {
@@ -210,33 +215,48 @@ final class DiskLayoutStore: ObservableObject {
                                   isDirectory: false, size: node.ownSize, ownSize: node.ownSize,
                                   foldedCount: 0, children: [], isAggregate: true))
         }
-        let parentPath = node.path
-        let nodeID = node.id
-        // DiskNode 是值类型（struct + [DiskNode] 子节点），整棵子树按值捕获，后台读安全
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let made = DiskVoronoiLayout.make(nodes: nodes, in: size, parentPath: parentPath,
-                                              freeSpace: freeSpace,
-                                              contentTopRatio: contentTopRatio,
-                                              geometry: geometry)
-            DispatchQueue.main.async {
-                guard let self else { return }
-                self.inFlight.remove(key)
-                self.store(key: key, nodeID: nodeID, value: made)
-            }
+        let request = Request(key: key, nodes: nodes, parentPath: node.path)
+        if activeKey != nil {
+            pending = request
+            return fallback
         }
+        startLayout(request)
         return fallback
     }
 
-    private func store(key: Key, nodeID: String, value: [DiskTile]) {
-        cache[key] = value
-        lastByNode[nodeID] = value
-        order.append(key)
-        if order.count > capacity {
-            cache.removeValue(forKey: order.removeFirst())
+    private func startLayout(_ request: Request) {
+        activeKey = request.key
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            let made = DiskVoronoiLayout.make(nodes: request.nodes, in: request.key.size,
+                                              parentPath: request.parentPath,
+                                              freeSpace: request.key.freeSpace,
+                                              contentTopRatio: request.key.contentTopRatio,
+                                              geometry: request.key.geometry)
+            DispatchQueue.main.async {
+                guard let self else { return }
+                if let next = self.pending, next.key != request.key {
+                    self.pending = nil
+                    self.startLayout(next)
+                } else {
+                    self.pending = nil
+                    self.activeKey = nil
+                    self.storeLayout(key: request.key, nodeID: request.key.nodeID, value: made)
+                }
+            }
         }
-        if lastByNode.count > capacity * 4,
-           let staleNodeID = lastByNode.keys.first {
-            lastByNode.removeValue(forKey: staleNodeID)
+    }
+
+    private func storeLayout(key: Key, nodeID: String, value: [DiskTile]) {
+        cache[key] = value
+        if let index = lastNodeOrder.firstIndex(of: nodeID) {
+            lastNodeOrder.remove(at: index)
+        }
+        lastByNode[nodeID] = value
+        lastNodeOrder.append(nodeID)
+        order.append(key)
+        if order.count > capacity { cache.removeValue(forKey: order.removeFirst()) }
+        if lastNodeOrder.count > capacity * 4 {
+            lastByNode.removeValue(forKey: lastNodeOrder.removeFirst())
         }
         generation &+= 1
     }
@@ -420,17 +440,11 @@ struct StorageMapShape: Shape {
         }
     }
 
-    /// 实际路径构造（缓存未命中时才走）。
     private static func rawPath(in geometry: StorageSurfaceGeometry, rect: CGRect) -> Path {
         let blob = blob(in: geometry)
         let tile = geometry.tileFrame
-        // 背景消费方：rect 就是画布本身，直接给整条轮廓。
         if abs(rect.width - geometry.canvas.width) < 0.5,
-           abs(rect.height - geometry.canvas.height) < 0.5 {
-            return blob
-        }
-        // 图块画布消费方：轮廓 ∩ 图块画布，再线性映射到调用方 rect
-        //（rect == 画布局部矩形时是恒等映射；rect == 单位正方形时供 Voronoi 用）。
+           abs(rect.height - geometry.canvas.height) < 0.5 { return blob }
         guard tile.width > 1, tile.height > 1 else { return Path() }
         let clipped = blob.cgPath.intersection(CGPath(rect: tile, transform: nil))
         guard !clipped.isEmpty else { return Path() }
@@ -442,17 +456,8 @@ struct StorageMapShape: Shape {
     }
 }
 
-/// 曲面路径缓存（2026-11-24 v293）。
-///
-/// 为什么必须缓存：`path(in:)` 里要做一次 `CGPath ∩ CGPath`（布尔路径运算），
-/// 而 `StorageMapShape` 是 `Shape`——SwiftUI 的 `.contentShape(...)` 会在**每次命中测试**
-/// 重建路径，`onContinuousHover` 又按指针事件频率（60–120Hz）调用 `path(in:)`。
-/// 关窗卡死栈里 302/577 个样本落在 `Path.contains`，上游就是这条「每事件重建整张地图」。
-///
-/// 缓存键 = 几何（画布/顶边/顶带左缘/过渡终点/图块画布）+ 目标矩形。
-/// 只在窗口缩放、操作带高度变化时失效，命中测试与悬停复用同一份 Path。
+/// 曲面路径缓存：复用命中测试、裁剪和 Voronoi 外轮廓的布尔路径。
 final class StorageShapeCache {
-
     static let shared = StorageShapeCache()
 
     private struct Key: Hashable {
@@ -462,14 +467,12 @@ final class StorageShapeCache {
         let sweepEnd: CGFloat
         let tile: CGRect
         let rect: CGRect
-        /// 图块形状的顶部裁切比例；地图轮廓/背景消费方恒为 0。
         var top: CGFloat = 0
     }
 
     private let lock = NSLock()
     private var storage: [Key: Path] = [:]
     private var order: [Key] = []
-    /// 只保留最近 24 个（一张地图 + 若干 Voronoi 单位矩形 + 图块形状足够）。
     private let capacity = 24
 
     func path(for geometry: StorageSurfaceGeometry, in rect: CGRect,
@@ -480,9 +483,6 @@ final class StorageShapeCache {
         return cached(key) { build(geometry, rect) }
     }
 
-    /// 图块形状（StorageTileShape）专用：键里额外带顶部裁切比例。
-    /// 2026-11-26 修复：图块的 `outer ∩ clip` 布尔运算原先每次 path(in:) 都做，
-    /// 一旦被放进 contentShape / clipShape 就会按指针事件频率重建；纳入同一份 LRU。
     func path(for geometry: StorageSurfaceGeometry, in rect: CGRect, top: CGFloat,
               build: (StorageSurfaceGeometry, CGRect) -> Path) -> Path {
         let key = Key(canvas: geometry.canvas, surfaceTop: geometry.surfaceTop,
@@ -500,11 +500,13 @@ final class StorageShapeCache {
         lock.unlock()
         let path = build()
         lock.lock()
+        if let hit = storage[key] {
+            lock.unlock()
+            return hit
+        }
         storage[key] = path
         order.append(key)
-        if order.count > capacity {
-            storage.removeValue(forKey: order.removeFirst())
-        }
+        if order.count > capacity { storage.removeValue(forKey: order.removeFirst()) }
         lock.unlock()
         return path
     }
@@ -518,8 +520,6 @@ struct StorageTileShape: Shape {
 
     func path(in rect: CGRect) -> Path {
         let t = min(max(top, 0), 0.95)
-        // 2026-11-26 修复：`outer ∩ clip` 走 StorageShapeCache（键含 top），
-        // 不再每次 path(in:) 都做一次 CGPath 布尔运算。
         return StorageShapeCache.shared.path(for: geometry, in: rect, top: t) { g, target in
             let outer = StorageMapShape(geometry: g).path(in: target)
             guard t > 0 else { return outer }
@@ -533,7 +533,6 @@ struct StorageTileShape: Shape {
 struct StorageTreemap: View {
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// 后台布局调度器（主线程不做 Voronoi）
     @ObservedObject private var layoutStore = DiskLayoutStore.shared
 
     let node: DiskNode
@@ -637,24 +636,19 @@ struct StorageTreemap: View {
                     }
                 }
                 .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
+                // 矩形仅负责派发悬停；曲面边界由下方共享缓存路径判定，
+                // 避免 SwiftUI 每次指针命中都再走一遍多边形路径。
                 .contentShape(Rectangle())
                 .onContinuousHover { phase in
                     switch phase {
                     case .active(let rawLocation):
-                        // 2026-11-25：量化到 0.5pt —— 窗口动画/液态回弹期间指针坐标有亚像素抖动，
-                        // 不量化会「每个事件都写 hover → 重启弹簧 → 坐标再变」自激（一轮挂死原因之一）。
                         let location = StorageHoverResolver.quantize(rawLocation)
-                        if hover.point == location, hover.active {
-                            return                      // 同一点重复事件：不写状态、不重算命中
-                        }
-                        // 命中判定与裁切共用同一份几何推导轮廓（Path 已由 StorageShapeCache 缓存）
+                        if hover.point == location, hover.active { return }
                         let inside = StorageMapShape(geometry: geometry)
                             .path(in: CGRect(origin: .zero, size: geo.size))
                             .contains(location)
                         let nextPoint = inside ? location : hover.point
-                        let nextID = inside ? tiles.first {
-                            $0.frame.contains(location) && $0.hitPath.contains(location)
-                        }?.id : nil
+                        let nextID = inside ? tiles.first { $0.frame.contains(location) && $0.hitPath.contains(location) }?.id : nil
                         let active = inside
                         if hover.point != nextPoint || hover.id != nextID || hover.active != active {
                             hover = (nextPoint, nextID, active)

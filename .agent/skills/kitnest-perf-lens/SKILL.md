@@ -61,6 +61,7 @@ description: Kitnest 全链路性能/交互/渲染热点诊断；先独立读函
 
 - `GlassSurface/GlassTintOverlayView` 在 `6aafe4eb` 已合并底衬+霜感为单层；**不得重复要求合并**。
 - `tools/func_table.py` 的 `doc_path` 为路径最长前缀映射，0 条未映射 ≠ 文档内容正确；重载只有 file#owner#name 粒度。
+- 外置 exFAT 工作树的 Swift 类型编译需排除 `._*` 边车文件；沿用 `check.sh` 的 `-j 2` 与 `nice -n 10`。存储布局仅运行一个后台请求并保留最新待算请求，节点回退缓存按 node ID 淘汰，不能拿布局复合键删除节点缓存。
 
 ### 已实测结论（2026-11-24 授权时段，v292 同版本）
 
