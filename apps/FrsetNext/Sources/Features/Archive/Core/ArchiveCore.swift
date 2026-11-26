@@ -612,23 +612,23 @@ public enum ArchiveCore {
         private var buf: [UInt8] = []
         private var scan = 0
         private var entries: [ArchiveEntry] = []
+        private var emittedCount = 0
         private var fields: [String: String] = [:]
 
         init(unnamedPath: String?) { self.unnamedPath = unnamedPath }
 
-        /// 当前已解析条目快照（锁内拷贝，供节流发射）
-        var snapshot: [ArchiveEntry] {
-            lock.lock(); defer { lock.unlock() }
-            return entries
-        }
-
         /// 节流闸：距上次发射 ≥ minInterval 才放行（时间戳也在锁内，消掉跨线程竞态）
         private var lastEmit = Date.distantPast
-        func shouldEmit(now: Date, minInterval: TimeInterval = 0.15) -> Bool {
-            lock.lock(); defer { lock.unlock() }
-            guard now.timeIntervalSince(lastEmit) >= minInterval else { return false }
+        func emitNewEntriesIfDue(now: Date, minInterval: TimeInterval = 0.15,
+                                 enqueue: ([ArchiveEntry]) -> Void) {
+            lock.lock()
+            defer { lock.unlock() }
+            guard now.timeIntervalSince(lastEmit) >= minInterval else { return }
             lastEmit = now
-            return true
+            guard emittedCount < entries.count else { return }
+            let batch = Array(entries[emittedCount...])
+            emittedCount = entries.count
+            enqueue(batch)
         }
 
         /// 喂入新数据；返回自上次调用后新增的条目数
@@ -692,7 +692,7 @@ public enum ArchiveCore {
 
     /// 渐进式列表（ArcZip「先出根目录、后台补全索引」同款）：
     /// 同一个 `7zz l -slt` 进程，stdout 以 readabilityHandler 边读边解析；
-    /// 每累计 150ms 把**部分条目**回吐 `onPreliminary`（根目录先可见、可浏览可全部解压），
+    /// 每累计 150ms 把新增条目回吐 `onPreliminary`（根目录先可见、可浏览可全部解压），
     /// 进程结束后 `completion` 给全量列表（与 list() 完全同口径：过滤/排序/无名条目）。
     public static func listStreaming(url: URL, password: String? = nil,
                                      includeAuxiliary: Bool = false,
@@ -734,24 +734,27 @@ public enum ArchiveCore {
                 unnamedPath += "~.swf"
             }
             let streamer = ListOutputStreamer(unnamedPath: unnamedPath)
+            let deliveryQueue = DispatchQueue(label: "com.frsetnext.archive-stream.delivery")
             outPipe.fileHandleForReading.readabilityHandler = { handle in
                 let chunk = handle.availableData
                 if chunk.isEmpty { handle.readabilityHandler = nil; return }
                 streamer.feed(chunk)
-                // 节流时间戳在 streamer 锁内（readabilityHandler 可能并发回调）
-                guard streamer.shouldEmit(now: Date()) else { return }
-                let snapshot = streamer.snapshot
-                let partial = includeAuxiliary ? snapshot
-                    : snapshot.filter { !isAuxiliary($0.path) }
-                guard !partial.isEmpty else { return }
-                DispatchQueue.main.async {
-                    emitCount += 1
-                    let ms = Double(DispatchTime.now().uptimeNanoseconds - indexStart) / 1_000_000
-                    if firstEmitMs < 0 {
-                        firstEmitMs = ms
-                        Log.info("Archive", String(format: "渐进索引：首批可浏览 %d 条 @ %.0fms", partial.count, ms))
+                // 按解析顺序串行投递增量，避免并发 handler 让主队列批次倒序。
+                streamer.emitNewEntriesIfDue(now: Date()) { batch in
+                    deliveryQueue.async {
+                        let partial = includeAuxiliary ? batch
+                            : batch.filter { !isAuxiliary($0.path) }
+                        guard !partial.isEmpty else { return }
+                        DispatchQueue.main.async {
+                            emitCount += 1
+                            let ms = Double(DispatchTime.now().uptimeNanoseconds - indexStart) / 1_000_000
+                            if firstEmitMs < 0 {
+                                firstEmitMs = ms
+                                Log.info("Archive", String(format: "渐进索引：首批可浏览 %d 条 @ %.0fms", partial.count, ms))
+                            }
+                            onPreliminary(partial)
+                        }
                     }
-                    onPreliminary(partial)
                 }
             }
 
@@ -780,18 +783,22 @@ public enum ArchiveCore {
             guard code == 0 else {
                 let msg = (String(data: stderrData, encoding: .utf8) ?? "")
                     .trimmingCharacters(in: .whitespacesAndNewlines)
-                DispatchQueue.main.async {
-                    completion([], msg.isEmpty ? "无法读取归档（可能需要密码）" : msg)
+                deliveryQueue.async {
+                    DispatchQueue.main.async {
+                        completion([], msg.isEmpty ? "无法读取归档（可能需要密码）" : msg)
+                    }
                 }
                 return
             }
             let all = streamer.finish()
             let filtered = includeAuxiliary ? all : all.filter { !isAuxiliary($0.path) }
             let totalMs = Double(DispatchTime.now().uptimeNanoseconds - indexStart) / 1_000_000
-            DispatchQueue.main.async {
-                Log.info("Archive", String(format: "渐进索引：完整 %d 条 @ %.0fms（首批 %.0fms · 发布 %d 次）",
-                                           filtered.count, totalMs, firstEmitMs, emitCount))
-                completion(filtered, nil)
+            deliveryQueue.async {
+                DispatchQueue.main.async {
+                    Log.info("Archive", String(format: "渐进索引：完整 %d 条 @ %.0fms（首批 %.0fms · 发布 %d 次）",
+                                               filtered.count, totalMs, firstEmitMs, emitCount))
+                    completion(filtered, nil)
+                }
             }
         }
     }

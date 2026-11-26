@@ -365,12 +365,16 @@ public final class ArchiveBrowserModel: ObservableObject {
                 selection.insert(entry.path)
             }
             selectionAnchor = entry.path
-        } else if flags.contains(.shift), let anchor = selectionAnchor,
-                  let from = visibleEntries.firstIndex(where: { $0.path == anchor }),
-                  let to = visibleEntries.firstIndex(where: { $0.path == entry.path }) {
+        } else if flags.contains(.shift), let anchor = selectionAnchor {
             let list = visibleEntries
-            let lo = min(from, to), hi = max(from, to)
-            selection = Set(list[lo...hi].map { $0.path })
+            if let from = list.firstIndex(where: { $0.path == anchor }),
+               let to = list.firstIndex(where: { $0.path == entry.path }) {
+                let lo = min(from, to), hi = max(from, to)
+                selection = Set(list[lo...hi].map { $0.path })
+            } else {
+                selection = [entry.path]
+                selectionAnchor = entry.path
+            }
         } else {
             selection = [entry.path]
             selectionAnchor = entry.path
@@ -410,16 +414,22 @@ public final class ArchiveBrowserModel: ObservableObject {
         let reloadStart = DispatchTime.now().uptimeNanoseconds
         var publishCount = 0
         var lastRebuildMs: Double = 0
+        var receivedPreliminaryBatch = false
         // v290：渐进式索引——7zz 边流边解析，部分条目先上屏（根目录先可浏览、
         // 可全部解压），全量索引完成后开放搜索/预览/拖出/解压所选。
         // 全量载入（含辅助文件），由 visibleEntries 决定显隐——这样开关能即时生效
         ArchiveCore.listStreaming(url: url, includeAuxiliary: true,
-                                  onPreliminary: { [weak self] partial in
-            guard let self, self.reloadGeneration == generation, !partial.isEmpty else { return }
+                                  onPreliminary: { [weak self] batch in
+            guard let self, self.reloadGeneration == generation, !batch.isEmpty else { return }
             self.loading = false                 // 首批条目到位即可交互
             self.indexingComplete = false
-            self.preliminaryCount = partial.count
-            self.entries = partial
+            if receivedPreliminaryBatch {
+                self.entries.append(contentsOf: batch)
+            } else {
+                receivedPreliminaryBatch = true
+                self.entries = batch
+            }
+            self.preliminaryCount = self.entries.count
             self.invalidateChildIndex()
             let rebuildStart = DispatchTime.now().uptimeNanoseconds
             self.rebuildColumns()                // 分栏渐进期也要刷新
@@ -428,7 +438,7 @@ public final class ArchiveBrowserModel: ObservableObject {
             if publishCount == 1 {
                 let ms = Double(DispatchTime.now().uptimeNanoseconds - reloadStart) / 1_000_000
                 Log.info("Archive", String(format: "UI 首批上屏 %.0fms（%d 条 · rebuild %.0fms）",
-                                           ms, partial.count, lastRebuildMs))
+                                           ms, batch.count, lastRebuildMs))
             }
         }, completion: { [weak self] list, err in
             guard let self, self.reloadGeneration == generation else { return }
