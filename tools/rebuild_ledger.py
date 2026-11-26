@@ -632,6 +632,9 @@ EVIDENCE.update({
 
 # ── v267：截图覆盖层合并为「自适应」（取消窗口/区域模式选择）──────────────
 EVIDENCE.update({
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "cleanupStagingAtLaunch"):
+        "CaptureModule.start 的引导期后台入口；同一进程只提交一次 utility 清理任务，" 
+        "调用 pruneStagingDirectory 回收超过保留数且超过年龄或硬上限的暂存 PNG，不初始化截图单例重活",
     ("Features/Capture/Screenshot/ScreenshotManager.swift", "commitFullScreen"):
         "自适应覆盖层单击空白桌面：原生像素抓整屏（失败回退 SCK/legacy）→ finishRegion 统一收尾，历史标签 full",
     ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "acceptsFirstMouse"):
