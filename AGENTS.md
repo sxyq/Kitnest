@@ -72,7 +72,7 @@ Kitnest（原名 FrsetNext）：macOS 菜单栏效率工具（arm64，macOS 13+�
 8. **屏幕录制授权身份固定**：本机部署只用 `build.sh` 声明的 FrsetDev 身份和指定 requirement；缺证书或身份不符就停止，不得退回临时签名。旧身份迁移后，macOS 不会把已有 TCC 记录自动改绑，需对最终安装版重新授权一次；身份固定后构建不得再要求重复授权。勿用 `tccutil reset` 清权限。
 9. **整机编译负载有上限**：本机 16GB 内存环境固定 no-WMO、Swift 并发 2、`nice -n 10`；不叠加多个完整构建，不用环境变量恢复全模块优化或无限并发。
 10. **外置变体分支随主线同步**：每次主线改完，跑 `bash tools/sync_variant.sh`
-    把 main 合入外置盘上的 `variant/without-transfer-cast`（移除文件中转与投屏，其他功能保持一致）。
+    把 main 合入外置盘上的 `variant/without-transfer-cast`（从源码移除中转与投屏，其余功能与 main 一致）。
     变体工作树在 `/Volumes/Lexar/Project/frset-rebuild-lite`，拔盘后 worktree 会变 prunable，
     脚本会自动 `worktree prune` + 重建；合并冲突不自动解决，脚本会列出冲突文件。
     外置盘属「可移除宗卷」，未授权时脚本会在第一步就明确报出来（不是静默跳过）；
