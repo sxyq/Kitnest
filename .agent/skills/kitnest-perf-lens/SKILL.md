@@ -82,6 +82,7 @@ description: Kitnest 全链路性能/交互/渲染热点诊断；先独立读函
 - `LongScreenshotStitcher.append` 先完成原尺寸归一化与静帧签名判定，随后才转换整帧RGBA。实际2745×1365图三组12次调用均unchanged、画布及状态相同，原均值0.79–6.18ms、新均值0.26–0.44ms，命中时跳过14987700字节RGBA构造。Session已在上游跳过过期流帧，方法结果只覆盖进入append的静帧；会话CPU及峰值内存另测。
 - `LongScreenshotFrameStream.start` 在Task创建前锁内固定代次，实例以 `startRequested/stopped` 拒绝迟到或重复启动；Session先登记所有权再调用start。startCapture完成后同锁比较代次并保存stream/连接状态；与stop的递增和清理成对，connected读取也用同一锁。不能把代次快照放到Task内部，也不能把末尾比较和发布拆开，否则停止仍可被旧启动覆盖；快速取消及录制指示灯回落待实机交互。
 - `LongScreenshotSession` 用原NSLock交接状态、停止标志及timer/帧流引用；终态不再接受在途tick进度覆盖。完成请求只排一次，取消后跳过完成成图，主线程丢弃终态后的进度、预览和完成/失败结果；保留强制补采、原定时参数和失败次数。完成/Esc交叠、重复完成及失败收尾仍待实机交互，不能把编译通过写成行为已实测。
+- `ImageCurtainController.saveAs` 对新目标直接 `FileManager.copyItem`，避免主线程 `Data(contentsOf:)` 内存往返；已有目标继续 `Data+atomic` 覆盖以保持 Save Panel 替换语义。真实 687661/1813153/44175492 字节：Data+atomic 中位 0.281/1.105/13.752ms，直接复制 0.077/0.069/0.133ms；文件保存面板交互仍待实测。
 
 ### 已实测结论（2026-11-24 授权时段，v292 同版本）
 

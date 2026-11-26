@@ -1164,12 +1164,12 @@ Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,
 Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,extendAutoHide,func,335,KEEP,待补证据：新增函数，尚未逐个读源码填写
 Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,toggleRequested,func,342,KEEP,2026-11-19：NotificationCenter selector动态入口；转toggle，无额外状态
 Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,preferencesChanged,func,344,KEEP,2026-11-19：偏好通知selector入口；总开关关闭时清空，刚开启不空展示，已展示时只重排并重置定时
-Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,saveAs,func,370,KEEP,2026-11-19：画布onSave回调调用；NSSavePanel确认后原子复制原文件，取消无副作用且写错透出提示
-Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,pin,func,385,KEEP,2026-11-19：画布onPin回调调用；由原文件即时解码，失败不改变图钉状态
-Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,runProbe,func,399,KEEP,2026-11-19：kitnest://curtainprobe动态深链调用；forceEnabled临时绕过开关，延时采集窗口状态后恢复屏幕捕获策略并清空探针内容
-Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,runResizeSweep,func,447,KEEP,2026-11-19：runProbe的sweep参数异步派发；对真实canvas循环宽度并同步绘制记耗时，结束清临时宽度
-Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,probeImage,func,473,KEEP,2026-11-19：runProbe生成样图调用；上下文失败nil，生成纯CoreGraphics渐变和图形内容
-Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,writePNG,func,510,KEEP,2026-11-19：runProbe按序列写临时PNG调用；ImageIO目标创建或完成失败返回nil供调用方跳过
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,saveAs,func,370,KEEP,2026-11-27：NSSavePanel确认回调；新目标直接FileManager.copyItem，已有目标走原Data+atomic覆盖，保留取消、Toast和路径语义。真实687661/1813153/44175492字节分别测得Data+atomic 0.281/1.105/13.752ms，direct-copy 0.077/0.069/0.133ms；定向类型编译通过，系统面板交互待实测。
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,pin,func,391,KEEP,2026-11-19：画布onPin回调调用；由原文件即时解码，失败不改变图钉状态
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,runProbe,func,405,KEEP,2026-11-19：kitnest://curtainprobe动态深链调用；forceEnabled临时绕过开关，延时采集窗口状态后恢复屏幕捕获策略并清空探针内容
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,runResizeSweep,func,453,KEEP,2026-11-19：runProbe的sweep参数异步派发；对真实canvas循环宽度并同步绘制记耗时，结束清临时宽度
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,probeImage,func,479,KEEP,2026-11-19：runProbe生成样图调用；上下文失败nil，生成纯CoreGraphics渐变和图形内容
+Capture,Features/Capture/Curtain/CurtainController.swift,ImageCurtainController,writePNG,func,516,KEEP,2026-11-19：runProbe按序列写临时PNG调用；ImageIO目标创建或完成失败返回nil供调用方跳过
 Capture,Features/Capture/Curtain/CurtainModel.swift,CurtainItem,init,init,31,KEEP,2026-11-19：CurtainController.attach构造值类型；保存UUID、落盘URL、时间与像素尺寸，不持有解码图
 Capture,Features/Capture/Curtain/CurtainModel.swift,CurtainItem,cardSize,func,43,KEEP,2026-11-19：CurtainView按卡片宽度调用；比例异常时用0.62，按railScale限84–168并受屏幕maxHeight约束
 Capture,Features/Capture/Curtain/CurtainModel.swift,CurtainRopeStyle,normalized,func,91,KEEP,2026-11-19：CurtainPref.ropeStyle读取历史字符串调用；twine迁移candyCane，未知值classic
