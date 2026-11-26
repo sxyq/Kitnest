@@ -171,6 +171,8 @@ private struct StorageSwipeRegion: NSViewRepresentable {
         var geometry: StorageSurfaceGeometry = StorageSurfaceGeometry() {
             didSet { if geometry != oldValue { hitBounds = .zero } }
         }
+        /// 命中路径对应的几何；窗口内容几何变化时必须重新做一次布尔裁切。
+        private var hitGeometry: StorageSurfaceGeometry?
         var onNavigate: (Int) -> Void
         private var swipeMonitor: Any?
         private var delta = CGSize.zero
@@ -204,8 +206,10 @@ private struct StorageSwipeRegion: NSViewRepresentable {
         /// 轮廓与 SwiftUI 绘制共用 StorageMapShape（同一 StorageSurfaceGeometry），
         /// 窗口缩放后重算；左侧候选清单与轮廓互不重叠，竖向滚动不会被吞。
         func refreshHitPathIfNeeded() {
-            guard bounds.width > 0, bounds.height > 0, bounds != hitBounds else { return }
+            guard bounds.width > 0, bounds.height > 0,
+                  bounds != hitBounds || hitGeometry != geometry else { return }
             hitBounds = bounds
+            hitGeometry = geometry
             let blob = StorageMapShape(geometry: geometry).path(in: bounds)
             let top = min(max(hitTop, 0), max(0, bounds.height - 1))
             let canvas = CGRect(x: bounds.minX, y: bounds.minY + top,
@@ -502,7 +506,10 @@ struct StorageManagerRootView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .background(HeaderHeightMeter())
             }
-            .onPreferenceChange(HeaderHeightKey.self) { headerHeight = $0 }
+            .onPreferenceChange(HeaderHeightKey.self) { measured in
+                guard measured > 1, abs(measured - headerHeight) > 0.5 else { return }
+                headerHeight = measured
+            }
         }
         // 2026-11-23 实测（存储录屏）：地图画布高度原来正好顶到窗口底边，
         // 最下一排图块/标签被 .clipped() 切掉。留 10pt 底沟，让有机轮廓完整收在窗内。

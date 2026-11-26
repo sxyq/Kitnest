@@ -41,7 +41,11 @@ enum VoronoiTreemap {
         let fallback = Path(roundedRect: CGRect(x: 0, y: 0, width: 1, height: 1),
                             cornerRadius: 0.045)
         let outline = override ?? fallback
+        let outlineBounds = outline.boundingRect
+        guard outlineBounds.width > 0.001, outlineBounds.height > 0.001,
+              !outlineBounds.isNull, !outlineBounds.isInfinite else { return [] }
         let base = sampledPoints(outline, spacing: 0.035)
+        guard !base.isEmpty else { return [] }
         let triangles = triangulate(base)
         let baseArea = area(base)
         // v232：arcFirst = 参考图那种半弧排布（第一块固定左上，其余沿弧线铺开 + 斥力松弛）
@@ -51,10 +55,13 @@ enum VoronoiTreemap {
         // 矩形二分的种子可能落在弧边外，沿容器中心方向收进实际轮廓。
         let center = centroid(base)
         for i in sites.indices {
-            while !outline.contains(sites[i]) {
+            var halvings = 0
+            while !outline.contains(sites[i]), halvings < 24 {
                 sites[i].x = (sites[i].x + center.x) * 0.5
                 sites[i].y = (sites[i].y + center.y) * 0.5
+                halvings += 1
             }
+            guard outline.contains(sites[i]) else { return [] }
         }
         var bias = [CGFloat](repeating: 0, count: weights.count)
         var polygons: [[[CGPoint]]] = []
