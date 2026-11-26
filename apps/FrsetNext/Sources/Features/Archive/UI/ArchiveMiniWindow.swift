@@ -362,15 +362,12 @@ public final class ArchiveMiniWindowController: NSWindowController, NSWindowDele
         }
     }
 
-    /// 任务是否属于该压缩包（2026-11-26 新增，替换 title.contains 的启发式）
-    ///
-    /// ① 结构化：任务产物路径就是该压缩包（压缩/新建类任务会把 output 记成包路径）；
-    /// ② 兜底：标题里以「完整文件名」为单位出现（按文件名边界切分，`a.zip` 不再命中 `aa.zip`）。
-    /// 局限（诚实标注）：ArchiveTask 目前不记录所属压缩包，「写回 <包内路径>」「重命名为 x」
-    /// 这类标题既无包名也无 outputURL，仍然判不出来——要彻底消除需由 ArchiveCore 入队时
-    /// 带上 archiveURL，属本任务文件范围外的改动。
+    /// 先按修改目标归属判断，再检查任务产物和旧任务标题。
     private static func taskBelongs(_ task: ArchiveTaskQueue.ArchiveTask, to archiveURL: URL) -> Bool {
-        if let output = task.outputURL?.standardizedFileURL, output.path == archiveURL.path {
+        if task.relatedArchiveURL?.standardizedFileURL == archiveURL.standardizedFileURL {
+            return true
+        }
+        if task.outputURL?.standardizedFileURL == archiveURL.standardizedFileURL {
             return true
         }
         return titleContains(task.title, filename: archiveURL.lastPathComponent)
