@@ -27,6 +27,14 @@ import Foundation
 /// 注意 `-o`（去窗口阴影）会让 screencapture 走另一条渲染路径、直接掉到 1x —— 别加。
 enum NativeRegionCapture {
 
+    /// 单个通道的时间上限（由会话预算派发，见 `CaptureBudget`）。
+    /// 旧实现是写死 4s：BMP 超时后再给 PNG 4s，两条通道叠加。
+    struct ChannelLimit: Sendable {
+        let seconds: Double
+        static let `default` = ChannelLimit(seconds: CaptureBudget.channelSeconds)
+        var nanoseconds: UInt64 { UInt64(max(0.05, seconds) * 1_000_000_000) }
+    }
+
     /// 抓指定屏幕的整屏原生像素图（screencapture，同步，**禁止主线程调用**）
     static func captureScreen(_ screen: NSScreen) -> CGImage? {
         guard let displayID = ScreenSnapshot.displayID(of: screen),
@@ -36,10 +44,19 @@ enum NativeRegionCapture {
 
     /// 输出格式固定 BMP（2026-11-23 实测，见下方 `captureOnce` 注释）。
     /// 个别系统版本不认 bmp 时退回 png，行为与旧实现一致。
-    static func captureScreenOnDisplay(index: Int, isCancelled: () -> Bool = { false }) -> CGImage? {
-        if let image = captureOnce(index: index, format: "bmp", isCancelled: isCancelled) { return image }
+    static func captureScreenOnDisplay(index: Int, isCancelled: () -> Bool = { false },
+                                       limit: ChannelLimit = .default) -> CGImage? {
+        let deadline = DispatchTime.now().uptimeNanoseconds + limit.nanoseconds
+        if let image = captureOnce(index: index, format: "bmp", isCancelled: isCancelled,
+                                   deadline: deadline) { return image }
         guard !isCancelled() else { return nil }
-        return captureOnce(index: index, format: "png", isCancelled: isCancelled)
+        // 预算已经用完就不再开第二条通道（旧实现无条件再等一个 4s）。
+        let remaining = Double(deadline) - Double(DispatchTime.now().uptimeNanoseconds)
+        guard remaining > 300_000_000 else {
+            Log.warn("Capture", "原生像素截图：预算用尽，不再尝试 PNG 回退")
+            return nil
+        }
+        return captureOnce(index: index, format: "png", isCancelled: isCancelled, deadline: deadline)
     }
 
     /// PNG → BMP（2026-11-23，用户：「高负载时按了截图要等好几秒」）。
@@ -52,13 +69,14 @@ enum NativeRegionCapture {
     /// 两者像素级一致（同帧 meanMaxDiff 0.01），BMP 只省掉 PNG 的压缩/解压 CPU：
     /// 满载时 PNG 编码线程被饿死，这才是「好几秒」的来源，不是抓屏本身慢。
     /// 14.7MB 写在页面缓存里，读回比解 PNG 快（解码 42ms → 21ms）。
-    private static func captureOnce(index: Int, format: String, isCancelled: () -> Bool) -> CGImage? {
+    private static func captureOnce(index: Int, format: String, isCancelled: () -> Bool,
+                                    deadline: UInt64) -> CGImage? {
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent("frset-capture-\(UUID().uuidString).\(format)")
         defer { try? FileManager.default.removeItem(at: tmp) }
 
         return run(arguments: ["-x", "-D\(index)", "-t", format, tmp.path],
-                   tmp: tmp, isCancelled: isCancelled)
+                   tmp: tmp, isCancelled: isCancelled, deadline: deadline)
     }
 
     /// 按 AppKit 全局坐标（左下原点，点）截一块区域
@@ -71,7 +89,8 @@ enum NativeRegionCapture {
         return ImageProcessor.crop(full, rectInPoints: appKitRect, screenFrame: screen.frame)
     }
 
-    private static func run(arguments: [String], tmp: URL, isCancelled: () -> Bool) -> CGImage? {
+    private static func run(arguments: [String], tmp: URL, isCancelled: () -> Bool,
+                            deadline: UInt64) -> CGImage? {
         if isCancelled() { return nil }
         let started = DispatchTime.now().uptimeNanoseconds
         let task = Process()
@@ -94,9 +113,9 @@ enum NativeRegionCapture {
                 Log.info("Capture", "原生像素截图：任务已取消，终止 screencapture")
                 return nil
             }
-            if DispatchTime.now().uptimeNanoseconds - started > 4_000_000_000 {
+            if DispatchTime.now().uptimeNanoseconds > deadline {
                 task.terminate()
-                Log.warn("Capture", "原生像素截图：screencapture 超时")
+                Log.warn("Capture", "原生像素截图：screencapture 超时（通道预算用尽）")
                 return nil
             }
         }
@@ -104,15 +123,29 @@ enum NativeRegionCapture {
             Log.warn("Capture", "原生像素截图：screencapture 退出码 \(task.terminationStatus)")
             return nil
         }
-        guard let data = try? Data(contentsOf: tmp),
-              let src = CGImageSourceCreateWithData(data as CFData, nil),
-              let img = CGImageSourceCreateImageAtIndex(src, 0, nil) else {
-            Log.warn("Capture", "原生像素截图：输出图像无法读取")
+        // v292（性能第二轮 B1）：拆开「进程退出 → 文件读取 → 解码」三段。
+        // 旧日志把整段都算作抓取耗时，容易把 BMP 文件读取/解码误归因为 screencapture 本身。
+        let procMs = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000
+        let readStart = DispatchTime.now().uptimeNanoseconds
+        // 2026-11-24 v293：不再 `Data(contentsOf:)`——BMP 单张 14.7MB，
+        // 先整体复制进内存再交给 ImageIO，等于多一次 14.7MB memcpy 和一份峰值占用。
+        // 现在直接按 URL 建 source，并强制立即解码（shouldCacheImmediately）：
+        // 解码结果进内存后临时文件可以安全删除，不会留下「文件已删、图还在懒加载」。
+        let attrs = try? FileManager.default.attributesOfItem(atPath: tmp.path)
+        let fileBytes = (attrs?[.size] as? NSNumber)?.intValue ?? 0
+        let decoded = DispatchTime.now().uptimeNanoseconds
+        guard let src = CGImageSourceCreateWithURL(tmp as CFURL, nil),
+              let img = CGImageSourceCreateImageAtIndex(
+                src, 0, [kCGImageSourceShouldCacheImmediately: true] as CFDictionary) else {
+            Log.warn("Capture", "原生像素截图：输出图像解码失败")
             return nil
         }
+        let readMs = Double(decoded - readStart) / 1_000_000
+        let fileMB = Double(fileBytes) / 1_048_576
+        let decodeMs = Double(DispatchTime.now().uptimeNanoseconds - decoded) / 1_000_000
         let ms = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000
-        Log.info("Capture", String(format: "原生像素截图：%@ %.0fms %d×%dpx",
-                                   (tmp.pathExtension), ms, img.width, img.height))
+        Log.info("Capture", String(format: "原生像素截图：%@ 进程 %.0fms · 文件 %.1fMB 读取 %.1fms · 解码 %.1fms · 总计 %.0fms %d×%dpx",
+                                   (tmp.pathExtension), procMs, fileMB, readMs, decodeMs, ms, img.width, img.height))
         return img
     }
 }

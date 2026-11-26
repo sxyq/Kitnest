@@ -52,15 +52,15 @@ final class FileNameIndex: ObservableObject {
     private var map: UnsafeMutableRawPointer?
     private var mapLength = 0
     private var poolLength = 0
-    /// 只读指针，搜索时零拷贝
-    private var pool: UnsafePointer<UInt8>? {
-        guard let map else { return nil }
-        return UnsafePointer(map.advanced(by: Self.headerSize).assumingMemoryBound(to: UInt8.self))
-    }
+    // 2026-11-26：原 `pool` 计算属性在锁外读 map，改为在 search 里取一次快照（poolPtr）。
 
     private let buildQueue = DispatchQueue(label: "com.frsetnext.fileindex", qos: .utility)
     private let stateLock = NSLock()
     private var building = false
+    /// 2026-11-26 修复（二轮 low）：搜索不再整段持锁扫描，改为「取快照 → 无锁扫」。
+    /// 扫描期间映射页不能被 munmap（否则读到已释放页），用扫描计数 + 退役队列延迟释放。
+    private var scanCount = 0
+    private var retiringMaps: [(pointer: UnsafeMutableRawPointer, length: Int)] = []
 
     private init() {}
 
@@ -111,13 +111,19 @@ final class FileNameIndex: ObservableObject {
         guard !key.isEmpty else { return [] }
         let needle = Array(key.utf8)
         let literal = key.count > 32
-        // 建索引/替换映射时 `map` 会被 munmap，搜索必须和它互斥
-        // （否则可能读到已经释放的页 → EXC_BAD_ACCESS）。
+        // 2026-11-26 修复（二轮 low）：旧实现在整段扫描（实测 361-1431ms）期间持 stateLock，
+        // 而 unmap()/loadFromDisk() 也用同一把锁——主线程 onAppear→preloadIfCached→
+        // loadFromDisk 最坏要等一次全扫才拿到锁，面板卡住。
+        // 现在只在「取映射快照」时持锁，扫描无锁进行；映射的 munmap 延迟到扫描结束。
         stateLock.lock()
-        defer { stateLock.unlock() }
-        guard let pool, poolLength > 0 else { return [] }
+        guard let mapBase = map, poolLength > 0 else { stateLock.unlock(); return [] }
+        let length = poolLength
+        scanCount += 1
+        stateLock.unlock()
+        defer { endScan() }
 
-        let paths = UnsafeRawPointer(pool).assumingMemoryBound(to: CChar.self)
+        let poolPtr = UnsafePointer(mapBase.advanced(by: Self.headerSize).assumingMemoryBound(to: UInt8.self))
+        let paths = UnsafeRawPointer(poolPtr).assumingMemoryBound(to: CChar.self)
         var offset = 0
         var candidates: [(path: String, score: Int, depth: Int)] = []
         let before = { (a: (path: String, score: Int, depth: Int),
@@ -126,17 +132,26 @@ final class FileNameIndex: ObservableObject {
             if a.depth != b.depth { return a.depth < b.depth }
             return a.path < b.path
         }
+        var cancelled = false
         key.withCString { literalKey in
-            while offset < poolLength {
+            var scanned = 0
+            while offset < length {
+                // v292 实测：单次全扫 361-1431ms，且循环内原本不看取消——快速输入会把
+                // 多次全扫叠在协作线程池上。每 8192 条检查一次 Task 取消（纯计数，
+                // 不改匹配语义）；被取消即中止并返回空集，调用方本来就会丢弃这次结果。
+                scanned += 1
+                if scanned & 0x1FFF == 0, Task.isCancelled { cancelled = true; return }
+                let pathStart = offset
                 let bytes = paths.advanced(by: offset)
-                let end = offset + strlen(bytes)
+                // 2026-11-26：坏文件末尾可能没有 \0，strlen 会越过映射末尾 → 夹一次上界
+                let end = min(offset + strlen(bytes), length)
                 var matched = 0
                 if literal {
                     matched = strcasestr(bytes, literalKey) == nil ? 0 : needle.count
                 } else {
                     // 2026-11-13：逐路径正则实测 20.2s；字节预过滤只解码命中项。
                     for cursor in offset..<end {
-                        let byte = pool[cursor]
+                        let byte = poolPtr[cursor]
                         let folded = byte >= 65 && byte <= 90 ? byte + 32 : byte
                         if folded == needle[matched] { matched += 1 }
                         if matched == needle.count { break }
@@ -144,28 +159,56 @@ final class FileNameIndex: ObservableObject {
                 }
                 offset = end + 1
                 guard matched == needle.count else { continue }
-                let path = String(cString: bytes)
-                let url = URL(fileURLWithPath: path)
-                guard kind.includes(url) else { continue }
-                let nameMatch = FuzzyMatcher.match(key, in: url.lastPathComponent)
-                let pathMatch = nameMatch == nil ? FuzzyMatcher.match(key, in: path) : nil
+                // v292 实测：单次全扫 361-1431ms，采样显示热点不在字节扫描，而在
+                // 「每个命中都建 path String + URL + lastPathComponent」。改为惰性构造：
+                //   1) 先从字节池切出最后一段（name 平均 18B，path 平均 127B）；
+                //      实测 144.7 万条与 URL.lastPathComponent 完全一致（0 条不一致）
+                //   2) 只有 name 未命中时才建整条 path 串跑 pathMatch
+                //   3) kind == .all 时完全不建 URL（URL 只用于 lastPathComponent）
+                //   4) path 串只在真正可能入榜时才构造
+                var nameEnd = end
+                while nameEnd > pathStart, poolPtr[nameEnd - 1] == 47 { nameEnd -= 1 }
+                var nameStart = pathStart
+                var cursor = nameEnd - 1
+                while cursor >= pathStart {
+                    if poolPtr[cursor] == 47 { nameStart = cursor + 1; break }
+                    cursor -= 1
+                }
+                let nameText = nameEnd > nameStart
+                    ? String(decoding: UnsafeBufferPointer(start: poolPtr + nameStart, count: nameEnd - nameStart),
+                             as: UTF8.self)
+                    : String(cString: bytes)
+                let nameMatch = FuzzyMatcher.match(key, in: nameText)
+                var pathText: String?
+                var pathMatch: FuzzyMatch?
+                if nameMatch == nil {
+                    let fullPath = String(cString: bytes)
+                    pathText = fullPath
+                    pathMatch = FuzzyMatcher.match(key, in: fullPath)
+                }
                 guard nameMatch != nil || pathMatch != nil else { continue }
-                let candidate = (path: path, score: (nameMatch?.score ?? 0) * 2 + (pathMatch?.score ?? 0),
-                                 depth: Self.depth(path))
+                if kind != .all {
+                    let url = URL(fileURLWithPath: pathText ?? String(cString: bytes))
+                    guard kind.includes(url) else { continue }
+                }
+                let score = (nameMatch?.score ?? 0) * 2 + (pathMatch?.score ?? 0)
+                var depth = 0
+                for index in pathStart..<end where poolPtr[index] == 47 { depth += 1 }
+                // 先按 score/depth 挡掉确定进不了榜的（与 before 的前两级完全同义），
+                // 避免为它们构造 path 串。
+                if candidates.count == limit, let last = candidates.last {
+                    if score < last.score { continue }
+                    if score == last.score, depth > last.depth { continue }
+                }
+                let candidate = (path: pathText ?? String(cString: bytes), score: score, depth: depth)
                 if candidates.count == limit, let last = candidates.last, !before(candidate, last) { continue }
                 let index = candidates.firstIndex { before(candidate, $0) } ?? candidates.endIndex
                 candidates.insert(candidate, at: index)
                 if candidates.count > limit { candidates.removeLast() }
             }
         }
+        if cancelled { return [] }
         return candidates.map(\.path)
-    }
-
-    /// 路径深度（`/` 的个数）
-    private static func depth(_ path: String) -> Int {
-        var n = 0
-        for u in path.utf8 where u == 47 { n += 1 }
-        return n
     }
 
     // MARK: - 磁盘格式
@@ -190,6 +233,12 @@ final class FileNameIndex: ObservableObject {
               head.count == Self.headerSize else { return false }
         let bytes = [UInt8](head)
         guard Array(bytes[0..<4]) == Self.magic else { return false }
+        // 2026-11-26 修复（二轮 low）：版本字段此前只写不校验。
+        let version = Self.u32(bytes, 4)
+        guard version == 1 else {
+            Log.warn("FileIndex", "索引文件版本不支持：\(version)")
+            return false
+        }
         let count = Int(Self.u32(bytes, 8))
         let len = Int(Self.u32(bytes, 12))
         let stamp = Self.f64(bytes, 16)
@@ -199,12 +248,21 @@ final class FileNameIndex: ObservableObject {
         let fd = open(path, O_RDONLY)
         guard fd >= 0 else { return false }
         let total = Self.headerSize + len
+        // 2026-11-26 修复（二轮 low）：mmap 长度原来只信文件头里的 len。文件被外部
+        // 截断/损坏时 mmap 仍会成功，但访问越过 EOF 的页会 SIGBUS 直接崩溃
+        // （索引文件在用户可写的 Application Support 下）。映射前用 fstat 核对真实大小。
+        var info = stat()
+        guard fstat(fd, &info) == 0, info.st_size >= off_t(total) else {
+            close(fd)
+            Log.warn("FileIndex", "索引文件长度不符，忽略缓存（期望 \(total) 实际 \(info.st_size)）")
+            return false
+        }
         let ptr = mmap(nil, total, PROT_READ, MAP_PRIVATE, fd, 0)
         close(fd)
         guard let ptr, ptr != MAP_FAILED else { return false }
 
         stateLock.lock()
-        if let old = map { munmap(old, mapLength) }
+        if let old = map { releaseLocked(old, mapLength) }
         map = ptr
         mapLength = total
         poolLength = len
@@ -214,9 +272,30 @@ final class FileNameIndex: ObservableObject {
         return true
     }
 
+    /// 释放映射：有扫描在跑就排进退役队列，等最后一个扫描结束再 munmap
+    /// （调用方需持 stateLock；2026-11-26 修复·二轮 low）
+    private func releaseLocked(_ pointer: UnsafeMutableRawPointer, _ length: Int) {
+        if scanCount > 0 {
+            retiringMaps.append((pointer, length))
+        } else {
+            munmap(pointer, length)
+        }
+    }
+
+    /// 搜索结束：清退役队列（最后一个扫描负责真正 munmap）
+    private func endScan() {
+        stateLock.lock()
+        scanCount -= 1
+        if scanCount == 0, !retiringMaps.isEmpty {
+            for entry in retiringMaps { munmap(entry.pointer, entry.length) }
+            retiringMaps.removeAll()
+        }
+        stateLock.unlock()
+    }
+
     private func unmap() {
         stateLock.lock()
-        if let map { munmap(map, mapLength) }
+        if let map { releaseLocked(map, mapLength) }
         map = nil
         mapLength = 0
         poolLength = 0

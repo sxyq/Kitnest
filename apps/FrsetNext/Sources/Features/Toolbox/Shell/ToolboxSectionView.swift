@@ -62,10 +62,14 @@ public struct ToolboxSectionView: View {
                 }
             }
         }
-        .id(refreshTick)
+        // 2026-11-26 修复（二轮 medium）：原来这里是 `.id(refreshTick)` + onAppear 自增。
+        // id 一变 SwiftUI 就重建整棵子树（连带重装 @Stored 的 StateObject 盒），
+        // 新身份再触发一次 onAppear → 0↔1 振荡，面板挂载期间持续重建工具网格。
+        // 现在去掉 .id：refreshTick 由 @Stored 承载，自增本身就会触发一次 body 重算
+        //（让 ToolRegistry.grouped() 拿到最新启用状态），不必重建子树。
         .onAppear { refreshTick += 1 }
         // v88：弹出迁至全局工具窗（ToolRunnerWindowController），不再用 .sheet——
-        // 本区段不在主页渲染时 .sheet 无宿主，工具点了没反应。
+        // 本段不在主页渲染时 .sheet 无宿主，工具点了没反应。
     }
 
     private func toolGrid(_ tools: [ToolDescriptor]) -> some View {

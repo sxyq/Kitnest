@@ -29,8 +29,10 @@ public final class ScreenshotManager: ObservableObject {
     @Published public private(set) var hasPermission: Bool = false
     /// 是否已完成一次「权威探测」（真实抓屏通道）
     private var permissionProbed = false
-    /// 探测进行中（防重入）
+    /// 探测进行中（防重入；读写都在 permissionProbeLock 内，见 probePermission）
     private var permissionProbing = false
+    /// 防重入闸门的锁（2026-11-26 修复：probePermission 是非隔离 async，跨执行器并发）
+    private let permissionProbeLock = NSLock()
 
     // MARK: 私有
 
@@ -175,9 +177,22 @@ public final class ScreenshotManager: ObservableObject {
     /// 因此用它做权威判据：能枚举到显示器 = 权限真实可用 → UI 不再提示授权。
     @discardableResult
     public func probePermission() async -> Bool {
-        if permissionProbing { return hasPermission }
-        permissionProbing = true
-        defer { permissionProbing = false }
+        // 2026-11-26 修复（二轮 low）：permissionProbing 是普通存储属性，本方法又是
+        // 非隔离 async —— 两个并发调用可以在不同执行器上同时读到 false 一起过闸，
+        // 造成重复的 SCShareableContent 往返与状态发布时序错乱。这里用锁做原子闸门；
+        // 已在探测时也回主线程读 @Published 的 hasPermission（原来在非主线程直接读）。
+        permissionProbeLock.lock()
+        let alreadyProbing = permissionProbing
+        if !alreadyProbing { permissionProbing = true }
+        permissionProbeLock.unlock()
+        if alreadyProbing {
+            return await MainActor.run { self.hasPermission }
+        }
+        defer {
+            permissionProbeLock.lock()
+            permissionProbing = false
+            permissionProbeLock.unlock()
+        }
 
         if CGPreflightScreenCaptureAccess() {
             await MainActor.run {
@@ -331,6 +346,10 @@ public final class ScreenshotManager: ObservableObject {
     @MainActor
     private func beginCapture(flow: PendingFlow, generation: Int) {
         closeOverlays()
+        // 2026-11-25（二轮复核 medium）：上一轮的动作条是 .floating 独立面板，不属 overlays，
+        // closeOverlays 管不到。不收掉会被 screencapture 拍进冻结帧——用户拿到的截图里
+        // 带着自己的工具条；随后 present() 还会覆盖 onCaptureFinished，上一轮 completion 丢失。
+        CaptureActionChain.sharedPanel?.orderOut(nil)
         pendingFlow = flow
         // v267：历史库模式标签在**提交时**按真实结果写（窗口 / 选区 / 全屏），
         // 不再在打开覆盖层时就猜一个。
@@ -339,77 +358,111 @@ public final class ScreenshotManager: ObservableObject {
         // v207（用户：「按快捷键截图应该立刻定格当前屏幕，不能先跳转界面/打断预览」）：
         // 这里绝对不能先 NSApp.activate —— 激活会让主面板/preview hover 窗先收起，
         // 等到真正抓帧时画面已经变了（鼠标停在预览上，预览消失）。
-        // 顺序改为：先冻结抓帧（此时不改任何窗口状态）→ 再激活 App 并铺覆盖层。
-
-        // v161（2026-10-29 修「⌘1 快捷截屏必定卡死」）：快照抓取移出主线程。
-        // 根因（真机采样实锤）：macOS 27 上 legacy CGWindowListCreateImage 已被系统
-        // 改造为 ScreenCaptureKit 代理（SLWindowListCreateImage →
-        // SLSWindowListCreateImageProxying），内部把完成块派发回主队列后 signal
-        // 信号量——主线程同步等待它 = 永久死锁（覆盖层都来不及建，整个 App 无响应）。
-        // 修复：快照统一异步获取（SCK 优先），完成后再回主线程建覆盖层。
+        // 顺序：先冻结全部屏幕 → 再激活 App 并铺覆盖层。
         //
-        // 2026-11-23（用户：「高负载时按了快捷键要等好几秒才出现选区」）：
-        // 1) 多屏改成并发抓（并发度 2，仍是有界），不再一块一块串着等；
-        // 2) 哪块先冻结好就先铺哪块的覆盖层，光标所在屏优先 —— 用户能操作的时间
-        //    从「所有屏都抓完」提前到「自己那块屏抓完」；
-        // 3) 存下任务句柄 + 代次，连按快捷键时旧任务会被叫停（见 CaptureEpochCounter）。
+        // 2026-11-24 v293（C1/C2 重构）：四阶段显式分开，不再「哪块先好就先铺哪块」。
+        //   · 旧实现第一块抓完就 activate + makeKeyAndOrderFront：非镜像双屏下，
+        //     Kitnest 的激活会让**还没抓的副屏**上原本的悬停预览 / 菜单 / 浮层消失，
+        //     副屏冻结到的就是被我们自己改过的画面（原始需求没解决的那条）。
+        //   · 谁先完成也不确定，副屏先完成时会把键盘焦点抢到副屏上。
+        // 现在：
+        //   ① 冻结阶段：有界并发抓全部屏幕，**不创建可见窗口、不激活**；
+        //      每块抓完只建窗（不可见）并预置窗口命中列表；
+        //   ② 上屏阶段：全部冻结完成后 activate 一次；
+        //   ③ 交互阶段：光标屏 makeKey，其余 orderFront（不抢 key）。
+        // 代价是双屏要多等慢的那块（实测 +66~70ms），换来的是画面真实性；
+        // 减少等待靠「抓帧期间并行建窗」，不是靠提前显示。
         let screens = NSScreen.screens
         let epoch = ScreenSnapshot.beginEpoch()
         let started = DispatchTime.now().uptimeNanoseconds
         let priority = currentScreen()
-        // 镜像显示时后面那块屏会拍到先铺好的覆盖层，退回归集后统一铺（镜像很少见）
-        let mirrored = screens.count > 1 && screens.contains { screen -> Bool in
-            guard let id = ScreenSnapshot.displayID(of: screen) else { return false }
-            return CGDisplayIsInMirrorSet(id) != 0
-        }
+        let budget = CaptureBudget.seconds(CaptureBudget.freezeSeconds)
         snapshotTask?.cancel()
         snapshotTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            var shown = 0
-            @MainActor func present(_ screen: NSScreen, _ image: CGImage?) {
+            // 窗口命中列表：一轮只枚举一次（后台），双屏不再主线程枚举两遍。
+            let hitsTask = Task.detached(priority: .userInitiated) { () -> [ScreenshotOverlayView.WindowHit] in
+                let height = await MainActor.run { NSScreen.screens.first?.frame.height ?? 0 }
+                return ScreenshotOverlayView.collectWindowHits(primaryHeight: height)
+            }
+            var prepared: [(screen: NSScreen, window: ScreenshotOverlayWindow)] = []
+            @MainActor func prepare(_ screen: NSScreen, _ image: CGImage?,
+                                    hits: [ScreenshotOverlayView.WindowHit]) {
                 guard self.isCapturing, generation == self.captureGeneration,
                       ScreenSnapshot.isCurrentEpoch(epoch), let image else { return }
-                self.presentOverlay(screen: screen, image: image, flow: flow, activate: shown == 0)
-                shown += 1
-                if shown == 1 {
-                    let ms = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000
-                    Log.info("Capture", String(format: "首块覆盖层可交互 %.0fms", ms))
-                }
+                let window = self.makeOverlay(screen: screen, image: image,
+                                              flow: flow, hits: hits)
+                prepared.append((screen, window))
             }
-            if mirrored {
-                let snapshots = await Self.streamScreenSnapshots(screens: screens,
-                                                                 priority: priority,
-                                                                 epoch: epoch) { _, _ in }
-                for (screen, image) in snapshots { present(screen, image) }
-            } else {
-                _ = await Self.streamScreenSnapshots(screens: screens,
-                                                     priority: priority,
-                                                     epoch: epoch) { screen, image in
-                    present(screen, image)
+            // 命中列表在**第一块抓完之后**再取：它只要几毫秒，而冻结不能被它拖慢。
+            var hits: [ScreenshotOverlayView.WindowHit] = []
+            var hitsReady = false
+            _ = await Self.streamScreenSnapshots(screens: screens,
+                                                 priority: priority,
+                                                 epoch: epoch,
+                                                 budget: budget) { screen, image in
+                if !hitsReady {
+                    hitsReady = true
+                    hits = await hitsTask.value
                 }
+                prepare(screen, image, hits: hits)
             }
-            let ms = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000
-            Log.info("Capture", String(format: "截图快照冻结完成 %.0fms · %d 块覆盖层（抓帧前未改窗口状态）", ms, shown))
-            guard self.isCapturing, generation == self.captureGeneration else { return }
-            if shown == 0 {
+            let frozenMs = Double(DispatchTime.now().uptimeNanoseconds - started) / 1_000_000
+            guard self.isCapturing, generation == self.captureGeneration,
+                  ScreenSnapshot.isCurrentEpoch(epoch) else { return }
+            Log.info("Capture", String(format: "截图冻结完成 %.0fms · %d 块（抓帧前未改窗口状态、未激活）",
+                                       frozenMs, prepared.count))
+            guard !prepared.isEmpty else {
                 self.isCapturing = false
                 self.statusMessage = CaptureError.captureFailed.errorDescription
                 HapticService.shared.perform(.operationFailed)
                 Toast.show("截图失败：没有可用屏幕", icon: "exclamationmark.triangle", isWarning: true)
                 self.finishCaptureSession()
+                return
             }
+            self.showOverlays(prepared, priority: priority, frozenMs: frozenMs,
+                              since: started, generation: generation, epoch: epoch)
         }
     }
 
-    /// 把一块已冻结的屏幕铺成可交互覆盖层。
+    /// 上屏阶段：激活一次 → 光标屏成为 key → 其余屏只 orderFront。
     ///
-    /// `activate` 只在第一块时为 true：v109 的「先激活防首击被吃」仍然保留，
-    /// 但没必要每铺一块就重复激活一次（重复激活会让已铺好的覆盖层短暂失焦）。
+    /// 口径：「orderFront 返回」只是窗口服务器受理，不代表真实呈现/可交互；
+    /// 真实可交互时间看覆盖层首次输入事件（`presentedAt` → `noteFirstInput`）。
     @MainActor
-    private func presentOverlay(screen: NSScreen, image: CGImage,
-                                flow: PendingFlow, activate: Bool) {
+    private func showOverlays(_ prepared: [(screen: NSScreen, window: ScreenshotOverlayWindow)],
+                              priority: NSScreen?, frozenMs: Double,
+                              since started: UInt64, generation: Int, epoch: Int) {
         let t0 = DispatchTime.now().uptimeNanoseconds
-        let window = ScreenshotOverlayWindow(screen: screen, snapshot: image)
+        NSApp.activate(ignoringOtherApps: true)
+        let tActivate = DispatchTime.now().uptimeNanoseconds
+        let keyIndex = prepared.firstIndex { $0.screen === priority } ?? 0
+        for (index, item) in prepared.enumerated() {
+            item.window.overlayView.presentedAt = t0
+            if index == keyIndex {
+                item.window.makeKeyAndOrderFront(nil)
+            } else {
+                // v292 B2：后续屏幕的覆盖层不 makeKey——旧实现每块都 makeKeyAndOrderFront，
+                // 会把键盘焦点从光标屏抢到别的屏幕上。鼠标点击仍可直接操作该屏。
+                item.window.orderFront(nil)
+            }
+        }
+        let t1 = DispatchTime.now().uptimeNanoseconds
+        let keyLabel = ScreenSnapshot.displayID(of: prepared[keyIndex].screen).map { "D\($0)" } ?? "?"
+        Log.info("Capture", String(format:
+            "覆盖层上屏请求 %.0fms（冻结 %.0fms · 激活 %.0fms · %d 块 · key=%@）",
+            Double(t1 - started) / 1_000_000, frozenMs,
+            Double(tActivate - t0) / 1_000_000, prepared.count, keyLabel))
+    }
+
+    /// 建一块覆盖层（可见性由 showOverlays 统一负责）。
+    @MainActor
+    private func makeOverlay(screen: NSScreen, image: CGImage,
+                             flow: PendingFlow,
+                             hits: [ScreenshotOverlayView.WindowHit]) -> ScreenshotOverlayWindow {
+        let t0 = DispatchTime.now().uptimeNanoseconds
+        let window = ScreenshotOverlayWindow(screen: screen, snapshot: image,
+                                             windowHits: hits.isEmpty ? nil : hits)
         let t1 = DispatchTime.now().uptimeNanoseconds
         if case .toolbar = flow { window.overlayView.recentClipboardHint = recentClipboardHint }
         // v264：固定比例（设置里选中哪组就锁哪组；没选 = 自由 + ⇧ 正方形）
@@ -438,13 +491,13 @@ public final class ScreenshotManager: ObservableObject {
         }
         window.overlayView.onCancel = { [weak self] in self?.cancelCapture() }
         overlays.append(window)
-        if activate { NSApp.activate(ignoringOtherApps: true) }
-        window.makeKeyAndOrderFront(nil)
-        let t2 = DispatchTime.now().uptimeNanoseconds
-        Log.info("Capture", String(format: "覆盖层上屏：%@ 建窗%.0fms 上屏%.0fms",
-                                   ScreenSnapshot.displayID(of: screen).map { "D\($0)" } ?? "?",
-                                   Double(t1 - t0) / 1_000_000,
-                                   Double(t2 - t1) / 1_000_000))
+        if UserDefaults.standard.bool(forKey: "probe.capturePhases") {
+            Log.info("Capture", String(format: "覆盖层建窗：%@ %.0fms",
+                                       ScreenSnapshot.displayID(of: screen).map { "D\($0)" } ?? "?",
+                                       Double(DispatchTime.now().uptimeNanoseconds - t0) / 1_000_000))
+        }
+        _ = t1
+        return window
     }
 
     private final class ScreenListBox: @unchecked Sendable {
@@ -460,38 +513,68 @@ public final class ScreenshotManager: ObservableObject {
     static func streamScreenSnapshots(screens: [NSScreen],
                                       priority: NSScreen? = nil,
                                       epoch: Int? = nil,
-                                      onReady: @MainActor @escaping (NSScreen, CGImage?) -> Void)
+                                      budget: CaptureBudget? = nil,
+                                      onReady: @MainActor @escaping (NSScreen, CGImage?) async -> Void)
         async -> [(screen: NSScreen, image: CGImage?)] {
         guard !screens.isEmpty else { return [] }
         let ordered = orderedScreens(screens, priority: priority)
         let box = ScreenListBox(ordered)
+        let streamStart = DispatchTime.now().uptimeNanoseconds
+        let priorityLabel = priority.flatMap { ScreenSnapshot.displayID(of: $0) }.map { "D\($0)" } ?? "无"
         let toastFrame = await MainActor.run { MenuBarToastManager.shared.captureExcludedWindowFrame }
         let exclusion: ScreenSnapshot.ToastExclusion = toastFrame.map { .visible($0) } ?? .none
         var collected: [(index: Int, image: CGImage?)] = []
-        await withTaskGroup(of: (Int, CGImage?).self) { group in
+        // v292（性能第二轮 B1/B2）：
+        // · 子任务实际完成耗时单独记（含通道选择），与主线程回调等待分开；
+        // · 父任务取消或代次过期后不再为后续屏幕派发子任务；已派发的由 epoch 轮询快速终止，
+        //   结果一律丢弃，不回主线程建覆盖层（旧实现取消后仍会 addTask 剩余屏幕）。
+        await withTaskGroup(of: (Int, CGImage?, Double).self) { group in
             var next = 0
             let limit = min(2, ordered.count)
             while next < limit {
                 let index = next
                 next += 1
+                let displayID = ScreenSnapshot.displayID(of: box.screens[index])
                 group.addTask {
+                    let t0 = DispatchTime.now().uptimeNanoseconds
                     let image = await ScreenSnapshot.captureScreenForScreenshot(box.screens[index],
                                                                                 epoch: epoch,
-                                                                                toast: exclusion)
-                    return (index, image)
+                                                                                toast: exclusion,
+                                                                                budget: budget)
+                    let ms = Double(DispatchTime.now().uptimeNanoseconds - t0) / 1_000_000
+                    Log.info("Capture", String(format: "流式子任务 %@ 完成 %.0fms",
+                                               displayID.map { "D\($0)" } ?? "?", ms))
+                    return (index, image, ms)
                 }
             }
-            while let (index, image) = await group.next() {
+            while let (index, image, taskMs) = await group.next() {
+                if Task.isCancelled || (epoch.map { !ScreenSnapshot.isCurrentEpoch($0) } ?? false) {
+                    group.cancelAll()
+                    continue
+                }
                 collected.append((index, image))
+                let waitStart = DispatchTime.now().uptimeNanoseconds
                 await onReady(box.screens[index], image)
+                let readyMs = Double(DispatchTime.now().uptimeNanoseconds - waitStart) / 1_000_000
+                let sinceStart = Double(DispatchTime.now().uptimeNanoseconds - streamStart) / 1_000_000
+                let idLabel = ScreenSnapshot.displayID(of: box.screens[index]).map { "D\($0)" } ?? "?"
+                Log.info("Capture", String(format: "流式快照 %@：子任务 %.0fms · 主线程回调 %.0fms · 至今 %.0fms（光标屏 %@）",
+                                           idLabel, taskMs, readyMs, sinceStart, priorityLabel))
                 if next < ordered.count {
+                    if Task.isCancelled { group.cancelAll(); continue }
                     let index = next
                     next += 1
+                    let displayID = ScreenSnapshot.displayID(of: box.screens[index])
                     group.addTask {
+                        let t0 = DispatchTime.now().uptimeNanoseconds
                         let image = await ScreenSnapshot.captureScreenForScreenshot(box.screens[index],
                                                                                     epoch: epoch,
-                                                                                    toast: exclusion)
-                        return (index, image)
+                                                                                    toast: exclusion,
+                                                                                    budget: budget)
+                        let ms = Double(DispatchTime.now().uptimeNanoseconds - t0) / 1_000_000
+                        Log.info("Capture", String(format: "流式子任务 %@ 完成 %.0fms",
+                                                   displayID.map { "D\($0)" } ?? "?", ms))
+                        return (index, image, ms)
                     }
                 }
             }
@@ -587,7 +670,13 @@ public final class ScreenshotManager: ObservableObject {
     }
 
     private func closeOverlays() {
-        for window in overlays { window.orderOut(nil) }
+        for window in overlays {
+            window.orderOut(nil)
+            // 2026-11-24 v293（C6）：双屏各一张 3420×2224 冻结帧 ≈ 30MB，
+            // 只 removeAll 的话要等窗口被释放才回收；这里显式断开引用，
+            // 取消 / 连按 / 提交后立刻回落，不把上一轮的整屏图带进下一轮。
+            window.overlayView.snapshot = nil
+        }
         overlays.removeAll()
     }
 
@@ -688,6 +777,11 @@ public final class ScreenshotManager: ObservableObject {
         closeOverlays()
         isCapturing = false
         currentModeTag = "window"
+        // 2026-11-26 修复（二轮 low）：下面要 await SCK 抓窗（最多约 4s），
+        // 这期间用户可能已经发起新一轮截图，pendingFlow / currentModeTag 会被覆盖。
+        // 先把本轮的分流与标签快照下来，整个收尾只用快照，不再读共享字段。
+        let flow = pendingFlow
+        let modeTag = "window"
 
         let global = rect.offsetBy(dx: screenFrame.origin.x, dy: screenFrame.origin.y)
         lastSelectionAppKit = global
@@ -726,9 +820,10 @@ public final class ScreenshotManager: ObservableObject {
                 return
             }
             // 与区域截图同一条收尾路径（落盘 + 广播 + 动作工具条/默认动作）
-            switch self.pendingFlow {
+            // 2026-11-26：用 await 前快照的 flow / modeTag（见上方注释）
+            switch flow {
             case .direct(let action):
-                self.handle(image, action: action)
+                self.handle(image, action: action, mode: modeTag)
             case .toolbar:
                 let pixel = CGSize(width: image.width, height: image.height)
                 guard let data = ImageProcessor.pngData(image),
@@ -738,7 +833,7 @@ public final class ScreenshotManager: ObservableObject {
                     self.finishCaptureSession()
                     return
                 }
-                self.registerCaptured(url: url, data: data, playSound: true)
+                self.registerCaptured(url: url, data: data, playSound: true, mode: modeTag)
                 HapticService.shared.perform(.screenshot)
                 self.autoDetectQR(in: image)   // v130⑤：自动检测二维码
                 CaptureActionChain.present(image: image, url: url, selectionAppKit: global,
@@ -762,6 +857,10 @@ public final class ScreenshotManager: ObservableObject {
         isCapturing = false
         currentModeTag = "window"
         guard !items.isEmpty else { finishCaptureSession(); return }
+        // 2026-11-26 修复：与 commitWindow 同源——逐个 await SCK 期间可能被新一轮截图覆盖，
+        // 逐项收尾的分流与标签先用快照。
+        let flow = pendingFlow
+        let modeTag = "window"
 
         Task { @MainActor in
             var images: [CGImage] = []
@@ -803,9 +902,10 @@ public final class ScreenshotManager: ObservableObject {
             }
             Log.info("Capture", "窗口多选：\(images.count) 个窗口 → \(composed.width)×\(composed.height)px")
             self.lastSelectionAppKit = .zero
-            switch self.pendingFlow {
+            // 2026-11-26：用 await 前快照的 flow / modeTag
+            switch flow {
             case .direct(let action):
-                self.handle(composed, action: action)
+                self.handle(composed, action: action, mode: modeTag)
             case .toolbar:
                 guard let data = ImageProcessor.pngData(composed),
                       let url = self.stagePNG(data, pixelSize: CGSize(width: composed.width,
@@ -815,7 +915,7 @@ public final class ScreenshotManager: ObservableObject {
                     self.finishCaptureSession()
                     return
                 }
-                self.registerCaptured(url: url, data: data, playSound: true)
+                self.registerCaptured(url: url, data: data, playSound: true, mode: modeTag)
                 HapticService.shared.perform(.screenshot)
                 CaptureActionChain.present(image: composed, url: url, selectionAppKit: .zero,
                                            completion: self.takeCaptureSessionCompletion())
@@ -867,7 +967,10 @@ public final class ScreenshotManager: ObservableObject {
     // MARK: 产出分流
 
     /// 统一收尾：落盘 + 事件广播 + 按动作分流
-    private func handle(_ image: CGImage, action: CaptureDefaultAction) {
+    ///
+    /// - Parameter mode: 历史库模式标签。异步收尾路径必须在 await 前把标签快照传进来，
+    ///   否则登记时读到的 `currentModeTag` 可能已被下一轮截图改写（2026-11-26 修复）。
+    private func handle(_ image: CGImage, action: CaptureDefaultAction, mode: String? = nil) {
         guard let data = ImageProcessor.pngData(image) else {
             statusMessage = CaptureError.saveFailed.errorDescription
             HapticService.shared.perform(.operationFailed)
@@ -883,7 +986,7 @@ public final class ScreenshotManager: ObservableObject {
             HapticService.shared.perform(.operationFailed)
             return
         }
-        registerCaptured(url: url, data: data, playSound: true)
+        registerCaptured(url: url, data: data, playSound: true, mode: mode)
         HapticService.shared.perform(.screenshot)
         autoDetectQR(in: image)   // v130（SnowShot 对齐）⑤：截图完成后自动检测二维码
         apply(action, to: image, url: url)
@@ -952,14 +1055,72 @@ public final class ScreenshotManager: ObservableObject {
     /// 写入 PNG 到**私有暂存目录**（动作条各工具都拿到这个 URL，但不算用户保存）
     @discardableResult
     public func stagePNG(_ data: Data, pixelSize: CGSize = .zero) -> URL? {
-        writePNG(data, to: stagingDirectory, pixelSize: pixelSize)
+        let url = writePNG(data, to: stagingDirectory, pixelSize: pixelSize)
+        // 2026-11-26 修复（二轮 low）：原来只写不清理——用户只点复制/识别/钉住时，
+        // 每张截图都在私有目录留一个 1-3MB 的 PNG，工作区无上限、无保留期。
+        // 这里每写成功一次就排一次后台清理（自带节流，见 scheduleStagingCleanup）。
+        if url != nil { scheduleStagingCleanup() }
+        return url
+    }
+
+    /// 暂存目录是否已排了一次后台清理（避免每次截图都排一个 Task）
+    private var stagingCleanupScheduled = false
+
+    /// 暂存目录清理：后台执行，不占主线程。
+    private func scheduleStagingCleanup() {
+        guard !stagingCleanupScheduled else { return }
+        stagingCleanupScheduled = true
+        let dir = stagingDirectory
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let removed = Self.pruneStagingDirectory(dir)
+            if removed > 0 {
+                Log.info("Capture", "暂存目录清理：删除 \(removed) 个旧暂存文件（\(dir.path)）")
+            }
+            DispatchQueue.main.async { self?.stagingCleanupScheduled = false }
+        }
+    }
+
+    /// 保留最新 200 个暂存文件；超出的按「超过 3 天」删，再超出 400 个则不看年龄也删，
+    /// 给磁盘占用一个硬上限（约 400 张 × 1-3MB）。近期文件不动，避免误删仍在用的 URL。
+    private static func pruneStagingDirectory(_ dir: URL) -> Int {
+        let fm = FileManager.default
+        let keySet: Set<URLResourceKey> = [.contentModificationDateKey]
+        guard let files = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: Array(keySet),
+                                                      options: [.skipsHiddenFiles]) else { return 0 }
+        let pngs = files.filter { $0.pathExtension.lowercased() == "png" }
+        let keepNewest = 200
+        guard pngs.count > keepNewest else { return 0 }
+        let sorted = pngs.sorted { lhs, rhs in
+            let l = (try? lhs.resourceValues(forKeys: keySet))?.contentModificationDate ?? .distantPast
+            let r = (try? rhs.resourceValues(forKeys: keySet))?.contentModificationDate ?? .distantPast
+            return l > r
+        }
+        let maxAge: TimeInterval = 3 * 24 * 3600
+        let hardLimit = keepNewest * 2
+        let now = Date()
+        var removed = 0
+        for (index, url) in sorted.enumerated() where index >= keepNewest {
+            let date = (try? url.resourceValues(forKeys: keySet))?.contentModificationDate ?? .distantPast
+            guard index >= hardLimit || now.timeIntervalSince(date) > maxAge else { continue }
+            if (try? fm.removeItem(at: url)) != nil { removed += 1 }
+        }
+        return removed
     }
 
     private func writePNG(_ data: Data, to dir: URL, pixelSize: CGSize = .zero) -> URL? {
         do {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            let url = dir.appendingPathComponent(Self.newFileName(pixelSize: pixelSize))
-            try data.write(to: url)
+            var url = dir.appendingPathComponent(Self.newFileName(pixelSize: pixelSize))
+            // 2026-11-25（二轮复核）：模板不含 {random}/{seq} 时，同日第二张会静默覆盖第一张
+            //（丢图无提示）。同名时按 -2、-3 追加序号，并以 .withoutOverwriting 兜底。
+            if FileManager.default.fileExists(atPath: url.path) {
+                let stem = url.deletingPathExtension().lastPathComponent
+                for idx in 2...99 {
+                    let candidate = dir.appendingPathComponent("\(stem)-\(idx).png")
+                    if !FileManager.default.fileExists(atPath: candidate.path) { url = candidate; break }
+                }
+            }
+            try data.write(to: url, options: .withoutOverwriting)
             return url
         } catch {
             Log.error("Capture", "保存截图失败: \(error.localizedDescription)")
@@ -980,7 +1141,8 @@ public final class ScreenshotManager: ObservableObject {
         }
         do {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            let dest = dir.appendingPathComponent(Self.newFileName())
+            // 2026-11-25（二轮复核）：文件名模板的 {w}/{h} 需要真实像素尺寸，漏传会落成 0x0
+            let dest = dir.appendingPathComponent(Self.newFileName(pixelSize: Self.pixelSize(of: url)))
             try FileManager.default.copyItem(at: url, to: dest)
             recent.removeAll { $0.url == url }
             recent.insert(CapturedImage(url: dest, createdAt: Date()), at: 0)
@@ -1000,6 +1162,15 @@ public final class ScreenshotManager: ObservableObject {
     /// 默认模板与旧版输出完全一致，老用户不会发现名字变了。
     private static func newFileName(pixelSize: CGSize = .zero) -> String {
         CaptureFileName.make(pixelSize: pixelSize, mode: shared.currentModeTag)
+    }
+
+    /// 读图片文件的真实像素尺寸（ImageIO 只读头，不解码整图）
+    private static func pixelSize(of url: URL) -> CGSize {
+        guard let src = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let props = CGImageSourceCopyPropertiesAtIndex(src, 0, nil) as? [CFString: Any],
+              let w = props[kCGImagePropertyPixelWidth] as? Int,
+              let h = props[kCGImagePropertyPixelHeight] as? Int else { return .zero }
+        return CGSize(width: w, height: h)
     }
 
     public func copyToPasteboard(_ image: CGImage) -> Bool {
@@ -1033,11 +1204,24 @@ public final class ScreenshotManager: ObservableObject {
     /// v235：截图默认只进私有暂存目录，用户点保存才进下载目录；
     /// 列表要把两边都算上，否则未保存的截图在面板里看不到。
     public func reloadRecent() {
+        // 2026-11-25（二轮复核 medium）：本函数会被 init 同步调用，而它要扫
+        // ~/Downloads + 暂存目录。未授权时目录枚举会卡在 TCC 上，首个访问点又常在
+        // 主线程（快捷键/面板 @StateObject）——按下截图后可能长时间没有覆盖层
+        // （v228 已有同结论，init 这条路径漏改）。扫描挪后台，回主线程赋值。
+        let dirs = [saveDirectory, stagingDirectory]
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            let items = Self.scanCapturedImages(in: dirs)
+            DispatchQueue.main.async { self?.recent = items }
+        }
+    }
+
+    /// 后台扫描截图目录（最多 60 条，按修改时间倒序）
+    private static func scanCapturedImages(in dirs: [URL]) -> [CapturedImage] {
         let fm = FileManager.default
         let allowed: Set<String> = ["png", "jpg", "jpeg", "heic", "tiff"]
         var seen: Set<String> = []
         var items: [CapturedImage] = []
-        for dir in [saveDirectory, stagingDirectory] {
+        for dir in dirs {
             guard let urls = try? fm.contentsOfDirectory(at: dir,
                                                          includingPropertiesForKeys: [.contentModificationDateKey],
                                                          options: [.skipsHiddenFiles]) else { continue }
@@ -1050,7 +1234,7 @@ public final class ScreenshotManager: ObservableObject {
                 items.append(CapturedImage(url: url, createdAt: date))
             }
         }
-        recent = Array(items.sorted { $0.createdAt > $1.createdAt }.prefix(60))
+        return Array(items.sorted { $0.createdAt > $1.createdAt }.prefix(60))
     }
 
     /// 读取已有缩略图缓存；未命中时由 loadThumbnail 在后台生成。

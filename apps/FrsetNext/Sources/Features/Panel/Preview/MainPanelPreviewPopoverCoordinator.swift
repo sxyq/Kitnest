@@ -198,24 +198,36 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
         sessionID = UUID()
         let requestedSession = sessionID
         // 落盘长文由内容视图异步读取，出窗时仅携带已存前缀。
-        let text = item.type == .file || item.textPath != nil
-            ? item.content ?? "" : PreviewPopoverDataBridge.shared.fullText(for: item)
+        // 2026-11-26 修复：text 改为按需计算——富文本的 fullText 会读 RTF 并解析，
+        // 放到 buildModel 所在线程执行，避免固定在主线程读盘。
+        let textProvider: () -> String = {
+            item.type == .file || item.textPath != nil
+                ? item.content ?? "" : PreviewPopoverDataBridge.shared.fullText(for: item)
+        }
         let buildModel: (Bool) -> PreviewPopoverContentModel = { loadFileContents in
             PreviewPopoverContentModel(item: item,
                                        source: source,
                                        entry: entry,
                                        sessionID: requestedSession,
-                                       inlineText: text,
+                                       inlineText: textProvider(),
                                        loadFileContents: loadFileContents)
         }
         let display: (PreviewPopoverContentModel) -> Void = { [weak self] model in
             guard let self, self.sessionID == requestedSession else { return }
 
             // 切换记录复用当前窗，让尺寸连续变化，避免旧窗收回时新窗同时跳出。
+            // 2026-11-26 修复：收回动画进行中（state == .closing）不能复用——
+            // 那时 self.slot 还没被 handlePreviewWindowDidClose 清空，复用会走
+            // ClipboardPreviewWindow.show 的 wasVisible 分支：只 orderFront、不复位
+            // window.alphaValue、也不重放展开，同时在途的反向动画继续把 alpha 压到 0，
+            // 结果「收回期间再 present」整段预览不显示。此时改为新建槽位。
             let slot: MainPanelPreviewPopoverSlot
-            if let current = self.slot {
+            if let current = self.slot, current.state != .closing {
                 current.contentModel = model
                 current.isEditing = false
+                // 复用旧窗时兜底复位窗口透明度：WindowReveal.reset 只复位 contentView 的
+                // transform/opacity，不动 window.alphaValue，残留的 0 会让复用窗完全不可见。
+                current.windowController.window?.alphaValue = 1
                 slot = current
             } else {
                 slot = MainPanelPreviewPopoverSlot(contentModel: model, showsHint: showsKeyboardHint)
@@ -244,6 +256,14 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
                     let model = buildModel(true)
                     DispatchQueue.main.async { display(model) }
                 }
+            }
+        } else if item.type == .richtext || (item.content?.utf8.count ?? 0) > 20_000 {
+            // 2026-11-26 修复：富文本初始化要读盘并解析 RTF，大文本分类还会对 ≤20 万字符
+            // 做 JSONSerialization 全量解析——原来全在主线程。与文件分支一致改到全局队列，
+            // 完成后再回主线程出窗。
+            DispatchQueue.global(qos: .userInitiated).async {
+                let model = buildModel(true)
+                DispatchQueue.main.async { display(model) }
             }
         } else {
             display(buildModel(true))
@@ -474,9 +494,16 @@ public final class MainPanelPreviewPopoverCoordinator: NSObject {
     // MARK: Markdown 滚动记忆（F15）
 
     private var markdownScrollMemory: [String: MarkdownScrollState] = [:]
+    /// 2026-11-26 修复：原字典按 dedupeKey 无界增长，长会话缓慢累积。设上限并淘汰旧条目。
+    private static let markdownScrollMemoryLimit = 200
 
     /// 记录某条目的 Markdown/长文滚动位置（键 = dedupeKey，重开预览恢复）
     public func rememberMarkdownScroll(dedupeKey: String, state: MarkdownScrollState) {
+        if markdownScrollMemory[dedupeKey] == nil,
+           markdownScrollMemory.count >= Self.markdownScrollMemoryLimit,
+           let oldestKey = markdownScrollMemory.keys.first {
+            markdownScrollMemory.removeValue(forKey: oldestKey)
+        }
         markdownScrollMemory[dedupeKey] = state
     }
 

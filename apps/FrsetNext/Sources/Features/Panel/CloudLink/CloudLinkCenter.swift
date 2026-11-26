@@ -168,9 +168,17 @@ final class CloudLinkTester: ObservableObject {
     @Published private(set) var summary: String = ""
 
     private var task: URLSessionDataTask?
+    /// 2026-11-26 修复：探针原来每次新建 ephemeral session 且从不失效，URLSession 会自持
+    /// 连接池，反复「重新检测」会累积会话。改为共用单例会话。
+    private static let probeSession = URLSession(configuration: .ephemeral)
+    /// 本轮检测代次：run 每次自增，旧任务回调（含取消回调）比对不一致直接丢弃，
+    /// 避免把新一轮的 checks/isRunning 覆盖成旧结果。
+    private var generation = 0
 
     func run(link: CloudDriveLink) {
         task?.cancel()
+        generation &+= 1
+        let currentGeneration = generation
         isRunning = true
         summary = ""
         checks = [
@@ -202,7 +210,7 @@ final class CloudLinkTester: ObservableObject {
         }
 
         // ③ 分享页可达性（不携带登录 cookie，只判断网络与状态码）
-        probe(url: link.url, provider: link.provider)
+        probe(url: link.url, provider: link.provider, generation: currentGeneration)
 
         // ④ 下载目录
         let dir = CloudLinkSettings.downloadDirectory
@@ -226,7 +234,7 @@ final class CloudLinkTester: ObservableObject {
         }
     }
 
-    private func probe(url: URL, provider: CloudDriveProvider) {
+    private func probe(url: URL, provider: CloudDriveProvider, generation: Int) {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.timeoutInterval = CloudLinkSettings.timeout
@@ -239,13 +247,16 @@ final class CloudLinkTester: ObservableObject {
         request.setValue("text/html,application/xhtml+xml", forHTTPHeaderField: "Accept")
         mark(2, .running, "请求 \(url.host ?? "")…")
 
-        let session = URLSession(configuration: .ephemeral)
+        let session = Self.probeSession
         task = session.dataTask(with: request) { [weak self] data, response, error in
             DispatchQueue.main.async {
-                guard let self else { return }
-                self.isRunning = false
+                guard let self, self.generation == generation else { return }
                 if let error {
                     let ns = error as NSError
+                    // 2026-11-26 修复：被取消的旧任务回调不再写入新一轮状态
+                    // （原来会把 checks[2] 改成「请求失败：已取消」并提前收掉进度圈）。
+                    if ns.code == NSURLErrorCancelled { return }
+                    self.isRunning = false
                     if ns.code == NSURLErrorCannotDecodeRawData || ns.code == NSURLErrorCannotParseResponse {
                         self.mark(2, .warn, "页面可达，但内容无法解码（可能需要登录/被风控拦截）")
                         self.summary = "需要登录态；实际解析请在网页解析器中完成"
@@ -255,6 +266,7 @@ final class CloudLinkTester: ObservableObject {
                     }
                     return
                 }
+                self.isRunning = false
                 guard let http = response as? HTTPURLResponse else {
                     self.mark(2, .warn, "非 HTTP 响应")
                     self.summary = "无法判断页面状态"

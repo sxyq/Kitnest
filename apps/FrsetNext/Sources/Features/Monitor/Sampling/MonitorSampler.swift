@@ -57,21 +57,41 @@ public final class MonitorSampler: ObservableObject {
     /// 不可见时降到 ≥5s（隐藏面板每 2s 全量重绘一轮 SwiftUI 是无谓的常驻开销，
     /// 用户反馈「性能开销非常差」的主要来源之一）。菜单栏 STATS 部件走 C 引擎
     /// 自己的采样，不受这里影响。
+    ///
+    /// 2026-11-26 修复（F-misc-1#12–16）：这 4 个标志由主线程写、samplingQueue 读
+    /// （经 uiActive），原来完全无同步，属 data race（TSan 可报）。改用一把**独立的**
+    /// 小锁保护：不与被 lock 保护的缓冲/排程状态混用，避免锁序问题；uiActive 是唯一
+    /// 汇聚点，读一次取一致快照。
+    private let visibilityLock = NSLock()
     private var panelActive = false
     private var homePanelActive = false
     private var settingsActive = false
     private var islandActive = false
 
+    /// 写可见性标志；返回是否真的变化（调用方据此决定要不要重排采样节奏）。
+    private func updateVisibility(_ keyPath: ReferenceWritableKeyPath<MonitorSampler, Bool>,
+                                  _ active: Bool) -> Bool {
+        visibilityLock.lock()
+        defer { visibilityLock.unlock() }
+        guard self[keyPath: keyPath] != active else { return false }
+        self[keyPath: keyPath] = active
+        return true
+    }
+
+    private var uiActive: Bool {
+        visibilityLock.lock()
+        defer { visibilityLock.unlock() }
+        return panelActive || homePanelActive || settingsActive || islandActive
+    }
+
     public func setIslandActive(_ active: Bool) {
-        guard islandActive != active else { return }
-        islandActive = active
+        guard updateVisibility(\.islandActive, active) else { return }
         applyPreferences()
         if active { refresh() }
     }
 
     public func setPanelActive(_ active: Bool) {
-        guard panelActive != active else { return }
-        panelActive = active
+        guard updateVisibility(\.panelActive, active) else { return }
         applyPreferences()
         if active { refresh() }   // 打开瞬间立即出一帧，不等下个周期
     }
@@ -81,20 +101,16 @@ public final class MonitorSampler: ObservableObject {
     /// 不能把另一方的刷新节奏一起降频——这正是用户看到的
     /// 「主页性能页 5s 一帧 / 状态栏面板 1.5s 一帧，两套时间」的根源。
     public func setHomePanelActive(_ active: Bool) {
-        guard homePanelActive != active else { return }
-        homePanelActive = active
+        guard updateVisibility(\.homePanelActive, active) else { return }
         applyPreferences()
         if active { refresh() }
     }
 
     public func setSettingsActive(_ active: Bool) {
-        guard settingsActive != active else { return }
-        settingsActive = active
+        guard updateVisibility(\.settingsActive, active) else { return }
         applyPreferences()
         if active { refresh() }
     }
-
-    private var uiActive: Bool { panelActive || homePanelActive || settingsActive || islandActive }
 
     private struct Buffers {
         var cpu = MonitorHistoryBuffer(capacity: MonitorSampler.historyCapacity)
@@ -275,9 +291,20 @@ public final class MonitorSampler: ObservableObject {
             ? [cSnap.load1, cSnap.load5, cSnap.load15]
             : reader.loadAverages()
 
+        var frameDelta: Double = 0
         lock.lock()
         let now = Date().timeIntervalSince1970
         let interval = uiActive ? MonitorPreferences.refreshInterval : max(MonitorPreferences.refreshInterval, 5)
+        // 2026-11-25（函数审查 NEEDS_FIX 落实）：累计流量必须按**本帧真实间隔**积分。
+        // 旧实现用 MonitorPreferences.refreshInterval——UI 隐藏时帧间隔被抬到
+        // max(base,5s)（scheduleNext 同款），按 2s 设置积分会把隐藏期间的累计下载/上传
+        // 低估约 60%。取上一帧时间戳的真实差值（钳制 0.1–30s 防时钟跳变），首帧用排程值。
+        if buffers.timestamps.count == 0 {
+            frameDelta = interval
+        } else {
+            // last 在空缓冲时返回 0（环形缓冲口径），count>0 时即上一帧时间戳
+            frameDelta = max(0.1, min(30, now - buffers.timestamps.last))
+        }
         let previousCount = buffers.timestamps.count
         buffers.timestamps.append(now)
         buffers.intervals.append(interval)
@@ -319,8 +346,8 @@ public final class MonitorSampler: ObservableObject {
         lock.unlock()
 
         // 补充字段写入旁路容器（峰值/累计/负载）
-        let netIn = MonitorFormat.u64(Double(sample.netDownload) * MonitorPreferences.refreshInterval)
-        let netOut = MonitorFormat.u64(Double(sample.netUpload) * MonitorPreferences.refreshInterval)
+        let netIn = MonitorFormat.u64(Double(sample.netDownload) * frameDelta)
+        let netOut = MonitorFormat.u64(Double(sample.netUpload) * frameDelta)
         MonitorExtra.update { extra in
             extra.compressedMemory = result.compressedMemory
             extra.loadAverages = loadAverages

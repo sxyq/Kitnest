@@ -134,6 +134,17 @@ final class ScreenshotMagnifierContainerView: NSView {
 /// 全屏覆盖层：拖拽选区 + 尺寸标签 + 十字准星 + 放大镜
 final class ScreenshotOverlayView: NSView {
     var recentClipboardHint: String?
+    /// v292 B1：呈现时间锚点（presentOverlay 写入）；首次真实输入事件时记一行「距建窗」耗时。
+    /// 口径：这是事件到达覆盖层的时刻，不代表系统已完成合成呈现。
+    var presentedAt: UInt64 = 0
+    private var didLogFirstInput = false
+
+    private func noteFirstInput(_ kind: String) {
+        guard !didLogFirstInput, presentedAt > 0 else { return }
+        didLogFirstInput = true
+        let ms = Double(DispatchTime.now().uptimeNanoseconds - presentedAt) / 1_000_000
+        Log.info("Capture", String(format: "覆盖层首次输入：%@ 距建窗 %.0fms", kind, ms))
+    }
     /// v126（性能审计 F0553）：缓存标签字体与属性字典，避免 drawSizeLabel 每帧重建
     private static let labelFont = NSFont.systemFont(ofSize: 12, weight: .medium)
     private static let labelAttrs: [NSAttributedString.Key: Any] = [
@@ -145,8 +156,52 @@ final class ScreenshotOverlayView: NSView {
     var onCommit: ((CGRect) -> Void)?
     var onCancel: (() -> Void)?
 
-    /// 该屏幕的快照（用于放大镜与最终裁剪，可为 nil → 放大镜隐藏）
-    var snapshot: CGImage?
+    /// 该屏幕的快照。2026-11-24 v293：**同时用于显示**——
+    /// 覆盖层不再透出实时桌面，而是把触发瞬间的冻结帧铺在底层（与系统截图同语义）。
+    /// 这样「Kitnest 激活导致原应用悬停预览/菜单消失」不会再改变用户看到的画面，
+    /// 多屏也不需要为了画面正确性把显示推迟到所有屏幕都抓完。
+    var snapshot: CGImage? {
+        didSet { installSnapshot() }
+    }
+
+    /// 冻结帧图层：直接把 CGImage 交给 CALayer.contents，GPU 合成，
+    /// 不经过 NSImage 转换、鼠标移动也不触发重绘。
+    private let snapshotView = NSView()
+    /// 压暗层：静态 CALayer 填充，不参与逐帧绘制（旧实现每次鼠标移动都整屏填一次 35% 黑）。
+    private let dimView = NSView()
+    /// 十字准线：独立 CAShapeLayer，移动只改路径，不重栅格化整屏。
+    private var crosshairLayer = CAShapeLayer()
+    /// 高亮/提示绘制层：只有它在鼠标移动时局部失效，尺寸小、代价低。
+    private let canvas = OverlayCanvas()
+    /// 提示胶囊排版缓存（文案 + 副标题 → 富文本与尺寸）
+    private var hintCache: (key: String, text: NSAttributedString, size: NSSize)?
+
+    private func installSnapshot() {
+        snapshotView.wantsLayer = true
+        snapshotView.layer?.contentsGravity = .resize
+        snapshotView.layer?.contents = snapshot
+        snapshotView.isHidden = snapshot == nil
+        magnifier.isHidden = true
+    }
+
+    /// 唯一命中入口：所有子图层都不接事件，鼠标永远落到覆盖层自己。
+    /// （否则第一下点击会被 NSImageView 的 acceptsFirstMouse=false 吞掉。）
+    override func hitTest(_ point: NSPoint) -> NSView? {
+        bounds.contains(point) ? self : nil
+    }
+
+    override func layout() {
+        super.layout()
+        if snapshotView.frame != bounds { snapshotView.frame = bounds }
+        if dimView.frame != bounds { dimView.frame = bounds }
+        if canvas.frame != bounds { canvas.frame = bounds }
+        if crosshairLayer.frame != bounds {
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            crosshairLayer.frame = bounds
+            CATransaction.commit()
+        }
+    }
 
     // MARK: 覆盖层（v267：单一自适应行为，不再分模式）
     //
@@ -193,7 +248,7 @@ final class ScreenshotOverlayView: NSView {
     /// ⌘ 点选后紧跟的那次 mouseUp 不要当成交付
     private var suppressWindowCommit = false
 
-    private struct WindowHit {
+    struct WindowHit {
         let globalRect: CGRect   // cocoa 全局坐标（左下原点）
         let windowID: CGWindowID
         let label: String
@@ -202,6 +257,17 @@ final class ScreenshotOverlayView: NSView {
 
     private var windowHits: [WindowHit] = []
     private var highlightedWindow: WindowHit?
+
+    /// 主线程兜底枚举（只有调用方没预置列表时才走）。
+    private static func snapshotWindowHits() -> [WindowHit] {
+        collectWindowHits(primaryHeight: NSScreen.screens.first?.frame.height ?? 0)
+    }
+
+    /// 补入会话级窗口列表（后台枚举晚于建窗时用；只补一次）。
+    func replaceWindowHits(_ hits: [WindowHit]) {
+        guard !hits.isEmpty else { return }
+        windowHits = hits
+    }
     /// v116：AX 元素级吸附（比窗口更细，落在控件/文本块上；v130 起由 ElementSnapEngine 提供）
     private var highlightedElement: (rect: CGRect, label: String)?
     private var lastAXQuery: TimeInterval = 0
@@ -211,13 +277,17 @@ final class ScreenshotOverlayView: NSView {
     /// v130（SnowShot 对齐）①：区域模式的元素吸附命中（视图坐标）
     private var snapHighlight: (rect: CGRect, label: String)?
 
-    /// 枚举可吸附窗口（本进程排除——覆盖层/工具条自身不能选到自己）
-    private static func snapshotWindowHits() -> [WindowHit] {
+    /// 枚举可吸附窗口（本进程排除——覆盖层/工具条自身不能选到自己）。
+    ///
+    /// 2026-11-24 v293：改为**每轮截图只枚举一次**（后台），全部屏幕共用。
+    /// 旧实现每个覆盖层 init 都在主线程枚举一次全量窗口列表——双屏就是两次，
+    /// 而且正好压在「建窗 → 激活」这段关键路径上。
+    static func collectWindowHits(primaryHeight: CGFloat) -> [WindowHit] {
         let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements],
                                               kCGNullWindowID) as? [[String: Any]] ?? []
         let ownPID = Int(NSRunningApplication.current.processIdentifier)
-        let primaryHeight = NSScreen.screens.first?.frame.height ?? 0
         var hits: [WindowHit] = []
+        hits.reserveCapacity(list.count)
         for w in list {
             guard (w[kCGWindowLayer as String] as? Int) == 0,
                   (w[kCGWindowOwnerPID as String] as? Int) != ownPID,
@@ -240,11 +310,40 @@ final class ScreenshotOverlayView: NSView {
         window?.convertFromScreen(global) ?? global
     }
 
-    override init(frame frameRect: NSRect) {
+    init(frame frameRect: NSRect, windowHits: [WindowHit]? = nil) {
+        self.windowHits = windowHits ?? []
         super.init(frame: frameRect)
+        wantsLayer = true
+        // 层序（自下而上）：冻结帧 → 压暗 → 十字准线 → 高亮/提示 → 放大镜。
+        // 自己的 draw 只画冻结帧；高亮在 canvas 里，鼠标移动只失效那一块。
+        snapshotView.wantsLayer = true
+        snapshotView.layer?.contentsGravity = .resize
+        snapshotView.layer?.masksToBounds = true
+        snapshotView.autoresizingMask = [.width, .height]
+        snapshotView.frame = bounds
+        snapshotView.isHidden = true
+        addSubview(snapshotView)
+
+        dimView.wantsLayer = true
+        dimView.layer?.backgroundColor = NSColor(calibratedWhite: 0, alpha: 0.35).cgColor
+        dimView.autoresizingMask = [.width, .height]
+        dimView.frame = bounds
+        addSubview(dimView)
+
+        crosshairLayer.strokeColor = NSColor.white.withAlphaComponent(0.75).cgColor
+        crosshairLayer.lineWidth = 1
+        crosshairLayer.fillColor = nil
+        crosshairLayer.isHidden = true
+        layer?.addSublayer(crosshairLayer)
+
+        canvas.owner = self
+        canvas.autoresizingMask = [.width, .height]
+        canvas.frame = bounds
+        addSubview(canvas)
+
         magnifier.isHidden = true
         addSubview(magnifier)
-        windowHits = Self.snapshotWindowHits()
+        if windowHits == nil { self.windowHits = Self.snapshotWindowHits() }
         keyMonitor = DeleteKeyMonitor { [weak self] event in
             guard let self = self else { return false }
             if event.type == .rightMouseDown { self.onCancel?(); return true }
@@ -291,6 +390,7 @@ final class ScreenshotOverlayView: NSView {
     // MARK: 鼠标
 
     override func mouseDown(with event: NSEvent) {
+        noteFirstInput("mouseDown")
         let p = convert(event.locationInWindow, from: nil)
         // ⌘ 单击 = 勾选/取消勾选一个窗口（多选），不立即截
         if event.modifierFlags.contains(.command), let hit = highlightedWindow {
@@ -303,8 +403,16 @@ final class ScreenshotOverlayView: NSView {
         startPoint = p
         currentPoint = p
         draggingRegion = false
+        // 2026-11-26 修复（二轮 low）：magnifier 的 frame 原本只在 mouseDragged→follow()
+        // 里设置，初值是 (0,0,120,120)。这里一按下就 isHidden=false，单击（不拖）时
+        // 会有一帧放大镜闪在屏幕左下角。按下即先按当前点摆位。
         magnifier.isHidden = snapshot == nil
-        needsDisplay = true
+        if snapshot != nil {
+            magnifier.follow(pointInView: p, viewSize: bounds.size, snapshot: snapshot)
+        }
+        dimView.isHidden = false
+        updateCrosshair(p)
+        invalidateCanvas()
     }
 
     /// ⌘ 点选：同一窗口再次点击即取消
@@ -315,7 +423,8 @@ final class ScreenshotOverlayView: NSView {
             multiSelected.append(WindowHit(globalRect: hit.globalRect, windowID: hit.windowID,
                                            label: hit.label, clickPoint: globalPoint(from: point)))
         }
-        needsDisplay = true
+        // 多选态会换提示文案，整块失效一次（只在 ⌘ 点击时发生）。
+        canvas.needsDisplay = true
     }
 
     private func globalPoint(from point: NSPoint) -> CGPoint {
@@ -335,6 +444,9 @@ final class ScreenshotOverlayView: NSView {
             highlightedElement = nil
             multiSelected.removeAll()
             magnifier.isHidden = snapshot == nil
+            // 拖拽期间由 canvas 自己画「选区外 4 块压暗」，静态压暗层必须先让位。
+            dimView.isHidden = true
+            updateCrosshair(nil)
         }
         currentPoint = p
         // 拖拽 = 用户要自定义范围，吸附只帮忙对齐元素边缘（8pt 内），
@@ -345,7 +457,7 @@ final class ScreenshotOverlayView: NSView {
         if let s = startPoint, let q = currentPoint {
             currentPoint = constrained(q, from: s, event: event)
         }
-        needsDisplay = true
+        canvas.needsDisplay = true
         if let q = currentPoint {
             magnifier.follow(pointInView: q, viewSize: bounds.size, snapshot: snapshot)
         }
@@ -366,6 +478,7 @@ final class ScreenshotOverlayView: NSView {
 
     override func mouseMoved(with event: NSEvent) {
         guard !draggingRegion, startPoint == nil else { return }
+        noteFirstInput("mouseMoved")
         let p = convert(event.locationInWindow, from: nil)
         currentPoint = p
         // 悬停永远做整窗识别（用缓存的 rects，零 CG 调用）：单击就是截这个窗口
@@ -378,13 +491,14 @@ final class ScreenshotOverlayView: NSView {
         }
         // 放大镜只在拖拽时出现，悬停时不挡窗口内容
         magnifier.isHidden = true
-        needsDisplay = true
+        updateCrosshair(p)
+        invalidateCanvas()
     }
 
     /// v130①：⌥ 按下/松开即刷新（吸附加锁态要立即反馈，不等鼠标移动）
     override func flagsChanged(with event: NSEvent) {
         // 拖拽中的 ⇧ 正方形 / ⌥ 关吸附要立刻反馈
-        if draggingRegion { needsDisplay = true }
+        if draggingRegion { canvas.needsDisplay = true }
     }
 
     override func mouseUp(with event: NSEvent) {
@@ -402,7 +516,9 @@ final class ScreenshotOverlayView: NSView {
             draggingRegion = false
             highlightedAtMouseDown = nil
             suppressWindowCommit = false
-            needsDisplay = true
+            dimView.isHidden = false
+            updateCrosshair(nil)
+            canvas.needsDisplay = true
         }
 
         // 没收到 mouseDown 就抬起（第一次点击只用于把 App 激活到前台）→ 什么都不做。
@@ -498,7 +614,12 @@ final class ScreenshotOverlayView: NSView {
 
     // MARK: 绘制
 
-    override func draw(_ dirtyRect: NSRect) {
+    /// 高亮/提示层绘制（在 canvas 子视图里执行，可局部失效）。
+    ///
+    /// 2026-11-24 v293：冻结帧与压暗已经下沉成静态图层，这里不再整屏填色。
+    /// 旧实现每次 mouseMoved 都对 3420×2224 的 backing store 做一次全屏 fill，
+    /// 是「悬停时覆盖层发涩」的主要来源。
+    fileprivate func drawCanvas(_ dirtyRect: NSRect) {
         let dim = NSColor(calibratedWhite: 0, alpha: 0.35)
 
         // 只有真正拖起来（draggingRegion）才画选区；按下未拖动时 selectionRect 是
@@ -528,9 +649,7 @@ final class ScreenshotOverlayView: NSView {
             return
         }
 
-        // 未拖拽：整屏压暗 + 窗口/元素高亮 + 十字准线 + 操作提示
-        dim.setFill()
-        bounds.fill()
+        // 未拖拽：压暗由 dimView 提供；这里画窗口/元素高亮与操作提示
         // 已勾选的多选窗口先画（带序号），悬停高亮叠在上面
         for (index, hit) in multiSelected.enumerated() {
             drawWindowSelection(hit, index: index)
@@ -541,13 +660,60 @@ final class ScreenshotOverlayView: NSView {
         if let el = highlightedElement {
             drawElementHighlight(el)
         }
-        if let p = currentPoint { drawCrosshair(p) }
         if !multiSelected.isEmpty {
             drawWindowMultiHint()
         } else {
             // 一句话把三条路都写清楚：不用先选模式，动作就是模式
             drawHint("单击截取高亮的窗口 · 拖拽截自定义范围 · 点空白处截全屏 · ⌘ 多选 · Esc 取消")
         }
+    }
+
+    /// 当前高亮集合的包围盒（只失效这一块；不含铺满全屏的十字准线）。
+    private func highlightBounds() -> CGRect {
+        var rect = CGRect.null
+        for hit in multiSelected {
+            rect = rect.union(viewRect(of: hit.globalRect).insetBy(dx: -6, dy: -30))
+        }
+        if let hit = highlightedWindow {
+            rect = rect.union(viewRect(of: hit.globalRect).insetBy(dx: -6, dy: -30))
+        }
+        if let el = highlightedElement {
+            rect = rect.union(el.rect.insetBy(dx: -6, dy: -26))
+        }
+        return rect.isNull ? .zero : rect.intersection(bounds)
+    }
+
+    /// 状态变了才失效对应区域；空白处 → 什么都不用重画（提示胶囊是静态的）。
+    private func invalidateCanvas() {
+        let previous = canvas.lastHighlightBounds
+        let current = highlightBounds()
+        canvas.lastHighlightBounds = current
+        if previous.isEmpty && current.isEmpty { return }
+        let dirty = previous.union(current).insetBy(dx: -2, dy: -2)
+        if dirty.isEmpty || dirty.isNull || dirty.isInfinite {
+            canvas.needsDisplay = true
+        } else {
+            canvas.setNeedsDisplay(dirty)
+        }
+    }
+
+    /// 十字准线：只改 CAShapeLayer 路径（不重栅格化整屏）。
+    private func updateCrosshair(_ point: NSPoint?) {
+        guard let point else {
+            crosshairLayer.isHidden = true
+            return
+        }
+        let path = CGMutablePath()
+        path.move(to: CGPoint(x: bounds.minX, y: point.y))
+        path.addLine(to: CGPoint(x: bounds.maxX, y: point.y))
+        path.move(to: CGPoint(x: point.x, y: bounds.minY))
+        path.addLine(to: CGPoint(x: point.x, y: bounds.maxY))
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        crosshairLayer.frame = bounds
+        crosshairLayer.path = path
+        crosshairLayer.isHidden = false
+        CATransaction.commit()
     }
 
     // MARK: AX 元素命中（v116；v130 起查询逻辑收敛到 ElementSnapEngine）
@@ -607,13 +773,21 @@ final class ScreenshotOverlayView: NSView {
 
     /// 顶部居中胶囊提示（两种文案共用一套排版）
     private func drawHint(_ string: String) {
-        let text = (string + (recentClipboardHint.map { "\n" + $0 } ?? "")) as NSString
-        // v126（性能审计 F0553）：复用静态缓存属性字典
-        var attrs = Self.labelAttrs
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.alignment = .center
-        attrs[.paragraphStyle] = paragraph
-        let size = text.size(withAttributes: attrs)
+        // v293：提示文案与字号不变时复用排版结果——旧实现每次鼠标移动都要
+        // 新建段落样式、量一次文本尺寸（每帧 ~0.3–0.6ms，悬停时白烧）。
+        let key = string + "\u{1}" + (recentClipboardHint ?? "")
+        if hintCache?.key != key {
+            var attrs = Self.labelAttrs
+            let paragraph = NSMutableParagraphStyle()
+            paragraph.alignment = .center
+            attrs[.paragraphStyle] = paragraph
+            let text = NSAttributedString(string: string + (recentClipboardHint.map { "\n" + $0 } ?? ""),
+                                          attributes: attrs)
+            hintCache = (key, text, text.size())
+        }
+        guard let cache = hintCache else { return }
+        let text = cache.text
+        let size = cache.size
         // v267：顶部的模式开关删掉后，胶囊可以直接占它原来那一行。
         // 距顶 56pt 起（刘海约 37pt + 菜单栏 24pt，留一点呼吸），不再留空档。
         let height = max(26, size.height + 14)
@@ -622,7 +796,7 @@ final class ScreenshotOverlayView: NSView {
                          width: size.width + 24, height: height)
         NSColor(calibratedWhite: 0.1, alpha: 0.78).setFill()
         NSBezierPath.continuousRoundedRect(box, radius: 13).fill()
-        text.draw(in: box.insetBy(dx: 12, dy: 6), withAttributes: attrs)
+        text.draw(in: box.insetBy(dx: 12, dy: 6))
     }
 
     /// 已勾选窗口的高亮 + 序号（v264）
@@ -725,20 +899,21 @@ final class ScreenshotOverlayView: NSView {
         text.draw(at: NSPoint(x: x + 6, y: y + 3), withAttributes: attrs)
     }
 
-    /// 十字准星（v130 SnowShot 对齐③：贯穿全屏 1px 实线，双色描边随背景反相——
-    /// 深底上白线可见、浅底上黑影压边，任何背景都读得出）
-    private func drawCrosshair(_ point: NSPoint) {
-        let path = NSBezierPath()
-        path.move(to: NSPoint(x: bounds.minX, y: point.y))
-        path.line(to: NSPoint(x: bounds.maxX, y: point.y))
-        path.move(to: NSPoint(x: point.x, y: bounds.minY))
-        path.line(to: NSPoint(x: point.x, y: bounds.maxY))
-        path.lineWidth = 1
-        NSColor.black.withAlphaComponent(0.35).setStroke()
-        path.stroke()
-        NSColor.white.withAlphaComponent(0.75).setStroke()
-        path.stroke()
-    }
+}
+
+/// 高亮/提示绘制层：放在冻结帧与压暗层之上，只对它自己的脏矩形重绘。
+///
+/// 为什么单独一层：NSView 自己的 draw 永远在子视图之下，而冻结帧/压暗必须是最底层。
+/// 把「会随鼠标变化的东西」集中到这一层，鼠标移动时只需要重绘高亮框那一小块，
+/// 不再是整屏 7.6M 像素。
+private final class OverlayCanvas: NSView {
+    weak var owner: ScreenshotOverlayView?
+    /// 上一次画过的高亮包围盒（局部失效用）
+    var lastHighlightBounds: CGRect = .zero
+
+    override var isOpaque: Bool { false }
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+    override func draw(_ dirtyRect: NSRect) { owner?.drawCanvas(dirtyRect) }
 }
 
 // MARK: - 覆盖层窗口
@@ -747,8 +922,9 @@ final class ScreenshotOverlayView: NSView {
 final class ScreenshotOverlayWindow: NSWindow {
     let overlayView: ScreenshotOverlayView
 
-    init(screen: NSScreen, snapshot: CGImage?) {
-        self.overlayView = ScreenshotOverlayView(frame: NSRect(origin: .zero, size: screen.frame.size))
+    init(screen: NSScreen, snapshot: CGImage?, windowHits: [ScreenshotOverlayView.WindowHit]? = nil) {
+        self.overlayView = ScreenshotOverlayView(frame: NSRect(origin: .zero, size: screen.frame.size),
+                                                 windowHits: windowHits)
         super.init(contentRect: screen.frame,
                    styleMask: .borderless,
                    backing: .buffered,

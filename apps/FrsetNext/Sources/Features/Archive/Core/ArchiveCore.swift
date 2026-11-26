@@ -51,8 +51,17 @@ public enum ArchiveCore {
 
     static func extractionDirectory(containing file: URL) -> URL {
         let temporary = FileManager.default.temporaryDirectory.standardizedFileURL
-        return temporary.appendingPathComponent(file.standardizedFileURL.pathComponents[temporary.pathComponents.count],
-                                                isDirectory: true)
+        // 2026-11-25（二轮复核）：file 不在临时目录树下时下标会越界。回退到临时根目录的
+        // 「frset-extract-other」子目录，宁可放错位置也不崩。
+        // 2026-11-26 修复（二轮 low）：光比段数不够——/Users/xxx 这类外部路径段数一样多，
+        // 取到的会是无关目录。补一层临时目录前缀校验，不匹配同样回退。
+        let comps = file.standardizedFileURL.pathComponents
+        let roots = temporary.pathComponents
+        let idx = roots.count
+        guard comps.count > idx, Array(comps.prefix(idx)) == roots else {
+            return temporary.appendingPathComponent("frset-extract-other", isDirectory: true)
+        }
+        return temporary.appendingPathComponent(comps[idx], isDirectory: true)
     }
 
     // MARK: 7zz 定位
@@ -698,6 +707,11 @@ public enum ArchiveCore {
         args += [url.path]
 
         DispatchQueue.global(qos: .userInitiated).async {
+            // v292（性能第二轮 F）：渐进索引计时——首批可浏览/完整索引/进程退出三段。
+            // 只记条目数与毫秒，不记任何路径内容。
+            let indexStart = DispatchTime.now().uptimeNanoseconds
+            var firstEmitMs: Double = -1        // 只在主队列读写（onPreliminary 串行回调）
+            var emitCount = 0
             let task = Process()
             task.executableURL = URL(fileURLWithPath: bin)
             task.arguments = args
@@ -730,7 +744,15 @@ public enum ArchiveCore {
                 let partial = includeAuxiliary ? snapshot
                     : snapshot.filter { !isAuxiliary($0.path) }
                 guard !partial.isEmpty else { return }
-                DispatchQueue.main.async { onPreliminary(partial) }
+                DispatchQueue.main.async {
+                    emitCount += 1
+                    let ms = Double(DispatchTime.now().uptimeNanoseconds - indexStart) / 1_000_000
+                    if firstEmitMs < 0 {
+                        firstEmitMs = ms
+                        Log.info("Archive", String(format: "渐进索引：首批可浏览 %d 条 @ %.0fms", partial.count, ms))
+                    }
+                    onPreliminary(partial)
+                }
             }
 
             // 看门狗：120s 未结束按超时收尾（与 list 的 60s 同量级，大包放宽）
@@ -765,7 +787,12 @@ public enum ArchiveCore {
             }
             let all = streamer.finish()
             let filtered = includeAuxiliary ? all : all.filter { !isAuxiliary($0.path) }
-            DispatchQueue.main.async { completion(filtered, nil) }
+            let totalMs = Double(DispatchTime.now().uptimeNanoseconds - indexStart) / 1_000_000
+            DispatchQueue.main.async {
+                Log.info("Archive", String(format: "渐进索引：完整 %d 条 @ %.0fms（首批 %.0fms · 发布 %d 次）",
+                                           filtered.count, totalMs, firstEmitMs, emitCount))
+                completion(filtered, nil)
+            }
         }
     }
 
@@ -1204,12 +1231,21 @@ public enum ArchiveCore {
                 // v127：取消传播的统一收尾——被 terminate 的 7zz 可能报空错，
                 // 对外一律回「已取消」，别把取消显示成失败
                 let cancelled = !ok && ArchiveTaskQueue.shared.isCancelled(taskID)
+                // 2026-11-25（二轮复核 medium）：失败/取消时 7zz 可能已经写出半截归档，
+                // 旧实现留在原地——用户得到一个打不开的包，还以为创建成功过。
+                if !ok { try? FileManager.default.removeItem(at: archiveURL) }
                 done(ok, msg)
                 // 保持原 API 语义：结果回主线程（run 的回调本在主线程，这里兜底早期返回路径）
                 DispatchQueue.main.async { completion(ok, cancelled ? "已取消" : msg) }
             }
             guard let first = files.first else {
                 both(false, "没有选中文件")
+                return
+            }
+            // 2026-11-25（二轮复核 medium）：目标已存在时 `7zz a` 是**追加/合并**而非覆盖，
+            // 新包会混入旧内容且无任何提示。明确拒绝，让用户自己删或改名。
+            if FileManager.default.fileExists(atPath: archiveURL.path) {
+                both(false, "目标已存在：\(archiveURL.lastPathComponent)（请先删除或改名，避免新旧内容混在一起）")
                 return
             }
             var base = first.deletingLastPathComponent()

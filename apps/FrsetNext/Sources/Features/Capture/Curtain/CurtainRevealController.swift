@@ -27,6 +27,8 @@ public final class CurtainRevealController {
     private var strips: [NSWindow] = []
     private var pollTask: Task<Void, Never>?
     private var hideDeadline: Date?
+    /// 上次顺延控制器自动收起的时刻（1s 节流，见 tick）
+    private var lastKeepAliveAt = Date.distantPast
     private var installed = false
     /// 上次安装时的屏幕几何签名（同样的屏幕不重复建窗口，避免启动时装两遍）
     private var installedSignature = ""
@@ -115,6 +117,7 @@ public final class CurtainRevealController {
         pollTask?.cancel()
         pollTask = nil
         hideDeadline = nil
+        lastKeepAliveAt = .distantPast
     }
 
     /// 0.2s 一次：鼠标还在热区或帘子里 → 取消收起；离开超过 0.8s → 收起
@@ -128,6 +131,15 @@ public final class CurtainRevealController {
         let inCurtain = ImageCurtainController.shared.panelFrame.insetBy(dx: -4, dy: -4).contains(point)
         if inStrip || inCurtain {
             hideDeadline = nil
+            // 2026-11-26 修复（二轮 low）：这里原来只管「悬停该不该收起」，
+            // 但控制器自己的 scheduleAutoHide 还在跑且不会被顺延——鼠标一直停在帘子上，
+            // displayDuration（默认 12s）到点照样 hide()，帘子凭空消失。
+            // 停留期间每秒顺延一次倒计时（1s 节流，避免每 0.2s 取消/重建一个 Task）。
+            let now = Date()
+            if now.timeIntervalSince(lastKeepAliveAt) >= 1.0 {
+                lastKeepAliveAt = now
+                ImageCurtainController.shared.extendAutoHide()
+            }
             return
         }
         if let deadline = hideDeadline {

@@ -23,7 +23,10 @@ import Foundation
 public enum L10n {
 
     /// lproj bundle 按语言码缓存，切换语言直接使用对应缓存项。
+    /// 2026-11-26 修复：t() 理论上可从任意线程调用，[String: Bundle] 并发读写会崩，
+    /// 用锁保护；命中率高、临界区只有一次查表，开销可忽略。
     private static var bundleCache: [String: Bundle] = [:]
+    private static let bundleLock = NSLock()
 
     /// 取键面在当前生效语言下的译文；缺失回退键面本身（英文兜底，对齐原作）
     public static func t(_ key: String) -> String {
@@ -35,10 +38,17 @@ public enum L10n {
 
     /// 按语言码取对应 .lproj bundle；资源缺失（未打包 / 裸可执行文件调试）时返回 nil
     private static func lprojBundle(for code: String) -> Bundle? {
-        if let cached = bundleCache[code] { return cached }
+        bundleLock.lock()
+        if let cached = bundleCache[code] {
+            bundleLock.unlock()
+            return cached
+        }
+        bundleLock.unlock()
         guard let path = Bundle.main.path(forResource: code, ofType: "lproj"),
               let bundle = Bundle(path: path) else { return nil }
+        bundleLock.lock()
         bundleCache[code] = bundle
+        bundleLock.unlock()
         return bundle
     }
 

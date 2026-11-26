@@ -126,16 +126,33 @@ final class RecordingRegionPicker {
 
     private var overlays: [ScreenshotOverlayWindow] = []
     private var completion: ((CGRect) -> Void)?
+    /// 是否已有一轮框选在进行（2026-11-26 修复 low）
+    private var isPicking = false
 
     private init() {}
 
     func pick(completion: @escaping (CGRect) -> Void) {
+        // 2026-11-26 修复（low）：重复调用会把 completion 顶掉并把第一批覆盖窗 orderOut，
+        // 导致第一个调用方的闭包永远不被调用（流程挂住）。这里直接忽略重复请求。
+        guard !isPicking else {
+            Log.warn("Recording", "区域选择已在进行中，忽略重复调用")
+            return
+        }
+        isPicking = true
         Task { @MainActor in
-            guard await ScreenshotManager.shared.ensureScreenRecordingPermission() else { return }
+            guard await ScreenshotManager.shared.ensureScreenRecordingPermission() else {
+                self.isPicking = false
+                return
+            }
             self.overlays.forEach { $0.orderOut(nil) }
             self.overlays.removeAll()
             self.completion = completion
             let snapshots = await ScreenshotManager.acquireScreenSnapshots()
+            guard !snapshots.isEmpty else {
+                self.completion = nil
+                self.isPicking = false
+                return
+            }
             for (screen, snapshot) in snapshots {
                 let window = ScreenshotOverlayWindow(screen: screen, snapshot: snapshot)
                 window.overlayView.onCommit = { [weak self, weak window] rect in
@@ -152,6 +169,7 @@ final class RecordingRegionPicker {
     }
 
     private func finish(_ rect: CGRect?) {
+        isPicking = false
         overlays.forEach { $0.orderOut(nil) }
         overlays.removeAll()
         guard let rect, rect.width > 8, rect.height > 8 else {

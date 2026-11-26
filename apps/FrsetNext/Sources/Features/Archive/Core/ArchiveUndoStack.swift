@@ -71,11 +71,27 @@ public final class ArchiveUndoStack: ObservableObject {
     @Published public private(set) var undoLabel = ""
     @Published public private(set) var redoLabel = ""
 
+    /// 2026-11-26 修复（二轮 medium/low）：栈项带稳定 id。
+    /// apply 是异步的，期间可能又有新 push（追加 & 深栈丢最早条目都会让下标漂移），
+    /// 完成回调按 id 移除才不会再弹错条目。
+    private struct Entry {
+        let id: Int
+        let change: ArchiveChange
+    }
+
     private let url: URL
-    private var undoItems: [ArchiveChange] = []
-    private var redoItems: [ArchiveChange] = []
+    private var undoItems: [Entry] = []
+    private var redoItems: [Entry] = []
+    private var nextEntryID = 0
     /// 施加变更是异步的，进行中忽略新的 undo/redo 请求（防双击弹栈错位）
     private var busy = false
+    /// 2026-11-26 修复（二轮 low）：撤销栈此前无上限，每次 push 都留快照
+    /// （单条可含多个 ≤48MB 文件），长会话会一直堆临时文件与内存。
+    /// push 超过该深度时丢弃最早的那条（Snapshot.deinit 会连带删掉临时目录）。
+    private static let maxDepth = 40
+    /// push 代号：apply 是异步的，完成回调据此判断期间有没有新变更——
+    /// 有新变更说明重做历史已被 push 清空，本次撤销不能再进重做栈。
+    private var pushGeneration = 0
     /// undo/redo 完成后回调（模型里负责 reload()）
     public var onApplied: (() -> Void)?
 
@@ -85,20 +101,35 @@ public final class ArchiveUndoStack: ObservableObject {
 
     /// 记录一次新修改（清空重做历史）
     public func push(_ change: ArchiveChange) {
-        undoItems.append(change)
+        undoItems.append(Entry(id: nextEntryID, change: change))
+        nextEntryID &+= 1
         redoItems.removeAll()
+        pushGeneration &+= 1
+        // 2026-11-26 修复（二轮 low）：超深时丢最早的一条，避免无限堆积快照
+        if undoItems.count > Self.maxDepth {
+            undoItems.removeFirst(undoItems.count - Self.maxDepth)
+        }
         refresh()
     }
 
     public func undo() {
-        guard !busy, let change = undoItems.last else { return }
+        guard !busy, let entry = undoItems.last else { return }
+        let change = entry.change
+        // 2026-11-25（二轮复核 medium）：apply 是异步的，期间可能又有新 push。
+        // 完成回调里按位置/removeLast 会弹掉「别人的」条目，本次变更反倒留在栈上 →
+        // 下一次 undo 作用到错误条目。
+        // 2026-11-26 修复（二轮 medium）：改为按 Entry.id 精确移除；且期间若 push 过，
+        // 重做历史已被清空，本次撤销也不再进重做栈（否则重做会把旧变更叠到新内容上）。
+        let generation = pushGeneration
         busy = true
         apply(change, undo: true) { [weak self] ok, msg in
             guard let self else { return }
             self.busy = false
             if ok {
-                self.undoItems.removeLast()
-                self.redoItems.append(change)
+                self.undoItems.removeAll { $0.id == entry.id }
+                if generation == self.pushGeneration {
+                    self.redoItems.append(entry)
+                }
                 self.refresh()
                 Toast.show("已撤销：\(change.label)", icon: "arrow.uturn.backward")
                 self.onApplied?()
@@ -109,14 +140,15 @@ public final class ArchiveUndoStack: ObservableObject {
     }
 
     public func redo() {
-        guard !busy, let change = redoItems.last else { return }
+        guard !busy, let entry = redoItems.last else { return }
+        let change = entry.change
         busy = true
         apply(change, undo: false) { [weak self] ok, msg in
             guard let self else { return }
             self.busy = false
             if ok {
-                self.redoItems.removeLast()
-                self.undoItems.append(change)
+                self.redoItems.removeAll { $0.id == entry.id }
+                self.undoItems.append(entry)
                 self.refresh()
                 Toast.show("已重做：\(change.label)", icon: "arrow.uturn.right")
                 self.onApplied?()
@@ -129,8 +161,8 @@ public final class ArchiveUndoStack: ObservableObject {
     private func refresh() {
         canUndo = !undoItems.isEmpty
         canRedo = !redoItems.isEmpty
-        undoLabel = undoItems.last?.label ?? ""
-        redoLabel = redoItems.last?.label ?? ""
+        undoLabel = undoItems.last?.change.label ?? ""
+        redoLabel = redoItems.last?.change.label ?? ""
     }
 
     // MARK: 施加变更（undo = 逆操作，redo = 正操作）

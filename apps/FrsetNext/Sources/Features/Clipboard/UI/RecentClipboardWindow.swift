@@ -121,7 +121,21 @@ final class RecentClipboardWindowController: NSWindowController, NSWindowDelegat
     func show(returnTo application: NSRunningApplication? = nil, items: [ClipboardItem]? = nil,
               format: ClipboardOutputFormat = .merged) {
         guard let window else { return }
-        if window.isVisible { window.makeKeyAndOrderFront(nil); return }
+        if window.isVisible {
+            if closing {
+                // 2026-11-26 修复（二轮复核 low）：关闭动画（0.12s）期间重入 show() 时窗口
+                // 仍 isVisible，早退后关闭动画的 completion 照常 orderOut → 调用方以为已弹出，
+                // 实际窗口被收起且 alpha 停在 0。这里撤销本次关闭（复位 closing + 代际 +
+                // 透明度），close 的收尾见到 closing=false 就只恢复 alpha、不再 orderOut。
+                closing = false
+                generation += 1
+                NSAnimationContext.runAnimationGroup { context in
+                    context.duration = 0
+                    window.animator().alphaValue = 1
+                }
+            }
+            window.makeKeyAndOrderFront(nil); return
+        }
         returnApplication = application
         generation += 1
         let current = generation
@@ -199,7 +213,15 @@ final class RecentClipboardWindowController: NSWindowController, NSWindowDelegat
     }
 
     func tableView(_ tableView: NSTableView, rowViewForRow row: Int) -> NSTableRowView? {
-        ClipboardRowChromeView()
+        // 2026-11-26 修复（low）：行容器加了 identifier 并走 makeView 复用，
+        // 不再每次 reload / 滚动入视口都为每行新建一个 NSTableRowView 子类实例。
+        let identifier = NSUserInterfaceItemIdentifier("recent.rowChrome")
+        if let reused = tableView.makeView(withIdentifier: identifier, owner: nil) as? ClipboardRowChromeView {
+            return reused
+        }
+        let rowView = ClipboardRowChromeView()
+        rowView.identifier = identifier
+        return rowView
     }
 
     func tableViewSelectionDidChange(_ notification: Notification) { refreshCells() }
@@ -261,6 +283,12 @@ final class RecentClipboardWindowController: NSWindowController, NSWindowDelegat
         closing = true
         generation += 1
         let finish = { [self] in
+            // 2026-11-26 修复：show() 在关闭动画期间重入会复位 closing 并重新上屏，
+            // 此时不能再 orderOut（否则窗口被收起、alpha 停在 0），只把淡出撤销掉。
+            guard closing else {
+                window.alphaValue = 1
+                return
+            }
             window.orderOut(nil)
             WindowReveal.reset(window)
             closing = false

@@ -415,7 +415,12 @@ public final class CaptureWorkflowRunner {
     // MARK: GitHub / Linear
 
     private func createGitHubIssue(repo: String, token: String, ctx: Context) throws {
-        let url = URL(string: "https://api.github.com/repos/\(repo)/issues")!
+        // 2026-11-25（二轮复核）：repo 是用户输入，含空格/非法字符时 URL(string:) 返回 nil，
+        // 后台队列强解包直接崩。改为失败时把错误回传给调用方。
+        guard let url = URL(string: "https://api.github.com/repos/\(repo.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? repo)/issues") else {
+            throw NSError(domain: "Workflow", code: 3,
+                          userInfo: [NSLocalizedDescriptionKey: "GitHub 仓库地址无法构造 URL：\(repo)"])
+        }
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")

@@ -352,12 +352,18 @@ private final class IslandMaterialView: NSView {
     private var glassView: NSView?
     override var isFlipped: Bool { true }
 
-    // MARK: 实测（2026-11-24）
+    // MARK: 实测（2026-11-24，v292 口径修正）
     //
-    // 仅在启动前设置 probe.islandMaterial=true 才记录逐帧耗时。
-    private static let diagnosticsEnabled = UserDefaults.standard.bool(forKey: "probe.islandMaterial")
+    // 逐帧记 layout 耗时与玻璃取样面更新次数，形变收尾时打一行日志。
+    // 只记毫秒/次数，不记画面内容。
+    // v292（性能第二轮 A4）：
+    //   · 口径：glassFrameUpdates 统计的是 **glass.frame（取样面）变化次数**，不是
+    //     NSGlassEffectView 对象重建次数（对象只在 init 建一次，applyMaterial 只切显隐）；
+    //   · 默认关闭：普通运行不再累积/排序统计。需要时 `defaults write com.sxyq.frsetnext
+    //     probe.islandMaterial -bool true` 再开（与 probe.motionPacing 同族）。
+    private static let statsEnabled = UserDefaults.standard.bool(forKey: "probe.islandMaterial")
     private var layoutCount = 0
-    private var glassRebuilds = 0
+    private var glassFrameUpdates = 0
     private var maskPathCount = 0
     private var frameCosts: [Double] = []      // layout 总耗时
     private var maskCosts: [Double] = []       // 遮罩路径重算
@@ -375,20 +381,24 @@ private final class IslandMaterialView: NSView {
         // 形状交给 CAShapeLayer 遮罩（2026-11-23：0 字面量收编为 .zero）。
         // v286：`systemGlass` 不再写死 true——那会绕过用户偏好，让刘海永远走
         // 焦点自适应的 NSGlassEffectView（点击前后观感跳变的来源之一）。
-        // 现在 material == .liquidGlass 只表达「愿意接受动态玻璃」，
-        // 最终是否启用由 uiUseSystemGlass 显式偏好决定（默认稳定 .inactive）。
-        let glass = LiquidGlass.makeView(cornerRadius: .zero,
-                                         tint: Self.tint(shellOpacity),
-                                         solid: false,
-                                         followsWindowFocus: material == .liquidGlass)
+        // 2026-11-24 v293：改成一条 `LiquidGlass.Style`——材质/焦点/着色/纯色
+        // 全部交给解析器，后端对象由 GlassHost 按解析结果持有；毛玻璃分支现在
+        // **真的消费 tint**（旧实现直接丢掉，导致「外壳通透度」在默认后端上无效）。
+        var style = LiquidGlass.Style(role: .island)
+        style.tint = Self.tint(shellOpacity)
+        style.cornerRadius = .zero
+        style.focus = material == .liquidGlass ? .systemDynamic : .stable
+        let glass = GlassHost(frame: .zero, style: style)
         glass.appearance = NSAppearance(named: .darkAqua)
+        let host = glass as NSView
         // 关掉 autoresizing：取样面比宿主大（上角移到屏幕外），宿主每帧插值时
         // AppKit 会照旧把子视图拉回 bounds —— 那正好把「只重设一次」变成「每帧一次」。
-        glass.autoresizingMask = []
-        addSubview(glass)
-        glassView = glass
+        host.autoresizingMask = []
+        addSubview(host)
+        glassView = host
         // 排障口径：一眼看出这一版外壳走的是真玻璃还是毛玻璃回退。
-        Log.info("Island", "外壳材质：\(type(of: glass)) 通透度=\(Int((1 - shellOpacity) * 100))% 降透明=\(LiquidGlass.reduceTransparency)")
+        Log.info("Island", "外壳材质：\(LiquidGlass.resolve(style).backend.rawValue) "
+                 + "通透度=\(Int((1 - shellOpacity) * 100))% 降透明=\(LiquidGlass.reduceTransparency)")
         applyMaterial(material)
     }
     required init?(coder: NSCoder) { fatalError("init(coder:) is unavailable") }
@@ -398,11 +408,20 @@ private final class IslandMaterialView: NSView {
         NSColor.black.withAlphaComponent(min(1, max(0, opacity)))
     }
 
-    /// 材质切换收敛：玻璃建一次、只切显隐；纯色/降透明由外层黑幕给深色。
+    /// 材质切换收敛：玻璃对象建一次，纯色/降透明只切显隐 + 解析成不透明底。
+    ///
+    /// v293：`style.solid` 也一起写进去——旧实现只切 `isHidden`，底层对象仍是
+    /// 采样玻璃；纯色窗口一旦被系统短暂重绘（如切 Space）就会透出背后的桌面。
     func applyMaterial(_ new: IslandMaterial) {
         material = new
         let needsGlass = new != .solid
         glassView?.isHidden = !needsGlass
+        if let host = glassView as? GlassHost {
+            var style = host.style
+            style.solid = !needsGlass
+            style.focus = new == .liquidGlass ? .systemDynamic : .stable
+            host.apply(style)
+        }
         // 纯色时留一层黑底：即使外层黑幕将来调整，形状也不会透出背后内容
         layer?.backgroundColor = needsGlass ? nil : NSColor.black.cgColor
         applyTint()
@@ -410,16 +429,16 @@ private final class IslandMaterialView: NSView {
     }
 
     private func applyTint() {
-        guard let glass = glassView, !glass.isHidden else { return }
-        LiquidGlass.reapplyStyle(on: glass, cornerRadius: .zero,
-                                 tint: Self.tint(shellOpacity), solid: false)
+        guard let host = glassView as? GlassHost, !host.isHidden else { return }
+        var style = host.style
+        style.tint = Self.tint(shellOpacity)
+        host.apply(style)
     }
 
     /// 唯一几何入口：插值尺寸只喂遮罩，取样面只在两档之间整块切换。
     func applyGeometry(interpolated: CGSize, radius newRadius: CGFloat,
                        sampling target: CGSize, samplingInset inset: CGFloat) {
-        let measure = Self.diagnosticsEnabled
-        if measure { layoutCount += 1 }
+        if Self.statsEnabled { layoutCount += 1 }
         if radius != newRadius { radius = newRadius; needsLayout = true }
         // 放大：展开一开始就按最终尺寸铺玻璃（本帧一次）；
         // 缩小：等遮罩真的收到收起态（插值 == 目标）再缩——提前缩会让收起途中透出桌面。
@@ -431,12 +450,12 @@ private final class IslandMaterialView: NSView {
             samplingInset = inset
             needsLayout = true
         }
-        if measure {
-            let samePlace = abs(lastInterpolated.width - interpolated.width) <= 0.5
-                && abs(lastInterpolated.height - interpolated.height) <= 0.5
-            if settled, !samePlace { flushStats(settledAt: interpolated) }
-            lastInterpolated = interpolated
+        let samePlace = abs(lastInterpolated.width - interpolated.width) <= 0.5
+            && abs(lastInterpolated.height - interpolated.height) <= 0.5
+        if settled, !samePlace {
+            flushStats(settledAt: interpolated)
         }
+        lastInterpolated = interpolated
     }
 
     private func flushStats(settledAt size: CGSize) {
@@ -450,10 +469,10 @@ private final class IslandMaterialView: NSView {
         let maximum = frameCosts.max() ?? 0
         let maskP95 = maskCosts.isEmpty ? 0 : pct(maskCosts, 0.95)
         Log.info("Island", String(format:
-            "岛材质：几何更新 %d 次 · 玻璃重建 %d 次 · 遮罩重算 %d 次 · layout p50 %.3fms p95 %.3fms max %.3fms · 遮罩 p95 %.3fms · 落位 %.0f×%.0f",
-            layoutCount, glassRebuilds, maskPathCount, p50, p95, maximum, maskP95,
+            "岛材质：几何更新 %d 次 · 取样面更新 %d 次 · 遮罩重算 %d 次 · layout p50 %.3fms p95 %.3fms max %.3fms · 遮罩 p95 %.3fms · 落位 %.0f×%.0f",
+            layoutCount, glassFrameUpdates, maskPathCount, p50, p95, maximum, maskP95,
             size.width, size.height))
-        layoutCount = 0; glassRebuilds = 0; maskPathCount = 0
+        layoutCount = 0; glassFrameUpdates = 0; maskPathCount = 0
         frameCosts.removeAll(keepingCapacity: true)
         maskCosts.removeAll(keepingCapacity: true)
     }
@@ -461,8 +480,7 @@ private final class IslandMaterialView: NSView {
     override func layout() {
         super.layout()
         guard bounds != renderedBounds || radius != renderedRadius || sampling != renderedSampling else { return }
-        let measure = Self.diagnosticsEnabled
-        let started = measure ? CFAbsoluteTimeGetCurrent() : 0
+        let started = Self.statsEnabled ? CFAbsoluteTimeGetCurrent() : 0
         renderedBounds = bounds
         renderedRadius = radius
         renderedSampling = sampling
@@ -476,19 +494,19 @@ private final class IslandMaterialView: NSView {
                                 width: sampling.width, height: sampling.height + samplingInset)
             if glass.frame != target {
                 glass.frame = target
-                if measure { glassRebuilds += 1 }
+                if Self.statsEnabled { glassFrameUpdates += 1 }
             }
             if samplingInset != renderedSamplingInset {
                 renderedSamplingInset = samplingInset
                 LiquidGlass.setCornerRadius(samplingInset, on: glass)
             }
         }
-        let maskStart = measure ? CFAbsoluteTimeGetCurrent() : 0
+        let maskStart = Self.statsEnabled ? CFAbsoluteTimeGetCurrent() : 0
         mask.frame = bounds
         mask.path = IslandOutline(radius: radius).path(in: bounds).cgPath
-        if measure { maskPathCount += 1 }
         CATransaction.commit()
-        if measure {
+        if Self.statsEnabled {
+            maskPathCount += 1
             maskCosts.append((CFAbsoluteTimeGetCurrent() - maskStart) * 1000)
             frameCosts.append((CFAbsoluteTimeGetCurrent() - started) * 1000)
             if frameCosts.count > 300 { frameCosts.removeFirst(150); maskCosts.removeFirst(min(150, maskCosts.count)) }

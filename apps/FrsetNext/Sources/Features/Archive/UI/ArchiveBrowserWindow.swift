@@ -139,9 +139,21 @@ public final class ArchiveBrowserModel: ObservableObject {
     /// 当前层级的直接子项（+ 为「无显式目录条目」的中间目录合成虚拟文件夹）；
     /// 搜索时跳过层级过滤，全量匹配
     public var visibleEntries: [ArchiveEntry] {
-        if !searchText.isEmpty {
-            let list = showAuxiliary ? entries : entries.filter { !ArchiveCore.isAuxiliary($0.path) }
-            return list.filter { $0.path.localizedCaseInsensitiveContains(searchText) }
+        guard searchText.isEmpty else {
+            // v292（2026-11-24 性能第二轮 C，上级复核确认的重复过滤）：
+            // 旧实现每次访问都先 `rebuildChildIndexIfNeeded()`（generation 变时整表重建）
+            // 再算一遍 `entries.filter { !isAuxiliary }`，最后再 filter 搜索词——三遍全表，
+            // 而空搜索时那份辅助过滤结果算完即丢弃（直接返回 childIndex 查表），纯白算。
+            // 现在：空搜索只做版本检查 + 查表；搜索分支不碰目录索引，
+            // 辅助文件过滤与搜索匹配合并成一次遍历（结果顺序仍为 entries 原序）。
+            let query = searchText
+            var result: [ArchiveEntry] = []
+            result.reserveCapacity(min(entries.count, 4096))
+            for entry in entries {
+                if !showAuxiliary && ArchiveCore.isAuxiliary(entry.path) { continue }
+                if entry.path.localizedCaseInsensitiveContains(query) { result.append(entry) }
+            }
+            return result
         }
         rebuildChildIndexIfNeeded()
         return childIndex[currentPath] ?? []
@@ -383,29 +395,52 @@ public final class ArchiveBrowserModel: ObservableObject {
         return true
     }
 
+    /// 2026-11-25（二轮复核 medium）：init/保存/添加/删除/重命名/undo 各起一次
+    /// listStreaming，重叠时旧进程更晚返回会把新列表回灌成陈旧内容，旧回调还会提前
+    /// 把 indexingComplete 置 true 解锁搜索。每次 reload 领一个代号，回调先对代号。
+    private var reloadGeneration = 0
+
     public func reload() {
+        reloadGeneration &+= 1
+        let generation = reloadGeneration
         loading = true
         errorText = nil
+        // v292（性能第二轮 F）：UI 侧计时——首批上屏、发布次数、每次 rebuild 耗时、
+        // 全量完成总耗时。只记条目数与毫秒。
+        let reloadStart = DispatchTime.now().uptimeNanoseconds
+        var publishCount = 0
+        var lastRebuildMs: Double = 0
         // v290：渐进式索引——7zz 边流边解析，部分条目先上屏（根目录先可浏览、
         // 可全部解压），全量索引完成后开放搜索/预览/拖出/解压所选。
         // 全量载入（含辅助文件），由 visibleEntries 决定显隐——这样开关能即时生效
         ArchiveCore.listStreaming(url: url, includeAuxiliary: true,
                                   onPreliminary: { [weak self] partial in
-            guard let self, !partial.isEmpty else { return }
+            guard let self, self.reloadGeneration == generation, !partial.isEmpty else { return }
             self.loading = false                 // 首批条目到位即可交互
             self.indexingComplete = false
             self.preliminaryCount = partial.count
             self.entries = partial
             self.invalidateChildIndex()
+            let rebuildStart = DispatchTime.now().uptimeNanoseconds
             self.rebuildColumns()                // 分栏渐进期也要刷新
+            lastRebuildMs = Double(DispatchTime.now().uptimeNanoseconds - rebuildStart) / 1_000_000
+            publishCount += 1
+            if publishCount == 1 {
+                let ms = Double(DispatchTime.now().uptimeNanoseconds - reloadStart) / 1_000_000
+                Log.info("Archive", String(format: "UI 首批上屏 %.0fms（%d 条 · rebuild %.0fms）",
+                                           ms, partial.count, lastRebuildMs))
+            }
         }, completion: { [weak self] list, err in
-            guard let self else { return }
+            guard let self, self.reloadGeneration == generation else { return }
             self.loading = false
             self.indexingComplete = true
             self.preliminaryCount = list.count
             self.entries = list
             self.invalidateChildIndex()   // v288：目录索引随重载失效（惰性重建）
             self.rebuildColumns()
+            let totalMs = Double(DispatchTime.now().uptimeNanoseconds - reloadStart) / 1_000_000
+            Log.info("Archive", String(format: "UI 索引完成 %.0fms（%d 条 · 渐进发布 %d 次 · 末次 rebuild %.0fms）",
+                                       totalMs, list.count, publishCount, lastRebuildMs))
             if let err {
                 // v124：像是缺密码就弹输入框，输对自动重载
                 if ArchiveCore.ArchivePasswords.looksLikePasswordError(err) {
@@ -629,6 +664,14 @@ public final class ArchiveBrowserModel: ObservableObject {
     /// v127 接线（arch-engine P2-2）：添加前扫 Windows 文件名问题 → 对话框三选一
     public func addFiles(_ files: [URL]) {
         guard !files.isEmpty else { return }
+        // 2026-11-26 修复（二轮 low）：pickAndAddFiles 只挡了索引期，底部「…」菜单与右键
+        // 「添加文件到此文件夹…」都能对 rar/dmg 等只读包发起写入，只能等 7zz 报错。
+        // 这里统一补上「索引未完成」与「只读格式」两道前置。
+        if gateIfPreliminary("添加文件") { return }
+        guard editable else {
+            Toast.show("此格式仅支持浏览，无法添加文件", icon: "lock", isWarning: true)
+            return
+        }
         guard confirmOverwriteIfSourceChanged() else { return }
         let issues = ArchiveCore.windowsNameIssues(files.map { $0.lastPathComponent })
         guard !issues.isEmpty else {
@@ -701,22 +744,26 @@ public final class ArchiveBrowserModel: ObservableObject {
             dir = currentPath
         }
         ArchiveCore.addFiles(url: url, files: files, intoDirectory: dir) { [weak self] ok, msg in
-            defer {
+            // 2026-11-25（二轮复核）：清理挪进备份完成回调。captureAddeds 已改后台拷贝，
+            // 原来这里的 defer 会在拷贝开始前就把源临时目录删掉 → 撤销快照全部失效。
+            let cleanupTemporaries = {
                 for directory in temporaryDirectories { try? FileManager.default.removeItem(at: directory) }
             }
-            guard let self else { return }
+            guard let self else { cleanupTemporaries(); return }
             if ok {
                 // v127（ArcZip P0）：新增内容备份 → 可撤销（undo=removeEntries）
                 self.captureAddeds(files, into: dir) { snaps in
                     if !snaps.isEmpty {
                         self.undoStack.push(.add(items: snaps))
                     }
+                    cleanupTemporaries()
                 }
                 self.refreshSourceStamp()
                 Toast.show(msg, icon: "plus.circle")
                 self.reload()
             } else {
                 self.errorText = msg
+                cleanupTemporaries()
             }
         }
     }
@@ -998,10 +1045,22 @@ public final class ArchiveBrowserModel: ObservableObject {
         }
         let cap = Int64(48 * 1024 * 1024)
         var seen = Set<String>()
-        let unique = files.filter { $0.size <= cap && seen.insert($0.path).inserted }
+        var skipped: [String] = []
+        var unique: [ArchiveEntry] = []
+        for f in files where seen.insert(f.path).inserted {
+            if f.size <= cap { unique.append(f) } else { skipped.append(f.path) }
+        }
         var snaps: [ArchiveChange.Snapshot] = []
         func next(_ index: Int) {
             guard index < unique.count else {
+                // 2026-11-25（二轮复核 high）：超限文件不进快照，但**必须告知**。
+                // 旧实现静默过滤：删除目录后 undo 只写回小文件、仍提示「已撤销」，
+                // 大文件永久丢失。
+                if !skipped.isEmpty {
+                    Toast.show("\(skipped.count) 个文件超过 48MB 未备份，撤销不会恢复它们",
+                               icon: "exclamationmark.triangle")
+                    Log.warn("Archive", "删除备份跳过超限文件 \(skipped.count) 个：\(skipped.prefix(5).joined(separator: ", "))")
+                }
                 completion(snaps)
                 return
             }
@@ -1017,25 +1076,31 @@ public final class ArchiveBrowserModel: ObservableObject {
     }
 
     /// 添加后备份新增内容（复制源文件到临时目录，路径 = 包内相对路径）
+    ///
+    /// 2026-11-25（函数审查 NEEDS_FIX 落实）：本函数被 `ArchiveCore.addFiles` 的完成回调
+    /// 调用，而该回调经 `both()` 落在主线程——createDirectory+copyItem 是磁盘重活，
+    /// GB 级新增会同步冻结 UI 数秒。拷贝循环挪后台队列，快照回主线程再 push 撤销栈。
     private func captureAddeds(_ files: [URL], into dir: String,
                                completion: @escaping ([ArchiveChange.Snapshot]) -> Void) {
-        var snaps: [ArchiveChange.Snapshot] = []
-        for f in files {
-            let rel = dir.isEmpty ? f.lastPathComponent : dir + "/" + f.lastPathComponent
-            let directory = FileManager.default.temporaryDirectory
-                .appendingPathComponent("frset-addsnap-\(UUID().uuidString)", isDirectory: true)
-            let tmp = directory.appendingPathComponent(f.lastPathComponent)
-            do {
-                try FileManager.default.createDirectory(at: tmp.deletingLastPathComponent(),
-                                                        withIntermediateDirectories: true)
-                try FileManager.default.copyItem(at: f, to: tmp)
-                snaps.append(.init(path: rel, tempURL: tmp))
-            } catch {
-                // 备份失败 → 该项不可撤销，跳过
-                try? FileManager.default.removeItem(at: directory)
+        DispatchQueue.global(qos: .utility).async {
+            var snaps: [ArchiveChange.Snapshot] = []
+            for f in files {
+                let rel = dir.isEmpty ? f.lastPathComponent : dir + "/" + f.lastPathComponent
+                let directory = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("frset-addsnap-\(UUID().uuidString)", isDirectory: true)
+                let tmp = directory.appendingPathComponent(f.lastPathComponent)
+                do {
+                    try FileManager.default.createDirectory(at: tmp.deletingLastPathComponent(),
+                                                            withIntermediateDirectories: true)
+                    try FileManager.default.copyItem(at: f, to: tmp)
+                    snaps.append(.init(path: rel, tempURL: tmp))
+                } catch {
+                    // 备份失败 → 该项不可撤销，跳过
+                    try? FileManager.default.removeItem(at: directory)
+                }
             }
+            DispatchQueue.main.async { completion(snaps) }
         }
-        completion(snaps)
     }
 }
 

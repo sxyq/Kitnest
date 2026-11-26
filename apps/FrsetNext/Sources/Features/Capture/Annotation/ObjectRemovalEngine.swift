@@ -67,7 +67,18 @@ public struct DiffusionInpainter: RemovalEngine {
             isHole[i] = maskBuf[i * 4] > 24
             if isHole[i] { holeCount += 1 }
         }
-        guard holeCount > 0, holeCount < ww * wh else { return image }   // 无洞 / 全洞
+        // 2026-11-26 修复：无洞 / 全洞两种退化情况原来直接 `return image`，
+        // 调用方只看非 nil 就会 record(.imageSnapshot) 并提示「已抹除」——
+        // 用户「涂了没反应却提示成功」，撤销栈还多一条空记录。
+        // 现在返回 nil，由调用方给出「该区域无需/无法抹除」的反馈。
+        guard holeCount > 0 else {
+            Log.info("Capture", "抹除：掩膜在降采样后为空（无需修复），跳过")
+            return nil
+        }
+        guard holeCount < ww * wh else {
+            Log.warn("Capture", "抹除：掩膜覆盖整幅工作区，无法修复")
+            return nil
+        }
 
         // ② SOR 调和填充（Double 缓冲，多级初值）
         let solution = Self.solveLevels(imgBuf: imgBuf, isHole: isHole, w: ww, h: wh)

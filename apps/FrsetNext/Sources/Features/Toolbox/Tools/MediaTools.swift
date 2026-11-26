@@ -77,6 +77,9 @@ public enum ImageCompressor {
         let ext = asPNG ? "png" : "jpg"
         let outDir = AppDirectories.sub("toolbox")
         let name = url.deletingPathExtension().lastPathComponent
+        // 2026-11-26 修复（二轮 low）：压缩产物此前无限堆积（rebuild/重开工具都不删），
+        // 长期使用会在用户目录下累积大量临时文件。写入前清掉较旧的产物，只保留最近 N 个。
+        Self.pruneOutputs(in: outDir, keeping: Self.retainedOutputs - 1)
         let outURL = outDir.appendingPathComponent("\(name)-压缩-\(UUID().uuidString.prefix(8)).\(ext)")
         do {
             try data.write(to: outURL)
@@ -92,6 +95,30 @@ public enum ImageCompressor {
                       pixelSize: CGSize(width: cgImage.width, height: cgImage.height),
                       image: image,
                       fileURL: outURL)
+    }
+
+    /// 压缩产物保留个数（含本次；超出部分按修改时间从旧到新删除）
+    private static let retainedOutputs = 20
+
+    /// 清理 toolbox 目录里旧的「-压缩-」产物，只留最近 `keeping` 个。
+    /// 只动本函数自己命名的文件，不碰目录里其它内容；删除失败静默忽略。
+    /// （2026-11-26 修复·二轮 low）
+    private static func pruneOutputs(in dir: URL, keeping: Int) {
+        let keys: Set<URLResourceKey> = [.contentModificationDateKey, .isRegularFileKey]
+        guard let files = try? FileManager.default.contentsOfDirectory(
+            at: dir, includingPropertiesForKeys: Array(keys), options: [.skipsHiddenFiles]) else { return }
+        let outputs = files
+            .filter { $0.lastPathComponent.contains("-压缩-") }
+            .compactMap { url -> (URL, Date)? in
+                let values = try? url.resourceValues(forKeys: keys)
+                guard values?.isRegularFile == true else { return nil }
+                return (url, values?.contentModificationDate ?? .distantPast)
+            }
+            .sorted { $0.1 > $1.1 }
+        guard outputs.count > keeping else { return }
+        for (url, _) in outputs.dropFirst(max(0, keeping)) {
+            try? FileManager.default.removeItem(at: url)
+        }
     }
 
     static func encode(_ image: CGImage, quality: Double, asPNG: Bool) throws -> Data {

@@ -607,7 +607,10 @@ static int frset_compare_proc_rank(void *context, const void *a, const void *b) 
     double l = kind == 0 ? left->cpu : kind == 1 ? left->mem : left->dr + left->dw;
     double r = kind == 0 ? right->cpu : kind == 1 ? right->mem : right->dr + right->dw;
     if (l != r) return (l < r) - (l > r);
-    return (left > right) - (left < right); /* 同值保留原枚举顺序。 */
+    /* 2026-11-26 修复（F-misc-1#18）：原来比较的是 ranked 指针地址（left > right），
+       实际按地址排，与注释「同值保留原枚举顺序」意图不符——cur[] 是静态数组时地址序
+       恰等于插入序，属碰巧正确的脆弱写法。改成按 pid 升序，确定性且与 frset_compare_pid 口径一致。 */
+    return (left->pid > right->pid) - (left->pid < right->pid);
 }
 
 // v86：每个维度（0=CPU 1=内存 2=磁盘 3=网络）各自保留上一轮快照。
@@ -622,7 +625,7 @@ static double g_pPrevT[4] = {0, 0, 0, 0};
    proc_listallpids + 全量 proc_pid_rusage/proc_name（3×~500 次系统调用/周期）。
    进程原始计数（ut/st/rb/wb/mem/name）与 kind 无关，缓存一次扫描 200ms 内复用；
    速率仍按各 kind 自己的上一轮快照（g_pPrev[k]）差分，数值口径不变；进程路径一并缓存，
-   避免三个 kind 重复调用 proc_pidpath。缓存命中时 t 回拨到扫描时刻，保证 dt 口径一致。 */
+   避免三个 kind 重复调用 proc_pidpath。缓存命中时 t 回拨到扫描时刻，保证 dt 与实际采样窗口一致。 */
 static frset_proc_raw_t g_scanCache[FRSET_PROC_CAP];
 static char g_scanCachePath[FRSET_PROC_CAP][512];
 static char g_scanCachePathLoaded[FRSET_PROC_CAP];
@@ -729,7 +732,7 @@ int frset_proc_top(int kind, frset_proc_t *out, int max) {
             if (proc_pidpath(r->pid, path, sizeof(path)) > 0) {
                 strncpy(g_scanCachePath[r->scan_index], path,
                         sizeof(g_scanCachePath[r->scan_index]) - 1);
-                g_scanCachePathLoaded[r->scan_index] = 1;
+                g_scanCachePath[r->scan_index][sizeof(g_scanCachePath[r->scan_index]) - 1] = 0;
             }
         }
         strncpy(out[i].path, g_scanCachePath[r->scan_index], sizeof(out[i].path) - 1);
@@ -1392,7 +1395,10 @@ static int frset_compare_energy_rank(const void *a, const void *b) {
     const frset_energy_pid_t *left = *(const frset_energy_pid_t *const *)a;
     const frset_energy_pid_t *right = *(const frset_energy_pid_t *const *)b;
     if (left->watts != right->watts) return (left->watts < right->watts) - (left->watts > right->watts);
-    return (left > right) - (left < right);
+    /* 2026-11-26 修复（F-misc-1#19）：同值 tie-break 原来比 ranked 指针地址，
+       与 frset_compare_pid 的整型比较不一致、也与注释意图不符（rows[] 静态数组
+       使地址序碰巧等于插入序）。改成按 pid 升序。 */
+    return (left->pid > right->pid) - (left->pid < right->pid);
 }
 
 int frset_proc_energy_pids(frset_energy_pid_t *out, int max, double *elapsedSec) {

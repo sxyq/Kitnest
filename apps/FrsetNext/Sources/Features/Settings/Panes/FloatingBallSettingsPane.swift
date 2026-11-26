@@ -177,22 +177,50 @@ struct FloatingBallSettingsPane: View {
                 option("收起后贴边半隐藏", key: FloatingBallSettings.autoHideKey, fallback: true)
             }
         }
-        .id(revision)
+        // 2026-11-26 修复：原 `.id(revision)` 会在每次 revision 变化（任意开关/排序/档位）
+        // 时销毁重建整棵视图树，丢失滚动/焦点/展开态。revision 由 @Stored（底层 @StateObject）
+        // 承载，写值本身就会触发 body 重算并重新读取 UserDefaults，无需强制换 identity。
+    }
+
+    /// 2026-11-25（二轮复核 medium）：滑条原来在 set 里 `revision &+= 1`，而整页挂着
+    /// `.id(revision)` —— 拖动时每个 tick 都销毁重建整棵视图树（@Stored 状态、正在拖的
+    /// NSSlider 全被换掉，展开态/焦点/滚动位置丢失）。改成自带 @State 的小控件：
+    /// 拖动只在控件内部刷新数值、写偏好，不再触发整页重建。
+    private struct FloatingBallSliderRow: View {
+        let title: String
+        let key: String
+        let range: ClosedRange<Double>
+        let step: Double
+        let suffix: String
+
+        @Stored private var value: Double = 0
+
+        init(title: String, key: String, range: ClosedRange<Double>, step: Double, suffix: String) {
+            self.title = title; self.key = key; self.range = range
+            self.step = step; self.suffix = suffix
+            let fallback: Double = key == FloatingBallSettings.sizeKey ? 48
+                : key == FloatingBallSettings.tileSizeKey ? 44
+                : key == FloatingBallSettings.widthKey ? 220
+                : key == FloatingBallSettings.heightKey ? 180 : 0.92
+            _value = Stored(wrappedValue: UserDefaults.standard.object(forKey: key) as? Double ?? fallback)
+        }
+
+        var body: some View {
+            SettingsRow(title: title) {
+                Slider(value: $value, in: range, step: step)
+                    .frame(width: 190)
+                    .onChange(of: value) { v in
+                        UserDefaults.standard.set(v, forKey: key)
+                        FloatingBallController.shared.applyConfiguration()
+                    }
+                Text("\(Int(value * (suffix.isEmpty ? 100 : 1)))\(suffix)")
+                    .monospacedDigit().frame(width: 45, alignment: .trailing)
+            }
+        }
     }
 
     private func slider(_ title: String, key: String, range: ClosedRange<Double>, step: Double, suffix: String) -> some View {
-        SettingsRow(title: title) {
-            let fallback = key == FloatingBallSettings.sizeKey ? 48.0
-                : key == FloatingBallSettings.tileSizeKey ? 44.0
-                : key == FloatingBallSettings.widthKey ? 220.0
-                : key == FloatingBallSettings.heightKey ? 180.0 : 0.92
-            Slider(value: Binding(
-                get: { UserDefaults.standard.object(forKey: key) as? Double ?? fallback },
-                set: { UserDefaults.standard.set($0, forKey: key); FloatingBallController.shared.applyConfiguration(); revision &+= 1 }
-            ), in: range, step: step).frame(width: 190)
-            Text("\(Int((UserDefaults.standard.object(forKey: key) as? Double ?? fallback) * (suffix.isEmpty ? 100 : 1)))\(suffix)")
-                .monospacedDigit().frame(width: 45, alignment: .trailing)
-        }
+        FloatingBallSliderRow(title: title, key: key, range: range, step: step, suffix: suffix)
     }
 
     private func option(_ title: String, key: String, fallback: Bool = false) -> some View {

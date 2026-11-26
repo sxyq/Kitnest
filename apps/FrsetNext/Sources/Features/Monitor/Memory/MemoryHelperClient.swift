@@ -74,9 +74,10 @@ public enum MemoryHelperClient {
             "(/bin/launchctl enable system/\(helperLabel) >/dev/null 2>&1 || true)",
             "/bin/launchctl bootstrap system \(quote(installedPlistPath))"
         ]
-        let result = await Task.detached(priority: .userInitiated) {
-            AdministratorShell.run(commands.joined(separator: " && "))
-        }.value
+        // 2026-11-25（二轮复核 medium）：AdministratorShell 内部是 NSAppleScript，
+        // 属于主线程 API（授权弹窗本身就是模态的）。原来丢到 detached 后台线程跑，
+        // 可能静默失败、错误只剩 -128 判定。这里直接在主线程执行。
+        let result = AdministratorShell.run(commands.joined(separator: " && "))
         switch result {
         case .success:
             // launchd 启动有延迟，轮询至多 6 秒
@@ -187,6 +188,12 @@ enum AdministratorShell {
         let isCancelled: Bool
     }
 
+    /// 同步执行一次管理员授权脚本。
+    ///
+    /// 2026-11-26 修复（F-misc-1#2）：`NSAppleScript` 属于主线程 API（授权弹窗本身是模态的），
+    /// 但签名里看不出这条约束，调用方很容易把它丢到后台线程（install 早期就这么干过，
+    /// 表现为静默失败、只剩 -128）。标 @MainActor，让编译器强制「切回主线程再调用」。
+    @MainActor
     static func run(_ command: String) -> Result<String, Failure> {
         let source = "do shell script \"\(appleScriptEscape(command))\" with administrator privileges"
         var error: NSDictionary?

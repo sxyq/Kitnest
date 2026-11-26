@@ -1,4 +1,13 @@
 import AppKit
+
+/// 锚点中点所在的屏幕（点坐标，与 NSScreen.frame 同系）；取不到时退回主屏。
+/// 2026-11-25：钉图气泡的钳制必须跟着锚点所在的屏走，不能用 NSScreen.main
+///（键盘焦点窗所在屏），否则副屏上的钉图气泡会被拽到另一块屏。
+private func pinScreen(containing rect: NSRect) -> NSScreen? {
+    let p = NSPoint(x: rect.midX, y: rect.midY)
+    return NSScreen.screens.first { NSMouseInRect(p, $0.frame, false) }
+        ?? NSScreen.main ?? NSScreen.screens.first
+}
 import Foundation
 
 // MARK: - 统一的悬停气泡（对齐标注竖栏 v221 的「冒泡」）
@@ -26,6 +35,7 @@ final class PinBubbleView: NSView {
     private static let vPad: CGFloat = 6
     private static let badgeH: CGFloat = 14
     private static let gap: CGFloat = 6
+
 
     init(model: PinBubbleModel) {
         self.model = model
@@ -121,7 +131,10 @@ final class PinBubblePanel: NSPanel {
 
         var origin = NSPoint(x: anchor.midX - size.width / 2,
                              y: anchor.maxY + 7)
-        if let screen = (NSScreen.main ?? NSScreen.screens.first) {
+        // 2026-11-25（二轮复核 medium）：钳制必须用「锚点所在的那块屏」，
+        // 不能用 NSScreen.main（键盘焦点窗所在的屏）。钉图在副屏时主屏钳制会把气泡
+        // 拽到另一块屏、离按钮上千点。
+        if let screen = pinScreen(containing: anchor) {
             let v = screen.visibleFrame
             origin.x = min(max(v.minX + 6, origin.x), v.maxX - size.width - 6)
             if origin.y + size.height > v.maxY - 4 { origin.y = anchor.minY - size.height - 7 }
@@ -386,6 +399,8 @@ final class PinMenuPanel: NSPanel {
     var onPick: ((String) -> Void)?
     /// 关闭后把键盘焦点还给钉图窗，否则 Esc/A/C 这些快捷键就失灵了
     weak var ownerWindow: NSWindow?
+    /// present 代次（dismiss 的淡出回调据此判断是否已被重新弹出）
+    private var shownGeneration = 0
 
     init() {
         super.init(contentRect: NSRect(x: 0, y: 0, width: PinMenuView.width, height: 40),
@@ -427,6 +442,9 @@ final class PinMenuPanel: NSPanel {
 
     /// 在屏幕坐标 rect 上方弹出（放不下就翻到下方）
     func present(entries: [PinMenuEntry], above anchor: NSRect) {
+        // 2026-11-26 修复（二轮 low）：每次弹出自增代次，dismiss 的淡出完成回调据此判断
+        // 「这 100ms 里有没有被重新 present」，避免旧回调把刚显示的菜单 orderOut 掉。
+        shownGeneration &+= 1
         stack = [("更多", entries)]
         reload(push: false)
         layoutPanel(anchor: anchor)
@@ -449,11 +467,14 @@ final class PinMenuPanel: NSPanel {
 
     func dismiss() {
         guard isVisible else { return }
+        // 2026-11-26 修复（二轮 low）：淡出 100ms 内若又被 present（Esc 后立刻右键），
+        // 旧 completion 的 orderOut 会把刚显示的菜单收掉。用代次判断这次淡出是否还有效。
+        let generation = shownGeneration
         NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.10
             animator().alphaValue = 0
         }, completionHandler: { [weak self] in
-            guard let self else { return }
+            guard let self, self.shownGeneration == generation else { return }
             self.orderOut(nil)
             self.ownerWindow?.makeKey()
         })
@@ -483,7 +504,7 @@ final class PinMenuPanel: NSPanel {
     private func layoutPanel(anchor: NSRect) {
         let size = frame.size
         var origin = NSPoint(x: anchor.midX - size.width / 2, y: anchor.maxY + 8)
-        if let screen = (NSScreen.main ?? NSScreen.screens.first) {
+        if let screen = pinScreen(containing: anchor) {
             let v = screen.visibleFrame
             origin.x = min(max(v.minX + 8, origin.x), v.maxX - size.width - 8)
             if origin.y + size.height > v.maxY - 6 { origin.y = anchor.minY - size.height - 8 }

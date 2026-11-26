@@ -41,9 +41,9 @@ enum VoronoiTreemap {
         let fallback = Path(roundedRect: CGRect(x: 0, y: 0, width: 1, height: 1),
                             cornerRadius: 0.045)
         let outline = override ?? fallback
-        let outlineBounds = outline.boundingRect
-        guard outlineBounds.width > 0.001, outlineBounds.height > 0.001,
-              !outlineBounds.isNull, !outlineBounds.isInfinite else { return [] }
+        // 空/退化轮廓直接放弃本次布局（调用方会显示占位），绝不让后续 contains 无解
+        let ob = outline.boundingRect
+        guard ob.width > 0.001, ob.height > 0.001, !ob.isNull, !ob.isInfinite else { return [] }
         let base = sampledPoints(outline, spacing: 0.035)
         guard !base.isEmpty else { return [] }
         let triangles = triangulate(base)
@@ -53,6 +53,12 @@ enum VoronoiTreemap {
             ? arcSeeds(targets: targets, in: unit)
             : seeds(in: unit, targets: targets)
         // 矩形二分的种子可能落在弧边外，沿容器中心方向收进实际轮廓。
+        //
+        // 2026-11-25（体验时段挂死根因，二轮复核定位）：这里原来是**无上限**的
+        // `while !outline.contains(site)`。outline 一旦为空/退化（画布被压到很小、
+        // 几何推导出空路径、或 StorageMapShape 在 canvas≤60 时返回空 Path），
+        // contains 恒为 false → 主线程在这个 while 里转到天荒地老（实测 6.9 小时）。
+        // 现在：最多折半 24 次；仍未命中就落到质心，并且判空直接早退。
         let center = centroid(base)
         for i in sites.indices {
             var halvings = 0
@@ -61,7 +67,7 @@ enum VoronoiTreemap {
                 sites[i].y = (sites[i].y + center.y) * 0.5
                 halvings += 1
             }
-            guard outline.contains(sites[i]) else { return [] }
+            if halvings >= 24 { sites[i] = center }
         }
         var bias = [CGFloat](repeating: 0, count: weights.count)
         var polygons: [[[CGPoint]]] = []

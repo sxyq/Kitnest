@@ -171,7 +171,8 @@ private struct StorageSwipeRegion: NSViewRepresentable {
         var geometry: StorageSurfaceGeometry = StorageSurfaceGeometry() {
             didSet { if geometry != oldValue { hitBounds = .zero } }
         }
-        /// 命中路径对应的几何；窗口内容几何变化时必须重新做一次布尔裁切。
+        /// 命中路径对应的几何（只有它或 bounds 变了才重算，
+        /// 不再每次滚动事件都做一次 CGPath 布尔运算）。
         private var hitGeometry: StorageSurfaceGeometry?
         var onNavigate: (Int) -> Void
         private var swipeMonitor: Any?
@@ -506,6 +507,9 @@ struct StorageManagerRootView: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .background(HeaderHeightMeter())
             }
+            // 2026-11-24 v293：只接受「有意义且真的变了」的实测高度。
+            // 窗口关闭 / 布局归零时 HeaderHeightMeter 会报 0（或抖动小数），
+            // 无条件回写 @State 会再触发一次 body → 再测一次 → 关窗期间反复布局。
             .onPreferenceChange(HeaderHeightKey.self) { measured in
                 guard measured > 1, abs(measured - headerHeight) > 0.5 else { return }
                 headerHeight = measured

@@ -45,6 +45,18 @@ RENAMES = {
 
 # 新增函数的证据（逐个读过源码后写；键 = (file, name)）
 EVIDENCE = {
+    ("Features/TransferDock/UI/TransferDockView.swift", "removeStagingIfEmpty"):
+        "2026-11-26 二轮 low：手机拉取的暂存目录清理抽成独立函数——只搬空（忽略 .DS_Store）才 removeItem，"
+        "有残留就保留并记 warn，避免删除未搬走的用户文件；调用点在 pullFromPhone 收尾。",
+    ("Models/SearchEngine.swift", "encodeQuery"):
+        "2026-11-26 二轮 medium：搜索关键词编码的公共入口，按 RFC 3986 unreserved 编码（等价 encodeURIComponent），"
+        "供模板 searchURL 与网页结果抓取共用；此前两条路径各自用 .urlQueryAllowed，& = + 不转义会拼出额外参数。",
+    ("App/AppBootstrap.swift", "frontmostForSelection"):
+        "2026-11-24 性能第二轮 A2：纯本地 NSWorkspace 查询（不触发 AX IPC），岛展开时固定触发时前台应用上下文供后台选区读取；前台是 Kitnest 自身时返回 nil 沿用原语义；命令面板/划词路径不改",
+    ("Features/Island/IslandController.swift", "beginSelectionRefresh"):
+        "2026-11-24 性能第二轮 A2：岛展开选区读取改后台执行——先捕获前台上下文，DispatchQueue.global 读 AX（0.25s IPC 超时），回主线程按 selectionGeneration 代次丢弃过期结果；外壳展开不再阻塞在三次同步 AX IPC 上",
+    ("Features/Island/IslandController.swift", "logExpandPhases"):
+        "2026-11-24 性能第二轮 A1：expand() 单调时钟分步计时（开页/选区发起/剪贴板/状态/定位/上屏/入口/焦点）一行汇总，替代原笼统的「首次布局」单值日志；只记机器耗时不代表真实呈现",
     ("Core/Motion/GenieWarp.swift", "footprintMB"):
         "2026-11-23：神灯 play() 阶段计时的内存读数——task_info 取 phys_footprint 换算 MB，只读无副作用，记录帧序列构建前后占用；与 LogArchive.STATUS 的 footprint 各自短小独立",
     ("Features/Capture/Workflow/WorkflowSettingsPane.swift", "init"):
@@ -594,6 +606,25 @@ EVIDENCE.update({
         "菜单栏「图帘」项：发 curtainToggleRequested，与快捷键/设置页同一入口",
 })
 
+# ── v292 性能轮：FuzzyMatcher ASCII 快路径（文件名索引 47 万候选的打分底噪）
+EVIDENCE.update({
+    ("Features/Toolbox/Search/FuzzyMatcher.swift", "asciiMatch"):
+        "纯 ASCII 时按 UTF-8 字节做同一套子序列判定：1 字节=1 字符=1 字素簇，下标与评分"
+        "与原 Array<Character> 版本逐项一致（22 万例随机对拍 0 不一致）；含非 ASCII 返回 notApplicable 走原实现",
+    ("Features/Toolbox/Search/FuzzyMatcher.swift", "unicodeMatch"):
+        "原 match 实现原样保留为慢路径（非 ASCII / 混合文本唯一入口），避免快路径改变中文、"
+        "组合字素簇的评分与高亮下标",
+})
+
+# ── v292 实测轮：岛定位 A/B 探针（一次性，仅诊断）────────────────────────
+EVIDENCE.update({
+    ("Features/Island/IslandController.swift", "armFirstUpdateProbe"):
+        "展开后挂一次性 NSWindow.didUpdate 观察者，记「距唤起 Xms 的首帧窗口更新」；"
+        "口径明确写为非合成呈现，只用于比较 setFrame(display:) 两种模式有没有把首帧推后",
+    ("Features/Island/IslandController.swift", "disarmFirstUpdateProbe"):
+        "移除上述观察者：didUpdate 只取首次，收到即摘；再次展开前也先摘，避免旧锚点串到下一轮",
+})
+
 # ── v267：截图覆盖层合并为「自适应」（取消窗口/区域模式选择）──────────────
 EVIDENCE.update({
     ("Features/Capture/Screenshot/ScreenshotManager.swift", "commitFullScreen"):
@@ -863,7 +894,7 @@ EVIDENCE.update({
     ("Features/Monitor/Storage/StorageTreemap.swift", "inradius"):
         "DiskVoronoiLayout.make 在布局时计算标签质心到各边的最小距离，供标签档位和宽度复用；悬停不再求内切圆半径",
     ("Features/Monitor/Storage/StorageTreemap.swift", "make"):
-        "DiskLayoutStore 在后台调用 DiskVoronoiLayout.make；按节点数据、索引版本和完整曲面几何生成真实面积布局，最多保留 14 个图块",
+        "DiskLayoutStore 在后台调用 DiskVoronoiLayout.make；按节点数据、索引版本和完整曲面几何生成真实面积布局，超出 maxTiles=14 的尾部节点聚合，可用空间单列",
     ("Features/Monitor/Storage/StorageManagerWindow.swift", "displayPath"):
         "StorageCandidateRow 显示当前用户目录的短路径，唯一实现从根视图迁入候选行，悬停只更新当前行",
     ("Features/Monitor/Storage/StorageTreemap.swift", "func"):
@@ -2702,10 +2733,17 @@ def main() -> int:
         key = (r["file"], r["owner"], r["kind"], name)
         # v263：文件 / 类型改名后，旧台账行要按新键归组，否则整段被当成
         # 「源码已无此函数」丢掉，再以占位证据重新加入。
-        key = (_PATH_ALIASES.get(key[0], key[0]), key[1], key[2],
-               _NAME_ALIASES[0][1] if False else key[3])
-        key = (key[0], key[1], key[2],
-               key[3].replace("ScreenshotShelfController", "ImageCurtainController").replace("Shelf", "Curtain"))
+        # 2026-11-25（函数审查 NEEDS_FIX 落实）：两处修复——
+        #   ① `_NAME_ALIASES[0][1] if False else key[3]` 是恒取 key[3] 的死表达式，删掉；
+        #   ② Shelf→Curtain 改名只作用于**旧台账里的迁移期残留**（名字仍含 Shelf 或
+        #      文件在旧 Shelf 路径下）。v263 之后源码早已没有 Shelf 前缀，对现在新增的
+        #      台账行无条件 replace 会静默改写无关函数名（如未来出现的 MyShelfBar）。
+        key = (_PATH_ALIASES.get(key[0], key[0]), key[1], key[2], key[3])
+        legacy_shelf = "Shelf" in key[3] or "Shelf" in key[0]
+        if legacy_shelf:
+            key = (key[0], key[1], key[2],
+                   key[3].replace("ScreenshotShelfController", "ImageCurtainController")
+                         .replace("Shelf", "Curtain"))
         if (r["file"], r["owner"], name) in RENAMES:
             name = RENAMES[(r["file"], r["owner"], name)]
             key = (r["file"], r["owner"], r["kind"], name)
@@ -2730,7 +2768,9 @@ def main() -> int:
             new_line = cand[slot]
             if new_line != old_line:
                 reanchored += 1
-            r["name"] = name.replace("ScreenshotShelfController", "ImageCurtainController").replace("Shelf", "Curtain")
+            if legacy_shelf:
+                name = name.replace("ScreenshotShelfController", "ImageCurtainController").replace("Shelf", "Curtain")
+            r["name"] = name
             r["file"] = _PATH_ALIASES.get(r["file"], r["file"])
             r["line"] = str(new_line)
             out.append(r)
@@ -3295,11 +3335,121 @@ EVIDENCE.update({
         "析构兜底停表（单例不会走到，但保留以防将来改成实例持有）",
 })
 
+# ── v293（2026-11-24 玻璃系统 / 截图链路专项重构）────────────────────
+EVIDENCE.update({
+    ("Core/UI/LiquidGlassMaterial.swift", "resolve"):
+        "玻璃参数唯一解析入口：solid/降透明 → visualEffect(windowBackground/withinWindow/active)；"
+        "claim 系统玻璃仅在 focus==.systemDynamic 且全局开关允许时成立；其余一律 visualEffect+inactive。"
+        "后端、材质、混合、状态、圆角、着色、外观一次算清并给签名，调用方不再各自判断",
+    ("Core/UI/LiquidGlassMaterial.swift", "resolvedTint"):
+        "动态 NSColor 必须在目标外观下取分量：performAsCurrentDrawingAppearance 内转 sRGB，"
+        "否则深色窗口会拿到浅色 tint（旧实现毛玻璃分支干脆丢掉 tint，岛外壳通透度等于空转）",
+    ("Core/UI/LiquidGlassMaterial.swift", "init"):
+        "玻璃宿主初始化：按解析结果建底层对象（NSGlassEffectView/NSVisualEffectView），"
+        "再叠着色层；内容由 embed 后加，层序固定为 玻璃→着色→内容",
+    ("Core/UI/LiquidGlassMaterial.swift", "makeBackend"):
+        "唯一创建底层材质对象的地方；系统玻璃在 macOS 27 关掉 effectIsInteractive，"
+        "避免玻璃自身的光学按键反馈与内容层 hover 抢同一次合成",
+    ("Core/UI/LiquidGlassMaterial.swift", "apply"):
+        "幂等状态入口：签名没变只更新样式值、不碰材质（AppKit 对 material/blending/state 的任何赋值"
+        "都会作废整窗采样）；后端真的变了才替换底层对象，内容与窗口状态不动",
+    ("Core/UI/LiquidGlassMaterial.swift", "configureBackend"):
+        "毛玻璃三分支先比较再赋值（material/blending/state 任一不同才在隐式动画里切），"
+        "系统玻璃只同步 tintColor/cornerRadius；这是「失焦闪一下」与拖滑块重采样的直接修复点",
+    ("Core/UI/LiquidGlassMaterial.swift", "applyTint"):
+        "两条后端语义对齐：系统玻璃给 tintColor，毛玻璃交给同色着色层；"
+        "系统玻璃时隐藏着色层，避免同一块玻璃被着色两次",
+    ("Core/UI/LiquidGlassMaterial.swift", "applyCorner"):
+        "圆角只在真变时赋值；radius==0 时关闭 masksToBounds，省掉整窗一次离屏合成",
+    ("Core/UI/LiquidGlassMaterial.swift", "layout"):
+        "只在 frame 真变时同步底层与着色层尺寸：逐帧插值的岛只更新遮罩，不重设取样面",
+    ("Core/UI/LiquidGlassMaterial.swift", "viewDidChangeEffectiveAppearance"):
+        "外观切换时重解析动态 tint 并更新签名；材质本身由 AppKit 自适应，不重建对象",
+    ("Core/UI/LiquidGlassMaterial.swift", "GlassTintLayerView.init"):
+        "着色层初始隐藏、不参与命中；纯 CALayer 填充，比叠一个全尺寸 SwiftUI fill 少一次合成",
+    ("Core/UI/LiquidGlassMaterial.swift", "apply"):
+        "着色层唯一写入口：颜色相同直接短路（动态色每次解析都是新对象，必须比值不比其他）",
+    ("Core/UI/LiquidGlassMaterial.swift", "hitTest"):
+        "着色层恒不接事件：覆盖层/面板的首次点击必须落到内容或宿主上",
+    ("Features/Capture/Screenshot/ScreenSnapshot.swift", "seconds"):
+        "会话预算构造：整轮截图共用一个 deadline，替代旧实现「每条通道各自 4s、可串行叠加 12s」",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "showOverlays"):
+        "上屏阶段唯一入口：全部屏幕冻结完成后 activate 一次，光标屏 makeKey、其余 orderFront；"
+        "日志明确区分「orderFront 返回」与真实可交互（首次输入事件另记）",
+    ("Features/Capture/Screenshot/ScreenshotManager.swift", "makeOverlay"):
+        "建一块覆盖层（不可见）：接齐五条提交回调 + 预置窗口命中列表；"
+        "抓帧期间并行建窗，把上屏阶段的工作提前做掉，但绝不提前显示",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "installSnapshot"):
+        "冻结帧直接作为 CALayer.contents 显示：覆盖层不再透出实时桌面，"
+        "Kitnest 激活导致原应用预览/菜单消失也不再改变用户看到的画面",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "hitTest"):
+        "所有子图层都不接事件，鼠标恒落到覆盖层自己；否则第一下点击会被 NSImageView 的"
+        "acceptsFirstMouse=false 吞掉（历史「点一次没反应」同族）",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "layout"):
+        "子层尺寸只在真变时同步（窗口不可缩放，正常只走一次）",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "replaceWindowHits"):
+        "会话级窗口命中列表晚到时补入（一轮只枚举一次，双屏不再主线程枚举两遍）",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "collectWindowHits"):
+        "可后台调用的窗口枚举：排除本进程与桌面元素、过滤 <80×60、CG 全局坐标转 Cocoa；"
+        "主线程只在没有预置列表时兜底调用",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "drawCanvas"):
+        "高亮/提示绘制：不再整屏填 35% 黑（压暗已下沉为静态层），只画窗口/元素高亮与提示胶囊",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "highlightBounds"):
+        "当前高亮包围盒：局部失效的唯一依据，空白桌面时为空 → 不重绘",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "invalidateCanvas"):
+        "只失效「旧高亮 ∪ 新高亮」：鼠标在空白处移动不再触发整屏重绘",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "updateCrosshair"):
+        "十字准线改 CAShapeLayer 路径更新（关闭隐式动画）：贯穿全屏的两条线不再让整屏 backing store 失效",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "OverlayCanvas.draw"):
+        "透传给覆盖层绘制；自身透明、不接事件，只承载「会随鼠标变化」的那一层",
+    ("Features/Capture/Screenshot/ScreenshotOverlay.swift", "OverlayCanvas.hitTest"):
+        "绘制层恒不接事件（事件统一由覆盖层 hitTest 接管）",
+    ("Features/Monitor/Storage/StorageTreemap.swift", "rawPath"):
+        "路径真实构造（缓存未命中时）：轮廓 ∩ 图块画布后线性映射；"
+        "CGPath 布尔运算只在这里发生，不再每个悬停事件做一次",
+    ("Features/Panel/Presentation/FloatingPanel.swift", "glassHost"):
+        "在视图树里定位玻璃宿主（面板被 WindowReveal 容器再包一层）；"
+        "替代旧实现「取 contentView.subviews.first」的脆弱假设",
+})
+
+# ── v293 续（2026-11-25 剩余缺陷逐条修复新增函数）────────────────────
+EVIDENCE.update({
+    ("Features/TransferDock/Android/AndroidWebDAVServer.swift", "streamDownload"):
+        "WebDAV 下载流式化①：先 adb stat 取大小拿 Content-Length，发响应头后进入分块泵送；"
+        "旧实现 readDataToEndOfFile 整文件进内存（GB 级视频峰值≈文件大小）",
+    ("Features/TransferDock/Android/AndroidWebDAVServer.swift", "pumpDownload"):
+        "WebDAV 下载流式化②：后台线程阻塞读 256KB → 连接队列发送 → 完成回调驱动下一块；"
+        "连接消失/设备断开时 terminate cat 并关闭，连接关闭路径会清理 spills 与临时文件",
+    ("Features/TransferDock/Transfer/LanTransferServer.swift", "pumpDownload"):
+        "手机扫码下载流式化②：后台读 256KB → 连接队列发送 → 回调驱动下一块；"
+        "长度不符/文件提前读到头按失败收尾（触觉 + 关连接）",
+    ("Features/TransferDock/Transfer/LanTransferServer.swift", "finishDownload"):
+        "下载收尾唯一出口：防重（done2）、触觉、GET 完成通知、cancel 连接；"
+        "与 send() 的成功口径一致（method==GET 且 2xx）",
+    ("Features/Capture/History/CaptureHistoryStore.swift", "itemsAsync"):
+        "历史查询异步入口：同一串行队列查询、结果回主线程（串行队列保证完成顺序与调用顺序）；"
+        "主线程不再 queue.sync 等缩略图生成所在队列",
+    ("Features/Capture/History/CaptureHistoryStore.swift", "itemsLocked"):
+        "必须在 queue 上调用的查询体（同步版 items 与异步版 itemsAsync 共用），逻辑与原实现一致",
+    ("Features/Panel/Preview/PreviewImageLoader.swift", "cachedDecode"):
+        "同步解码缓存（NSCache，上限 8 张）：悬停预览模型构造走不了 loadImage 异步缓存/在途去重，"
+        "同一文件每次 hover 重新解码；sync- 路径独立 key，不影响 loadImage 的缓存语义",
+    ("Features/Toolbox/Search/SearchSectionView.swift", "performFetch"):
+        "搜索页抓取体（原 fetchResults 主体）：按引擎 URL 加载→8s 超时→渲染余量→JS 提取；"
+        "外层 fetchResults 以任务链串行化后，单槽位 continuation 竞争消失，本体语义不变",
+    ("Features/Capture/Curtain/CurtainWindow.swift", "scheduleScrollResizeEnd"):
+        "⌘滚轮缩放收尾去抖（350ms）：旧实现每 tick 都 resizeEnd → 写 UserDefaults+rebuild+Toast+"
+        "缩略图重扫；拖拽路径的 mouseUp end 不经过这里。CurtainCardView / CurtainCanvasView 两个视图各持一份",
+})
+
 # ── v291（2026-11-24 投屏线 v2 立项落地）────────────────────────────
 EVIDENCE.update({
     ("Features/TransferDock/Transfer/LanTransferServer.swift", "connectHTML"):
         "立项 v2 主路线 A 的连接页：UA 分流给 iPhone(AirPlay 引导)/Android(无线调试指引)，"
         "直传动作跳 /s/ 复用既有路由；AP 隔离提示；无外链资源",
+    ("Features/Toolbox/Calendar/CalendarSectionView.swift", "lunarDisplay"):
+        "日历单元格把已计算的农历、节气与传统节日传入展示函数；函数只按原优先级裁短节日名，"
+        "不再重复调用 LunarCalendar，节气、节日、农历和节假日文案的显示顺序保持原行为",
 })
 
 if __name__ == "__main__":

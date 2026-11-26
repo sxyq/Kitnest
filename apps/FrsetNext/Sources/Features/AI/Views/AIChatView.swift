@@ -41,7 +41,16 @@ struct ChatBubble: View {
                 Text(role == .user ? "我" : role == .assistant ? "助手" : "系统")
                     .font(.system(size: 11, weight: .semibold))
                     .foregroundStyle(Theme.tertiaryText)
-                MarkdownText(content)
+                // 2026-11-26 修复（二轮 low）：流式期间每个 SSE 增量都会对增长中的全文重新
+                // AttributedString(markdown:) 解析，长回复是 O(n × 增量数)。中间态改用纯 Text，
+                // 流结束后（isStreaming=false）才走 Markdown 渲染。
+                Group {
+                    if isStreaming {
+                        Text(content)
+                    } else {
+                        MarkdownText(content)
+                    }
+                }
                     .font(.system(size: 13))
                     .padding(10)
                     .background {
@@ -127,12 +136,13 @@ public final class AIChatViewModel: ObservableObject {
     public func send() {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !isStreaming else { return }
+        // 2026-11-26 修复：会话建不出来就别清草稿、别进流式态，直接给出可见提示
+        guard let activeSession = ensureSession() else { return }
         draft = ""
         errorMessage = nil
         streamingText = ""
         isStreaming = true
 
-        let activeSession = ensureSession()
         let userMessage = LLMSessionStore.shared.appendMessage(sessionID: activeSession.id, role: .user, content: text)
         LLMSessionStore.shared.autoTitle(sessionID: activeSession.id, from: text)
         messages.append(userMessage)
@@ -151,7 +161,11 @@ public final class AIChatViewModel: ObservableObject {
 
     public func startNewChat() {
         stop()
-        let created = LLMSessionStore.shared.createSession(provider: provider, model: selectedModel)
+        // 2026-11-26 修复：建会话失败时保留当前会话，给出可见错误
+        guard let created = LLMSessionStore.shared.createSession(provider: provider, model: selectedModel) else {
+            errorMessage = "新建会话失败：无法写入本地数据库"
+            return
+        }
         session = created
         messages = []
         streamingText = ""
@@ -162,9 +176,12 @@ public final class AIChatViewModel: ObservableObject {
 
     // MARK: 私有
 
-    private func ensureSession() -> LLMChatSession {
+    private func ensureSession() -> LLMChatSession? {
         if let session { return session }
-        let created = LLMSessionStore.shared.createSession(provider: provider, model: selectedModel)
+        guard let created = LLMSessionStore.shared.createSession(provider: provider, model: selectedModel) else {
+            errorMessage = "新建会话失败：无法写入本地数据库，消息不会保存"
+            return nil
+        }
         session = created
         return created
     }
@@ -189,7 +206,12 @@ public final class AIChatViewModel: ObservableObject {
         } catch {
             let partial = reply
             await MainActor.run {
-                // 用户主动停止：不弹错误；其余错误如实提示（保留已产出的内容）
+                // 用户主动停止：不弹错误；其余错误如实提示（保留已产出的内容）。
+                // 会话已切换时旧任务的错误/部分内容一律不写入新会话。
+                if sessionID != self.session?.id {
+                    self.isStreaming = false
+                    return
+                }
                 self.errorMessage = error.isLLMCancellation ? nil : error.localizedDescription
                 self.finishPartial(reply: partial, sessionID: sessionID)
                 if !Task.isCancelled, !error.isLLMCancellation { HapticService.shared.perform(.operationFailed) }
@@ -198,6 +220,13 @@ public final class AIChatViewModel: ObservableObject {
     }
 
     private func commit(reply: String, sessionID: String) {
+        // 2026-11-25（二轮复核）：会话已切换（startNewChat）时，被取消的旧任务收尾
+        // 不得把上一轮的部分回复写进新会话。sessionID 对不上就整体丢弃。
+        guard sessionID == session?.id else {
+            isStreaming = false
+            streamingText = ""
+            return
+        }
         guard !reply.isEmpty else {
             isStreaming = false
             streamingText = ""
@@ -211,6 +240,12 @@ public final class AIChatViewModel: ObservableObject {
     }
 
     private func finishPartial(reply: String, sessionID: String) {
+        // 同上：旧任务的收尾只作用于发起时的会话
+        guard sessionID == session?.id else {
+            isStreaming = false
+            streamingText = ""
+            return
+        }
         if !reply.isEmpty {
             let message = LLMSessionStore.shared.appendMessage(sessionID: sessionID, role: .assistant, content: reply)
             messages.append(message)

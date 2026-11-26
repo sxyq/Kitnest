@@ -80,20 +80,28 @@ public final class TranslationToolSession: TranslationToolRequestExecuting {
             return AsyncThrowingStream { $0.finish(throwing: TranslationToolError.llmUnavailable) }
         }
         return AsyncThrowingStream { continuation in
-            Task {
+            // 2026-11-26 修复（二轮 low）：此前产流 Task 没有任何生命周期绑定——
+            // 消费方停止迭代（面板关闭/切页签）后它仍会继续 yield（静默丢弃）、
+            // 继续回落下一个 Provider（含弹授权 NSAlert、发新的网络请求）。
+            // 现在 onTermination 取消持有任务，循环内逐个检查点早退。
+            let task = Task {
                 var lastError: Error?
                 var deniedOnline = false
                 for provider in candidates {
+                    if Task.isCancelled { continuation.finish(); return }
                     if deniedOnline && provider.id != "apple" { continue }
                     guard await TranslationPrivacyConsent.authorize(provider) else {
                         deniedOnline = true
                         continue
                     }
+                    // 授权提示本身可能阻塞很久，回来后再确认一次
+                    if Task.isCancelled { continuation.finish(); return }
                     do {
                         if let stream = provider.stream(trimmed, to: targetLanguage) {
                             var yieldedOutput = false
                             do {
                                 for try await part in stream {
+                                    if Task.isCancelled { continuation.finish(); return }
                                     yieldedOutput = true
                                     continuation.yield(part)
                                 }
@@ -111,6 +119,7 @@ public final class TranslationToolSession: TranslationToolRequestExecuting {
                         continuation.finish()
                         return
                     } catch {
+                        if Task.isCancelled { continuation.finish(); return }
                         lastError = error
                         Log.debug("AI", "翻译 Provider「\(provider.displayName)」失败，尝试下一个：\(error.localizedDescription)")
                     }
@@ -118,6 +127,7 @@ public final class TranslationToolSession: TranslationToolRequestExecuting {
                 continuation.finish(throwing: lastError ?? (deniedOnline
                     ? TranslationToolError.onlineTranslationDeclined : TranslationToolError.llmUnavailable))
             }
+            continuation.onTermination = { _ in task.cancel() }
         }
     }
 
@@ -197,6 +207,10 @@ public final class TranslationToolSession: TranslationToolRequestExecuting {
 
     /// 解析 `⟦n⟧ 译文` / `n. 译文` 两种输出
     public static func parseMarkedLines(_ reply: String, expected: Int) -> [String] {
+        // 2026-11-26 修复（二轮 low）：expected <= 0 时下面 `(1...expected)` 是非法 Range
+        // （1...0 会触发前置条件崩溃）。这是 public static，调用方虽然都先判了非空，
+        // 这里也必须自守。
+        guard expected > 0 else { return [] }
         let regexes = [
             try? NSRegularExpression(pattern: "^\\s*[⟦\\[]?(\\d{1,3})[⟧\\]]\\s*(.+)$"),
             try? NSRegularExpression(pattern: "^\\s*(\\d{1,3})[.、)．]\\s*(.+)$")
@@ -237,6 +251,9 @@ public final class TranslationToolSession: TranslationToolRequestExecuting {
                 remember(provider)
                 return result
             } catch {
+                // 2026-11-25（二轮复核）：取消不是「该 Provider 失败」——用户已经叫停/换会话了，
+                // 继续回落会接着请求下一个 Provider 甚至弹授权弹窗（阻塞主线程）。立即上抛。
+                if error is CancellationError { throw error }
                 lastError = error
                 // 「自动」模式下这是预期路径（没配 Key），降到 debug 免得刷警告
                 Log.debug("AI", "翻译 Provider「\(provider.displayName)」失败，尝试下一个：\(error.localizedDescription)")

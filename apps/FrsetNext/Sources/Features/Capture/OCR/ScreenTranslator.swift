@@ -201,7 +201,11 @@ public enum ScreenTranslator {
             for line in layout.lines {
                 guard let attr = CFAttributedStringCreate(nil, line as CFString, ctArgs) else { continue }
                 let ctLine = CTLineCreateWithAttributedString(attr)
-                // CoreText 绘制（CG 坐标系，已翻转为左上原点）
+                // CoreText 绘制（CG 坐标系，已翻转为左上原点）。
+                // 2026-11-25（二轮复核）：翻转后的 context 里 CTLineDraw 默认按当前 CTM
+                // 再「正立」排版，字形会上下镜像。必须先把 textMatrix 设为 y 翻转，
+                // 让字形随坐标一起翻回来（对照 RecordingCompositor 在未翻转上下文里画字）。
+                ctx.textMatrix = CGAffineTransform(scaleX: 1, y: -1)
                 ctx.textPosition = CGPoint(x: inner.minX, y: y + fontSize * 0.86)
                 CTLineDraw(ctLine, ctx)
                 y += layout.lineHeight

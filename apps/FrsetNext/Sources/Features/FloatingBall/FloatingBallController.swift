@@ -412,7 +412,8 @@ public final class FloatingBallController: NSObject, ObservableObject, NSWindowD
         let screen = screenFor(panel.frame)
         activeDisplayID = IslandDisplay.available.first { $0.id == activeDisplayID }?.id ?? screenKey(screen)
         if FloatingBallSettings.rememberPosition,
-           let point = (UserDefaults.standard.dictionary(forKey: FloatingBallSettings.positionsKey) as? [String: [Double]])?[screenKey(displayScreen)] {
+           let point = (UserDefaults.standard.dictionary(forKey: FloatingBallSettings.positionsKey) as? [String: [Double]])?[screenKey(displayScreen)],
+           point.count >= 2 {
             ballOrigin = NSPoint(x: displayScreen.visibleFrame.minX + point[0], y: displayScreen.visibleFrame.minY + point[1])
         }
         applyConfiguration()
@@ -426,7 +427,13 @@ public final class FloatingBallController: NSObject, ObservableObject, NSWindowD
         } ?? screenAtPointer()
     }
     private func screenKey(_ screen: NSScreen) -> String {
-        IslandDisplay(screen: screen)!.id
+        // 2026-11-25（函数审查 NEEDS_FIX 落实）：IslandDisplay 是可失败 init
+        //（NSScreenNumber 缺失 / CGDisplayCreateUUID 返回 nil），屏热插拔瞬间强解包会崩。
+        //
+        // 2026-11-25（二轮复核 medium）：回退键必须带前缀。旧版写进数字键的是**绝对坐标**，
+        // 新版写的是**相对坐标**——共用一个数字键时，一次回退就会把旧版的绝对坐标
+        // 永久覆盖成相对值，屏一换位置全乱。命名空间分开。
+        IslandDisplay(screen: screen)?.id ?? "legacy-\(legacyScreenKey(screen))"
     }
     private func legacyScreenKey(_ screen: NSScreen) -> String {
         String((screen.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber)?.uint32Value ?? 0)

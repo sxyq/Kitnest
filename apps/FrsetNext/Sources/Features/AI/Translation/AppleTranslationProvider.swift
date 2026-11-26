@@ -168,25 +168,42 @@ final class AppleTranslationBridge {
     private let model = AppleTranslationBridgeModel()
     private var window: NSWindow?
     private var pending: CheckedContinuation<TranslationSession, Error>?
+    /// 2026-11-26 修复（二轮 low）：等待者代号。调用方 Task 取消后立刻用它唤醒
+    /// 对应续体，不再空等满 8 秒超时；超时任务也只清自己那一代。
+    private var pendingToken: UUID?
 
     /// 拿一个配置好语言方向的 session（8 秒超时）
     func session(from source: Locale.Language, to target: Locale.Language) async throws -> TranslationSession {
-        try await withCheckedThrowingContinuation { continuation in
-            // 同一时刻只允许一个等待者（翻译是串行动作）
-            if let previous = pending {
-                pending = nil
-                previous.resume(throwing: AppleTranslationError.timedOut)
-            }
-            pending = continuation
-            ensureWindow()
-            model.configuration = .init(source: source, target: target)
+        let token = UUID()
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                // 同一时刻只允许一个等待者（翻译是串行动作）
+                if let previous = pending {
+                    pending = nil
+                    pendingToken = nil
+                    previous.resume(throwing: AppleTranslationError.timedOut)
+                }
+                pending = continuation
+                pendingToken = token
+                ensureWindow()
+                model.configuration = .init(source: source, target: target)
 
+                Task { @MainActor [weak self] in
+                    try? await Task.sleep(nanoseconds: 8_000_000_000)
+                    guard let self, self.pendingToken == token, let waiter = self.pending else { return }
+                    self.pending = nil
+                    self.pendingToken = nil
+                    Log.warn("AI", "本机翻译：等待 session 超时")
+                    waiter.resume(throwing: AppleTranslationError.timedOut)
+                }
+            }
+        } onCancel: {
+            // 调用方取消：立刻放行续体（抛 CancellationError），provider 层据此直接上抛
             Task { @MainActor [weak self] in
-                try? await Task.sleep(nanoseconds: 8_000_000_000)
-                guard let self, let waiter = self.pending else { return }
+                guard let self, self.pendingToken == token, let waiter = self.pending else { return }
                 self.pending = nil
-                Log.warn("AI", "本机翻译：等待 session 超时")
-                waiter.resume(throwing: AppleTranslationError.timedOut)
+                self.pendingToken = nil
+                waiter.resume(throwing: CancellationError())
             }
         }
     }
@@ -194,6 +211,7 @@ final class AppleTranslationBridge {
     fileprivate func deliver(_ session: TranslationSession) {
         guard let waiter = pending else { return }
         pending = nil
+        pendingToken = nil
         waiter.resume(returning: session)
     }
 

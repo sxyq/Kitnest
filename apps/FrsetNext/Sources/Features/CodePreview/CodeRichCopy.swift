@@ -99,7 +99,11 @@ public enum CodeRichCopy {
 
     /// 把富文本逐 run 转成 span（颜色 + 斜体），换行交给 <pre>
     private static func spansHTML(_ attributed: NSAttributedString) -> String {
-        var spans = ""
+        // 2026-11-26 修复（二轮 low）：原来是 `spans += ...` 逐 run 拼接。Swift String
+        // 拼接会重新分配/拷贝，run 数上万（300k 字符代码）时接近 O(n²)，复制富文本卡秒级。
+        // 改为定长数组 + joined。
+        var parts: [String] = []
+        parts.reserveCapacity(max(16, attributed.length / 8))
         let ns = attributed.string as NSString
         attributed.enumerateAttributes(in: NSRange(location: 0, length: attributed.length)) { attrs, range, _ in
             let escaped = escapeHTML(ns.substring(with: range))
@@ -112,12 +116,12 @@ public enum CodeRichCopy {
                 styles.append("font-style:italic")
             }
             if styles.isEmpty {
-                spans += escaped
+                parts.append(escaped)
             } else {
-                spans += "<span style=\"\(styles.joined(separator: ";"))\">\(escaped)</span>"
+                parts.append("<span style=\"\(styles.joined(separator: ";"))\">\(escaped)</span>")
             }
         }
-        return spans
+        return parts.joined()
     }
 
     private static func makeHTML(_ spans: String,

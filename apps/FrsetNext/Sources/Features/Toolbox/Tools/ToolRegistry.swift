@@ -204,19 +204,27 @@ public enum ToolRegistry {
         return output
     }
 
+    /// 埋点写库队列（2026-11-26 修复，二轮 low）：recordInvocation 的调用链是
+    /// ToolRunnerView.run（@MainActor）→ await tool.execute 之后回到主线程，原来在这里
+    /// 同步跑两次 SQLite 写。改为独立串行队列异步写：顺序不变、不阻塞 UI。
+    /// （SQLiteDatabase 内部有 accessLock + FULLMUTEX，跨线程写安全。）
+    private static let recordQueue = DispatchQueue(label: "com.frset.toolbox.record", qos: .utility)
+
     public static func recordInvocation(kind: ToolKind, input: String, output: String) {
         let record = ToolInvocationRecord(kind: kind,
                                           input: String(input.prefix(4000)),
                                           output: String(output.prefix(4000)))
-        do {
-            try DatabaseManager.shared.clipboard.run(
-                "INSERT INTO tool_invocations(id,kind,input,output,created_at) VALUES(?,?,?,?,?);",
-                [.text(record.id), .text(kind.rawValue), .text(record.input),
-                 .text(record.output), .real(record.createdAt.timeIntervalSince1970)])
-        } catch {
-            Log.error("Toolbox", "write tool_invocations failed: \(error.localizedDescription)")
+        recordQueue.async {
+            do {
+                try DatabaseManager.shared.clipboard.run(
+                    "INSERT INTO tool_invocations(id,kind,input,output,created_at) VALUES(?,?,?,?,?);",
+                    [.text(record.id), .text(kind.rawValue), .text(record.input),
+                     .text(record.output), .real(record.createdAt.timeIntervalSince1970)])
+            } catch {
+                Log.error("Toolbox", "write tool_invocations failed: \(error.localizedDescription)")
+            }
+            DatabaseManager.shared.bumpStat("tool_count")
         }
-        DatabaseManager.shared.bumpStat("tool_count")
     }
 
 }

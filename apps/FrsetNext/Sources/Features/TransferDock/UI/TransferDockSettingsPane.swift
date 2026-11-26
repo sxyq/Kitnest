@@ -259,6 +259,17 @@ struct TransferDockSettingsPane: View {
                         }
                         .controlSize(.small)
                         .disabled(!lan.running && !TransferDockPref.isOn(TransferDockPref.lanEnabled))
+                        // 2026-11-26 修复（二轮 low）：LanTransferServer.restart() 原本是死代码
+                        // （改端口保存后只能手动「停止 → 启动」）。给它一个入口：运行中显示，
+                        // 按**已保存**端口重新监听；草稿未保存时提示，避免误以为改了草稿就生效。
+                        if lan.running {
+                            Button("按已保存端口重启") {
+                                lan.restart()
+                                Toast.show("已按保存的端口重启直传服务", icon: "arrow.clockwise")
+                            }
+                            .controlSize(.small)
+                            .help("用设置里已保存的端口重新监听；当前草稿未保存时不生效")
+                        }
                         Spacer(minLength: 0)
                     }
                 }

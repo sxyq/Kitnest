@@ -324,13 +324,45 @@ final class WebResultScraper: NSObject, WKNavigationDelegate {
     static let shared = WebResultScraper()
 
     private var webView: WKWebView?
-    /// didFinish 续体（单飞：同一时间只处理一次加载）
-    private var navContinuation: CheckedContinuation<Void, Never>?
-    private var navTimedOut = false
+
+    /// 一次导航等待的结果（2026-11-26 修复）
+    private enum NavOutcome: Equatable {
+        case finished, failed, timedOut, superseded
+    }
+
+    /// 单槽位导航等待者：id + WKNavigation 身份双重校验。
+    ///
+    /// 2026-11-26 修复（二轮 medium）：旧实现用跨请求共享的 navContinuation + navTimedOut
+    /// 布尔值，8s 定时器不绑定「哪一次抓取」——前一次抓取提前 didFinish 后，它的定时器仍会
+    /// 把后一次抓取的续体提前 resume 并置超时标志；委托也不校验 navigation 身份，超时后旧
+    /// 导航的迟到回调会串到下一次抓取。现在每次等待有唯一 id，定时器与等待者绑定并在完成
+    /// 时取消，回调只在 navigation 身份匹配时 resume。
+    private final class NavWaiter {
+        let id: UInt64
+        var navigation: WKNavigation?
+        let continuation: CheckedContinuation<NavOutcome, Never>
+        let timeout: DispatchWorkItem
+
+        init(id: UInt64,
+             continuation: CheckedContinuation<NavOutcome, Never>,
+             timeout: DispatchWorkItem) {
+            self.id = id
+            self.continuation = continuation
+            self.timeout = timeout
+        }
+    }
+
+    private var navWaiter: NavWaiter?
+    private var navSerial: UInt64 = 0
+
+    /// 抓取代际：最新请求优先，过期请求在检查点早退返回 []
+    private var fetchGeneration: UInt64 = 0
 
     /// 搜索页 URL（DDG 用无 JS 的 html 端点；其余按引擎模板）
     static func searchURL(for engine: SearchEngine, query: String) -> URL? {
-        let encoded = query.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? query
+        // 2026-11-26 修复（二轮 medium）：此处曾用 .urlQueryAllowed（不转义 & = +），
+        // 「Tom & Jerry」在网页结果抓取路径上会把 & 带进 query。改用公共编码入口。
+        let encoded = SearchServiceManager.encodeQuery(query)
         switch engine.id {
         case "duckduckgo": return URL(string: "https://html.duckduckgo.com/html/?q=\(encoded)")
         case "google":     return URL(string: "https://www.google.com/search?q=\(encoded)&num=10&pws=0")
@@ -348,27 +380,50 @@ final class WebResultScraper: NSObject, WKNavigationDelegate {
         return wv
     }
 
+    /// 抓取链尾：仅用于取消在途抓取（2026-11-26 改为「最新请求优先」，不再排队）
+    private var fetchChain: Task<[WebSearchResult], Never>?
+
     /// 抓取某引擎的结果列表（失败/为空返回 []，由 UI 显示回落提示）
+    ///
+    /// 2026-11-26 修复（二轮 low）：旧实现按任务链串行化——新请求无条件 `await previous` 后
+    /// 完整跑一次 performFetch（700ms 余量 + 最长 8s 超时 + 可能兜底），积压请求无上限，
+    /// 被 generation 丢弃的结果也要跑完。改为「最新请求优先」：新请求顶掉在途抓取（唤醒其
+    /// 续体 → superseded，并 stopLoading），旧请求在检查点发现代际过期就直接返回 []。
     func fetchResults(engine: SearchEngine, query: String) async -> [WebSearchResult] {
+        fetchGeneration &+= 1
+        let generation = fetchGeneration
+
+        // 顶掉在途抓取：先唤醒它的续体，避免它白等满 8s 超时
+        if let waiter = navWaiter {
+            navWaiter = nil
+            waiter.timeout.cancel()
+            webView?.stopLoading()
+            waiter.continuation.resume(returning: .superseded)
+        }
+        fetchChain?.cancel()
+
+        let task = Task { [weak self] () -> [WebSearchResult] in
+            guard let self else { return [] }
+            return await self.performFetch(engine: engine, query: query, generation: generation)
+        }
+        fetchChain = task
+        return await task.value
+    }
+
+    private func performFetch(engine: SearchEngine, query: String, generation: UInt64) async -> [WebSearchResult] {
+        guard generation == fetchGeneration, !Task.isCancelled else { return [] }
         guard let url = Self.searchURL(for: engine, query: query) else { return [] }
         let wv = ensureWebView()
 
-        // 等待 didFinish（8s 超时兜底）
-        navTimedOut = false
-        await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
-            self.navContinuation = cont
-            wv.load(URLRequest(url: url, timeoutInterval: 15))
-            DispatchQueue.main.asyncAfter(deadline: .now() + 8) { [weak self] in
-                guard let self, self.navContinuation != nil else { return }
-                self.navTimedOut = true
-                self.navContinuation?.resume()
-                self.navContinuation = nil
-            }
-        }
-        guard !navTimedOut else { return [] }
+        let outcome = await waitForNavigation(on: wv, url: url)
+        // 2026-11-26 修复：只认「本次导航真的 didFinish」且仍是当前代际，超时/失败/被顶掉一律 []。
+        // 旧实现超时只置标志、不 stopLoading，旧导航的迟到回调可能对新页面提前注入 JS。
+        guard outcome == .finished, generation == fetchGeneration, !Task.isCancelled else { return [] }
 
         // JS 渲染余量（百度/Google 动态部分；DDG/Bing 静态页开销极小）
         try? await Task.sleep(nanoseconds: 700_000_000)
+        // 2026-11-26 修复：睡眠期间可能已被新请求顶掉，提前退出省掉一次无用的 JS 注入
+        guard generation == fetchGeneration, !Task.isCancelled else { return [] }
 
         guard let json = try? await wv.evaluateJavaScript(Self.extractionScript) as? String,
               let data = json.data(using: .utf8),
@@ -385,7 +440,39 @@ final class WebResultScraper: NSObject, WKNavigationDelegate {
                                            snippet: snippet.trimmingCharacters(in: .whitespacesAndNewlines)))
             if results.count >= 10 { break }
         }
+        guard generation == fetchGeneration else { return [] }
         return results
+    }
+
+    /// 等待一次导航结束（2026-11-26 修复）：8s 定时器与本次等待者绑定，完成即取消；
+    /// 超时后 stopLoading，避免旧导航的迟到回调串到下一次抓取。
+    private func waitForNavigation(on wv: WKWebView, url: URL) async -> NavOutcome {
+        navSerial &+= 1
+        let id = navSerial
+        return await withCheckedContinuation { (cont: CheckedContinuation<NavOutcome, Never>) in
+            let timeout = DispatchWorkItem { [weak self, weak wv] in
+                guard let self, let waiter = self.navWaiter, waiter.id == id else { return }
+                self.navWaiter = nil
+                wv?.stopLoading()
+                waiter.continuation.resume(returning: .timedOut)
+            }
+            let waiter = NavWaiter(id: id, continuation: cont, timeout: timeout)
+            self.navWaiter = waiter
+            waiter.navigation = wv.load(URLRequest(url: url, timeoutInterval: 15))
+            DispatchQueue.main.asyncAfter(deadline: .now() + 8, execute: timeout)
+        }
+    }
+
+    /// 委托回调统一入口：只有「仍是当前等待者 + navigation 身份匹配」才 resume
+    private func resolveNavigation(_ navigation: WKNavigation?, outcome: NavOutcome) {
+        guard let waiter = navWaiter else { return }
+        if let expected = waiter.navigation {
+            // 已记录本次导航：迟到的旧导航回调（navigation 不同或为 nil）一律忽略
+            guard let navigation, navigation === expected else { return }
+        }
+        navWaiter = nil
+        waiter.timeout.cancel()
+        waiter.continuation.resume(returning: outcome)
     }
 
     /// 引擎通用提取脚本（探测当前页是哪家，用对应选择器；一次注入全兼容）
@@ -432,17 +519,32 @@ final class WebResultScraper: NSObject, WKNavigationDelegate {
 
     nonisolated func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         Task { @MainActor in
-            guard let cont = self.navContinuation else { return }
-            self.navContinuation = nil
-            cont.resume()
+            self.resolveNavigation(navigation, outcome: .finished)
         }
     }
 
     nonisolated func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
         Task { @MainActor in
-            guard let cont = self.navContinuation else { return }
-            self.navContinuation = nil
-            cont.resume()
+            self.resolveNavigation(navigation, outcome: .failed)
+        }
+    }
+
+    /// 2026-11-26 修复：DNS/TLS/离线等失败走 provisional 回调（旧实现没接，只能干等满 8s）
+    nonisolated func webView(_ webView: WKWebView,
+                             didFailProvisionalNavigation navigation: WKNavigation!,
+                             withError error: Error) {
+        Task { @MainActor in
+            self.resolveNavigation(navigation, outcome: .failed)
+        }
+    }
+
+    /// 2026-11-26 修复：WebContent 进程崩溃时导航不会有任何回调，补上避免干等超时
+    nonisolated func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        Task { @MainActor in
+            guard let waiter = self.navWaiter else { return }
+            self.navWaiter = nil
+            waiter.timeout.cancel()
+            waiter.continuation.resume(returning: .failed)
         }
     }
 }
@@ -596,7 +698,11 @@ public struct SearchSectionView: View {
     }
 
     public var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        // 2026-11-26 修复（二轮 low）：剪贴板匹配在一次渲染里被 4 处读取（预览计数 / 分类行 /
+        // 空态判定 / 预览详情），旧实现每次都全量模糊过滤一遍。此处求值一次写入盒子里，
+        // 其余读取直接复用；盒子随视图创建、每次 body 都刷新，不会跨渲染留陈旧值。
+        clipMatchBox.value = filteredClipboardMatches
+        return VStack(alignment: .leading, spacing: 6) {
             searchField
             if isSettingsPreview { previewStatus }
 
@@ -1371,7 +1477,13 @@ public struct SearchSectionView: View {
         }
     }
 
-    private var clipboardMatches: [(item: ClipboardItem, match: FuzzyMatch?)] { filteredClipboardMatches }
+    /// 剪贴板匹配结果的单次求值盒子（2026-11-26 修复，见 body 开头）
+    private final class ClipboardMatchBox {
+        var value: [(item: ClipboardItem, match: FuzzyMatch?)] = []
+    }
+    private let clipMatchBox = ClipboardMatchBox()
+
+    private var clipboardMatches: [(item: ClipboardItem, match: FuzzyMatch?)] { clipMatchBox.value }
 
     /// 二级筛选 chips（文件类型 / 剪贴板类型共用样式）
     private func filterChips<Kind: Identifiable & Equatable>(
@@ -1400,7 +1512,8 @@ public struct SearchSectionView: View {
         // v126（性能审计 F1423）：filteredClipboardMatches 是全量模糊过滤（对每个剪贴板
         // 条目做 FuzzyMatcher），原实现对 count / rows 各求值一次 = 每次渲染两遍全量过滤，
         // 且行内用 matches.first(where:) 反查 match 是 O(n²)。改为一次求值 + 枚举直取。
-        let all = filteredClipboardMatches
+        // 2026-11-26 修复：改用 body 开头算好的结果（本函数在 body 求值链内，盒子已刷新）
+        let all = clipboardMatches
         let matches = Array(all.prefix(maxRows))
         return VStack(alignment: .leading, spacing: 3) {
             if selectedCategory == .all {
@@ -1977,9 +2090,22 @@ public struct SearchSectionView: View {
             // 第一次搜文件时才把索引准备好（有缓存就 mmap，没有就后台建）；
             // 平时不搜文件的话这里一次都不会执行，零常驻。
             if wantsFiles { FileNameIndex.shared.ensureReady() }
-            let files: [FuzzyFileResult] = wantsFiles
-                ? await Task.detached(priority: .utility) { FileSearchSource.search(trimmed, kind: kind) }.value
-                : []
+            // v292：detached 任务**不继承**父任务取消——查询换了词，上一次全扫仍会跑到底
+            // （实测单次 0.3-1.9s，很容易叠两三轮）。这里显式把取消传给它，
+            // FileNameIndex.search 每 8192 条检查一次 Task.isCancelled 就能提前收工。
+            let files: [FuzzyFileResult]
+            if wantsFiles {
+                let job = Task.detached(priority: .utility) {
+                    FileSearchSource.search(trimmed, kind: kind)
+                }
+                files = await withTaskCancellationHandler {
+                    await job.value
+                } onCancel: {
+                    job.cancel()
+                }
+            } else {
+                files = []
+            }
             guard !Task.isCancelled, current == generation else { return }
             await MainActor.run {
                 guard !Task.isCancelled, current == generation else { return }

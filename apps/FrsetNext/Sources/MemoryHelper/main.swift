@@ -26,18 +26,33 @@ private func fail(_ message: String, code: Int32) -> Never {
     exit(code)
 }
 
-private func runTool(_ path: String, _ arguments: [String] = []) -> Bool {
+/// 派生一个外部工具并等它退出（带超时）。
+///
+/// 2026-11-26 修复（F-misc-1#20）：原来的 `waitUntilExit()` 没有超时，而 serve 是
+/// 单线程「accept → 处理 → close」循环：purge 一慢/一卡，整个 helper 就不再接受任何
+/// 请求，客户端只能等 60s 超时后放弃，用户看到的是「优化内存没反应」。改成
+/// SIGTERM → 2s → SIGKILL 的兜底，任何路径都不会无限阻塞。
+private func runTool(_ path: String, _ arguments: [String] = [], timeout: TimeInterval = 20) -> Bool {
     let process = Process()
     process.executableURL = URL(fileURLWithPath: path)
     process.arguments = arguments
     process.standardOutput = FileHandle.nullDevice
     process.standardError = FileHandle.nullDevice
+    let exited = DispatchSemaphore(value: 0)
+    process.terminationHandler = { _ in exited.signal() }
     do {
         try process.run()
     } catch {
         return false
     }
-    process.waitUntilExit()
+    if exited.wait(timeout: .now() + timeout) == .timedOut {
+        process.terminate()                                   // SIGTERM
+        if exited.wait(timeout: .now() + 2) == .timedOut {
+            kill(process.processIdentifier, SIGKILL)
+            _ = exited.wait(timeout: .now() + 2)              // 收尸失败也不再等
+        }
+        return false
+    }
     return process.terminationStatus == 0
 }
 
@@ -97,6 +112,9 @@ private func loadAuthorization() -> ClientAuthorization? {
 }
 
 private func writeAll(_ descriptor: Int32, _ text: String) {
+    // 2026-11-25（二轮复核 medium）：对已关闭的读端 write() 会触发 SIGPIPE，
+    // 默认动作是**终止进程**——任一客户端提前关闭连接就能打死常驻 helper，
+    // 之后内存优化静默失败到下次 KeepAlive。写失败按 EPIPE 处理，不杀进程。
     let bytes = Array(text.utf8)
     var offset = 0
     while offset < bytes.count {
@@ -109,6 +127,8 @@ private func writeAll(_ descriptor: Int32, _ text: String) {
 }
 
 private func serve(socketPath: String) -> Never {
+    // 2026-11-25：忽略 SIGPIPE（见 writeAll）。放在 serve 入口，覆盖所有连接。
+    signal(SIGPIPE, SIG_IGN)
     guard let authorization = loadAuthorization() else {
         fail("missing or invalid client authorization", code: 77)
     }

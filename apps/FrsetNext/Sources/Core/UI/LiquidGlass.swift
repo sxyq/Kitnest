@@ -72,29 +72,11 @@ extension EnvironmentValues {
 //     观感与玻璃一致，代价接近零。同一张卡不再叠「渐变 + 高光 + 描边 + 阴影」四层
 //     （2026-11-24：方向不一致的两道渐变会在卡面中间留下可见分界）。
 //   · 辅助功能「降低透明度」开启时退回不透明底色，保证可读性。
-//   · macOS 26+ 用真·NSGlassEffectView；旧系统回退 NSVisualEffectView（原观感）。
-
-extension LiquidGlass {
-    /// 结构面（窗口 / 悬浮面板 / 浮层）专用。
-    ///
-    /// 2026-11-23：这里**不再跟随「背景材质（纯色卡片/毛玻璃卡片）」**。
-    /// 旧实现把 `material == .solid`（默认值）传给 `solid:`，于是默认状态下
-    /// 主面板窗口玻璃其实是 `.windowBackground` 不透明底，外面再压
-    /// 「通透度底衬 + 磨砂霜感」两层色 —— 用户看到的是一片平灰，不是玻璃
-    /// （设置里却写着“系统玻璃”）。该开关只应决定**内容卡片**用实色还是毛玻璃；
-    /// 结构面永远采样背景（真实玻璃），只有辅助功能「降低透明度」才退化成不透明。
-    static func makeView(frame: NSRect = .zero, cornerRadius: CGFloat,
-                         material: NSVisualEffectView.Material = .hudWindow,
-                         tint: NSColor? = nil, personalization: Personalization = .shared) -> NSView {
-        makeView(frame: frame, cornerRadius: cornerRadius, material: material,
-                 tint: tint, solid: false)
-    }
-
-    static func reapplyStyle(on view: NSView, cornerRadius: CGFloat, tint: NSColor?,
-                             personalization: Personalization = .shared) {
-        reapplyStyle(on: view, cornerRadius: cornerRadius, tint: tint, solid: false)
-    }
-}
+//   · 后端由 `LiquidGlass.resolve` 统一解析（稳定毛玻璃为默认，系统玻璃显式可选）。
+//
+// 2026-11-24 v293：旧的 `extension LiquidGlass { makeView(material:personalization:) }`
+// 已并入枚举本体的同签名入口——它当初只做「solid 恒 false」的转发，现在这件事由
+// `Style.solid` 与 `resolve` 一起负责，保留两份入口只会让调用方分不清该走哪个。
 
 // MARK: - SwiftUI 侧玻璃背景（sheet / 自定义面板）
 
@@ -113,6 +95,10 @@ struct LiquidGlassBackground: NSViewRepresentable {
     /// 「面板顿一下」的主要来源之一。签名没变就不碰材质。
     final class Coordinator {
         var signature: String?
+        /// 2026-11-26（F-misc-1#4）：上次校正过窗口属性的窗口 / 阴影开关。
+        /// SwiftUI 复用或把 NSView 挪到新窗口时用来判断「是否需要重新挂一次」。
+        weak var window: NSWindow?
+        var appliedWindowShadow: Bool?
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -120,6 +106,7 @@ struct LiquidGlassBackground: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
         let view = LiquidGlass.makeView(cornerRadius: cornerRadius,
                                         tint: tint.map { NSColor($0) },
+                                        role: .panel,
                                         personalization: previewPersonalization ?? .shared)
         context.coordinator.signature = signature
         // SwiftUI 的 sheet 窗口默认不透明；不置透明的话玻璃只能采样到纯白底，
@@ -137,6 +124,10 @@ struct LiquidGlassBackground: NSViewRepresentable {
     }
 
     func updateNSView(_ nsView: NSView, context: Context) {
+        // 2026-11-26 修复（F-misc-1#4）：窗口属性（透明底 / 阴影）以前只在 makeNSView
+        // 的 async 块里设一次，SwiftUI 换窗或复用换成新窗口（sheet 重建）后就不跟随。
+        // 这里做一次幂等校正（只在换窗口 / 阴影开关变化时才异步补，不每帧排队）。
+        syncWindowAttributes(nsView, context: context)
         guard context.coordinator.signature != signature else {
             // 圆角/材质没变：只在预览模式下补一次外观（预览是另一个窗口实例）
             if isSettingsPreview { applyPreviewStyle(to: nsView) }
@@ -147,26 +138,61 @@ struct LiquidGlassBackground: NSViewRepresentable {
         LiquidGlass.reapplyStyle(on: nsView,
                                  cornerRadius: cornerRadius,
                                  tint: tint.map { NSColor($0) },
+                                 role: .panel,
                                  personalization: previewPersonalization ?? .shared)
         if isSettingsPreview {
             applyPreviewStyle(to: nsView)
         }
     }
 
-    /// 与玻璃观感相关的全部输入。少一项会漏更新，多一项会白白重采样。
+    /// 幂等地把窗口调到「透明底 + 指定阴影」；预览窗不接管。
+    private func syncWindowAttributes(_ view: NSView, context: Context) {
+        guard !isSettingsPreview else { return }
+        let window = view.window
+        let shadow = appliesWindowShadow
+        guard context.coordinator.window !== window || context.coordinator.appliedWindowShadow != shadow
+        else { return }
+        context.coordinator.window = window
+        context.coordinator.appliedWindowShadow = shadow
+        DispatchQueue.main.async {
+            guard let w = view.window else { return }
+            w.applyOfficialBackground()
+            if w.hasShadow != shadow { w.hasShadow = shadow }
+        }
+    }
+
+    /// 与玻璃观感相关的全部输入。
+    ///
+    /// 2026-11-24 v293：**去掉 glassOpacity / glassBlur**。这两个参数只作用于
+    /// `GlassSurface` 叠在玻璃之上的着色膜（另一个 SwiftUI 层，自己会随
+    /// Personalization 重算），对底层 NSVisualEffectView 的材质没有任何影响。
+    /// 旧签名把她们算进来，于是拖一下「通透度」滑块就重套一次材质 = 整窗重采样，
+    /// 正是「拖滑块时面板顿一下」的来源。
+    /// 新增：外观（深浅）、降透明度、实际后端与焦点策略——这三项才真正决定材质。
+    /// 2026-11-26（F-misc-1#4）：再补 `appliesWindowShadow`——它只在 makeNSView 里被
+    /// 消费过一次，不进签名的话切「窗口阴影」永远不会生效（update 早退分支不碰窗口）。
     private var signature: String {
-        let p = previewPersonalization ?? .shared
-        return "\(Int(cornerRadius * 100))|\(tint?.description ?? "")|"
-            + "\(LiquidGlass.reduceTransparency)|\(p.glassOpacity)|\(p.glassBlur)"
+        let dark = colorScheme == .dark
+        let style = LiquidGlass.Style(role: .panel,
+                                      tint: tint.map { NSColor($0) },
+                                      cornerRadius: cornerRadius,
+                                      focus: .stable)
+        let resolved = LiquidGlass.resolve(style)
+        return "\(resolved.signature)|dark\(dark ? 1 : 0)|preview\(isSettingsPreview ? 1 : 0)"
+            + "|shadow\(appliesWindowShadow ? 1 : 0)"
     }
 
     private func applyPreviewStyle(to view: NSView) {
         view.appearance = NSAppearance(named: colorScheme == .dark ? .darkAqua : .aqua)
-        if let effect = view as? NSVisualEffectView {
-            // 预览窗自身的底是不透明的，仍走「采样」语义：卡片材质只影响卡片，
-            // 结构面保持毛玻璃；降低透明度时退化为不透明底。
+        if let host = view as? GlassHost {
+            // 预览窗：卡片材质只影响卡片，结构面保持采样语义；降透明度退不透明底。
+            var style = host.style
+            style.role = .panel
+            style.solid = LiquidGlass.reduceTransparency
+            host.apply(style)
+        } else if let effect = view as? NSVisualEffectView {
             let solid = LiquidGlass.reduceTransparency
-            effect.material = solid ? .windowBackground : .hudWindow
+            effect.material = solid ? .windowBackground : .popover
             effect.blendingMode = solid ? .withinWindow : .behindWindow
         }
     }
@@ -282,12 +308,16 @@ final class UnifiedGlassBackingView: NSView {
 
     init(cornerRadius: CGFloat, topInset: CGFloat) {
         self.topInset = topInset
-        glassView = LiquidGlass.makeView(cornerRadius: cornerRadius, material: .hudWindow)
+        // 2026-11-24 v293：内容窗统一走 `.window` 角色材质（underWindowBackground），
+        // 不再写死 `.hudWindow`——HUD 材质偏暗，浅色外观下会在乳白着色膜底下发灰。
+        glassView = LiquidGlass.makeView(cornerRadius: cornerRadius, role: .window)
         super.init(frame: .zero)
         wantsLayer = true
         layer?.cornerRadius = cornerRadius
         layer?.cornerCurve = .continuous
-        layer?.masksToBounds = true
+        // 圆角由窗口自身裁切时（radius == 0）不开启 masksToBounds：
+        // 整窗 masksToBounds 会强制一次离屏合成，而这里没有任何需要裁的内容。
+        layer?.masksToBounds = cornerRadius > 0
         tintView.autoresizingMask = [.width, .height]
         addSubview(glassView)
         addSubview(tintView)
@@ -296,6 +326,7 @@ final class UnifiedGlassBackingView: NSView {
     required init?(coder: NSCoder) { fatalError("UnifiedGlassBackingView 不支持 NSCoder") }
 
     func setContent(_ view: NSView) {
+        guard content !== view else { return }
         content?.removeFromSuperview()
         content = view
         view.autoresizingMask = [.width, .height]
@@ -305,11 +336,14 @@ final class UnifiedGlassBackingView: NSView {
 
     override func layout() {
         super.layout()
-        glassView.frame = bounds
-        tintView.frame = bounds
-        tintView.layout()
-        content?.frame = NSRect(x: 0, y: 0, width: bounds.width,
-                                height: bounds.height - topInset)
+        // 只在真变时赋值：AppKit 对 NSVisualEffectView.frame 的重复赋值会作废采样。
+        if glassView.frame != bounds { glassView.frame = bounds }
+        if tintView.frame != bounds { tintView.frame = bounds }
+        if let content {
+            let target = NSRect(x: 0, y: 0, width: bounds.width,
+                                height: max(0, bounds.height - topInset))
+            if content.frame != target { content.frame = target }
+        }
     }
 }
 
@@ -520,15 +554,17 @@ public extension NSWindow {
     ///   - radius: 圆角，默认窗口档 12。带系统标题栏的窗口不要传（会裁掉标题栏圆角）。
     ///   - material: 回退毛玻璃材质，默认 `.hudWindow`（浮层）。
     func adoptGlassSurface(cornerRadius radius: CGFloat = Theme.Radius.window,
-                           material: NSVisualEffectView.Material = .hudWindow) {
+                           material: NSVisualEffectView.Material? = nil) {
         guard let host = contentView else { return }
+        // 幂等：已经是统一玻璃宿主 / 裸毛玻璃 / 系统玻璃时直接返回。
+        if host is GlassHost { return }
         if host is NSVisualEffectView { return }
         if #available(macOS 26.0, *), host is NSGlassEffectView { return }
 
-        let glass = LiquidGlass.makeView(cornerRadius: radius, material: material)
+        let glass = LiquidGlass.makeView(cornerRadius: radius, material: material, role: .panel)
         glass.frame = host.frame
         LiquidGlass.embed(host, in: glass)
-        // v204：毛玻璃之上补「通透度底衬 + 磨砂霜感」，与所有窗口的玻璃配方一致
+        // 毛玻璃之上补「通透度底衬 + 磨砂霜感」，与所有窗口的玻璃配方一致
         let tint = GlassTintOverlayView(frame: glass.bounds)
         tint.autoresizingMask = [.width, .height]
         glass.addSubview(tint, positioned: .below, relativeTo: host)

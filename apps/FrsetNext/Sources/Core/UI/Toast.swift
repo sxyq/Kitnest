@@ -248,9 +248,16 @@ final class MenuBarToastManager: NSObject {
     }
 
     /// 跟随系统明暗（原作读 AppleInterfaceStyle，Aqua/DarkAqua 分支 0x1002bd928/0x1002bd9c4）
+    ///
+    /// 2026-11-25（函数审查 NEEDS_FIX 落实）：旧实现只在 ensureWindow 首建时调用一次，
+    /// 窗口终身复用（guard toastWindow == nil），系统明暗切换后提示卡会停在旧外观。
+    /// 这里补一个系统外观变化通知，窗口存活期内实时跟随。
     private func syncAppearance() {
-        let isDark = UserDefaults.standard.string(forKey: "AppleInterfaceStyle") == "Dark"
-        toastWindow?.appearance = NSAppearance(named: isDark ? .darkAqua : .aqua)
+        // 2026-11-25（二轮复核）：★这里绝不能按系统 AppleInterfaceStyle 强行指定 aqua/darkAqua。
+        // App 内可以选择外观（AppearanceManager 设的是 NSApp.appearance），强制指定会
+        // 让提示卡在「App 深色 + 系统浅色」时被掰成浅色玻璃。窗口 appearance 置 nil
+        // 就是继承 NSApp，App 内外观自动一致。
+        toastWindow?.appearance = nil
     }
 
     /// 按内容自适应宽度

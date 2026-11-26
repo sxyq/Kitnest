@@ -16,6 +16,35 @@ public final class PreviewImageLoader {
 
     public static let shared = PreviewImageLoader()
 
+    /// 同步解码缓存（2026-11-25，函数审查 NEEDS_FIX 落实）：
+    /// 悬停预览的模型构造是同步路径（后台线程执行），走不了 loadImage 的
+    /// 异步缓存/在途去重——同一文件每次 hover 都重新解码。这里给同步路径
+    /// 一个独立 NSCache（上限 8 张，NSCache 自动按内存压力淘汰）。
+    private let syncDecodeCache: NSCache<NSString, NSImage> = {
+        let c = NSCache<NSString, NSImage>()
+        c.countLimit = 8
+        // 2026-11-26 修复：补字节级上限（1600px 图约 10MB/张；原来只限张数，
+        // 最坏常驻约 80MB，且与 loadImage 的 64MB 尺度不一致）。
+        c.totalCostLimit = 96 * 1024 * 1024
+        return c
+    }()
+
+    /// 带缓存的同步解码（可后台线程调用）
+    public func cachedDecode(_ url: URL, maxPixel: CGFloat) -> NSImage? {
+        // 2026-11-26 修复：key 拼入 mtime + 文件大小，同路径图片被改写后不再命中旧图。
+        let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
+        let mtime = (attrs?[.modificationDate] as? Date)?.timeIntervalSince1970 ?? 0
+        let size = (attrs?[.size] as? NSNumber)?.int64Value ?? 0
+        let key = "sync-\(url.path)-\(Int(maxPixel))-\(Int(mtime))-\(size)" as NSString
+        if let hit = syncDecodeCache.object(forKey: key) { return hit }
+        let image = Self.decode(url, maxPixel: maxPixel)
+        if let image {
+            let cost = Int(image.size.width * image.size.height * 4)
+            syncDecodeCache.setObject(image, forKey: key, cost: cost)
+        }
+        return image
+    }
+
     /// 专用解码队列（label 与 qos 沿原作实证）
     private let decoderQueue = DispatchQueue(label: "com.frset.preview-image-decoder",
                                              qos: .userInitiated)

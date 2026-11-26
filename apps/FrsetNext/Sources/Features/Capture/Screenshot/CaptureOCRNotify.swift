@@ -41,6 +41,7 @@ final class OCRNotePanel: NSPanel {
 
     private let label = NSTextField(labelWithString: "")
     private let icon = NSImageView()
+    private var presentToken = 0
     private var hideTask: Task<Void, Never>?
 
     init() {
@@ -97,6 +98,11 @@ final class OCRNotePanel: NSPanel {
         setFrameOrigin(NSPoint(x: visible.midX - size.width / 2, y: visible.maxY - size.height - 16))
 
         hideTask?.cancel()
+        // 2026-11-25（函数审查 NEEDS_FIX 落实）：代次 token。旧实现淡出完成块无条件
+        // orderOut+恢复 alpha，show 只能取消 hideTask、取消不了进行中的淡出动画——
+        // 快速连续识别时旧完成块会把刚淡入的新提示提前藏掉（「闪现即消失」）。
+        presentToken += 1
+        let token = presentToken
         alphaValue = 0
         orderFrontRegardless()
         NSAnimationContext.runAnimationGroup { ctx in
@@ -106,17 +112,19 @@ final class OCRNotePanel: NSPanel {
         hideTask = Task { [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(max(2, seconds)) * 1_000_000_000)
             guard !Task.isCancelled else { return }
-            self?.fadeOut()
+            self?.fadeOut(token: token)
         }
     }
 
-    private func fadeOut() {
-        NSAnimationContext.runAnimationGroup { ctx in
+    private func fadeOut(token: Int) {
+        NSAnimationContext.runAnimationGroup({ ctx in
             ctx.duration = 0.22
             animator().alphaValue = 0
-        } completionHandler: {
+        }, completionHandler: { [weak self] in
+            // 代次变了 = 中间有过新一轮 show，旧完成块不得动窗口
+            guard let self, self.presentToken == token else { return }
             self.orderOut(nil)
             self.alphaValue = 1
-        }
+        })
     }
 }

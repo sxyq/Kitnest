@@ -129,7 +129,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // 锁被别人握着：它活着。看它是不是已经不省人事。
         let holder = lock.holderPid
         let hung = LogArchive.freshHangMarker()
-        if hung, holder > 0 {
+        if hung, holder > 0, lock.isLegitimateHolderForTakeover(holder) {
             Log.warn("App", "实例锁持有者 pid=\(holder) 主线程阻塞 → 强制接管")
             kill(holder, SIGKILL)
             // 等内核释放锁（最多 2s），拿到就继续启动。
@@ -568,9 +568,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 let autoScan = comps?.queryItems?.first(where: { $0.name == "scan" })?.value == "1"
                 let drill = comps?.queryItems?.first(where: { $0.name == "drill" })?.value
                 let openAgent = comps?.queryItems?.first(where: { $0.name == "agent" })?.value == "1"
-                StorageManagerWindowController.shared.show(autoScan: autoScan,
-                                                           drill: drill,
-                                                           openAgent: openAgent)
+                // v292 排障：?action=close 延到下一轮 runloop 再关窗——用于无人值守验证
+                // 「关窗」路径本身（正常关闭走 Esc/红灯，需要键盘或鼠标）。
+                if comps?.queryItems?.first(where: { $0.name == "action" })?.value == "close" {
+                    DispatchQueue.main.async { StorageManagerWindowController.shared.close() }
+                } else {
+                    StorageManagerWindowController.shared.show(autoScan: autoScan,
+                                                               drill: drill,
+                                                               openAgent: openAgent)
+                }
                 // 排障/录屏：?hover=1 让液态地图的悬停巡航重放一次
                 // （只在 probe.storageHover 打开时生效，正常使用没有任何影响）
                 if comps?.queryItems?.first(where: { $0.name == "hover" })?.value == "1" {
@@ -689,7 +695,17 @@ final class InstanceLock {
 
     private var url: URL { AppDirectories.base.appendingPathComponent("instance.lock") }
     /// 心跳文件：mtime 就是「最后一次证明自己活着」的时间。
-    private var heartbeatURL: URL { AppDirectories.base.appendingPathComponent("instance.heartbeat") }
+    ///
+    /// 2026-11-26 修复（F-misc-1#1）：原来全局共用一份 `instance.heartbeat`，谁
+    /// startHeartbeat 谁覆盖 —— 一旦出现第二个实例（无锁接管分支就会造成），它的
+    /// 2s 心跳会持续刷新 mtime，让第三方误判「持锁方还活着」，卡死检测被彻底旁路；
+    /// 反过来旧实例死后残留的 mtime 也可能被新实例当成别人的心跳。改成按 pid 分文件，
+    /// 读的时候只读锁文件里记录的 holderPid 那一份，并比对文件内容里的 pid。
+    private func heartbeatURL(for pid: pid_t) -> URL {
+        AppDirectories.base.appendingPathComponent("instance.heartbeat.\(pid)")
+    }
+    /// 本进程自己的心跳文件
+    private var ownHeartbeatURL: URL { heartbeatURL(for: getpid()) }
     /// 当前二进制的构建戳（用可执行文件的 mtime），用来识别「锁被更旧的构建占着」
     private var buildStamp: String {
         let path = Bundle.main.executableURL?.path ?? CommandLine.arguments[0]
@@ -737,7 +753,17 @@ final class InstanceLock {
         guard age > 3 else { return false }
 
         Log.warn("App", "接管实例锁：持有者 pid=\(holder) \(reason)")
-        if holder > 0 { kill(holder, SIGKILL) }
+        // 2026-11-25（函数审查 NEEDS_FIX 落实）：SIGKILL 只能发给「确认是本应用实例」的
+        // 持有者。锁文件里的 pid 可能被内核复用给无关进程（判据 (a) 正是这种情况）——
+        // 对无辜进程发 SIGKILL 是系统级破坏。此时走既有的无锁接管兜底。
+        if !isLegitimateHolder(holder) || holder <= 0 {
+            Log.warn("App", "持有者 pid=\(holder) 不是本应用实例 → 不发送 SIGKILL，改无锁运行")
+            runningWithoutLock = true
+            writeHolderInPlace()
+            startHeartbeat()
+            return true
+        }
+        kill(holder, SIGKILL)
         usleep(400_000)
         if let handle = tryAcquire() { fd = handle; startHeartbeat(); return true }
 
@@ -747,13 +773,15 @@ final class InstanceLock {
         Log.warn("App", "持有者 pid=\(holder) 无法结束 → 无锁启动（若看到两套菜单栏，请手动退出旧实例）")
         // 无锁也要把「我在跑」写出去：锁文件里的 pid 改成自己、心跳照常跳。
         // 否则下一次点击读到的还是那个已经废掉的 pid，会再起一个实例，越点越多。
-        try? "\(getpid())\nbuild=\(buildStamp)\n".write(to: url, atomically: true, encoding: .utf8)
+        writeHolderInPlace()
         startHeartbeat()
         return true
     }
 
     /// 持锁期间维持心跳：2s 一次写文件，纯后台队列，不碰主线程。
     private func startHeartbeat() {
+        // 清理旧心跳放到后台：acquire() 在启动路径上，不该在主线程做目录遍历。
+        DispatchQueue.global(qos: .utility).async { Self.pruneForeignHeartbeats() }
         touchHeartbeat()
         let timer = DispatchSource.makeTimerSource(queue: DispatchQueue.global(qos: .utility))
         timer.schedule(deadline: .now() + 2, repeating: 2)
@@ -763,13 +791,38 @@ final class InstanceLock {
     }
 
     private func touchHeartbeat() {
-        try? "\(getpid())\n".write(to: heartbeatURL, atomically: true, encoding: .utf8)
+        try? "\(getpid())\n".write(to: ownHeartbeatURL, atomically: true, encoding: .utf8)
+    }
+
+    /// 清掉别人留下的、已经过期的心跳文件（按 pid 分文件后的清理；只碰本 App 目录）。
+    private static func pruneForeignHeartbeats() {
+        let fm = FileManager.default
+        let own = "instance.heartbeat.\(getpid())"
+        guard let items = try? fm.contentsOfDirectory(at: AppDirectories.base,
+                                                      includingPropertiesForKeys: [.contentModificationDateKey])
+        else { return }
+        for item in items where item.lastPathComponent.hasPrefix("instance.heartbeat.")
+            && item.lastPathComponent != own {
+            let mtime = (try? item.resourceValues(forKeys: [.contentModificationDateKey]))?
+                .contentModificationDate
+            if mtime.map({ Date().timeIntervalSince($0) > 60 }) ?? true {
+                try? fm.removeItem(at: item)
+            }
+        }
     }
 
     /// 心跳过期（文件不存在也算）→ 持锁方已经不省人事
+    ///
+    /// 2026-11-26 修复（F-misc-1#1）：只看 `holderPid` 那份心跳，且内容里的 pid 必须与
+    /// 锁文件一致（防 pid 复用 / 文件被别的实例写脏）。holderPid 无效时直接判过期。
     private func heartbeatStale(within seconds: TimeInterval = 12) -> Bool {
+        let holder = holderPid
+        guard holder > 0 else { return true }
+        let heartbeatURL = heartbeatURL(for: holder)
         guard let attrs = try? FileManager.default.attributesOfItem(atPath: heartbeatURL.path),
               let mtime = attrs[.modificationDate] as? Date else { return true }
+        guard let text = try? String(contentsOf: heartbeatURL, encoding: .utf8),
+              pid_t(text.trimmingCharacters(in: .whitespacesAndNewlines)) == holder else { return true }
         return Date().timeIntervalSince(mtime) > seconds
     }
 
@@ -787,6 +840,9 @@ final class InstanceLock {
     ///   · pid 已不存在（进程被回收，锁是别人继承下去的）；
     ///   · pid 是僵尸（`kill(pid,0)` 仍然成功，判据会骗人）；
     ///   · pid 存在但不是本 App（helper / 子进程继承了 fd，或 pid 被系统复用）。
+    /// 启动编排侧复用的判据：pid 必须真的属于同 bundle 的活实例才允许 SIGKILL
+    func isLegitimateHolderForTakeover(_ pid: pid_t) -> Bool { isLegitimateHolder(pid) }
+
     private func isLegitimateHolder(_ holder: pid_t) -> Bool {
         guard holder > 0, holder != getpid() else { return false }
         guard !Self.isZombie(holder) else { return false }
@@ -804,9 +860,18 @@ final class InstanceLock {
 
     /// 一次「打开 + 非阻塞抢锁」。成功返回 fd，失败返回 nil（锁被别人握着）。
     private func tryAcquire() -> Int32? {
-        let handle = Darwin.open(url.path, O_CREAT | O_RDWR | O_CLOEXEC, 0o644)
-        guard handle >= 0 else { return nil }
-        if flock(handle, LOCK_EX | LOCK_NB) == 0 {
+        // 2026-11-25（二轮复核 high）：flock 锁的是 **inode**。若锁文件被 rename 换过
+        // inode（历史上无锁分支用 atomically:true 写过），两边会各锁一个 inode 且都
+        // 认为独占。抢到锁后再核对「路径当前 inode == 我锁住的 inode」，不一致就重开一次。
+        for _ in 0..<2 {
+            let handle = Darwin.open(url.path, O_CREAT | O_RDWR | O_CLOEXEC, 0o644)
+            guard handle >= 0 else { return nil }
+            guard flock(handle, LOCK_EX | LOCK_NB) == 0 else { close(handle); return nil }
+            var mine = stat(), pathStat = stat()
+            if fstat(handle, &mine) == 0, stat(url.path, &pathStat) == 0, mine.st_ino != pathStat.st_ino {
+                close(handle)          // 锁住的是已被替换的旧 inode，重来
+                continue
+            }
             ftruncate(handle, 0)
             // 写两行：pid + 构建戳。构建戳让下一个实例能分辨「占着锁的是不是我之前的旧版本」。
             let text = "\(getpid())\nbuild=\(buildStamp)\n"
@@ -814,13 +879,30 @@ final class InstanceLock {
             fsync(handle)
             return handle
         }
-        close(handle)
         return nil
+    }
+
+    /// 就地覆写锁文件（不换 inode）。
+    /// 2026-11-25（二轮复核 high）：无锁分支原来用 atomically:true 写——那是 rename，
+    /// 会替换 inode，而 flock 跟着 inode 走：旧实例锁着旧 inode、新实例稍后锁住新 inode，
+    /// 「唯一实例」被彻底绕开。必须 ftruncate+write 就地改内容。
+    private func writeHolderInPlace() {
+        let text = "\(getpid())\nbuild=\(buildStamp)\n"
+        let h = Darwin.open(url.path, O_CREAT | O_WRONLY | O_CLOEXEC, 0o644)
+        guard h >= 0 else { return }
+        ftruncate(h, 0)
+        _ = text.withCString { write(h, $0, strlen($0)) }
+        fsync(h)
+        close(h)
     }
 
     /// 读锁文件里记录的持有者 pid（读不到返回 0）。
     private func readHolderPid() -> pid_t {
         guard let text = try? String(contentsOf: url, encoding: .utf8) else { return 0 }
-        return pid_t(text.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 0
+        // 锁文件格式是 "pid\nbuild=<stamp>\n"。2026-11-25（二轮复核）：旧实现把整串
+        // 转 pid_t —— 带第二行必然失败返回 0，于是「持有者是否合法」永远判否，
+        // 接管逻辑退化成「每次启动都无锁运行」，能出现两套菜单栏。只取第一行。
+        let first = text.split(separator: "\n", maxSplits: 1, omittingEmptySubsequences: true).first
+        return pid_t((first.map(String.init) ?? "").trimmingCharacters(in: .whitespaces)) ?? 0
     }
 }

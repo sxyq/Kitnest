@@ -631,11 +631,13 @@ enum AppBootstrap {
         if id.hasPrefix("tool.") { return ToolShortcutStore.binding(for: String(id.dropFirst(5))) }
         let saved = Preferences.shared.value("shortcuts.bindings", default: [String: [UInt32]]())
         if let pair = saved[id] {
-            return pair.isEmpty ? nil : (pair[0], pair[1])
+            // 2026-11-25（二轮复核）：历史导出可能是 1 元素数组，直接 [1] 会启动即崩
+            return pair.count >= 2 ? (pair[0], pair[1]) : nil
         }
         if id == "colorpicker" {
             if let binding = ToolShortcutStore.binding(for: id) { return binding }
-            if let pair = saved["colorPicker"] { return pair.isEmpty ? nil : (pair[0], pair[1]) }
+            if let pair = saved["colorPicker"] { // 2026-11-25（二轮复核）：历史导出可能是 1 元素数组，直接 [1] 会启动即崩
+            return pair.count >= 2 ? (pair[0], pair[1]) : nil }
         }
         guard let entry = defaultHotkeys.first(where: { $0.id == id }), let keyCode = entry.keyCode else { return nil }
         return (keyCode, entry.modifiers)
@@ -648,10 +650,23 @@ enum AppBootstrap {
     private static var screenshotTranslatePending = false
 
     /// 热键触发：激活一次性翻译会话并启动截图 OCR；OCR 文本产出后在事件接线处自动翻译
+    private static var screenshotTranslateReset: DispatchWorkItem?
+
     private static func beginScreenshotTranslate() {
         screenshotTranslateLock.lock()
         screenshotTranslatePending = true
         screenshotTranslateLock.unlock()
+        // 2026-11-25（二轮复核 medium）：取消截图、截图失败、OCR 无文字时这个标志
+        // 会永久挂起 → 下一次任意来源的 OCR（如 ⇧⌥O）被误判成截图翻译会话，
+        // 静默翻译并弹「截图翻译完成」。30 秒后自动复位。
+        let reset = DispatchWorkItem {
+            screenshotTranslateLock.lock()
+            screenshotTranslatePending = false
+            screenshotTranslateLock.unlock()
+        }
+        screenshotTranslateReset?.cancel()
+        screenshotTranslateReset = reset
+        DispatchQueue.main.asyncAfter(deadline: .now() + 30, execute: reset)
         ScreenshotManager.shared.captureAndOCR()
     }
 
@@ -660,6 +675,8 @@ enum AppBootstrap {
         screenshotTranslateLock.lock(); defer { screenshotTranslateLock.unlock() }
         guard screenshotTranslatePending else { return false }
         screenshotTranslatePending = false
+        screenshotTranslateReset?.cancel()
+        screenshotTranslateReset = nil
         return true
     }
 
@@ -699,12 +716,20 @@ enum AppBootstrap {
     typealias SelectionResult = Result<String, SelectionFailure>
 
     /// 2026-11-14：在激活 Kitnest 窗口之前读取真实 AX 选区，绝不读取剪贴板。
-    static func readSelection() -> SelectionResult {
+    /// 命令面板 / 划词路径的同步入口（保持原语义：读当前前台、系统默认 IPC 超时）。
+    static func readSelection() -> SelectionResult { readSelection(in: nil, messagingTimeout: nil) }
+
+    /// v292（2026-11-24 性能第二轮 A2）：选区读取的共享实现。
+    /// - application: 触发时捕获的前台应用（岛展开在后台读取时传入，避免 Kitnest 激活后读错前台）；
+    ///   nil = 沿用原语义读当前前台。
+    /// - messagingTimeout: 单次 AX IPC 等待上限（秒）；nil = 系统默认（命令面板/划词保持原语义）。
+    static func readSelection(in application: NSRunningApplication?,
+                              messagingTimeout: Float?) -> SelectionResult {
         func failure(_ message: String) -> SelectionResult { .failure(SelectionFailure(message: message)) }
         guard AXIsProcessTrusted() else {
             return failure("缺少辅助功能权限：请在系统设置 → 隐私与安全性 → 辅助功能中允许 Kitnest")
         }
-        guard let application = NSWorkspace.shared.frontmostApplication else {
+        guard let application = application ?? NSWorkspace.shared.frontmostApplication else {
             return failure("没有可读取选区的前台应用")
         }
         guard application.processIdentifier != ProcessInfo.processInfo.processIdentifier else {
@@ -720,6 +745,8 @@ enum AppBootstrap {
             }
         }
         let app = AXUIElementCreateApplication(application.processIdentifier)
+        // v292 A2：限制单次 AX 跨进程等待，避免目标应用无响应时整条调用链卡满系统默认超时。
+        if let messagingTimeout { AXUIElementSetMessagingTimeout(app, messagingTimeout) }
         var value: CFTypeRef?
         let focusStatus = AXUIElementCopyAttributeValue(app, kAXFocusedUIElementAttribute as CFString, &value)
         guard focusStatus == .success else { return axFailure(focusStatus) }
@@ -745,8 +772,19 @@ enum AppBootstrap {
         return .success(text)
     }
 
+    /// v292 A2：捕获「触发时」的前台应用（纯本地查询，不触发任何 AX IPC）。
+    /// 岛展开用它把选区读取的上下文固定下来；后台读取时即使 Kitnest 已上屏也不会读错前台。
+    static func frontmostForSelection() -> NSRunningApplication? {
+        guard let app = NSWorkspace.shared.frontmostApplication,
+              app.processIdentifier != ProcessInfo.processInfo.processIdentifier else { return nil }
+        return app
+    }
+
     static func runSelectionAction(_ action: AISummaryAction, selection: SelectionResult? = nil) {
-        let selected = selection ?? readSelection()
+        // 2026-11-25（二轮复核 medium）：热键路径原来走无超时的 readSelection()，
+        // 前台应用 AX 无响应时主线程被卡住、面板/菜单栏一起顿住。v292 已给岛路径
+        // 加了 messagingTimeout，这条路径漏了——补 1.2s 有界超时。
+        let selected = selection ?? readSelection(in: nil, messagingTimeout: 1.2)
         Task { @MainActor in
             switch selected {
             case .failure(let error):

@@ -139,7 +139,7 @@ final class LongScreenshotSession {
     /// 采集进度（主线程回调）：已拼接高度（像素）+ 当前状态（HUD 文案）
     var onProgress: ((Int, LongScreenshotCaptureStatus) -> Void)?
     /// v176：追加新内容后吐一次当前画布（实时预览卡用）
-    var onPreview: ((CGImage) -> Void)?
+    var onPreview: ((CGImage, CGSize) -> Void)?
 
     // MARK: 初始化
 
@@ -154,6 +154,12 @@ final class LongScreenshotSession {
     deinit {
         sampleTimer?.setEventHandler {}
         sampleTimer?.cancel()
+        // 2026-11-25（二轮复核 medium）：deinit 原来只停采样定时器，不停帧流。
+        // SCStream 强引用着 FrameStream（30fps 持续出帧、屏幕录制指示灯常亮），
+        // 会话被丢弃后流还活着。
+        // 2026-11-26 修复：统一走 stopFrameStream()——它对内停流并置空 frameStream，
+        // 避免 deinit 与 .failed 收尾两处各写一遍、漏掉其中一处。
+        stopFrameStream()
     }
 
     // MARK: 生命周期
@@ -270,10 +276,18 @@ final class LongScreenshotSession {
 
     /// 诊断日志节流（同一原因 2s 内只记一条；跨会话也能看到，不刷屏）
     private static var logPacedAt: [String: CFAbsoluteTime] = [:]
+    /// 2026-11-26 修复（二轮 low）：logPacedAt 是 static 可变字典，旧会话收尾前的 tick
+    /// 与新会话的 tick 会跑在不同串行队列上 → 并发写同一个 Dictionary 会触发 Swift
+    /// 运行时的独占访问检查（trap，不只是日志错乱）。这里加一把锁。
+    private static let logPacedLock = NSLock()
     static func logOnce(_ tag: String, _ message: String) {
         let now = CFAbsoluteTimeGetCurrent()
-        if let last = logPacedAt[tag], now - last < 2.0 { return }
-        logPacedAt[tag] = now
+        logPacedLock.lock()
+        let last = logPacedAt[tag]
+        let suppressed = last.map { now - $0 < 2.0 } ?? false
+        if !suppressed { logPacedAt[tag] = now }
+        logPacedLock.unlock()
+        guard !suppressed else { return }
         Log.info("Capture", message)
     }
 
@@ -327,6 +341,10 @@ final class LongScreenshotSession {
             if captureFailures >= 3 {
                 isStopped = true
                 stopSampling()
+                // 2026-11-26 修复（二轮 medium）：失败收尾原来只停采样，帧流还开着——
+                // SCStream 继续 30fps 采集、屏幕录制指示灯常亮直到进程退出。
+                // 与 cancel()/finish() 对齐，这里也停一次。
+                stopFrameStream()
                 state = .failed
                 DispatchQueue.main.async { [weak self] in
                     self?.onFinish?(.failed, self?.stitcher.canvas)
@@ -398,8 +416,9 @@ final class LongScreenshotSession {
         DispatchQueue.main.async { [weak self] in self?.onProgress?(height, finalStatus) }
 
         // v176：只有真的追加了内容才更新预览卡（unchanged/failed 不必重画）
-        if case .appended = outcome, let canvas = stitcher.canvas {
-            DispatchQueue.main.async { [weak self] in self?.onPreview?(canvas) }
+        if case .appended = outcome, let preview = stitcher.preview {
+            let canvasSize = CGSize(width: stitcher.canvasWidth, height: stitcher.canvasHeight)
+            DispatchQueue.main.async { [weak self] in self?.onPreview?(preview, canvasSize) }
         }
 
         if !isStopped { state = .running }

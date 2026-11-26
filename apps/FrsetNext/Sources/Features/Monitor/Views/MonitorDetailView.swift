@@ -159,8 +159,12 @@ private struct MonitorDetailContent: View {
     }
 
     public var body: some View {
+        // 2026-11-26 修复（F-misc-1#17）：availableModules() 每次都新建数组并逐模块读
+        // UserDefaults，而之前在 body 里被求值 3 次以上（空态判断 / 宽栏 ForEach / 选择器
+        // + onChange）。渲染路径不该做 I/O：一次算出、传下去。
+        let modules = availableModules()
         Group {
-        if !pageMode && availableModules().isEmpty {
+        if !pageMode && modules.isEmpty {
             Text("尚未启用监测模块，可在监测设置中开启")
                 .font(.system(size: Theme.TextSize.body)).foregroundStyle(.secondary)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -172,13 +176,13 @@ private struct MonitorDetailContent: View {
                     HStack(alignment: .top, spacing: 16) {
                         ScrollView(.vertical) {
                             VStack(spacing: 6) {
-                                ForEach(availableModules(), id: \.self) { moduleButton($0, wide: true) }
+                                ForEach(modules, id: \.self) { moduleButton($0, wide: true) }
                             }
                         }.islandGlowClip().frame(width: 150)
                         detailColumn
                     }
                 } else {
-                    VStack(spacing: 10) { modulePicker; Divider().opacity(0.5); detailColumn }
+                    VStack(spacing: 10) { modulePicker(modules); Divider().opacity(0.5); detailColumn }
                 }
             }
             .padding(12)
@@ -186,7 +190,7 @@ private struct MonitorDetailContent: View {
         }
         }
         .onAppear { ensureSelection() }
-        .onChange(of: availableModules()) { _ in ensureSelection() }
+        .onChange(of: modules) { _ in ensureSelection() }
     }
 
     private func ensureSelection() {
@@ -254,9 +258,9 @@ private struct MonitorDetailContent: View {
     /// 会生成一层不可见拦截视图，未选中按钮收不到点击（选中项自身有视觉反馈，
     /// 用户感知为「只有当前模块点得动、其他点不动」）。现改为普通条件填充，
     /// 显式 contentShape 保证整个胶囊区域可命中。
-    private var modulePicker: some View {
+    private func modulePicker(_ modules: [MonitorModuleID]) -> some View {
         FlowHStack(spacing: 6, lineSpacing: 6) {
-            ForEach(availableModules(), id: \.self) { module in
+            ForEach(modules, id: \.self) { module in
                 moduleButton(module, wide: false)
             }
         }
@@ -310,25 +314,14 @@ private struct MonitorDetailContent: View {
     /// v88（2026-10-20 用户反馈「监测设置改变后没有生效」）：设置里关掉的模块
     /// 此前只影响状态栏项、不从监测中心过滤——补上开关过滤（当前选中项保留，
     /// 避免选中态突然消失）。
+    ///
+    /// 2026-11-26（F-misc-1#17）：原 switch 的 sensors/battery/gpu 与 default 四个分支
+    /// 行为完全相同（都只是 append），合并成一次 filter。
     private func availableModules() -> [MonitorModuleID] {
         if isSettingsPreview, let order = presentation.order { return order }
-        var modules: [MonitorModuleID] = []
-        for module in presentation.order ?? [.cpu, .gpu, .memory, .network, .disk, .sensors, .power, .battery] {
-            if !MonitorPreferences.isModuleEnabled(module) {
-                continue
-            }
-            switch module {
-            case .sensors:
-                modules.append(module)
-            case .battery:
-                modules.append(module)
-            case .gpu:
-                modules.append(module)
-            default:
-                modules.append(module)
-            }
-        }
-        return modules
+        let order = presentation.order
+            ?? [.cpu, .gpu, .memory, .network, .disk, .sensors, .power, .battery]
+        return order.filter { MonitorPreferences.isModuleEnabled($0) }
     }
 
     // MARK: - 内容分发

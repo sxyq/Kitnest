@@ -10,7 +10,7 @@ import UniformTypeIdentifiers
 // 硬塞一个残缺版只会让用户觉得「还不如录完就用 QuickTime 剪」。
 
 @MainActor
-final class RecordingEditorController {
+final class RecordingEditorController: NSObject, NSWindowDelegate {
 
     static let shared = RecordingEditorController()
 
@@ -26,7 +26,7 @@ final class RecordingEditorController {
     private var muteCheck: NSButton?
     private var exporting = false
 
-    private init() {}
+    private override init() { super.init() }
 
     func open(url: URL) async {
         let asset = AVURLAsset(url: url)
@@ -69,6 +69,8 @@ final class RecordingEditorController {
                               styleMask: [.titled, .closable, .miniaturizable, .resizable],
                               backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
+        // 2026-11-26 修复（low）：窗口复用（不重建），所以必须有 delegate 处理关闭
+        window.delegate = self
         // v272：录屏编辑窗此前完全没走统一外观（裸窗口 + 自绘控件），
         // 是「所有界面都修过但还漏一个」的最后一处。
         window.applyOfficialChrome(lights: .standard)
@@ -150,6 +152,16 @@ final class RecordingEditorController {
         return button
     }
 
+    // MARK: NSWindowDelegate（2026-11-26 修复 low）
+
+    /// 红叉关窗时停播并回到入点：原来只有 open() 换素材才 pause，
+    /// 关窗后 player 继续播放（有音轨时能听到声音）。
+    func windowWillClose(_ notification: Notification) {
+        player?.pause()
+        let start = startSlider?.doubleValue ?? 0
+        player?.seek(to: CMTime(seconds: start, preferredTimescale: 600))
+    }
+
     // MARK: 交互
 
     @objc private func trimChanged() {
@@ -206,52 +218,78 @@ final class RecordingEditorController {
     }
 
     private func performExport(asset: AVAsset, to dest: URL, range: CMTimeRange, mute: Bool) {
-        guard let session = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetHighestQuality) else {
-            Toast.show("导出失败：无法创建导出会话", icon: "exclamationmark.triangle", isWarning: true)
-            return
-        }
+        guard !exporting else { return }
         exporting = true
         let temporary = dest.deletingLastPathComponent()
             .appendingPathComponent("Recording-export-\(UUID().uuidString).mp4")
-        session.outputURL = temporary
-        session.outputFileType = .mp4
-        session.timeRange = range
-        session.shouldOptimizeForNetworkUse = true
-        if mute {
-            let mix = AVMutableAudioMix()
-            mix.inputParameters = asset.tracks(withMediaType: .audio).map {
-                let params = AVMutableAudioMixInputParameters(track: $0)
-                params.setVolume(0, at: .zero)
-                return params
-            }
-            session.audioMix = mix
-        }
         let seconds = range.duration.seconds
         Toast.show(String(format: "开始导出 %.1f 秒…", seconds), icon: "square.and.arrow.up")
-        session.exportAsynchronously { [weak self] in
-            Task { @MainActor in
-                self?.exporting = false
-                switch session.status {
-                case .completed:
-                    do {
-                        if FileManager.default.fileExists(atPath: dest.path) {
-                            _ = try FileManager.default.replaceItemAt(dest, withItemAt: temporary)
-                        } else {
-                            try FileManager.default.moveItem(at: temporary, to: dest)
-                        }
-                        Toast.show("已导出 \(dest.lastPathComponent)", icon: "checkmark.circle.fill")
-                        NSWorkspace.shared.activateFileViewerSelecting([dest])
-                    } catch {
-                        Toast.show("导出保存失败：\(error.localizedDescription)", icon: "exclamationmark.triangle", isWarning: true)
-                    }
-                case .cancelled:
-                    Toast.show("导出已取消", icon: "xmark.circle")
-                default:
-                    let message = session.error?.localizedDescription ?? "未知错误"
-                    Log.error("Recording", "导出失败：\(message)")
-                    Toast.show("导出失败：\(message)", icon: "exclamationmark.triangle", isWarning: true)
+
+        // 2026-11-26 修复（medium）：原实现在主线程同步做 asset.tracks(withMediaType:)（已弃用，
+        // 要等 I/O 解析，大文件直接卡界面）和 AVAssetExportSession 构造。
+        // 现在音轨用 await loadTracks，会话构造挪到后台队列。
+        Task {
+            var audioTracks: [AVAssetTrack] = []
+            if mute {
+                do {
+                    audioTracks = try await asset.loadTracks(withMediaType: .audio)
+                } catch {
+                    Log.warn("Recording", "读取音轨失败，导出继续但不静音：\(error.localizedDescription)")
                 }
-                try? FileManager.default.removeItem(at: temporary)
+            }
+            guard let session = await Self.makeExportSession(asset: asset) else {
+                exporting = false
+                Toast.show("导出失败：无法创建导出会话", icon: "exclamationmark.triangle", isWarning: true)
+                return
+            }
+            session.outputURL = temporary
+            session.outputFileType = .mp4
+            session.timeRange = range
+            session.shouldOptimizeForNetworkUse = true
+            if mute {
+                let mix = AVMutableAudioMix()
+                mix.inputParameters = audioTracks.map {
+                    let params = AVMutableAudioMixInputParameters(track: $0)
+                    params.setVolume(0, at: .zero)
+                    return params
+                }
+                session.audioMix = mix
+            }
+            session.exportAsynchronously { [weak self] in
+                Task { @MainActor in
+                    self?.exporting = false
+                    switch session.status {
+                    case .completed:
+                        do {
+                            if FileManager.default.fileExists(atPath: dest.path) {
+                                _ = try FileManager.default.replaceItemAt(dest, withItemAt: temporary)
+                            } else {
+                                try FileManager.default.moveItem(at: temporary, to: dest)
+                            }
+                            Toast.show("已导出 \(dest.lastPathComponent)", icon: "checkmark.circle.fill")
+                            NSWorkspace.shared.activateFileViewerSelecting([dest])
+                        } catch {
+                            Toast.show("导出保存失败：\(error.localizedDescription)", icon: "exclamationmark.triangle", isWarning: true)
+                        }
+                    case .cancelled:
+                        Toast.show("导出已取消", icon: "xmark.circle")
+                    default:
+                        let message = session.error?.localizedDescription ?? "未知错误"
+                        Log.error("Recording", "导出失败：\(message)")
+                        Toast.show("导出失败：\(message)", icon: "exclamationmark.triangle", isWarning: true)
+                    }
+                    try? FileManager.default.removeItem(at: temporary)
+                }
+            }
+        }
+    }
+
+    /// 导出会话构造是同步的（会读素材属性），放到后台队列，避免主线程卡顿
+    private nonisolated static func makeExportSession(asset: AVAsset) async -> AVAssetExportSession? {
+        await withCheckedContinuation { (continuation: CheckedContinuation<AVAssetExportSession?, Never>) in
+            DispatchQueue.global(qos: .userInitiated).async {
+                continuation.resume(returning: AVAssetExportSession(asset: asset,
+                                                                   presetName: AVAssetExportPresetHighestQuality))
             }
         }
     }

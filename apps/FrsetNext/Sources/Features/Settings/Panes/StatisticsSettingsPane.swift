@@ -273,10 +273,9 @@ struct StatisticsSettingsPane: View {
         let incoming = supplied.filter {
             exportablePreferenceKeySet.contains($0.key) && !($0.value.defaultsValue as! NSObject).isEqual(defaults.object(forKey: $0.key))
         }
-        let startup = StartupSettingsDraft()
-        if case .bool(let enabled)? = incoming[Preferences.Keys.launchAtLogin] { startup.launchAtLogin = enabled }
-        if case .string(let language)? = incoming["language"] { startup.language = language }
-        if startup.isDirty, let reason = startup.save() { return reason }
+        // 2026-11-26 修复：原来 startup.save()（写登录项/语言）排在快捷键解析之前，
+        // 一旦后面的解析/校验返回失败，偏好已被改掉一半却只提示「导入失败」。
+        // 现在先完成全部可失败的解析，再开始落盘。
         var shortcuts: [String: AppBootstrap.ShortcutBinding] = [:]
         let combinations = supplied["shortcuts.bindings"]?.defaultsValue as? [String: [UInt32]]
         let doubleTaps = supplied["shortcuts.doubleTap"]?.defaultsValue as? [String: String]
@@ -299,12 +298,17 @@ struct StatisticsSettingsPane: View {
             }
             if value != AppBootstrap.shortcutSettingsValue(for: entry.id) { shortcuts[entry.id] = value }
         }
-        if !shortcuts.isEmpty, let reason = AppBootstrap.applyShortcuts(shortcuts) { return reason }
+        let startup = StartupSettingsDraft()
+        if case .bool(let enabled)? = incoming[Preferences.Keys.launchAtLogin] { startup.launchAtLogin = enabled }
+        if case .string(let language)? = incoming["language"] { startup.language = language }
+        if startup.isDirty, let reason = startup.save() { return reason }
+        // 此后每一步都可能已部分生效，失败原因统一标注「部分生效」。
+        if !shortcuts.isEmpty, let reason = AppBootstrap.applyShortcuts(shortcuts) { return "部分生效：\(reason)" }
         applyPreferences(incoming.filter {
             !["shortcuts.bindings", "shortcuts.doubleTap", "toolbox.toolShortcuts",
               Preferences.Keys.launchAtLogin, "language"].contains($0.key)
         })
-        guard defaults.synchronize() else { return "配置写入磁盘失败" }
+        guard defaults.synchronize() else { return "部分生效：配置写入磁盘失败" }
         if incoming["showSystemStatus"] != nil || incoming[Preferences.Keys.panelTransferDock] != nil {
             TransferDockPref.migrateLegacyFeatureFlag()
             PanelSegments.migrateLegacyVisibility()
@@ -318,7 +322,7 @@ struct StatisticsSettingsPane: View {
             incoming.keys.contains(where: { $0.hasPrefix("panel.segment.") }) {
             NotificationCenter.default.post(name: Personalization.didChangeNotification, object: nil)
         }
-        if incoming[IslandConfiguration.key] != nil, let reason = IslandController.shared.apply(.load()) { return reason }
+        if incoming[IslandConfiguration.key] != nil, let reason = IslandController.shared.apply(.load()) { return "部分生效：\(reason)" }
         let floating = FloatingClipDeskStore.shared
         if incoming[FloatingClipPrefs.layoutKey] != nil { floating.layout = FloatingClipPrefs.layout }
         if incoming[FloatingClipPrefs.cardSizeKey] != nil { floating.cardSize = FloatingClipPrefs.cardSize }

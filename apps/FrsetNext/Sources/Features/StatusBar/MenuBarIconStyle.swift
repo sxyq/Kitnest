@@ -93,6 +93,10 @@ enum MenuBarIconStyleStore {
         for candidate in MenuBarIconStyle.allCases where candidate != .cat {
             defaults.set(candidate == style, forKey: candidate.preferenceKey)
         }
+        // 2026-11-25（二轮复核 medium）：选小猫时必须同时写小猫键（原注释声称「由部件配置
+        // 保存」，实际没有任何写入点）。四个旧键全 false 时图标回落 .logo，
+        // 用户选了「动态小猫」却看到 Logo。
+        defaults.set(style == .cat, forKey: MenuBarIconStyle.cat.preferenceKey)
         Log.info("StatusBar", "菜单栏图标样式切换为 \(style.rawValue)")
     }
 
@@ -270,7 +274,14 @@ enum MenuBarIconDrawing {
             button.imagePosition = .noImage
             let view = RotatingLayerView(frame: NSRect(x: 0, y: 0, width: 18, height: 18))
             view.setSymbol(MenuBarIconStyle.fan.systemImage)
-            button.addSubview(view)
+            // 2026-11-26 修复：旋转视图若压在拖放代理（StatusItemDropProxy）之上，
+            // 拖文件进来时的高亮底色会被它挡住。有代理时插到代理下方（代理只收拖放/转发点击，
+            // 被盖住不影响功能）。
+            if let proxy = button.subviews.first(where: { $0 is StatusItemDropProxy }) {
+                button.addSubview(view, positioned: .below, relativeTo: proxy)
+            } else {
+                button.addSubview(view)
+            }
             view.translatesAutoresizingMaskIntoConstraints = false
             NSLayoutConstraint.activate([
                 view.centerXAnchor.constraint(equalTo: button.centerXAnchor),
@@ -319,15 +330,28 @@ struct MenuBarIconPreview: NSViewRepresentable {
             coordinator.rotatingView = nil
             view.subviews.forEach { $0.removeFromSuperview() }
             if current == .cat {
-                let content = FSRunCatCreatePreview(dark ?? (colorScheme == .dark))!
-                content.translatesAutoresizingMaskIntoConstraints = false
-                view.addSubview(content)
-                NSLayoutConstraint.activate([
-                    content.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-                    content.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-                    content.widthAnchor.constraint(equalToConstant: 34),
-                    content.heightAnchor.constraint(equalToConstant: 22)
-                ])
+                // 2026-11-25（二轮复核 medium）：跑猫部件工厂可能返回 nil（资源缺失/
+                // 初始化失败），原来强解包会直接崩设置页。降级为一句提示文案。
+                if let content = FSRunCatCreatePreview(dark ?? (colorScheme == .dark)) {
+                    content.translatesAutoresizingMaskIntoConstraints = false
+                    view.addSubview(content)
+                    NSLayoutConstraint.activate([
+                        content.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+                        content.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+                        content.widthAnchor.constraint(equalToConstant: 34),
+                        content.heightAnchor.constraint(equalToConstant: 22)
+                    ])
+                } else {
+                    let label = NSTextField(labelWithString: "小猫图标不可用")
+                    label.font = .systemFont(ofSize: 9)
+                    label.textColor = .secondaryLabelColor
+                    label.translatesAutoresizingMaskIntoConstraints = false
+                    view.addSubview(label)
+                    NSLayoutConstraint.activate([
+                        label.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+                        label.centerYAnchor.constraint(equalTo: view.centerYAnchor)
+                    ])
+                }
             } else {
                 let button = NSButton(frame: view.bounds)
                 button.autoresizingMask = [.width, .height]
@@ -406,7 +430,10 @@ enum SystemCPULoad {
         var user: Double = 0
         var system: Double = 0
         var idle: Double = 0
-        for i in 0..<Int(infoCount) {
+        // 2026-11-25（二轮复核 high）：infoCount 的单位是 integer_t（= 核数×CPU_STATE_MAX(4)），
+        // 不是 processor_cpu_load_info 的个数。按 infoCount 遍历会越界读 4 倍长度（未定义行为）。
+        // 必须按 processorCount 遍历。
+        for i in 0..<Int(processorCount) {
             user += Double(loads[i].cpu_ticks.0)
             system += Double(loads[i].cpu_ticks.1)
             idle += Double(loads[i].cpu_ticks.2)

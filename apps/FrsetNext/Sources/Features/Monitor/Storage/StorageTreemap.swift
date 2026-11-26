@@ -156,6 +156,8 @@ enum StorageHoverResolver {
 }
 
 /// 布局调度器：Voronoi 计算只在后台执行，主线程只读取缓存结果。
+/// 2026-11-25 挂死现场的主线程栈为 body → make → VoronoiTreemap.layout；
+/// 连续缩放只保留最新待算请求，避免旧尺寸的计算任务积压。
 @MainActor
 final class DiskLayoutStore: ObservableObject {
     static let shared = DiskLayoutStore()
@@ -176,13 +178,8 @@ final class DiskLayoutStore: ObservableObject {
 
     private struct Request {
         let key: Key
-        let nodeID: String
         let nodes: [DiskNode]
-        let size: CGSize
         let parentPath: String
-        let freeSpace: Int64?
-        let contentTopRatio: CGFloat
-        let geometry: StorageSurfaceGeometry
     }
 
     private var cache: [Key: [DiskTile]] = [:]
@@ -207,6 +204,10 @@ final class DiskLayoutStore: ObservableObject {
             return hit
         }
         let fallback = lastByNode[node.id] ?? []
+        if activeKey == key {
+            pending = nil
+            return fallback
+        }
 
         var nodes = node.children
         if node.isDirectory, node.ownSize > 0 {
@@ -214,11 +215,9 @@ final class DiskLayoutStore: ObservableObject {
                                   isDirectory: false, size: node.ownSize, ownSize: node.ownSize,
                                   foldedCount: 0, children: [], isAggregate: true))
         }
-        let request = Request(key: key, nodeID: node.id, nodes: nodes, size: size,
-                              parentPath: node.path, freeSpace: freeSpace,
-                              contentTopRatio: contentTopRatio, geometry: geometry)
-        if let activeKey {
-            pending = activeKey == key ? nil : request
+        let request = Request(key: key, nodes: nodes, parentPath: node.path)
+        if activeKey != nil {
+            pending = request
             return fallback
         }
         startLayout(request)
@@ -228,11 +227,11 @@ final class DiskLayoutStore: ObservableObject {
     private func startLayout(_ request: Request) {
         activeKey = request.key
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            let made = DiskVoronoiLayout.make(nodes: request.nodes, in: request.size,
+            let made = DiskVoronoiLayout.make(nodes: request.nodes, in: request.key.size,
                                               parentPath: request.parentPath,
-                                              freeSpace: request.freeSpace,
-                                              contentTopRatio: request.contentTopRatio,
-                                              geometry: request.geometry)
+                                              freeSpace: request.key.freeSpace,
+                                              contentTopRatio: request.key.contentTopRatio,
+                                              geometry: request.key.geometry)
             DispatchQueue.main.async {
                 guard let self else { return }
                 if let next = self.pending, next.key != request.key {
@@ -241,7 +240,7 @@ final class DiskLayoutStore: ObservableObject {
                 } else {
                     self.pending = nil
                     self.activeKey = nil
-                    self.storeLayout(key: request.key, nodeID: request.nodeID, value: made)
+                    self.storeLayout(key: request.key, nodeID: request.key.nodeID, value: made)
                 }
             }
         }

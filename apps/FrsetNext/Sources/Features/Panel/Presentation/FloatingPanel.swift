@@ -53,10 +53,12 @@ public final class FloatingPanel: NSPanel {
         // 改走 makeView：26+ 得到真 NSGlassEffectView，旧系统仍是原观感（无损回退）。
         let glass = LiquidGlass.makeView(
             cornerRadius: radius,
-            material: .hudWindow,
-            // 着色随外观走：浅色外观一点点乳白保证可读；深色外观几乎不加色。
+            // 2026-11-24 v293：角色化材质（panel → .popover）。
+            // 着色仍随外观走：浅色一点点乳白保证可读；深色几乎不加色。
             // 深色壁纸 + 白 tint 会变成一块脏灰，这正是「黑色背景下糊得不好看」的来源。
-            tint: FloatingPanel.glassTint)
+            // 该 tint 在两条后端上语义一致：系统玻璃给 tintColor，毛玻璃给着色层。
+            tint: FloatingPanel.glassTint,
+            role: .panel)
         glass.autoresizingMask = [.width, .height]
         LiquidGlass.embed(hosting, in: glass)
         // v198（用户「没一点动效」根因）：NSGlassEffectView 的层不吃 transform/opacity
@@ -102,25 +104,34 @@ extension FloatingPanel {
 
     /// 「个性化 → 背景材质」即时切换（v166.5：统一走 LiquidGlass，保留 solid 语义）
     ///
-    /// v282（用户：「打开动画非常卡顿不跟手」）：只在材质签名真的变了才重套。
-    /// 这个方法被 `syncPanelFrameToPersonalization()` 在**每次 show 前**调用，
-    /// 而给 NSVisualEffectView 重新赋 material/blendingMode/state 会让 AppKit
-    /// 作废整窗的玻璃采样——哪怕三个值一个都没变。那笔重采样正好压在点击路径上，
-    /// 是首屏「顿一下才出来」的主要来源之一（实测 show 里 128ms 的布局大头在这）。
-    private static var lastMaterialSignature: [ObjectIdentifier: String] = [:]
-
+    /// v282：只在材质签名真的变了才重套；v293：签名下沉到 `GlassHost` 内部
+    /// （解析后的完整签名，含后端/材质/焦点/外观/着色），这里不再维护第二份
+    /// `[ObjectIdentifier: String]` 记账表——那张表既不随窗口释放收缩，
+    /// 又在面板重建后按旧实例判重。
+    ///
+    /// 这个方法被 `syncPanelFrameToPersonalization()` 在**每次 show 前**调用；
+    /// 给 NSVisualEffectView 重复赋 material/blending/state 会让 AppKit 作废整窗
+    /// 玻璃采样（哪怕三个值一个都没变），那笔重采样正好压在点击路径上。
+    /// `GlassHost.apply` 幂等短路，所以这里可以安全地每次 show 都调。
     public func applyPersonalizedMaterial() {
-        guard let content = contentView?.subviews.first ?? contentView else { return }
+        guard let host = Self.glassHost(in: contentView) else { return }
         let personalization = Personalization.shared
-        // 2026-11-23：签名不再包含「背景材质」——该开关只管内容卡片，结构面玻璃
-        // 恒为采样态（见 LiquidGlass.makeView(personalization:)），
-        // 切换卡片材质不该让整窗玻璃重采样一次。
-        let signature = "\(Int(personalization.cornerRadius * 100))|\(LiquidGlass.reduceTransparency)"
-        // 按窗口实例记账：面板重建（prepare 重新造窗）时签名不会误命中旧窗口。
-        if Self.lastMaterialSignature[ObjectIdentifier(self)] == signature { return }
-        Self.lastMaterialSignature[ObjectIdentifier(self)] = signature
-        LiquidGlass.reapplyStyle(on: content,
-                                 cornerRadius: personalization.cornerRadius,
-                                 tint: Self.glassTint)
+        var style = host.style
+        style.cornerRadius = personalization.cornerRadius
+        style.tint = Self.glassTint
+        style.role = .panel
+        // 结构面恒为采样态：该开关只管内容卡片，切换卡片材质不该让整窗重采样。
+        style.solid = false
+        host.apply(style)
+    }
+
+    /// 在视图树里找玻璃宿主（面板可能被 WindowReveal 容器再包一层）。
+    private static func glassHost(in view: NSView?) -> GlassHost? {
+        guard let view else { return nil }
+        if let host = view as? GlassHost { return host }
+        for sub in view.subviews {
+            if let hit = glassHost(in: sub) { return hit }
+        }
+        return nil
     }
 }

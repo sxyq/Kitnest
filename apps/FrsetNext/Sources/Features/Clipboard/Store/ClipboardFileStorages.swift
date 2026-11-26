@@ -125,7 +125,15 @@ public enum ClipboardOCRTextStorage {
         guard ClipboardFileStore.write(data, toRelativePath: relative) else { return }
         // v126（性能审计 F0576）：写入即更新内存索引，避免下次检索退化为全盘重扫
         indexLock.lock()
-        textIndex?[keyName(forRelativePath: relative)] = text.lowercased()
+        if textIndex != nil {
+            let lower = text.lowercased()
+            let bytes = lower.utf8.count
+            // 2026-11-26 修复（low）：增量写入同样受总字节预算约束（见 indexByteBudget）
+            if indexBytes + bytes <= indexByteBudget {
+                textIndex?[keyName(forRelativePath: relative)] = lower
+                indexBytes += bytes
+            }
+        }
         indexLock.unlock()
         // 自动识别可能晚于预览打开；落盘后通知当前图片，不重建窗口或重复识别。
         DispatchQueue.main.async {
@@ -142,7 +150,10 @@ public enum ClipboardOCRTextStorage {
         ClipboardFileStore.remove(relative)
         // v126（性能审计 F0576）：删除同步失效索引条目
         indexLock.lock()
-        textIndex?.removeValue(forKey: keyName(forRelativePath: relative))
+        if let removed = textIndex?.removeValue(forKey: keyName(forRelativePath: relative)) {
+            // 2026-11-26：同步扣减已计入的字节，保证预算记账与索引内容一致
+            indexBytes = max(0, indexBytes - removed.utf8.count)
+        }
         indexLock.unlock()
     }
 
@@ -153,17 +164,26 @@ public enum ClipboardOCRTextStorage {
     // write/remove 增量维护，重启后首次检索重建一次。
     private static let indexLock = NSLock()
     private static var textIndex: [String: String]? = nil
+    /// 索引已计入的小写全文总字节（2026-11-26 修复，low）
+    private static var indexBytes: Int = 0
+    /// OCR 索引常驻内存的字节兜底上限（2026-11-26 修复，low）：
+    /// 原 maxFiles=2000 只约束条目数，单份 OCR 很长（整页文档照片）时仍可驻留数十 MB。
+    /// 按小写全文的 UTF-8 字节累计，超预算的条目不纳入索引（与 maxFiles 是同一种
+    /// 「容量优先、宁可少命中」的取舍），避免内存无界。
+    private static let indexByteBudget = 8 * 1024 * 1024
 
     static func invalidateIndex() {
         indexLock.lock(); defer { indexLock.unlock() }
         textIndex = nil
+        indexBytes = 0
     }
 
-    /// 构建/取用索引（含 maxFiles 上限，语义与原扫描一致）
+    /// 构建/取用索引（含 maxFiles 与总字节双重上限，语义与原扫描一致）
     private static func loadIndex(maxFiles: Int) -> [String: String] {
         indexLock.lock(); defer { indexLock.unlock() }
         if let cached = textIndex { return cached }
         var built: [String: String] = [:]
+        var builtBytes = 0
         let directory = AppDirectories.sub(directoryName)
         if let enumerator = FileManager.default.enumerator(at: directory,
                                                            includingPropertiesForKeys: nil,
@@ -175,10 +195,17 @@ public enum ClipboardOCRTextStorage {
                 if scanned > maxFiles { break }
                 guard let data = try? Data(contentsOf: file),
                       let text = String(data: data, encoding: .utf8) else { continue }
-                built[file.deletingPathExtension().lastPathComponent] = text.lowercased()
+                let lower = text.lowercased()
+                let bytes = lower.utf8.count
+                // 2026-11-26 修复：超预算的单份 OCR 跳过（continue 而非 break——
+                // 枚举顺序不保证，跳过大文件还能收下后面的小文件）
+                if builtBytes + bytes > indexByteBudget { continue }
+                built[file.deletingPathExtension().lastPathComponent] = lower
+                builtBytes += bytes
             }
         }
         textIndex = built
+        indexBytes = builtBytes
         return built
     }
 

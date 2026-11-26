@@ -277,6 +277,28 @@ final class GenieWarp {
         legDuration = 0
     }
 
+    /// 抢占另一窗口上的上一腿：按它自己的收尾语义把窗口落定，并补发 completion。
+    /// 2026-11-26 修复：原来落到 cancel(restoreWindow: false)——展开侧窗口会停在
+    /// alpha=0（可见但全透明），completion 被丢弃且无兜底计时器。
+    private func settlePreviousLeg() {
+        guard running else { return }
+        let win = targetWindow
+        let wasOpening = opening
+        let done = completion
+        cancel(restoreWindow: false)
+        if let win {
+            if wasOpening {
+                // 上一腿是展开：终态就是「完整可见」，不留半透明残影。
+                win.alphaValue = 1
+                if !win.isVisible { win.orderFront(nil) }
+            } else {
+                // 上一腿是收起：终态是退场，alpha 留 0（与 finish 的收起分支一致）。
+                win.orderOut(nil)
+            }
+        }
+        done?()
+    }
+
     // MARK: 主流程
 
     private func play(window: NSWindow, slot: NSRect, opening: Bool,
@@ -286,7 +308,6 @@ final class GenieWarp {
         // 总开关：默认开。缺省也当开。
         if !Self.isEnabled { return false }
         guard let screen = window.screen ?? NSScreen.main else { return false }
-        // 仅在 probe.genieMetrics 开启时采集阶段耗时、进程内存与诊断日志。
         let measure = UserDefaults.standard.bool(forKey: "probe.genieMetrics")
         let tEnter = measure ? CFAbsoluteTimeGetCurrent() : 0
         let memBefore = measure ? Self.footprintMB() : 0
@@ -340,7 +361,12 @@ final class GenieWarp {
         // 快照本身也是一大块位图（720 宽 @2x），单独采一次，别把它的峰值漏掉
         if measure { memPeak = max(memPeak, Self.footprintMB()) }
 
-        if running { cancel(restoreWindow: false) }
+        // 2026-11-26 修复（跨窗口抢占）：主面板与监测独立窗共用这个单例，
+        // 旧写法 `cancel(restoreWindow: false)` 会把被抢占窗口留在 alpha=0
+        //（isVisible 但全透明），且 cancel 里直接把 completion 置 nil ——
+        // show 侧没有硬兜底计时器，completion（finishShow / appearDestination 复位）
+        // 会永久丢失。这里先按上一腿自己的收尾语义落定窗口，再补发它的 completion。
+        if running { settlePreviousLeg() }
 
         // v244：展开时窗口先停在屏幕外（PanelController.parkOrigin），抓到完整快照后
         // 再「先透明、后移回原位」。屏幕上永远不会出现「完整面板 → 收起再重放」。
@@ -378,10 +404,21 @@ final class GenieWarp {
         let menuH = screen.frame.maxY - screen.visibleFrame.maxY
         let clipY = max(max(0, menuH - bbox.minY), viewSlot.maxY)
 
+        // ---- 预算帧数与像素倍率：跟屏幕刷新率走 ----
+        // v243：原来按 60fps 算（0.46s → 27 帧），在 120Hz 屏上等于每帧重复两次，
+        // 漏斗会「一顿一顿」。改为按 screen.maximumFramesPerSecond 采样，上限 48 帧。
+        // 2026-11-26 修复：原 pixelScale 只压倍率且下限钉在 1x，窗口 bbox 稍大时
+        // 1x 就已超预算（1512×982、48 帧 ≈ 285MB，是声明 64MB 的 4 倍多）。
+        // 改为按 bbox 面积先反推帧上限；只有「12 帧 @1x 都放不下」才允许 <1 倍率。
+        let refresh = max(60, min(120, screen.maximumFramesPerSecond))
+        let target = max(12, min(48, Int((self.duration * Double(refresh)).rounded())))
+        let plan = Self.framePlan(bbox: bbox.size, requested: target)
+        let pixelScale = plan.scale
+
         // 快照是 2x（720 宽），而每一帧画布只有 372×1.2≈446 宽：
         // 每帧都对 720 宽的条带做一次降采样，24~28 帧累计就是一百多毫秒。
         // 先整张降到目标尺寸，之后每帧几乎 1:1 取图，预渲染直接砍掉一半。
-        let targetSourceWidth = viewWindow.width * Self.pixelScale(bbox: bbox.size, frames: 1)
+        let targetSourceWidth = viewWindow.width * pixelScale
         let ratio = shot.width > 0 ? targetSourceWidth / CGFloat(shot.width) : 1
         let renderShot = ratio < 0.95 ? (Self.downscale(shot, ratio: ratio) ?? shot) : shot
         let tDownscale = measure ? CFAbsoluteTimeGetCurrent() : 0
@@ -390,13 +427,6 @@ final class GenieWarp {
         let showsMesh = UserDefaults.standard.bool(forKey: "probe.genieMesh")
         let showsGuides = UserDefaults.standard.bool(forKey: "probe.genieDebug")
 
-        // ---- 预算帧数：跟屏幕刷新率走 ----
-        // v243：原来按 60fps 算（0.46s → 27 帧），在 120Hz 屏上等于每帧重复两次，
-        // 漏斗会「一顿一顿」。改为按 screen.maximumFramesPerSecond 采样，上限 48 帧
-        // （pixelScale 会把总内存压在 64MB 内，1x 下 48 帧 ≈ 62MB）。
-        let refresh = max(60, min(120, screen.maximumFramesPerSecond))
-        let target = max(12, min(48, Int((self.duration * Double(refresh)).rounded())))
-        let pixelScale = Self.pixelScale(bbox: bbox.size, frames: target)
         let t0 = measure ? CFAbsoluteTimeGetCurrent() : 0
         var frames: [CGImage] = []
 
@@ -414,10 +444,12 @@ final class GenieWarp {
             // 可用 `defaults write com.frset.frsetnext probe.genieEase -float 2.4` 现调。
             let eased = Self.easeExponent()
             // 逐帧渲染彼此独立（各自一块 bitmap、genieMesh 是纯函数），并行铺满核
-            var slots = [CGImage?](repeating: nil, count: target)
+            // 帧数用 framePlan 的结论（可能因 bbox 面积被下调，保证 64MB 预算成立）
+            let frameCount = plan.frames
+            var slots = [CGImage?](repeating: nil, count: frameCount)
             slots.withUnsafeMutableBufferPointer { buf in
-                DispatchQueue.concurrentPerform(iterations: target) { i in
-                    let t = CGFloat(i) / CGFloat(max(1, target - 1))
+                DispatchQueue.concurrentPerform(iterations: frameCount) { i in
+                    let t = CGFloat(i) / CGFloat(max(1, frameCount - 1))
                     let e = opening ? 1 - pow(1 - t, eased) : pow(t, eased)
                     let p = opening ? (1 - e) : e     // 展开 1→0，收起 0→1
                     buf[i] = GenieFrameRenderer.render(
@@ -500,11 +532,12 @@ final class GenieWarp {
                                   viewSlot.width, viewSlot.height,
                                   abs(viewWindow.maxY - viewSlot.midY),
                                   phases.bendLength, phases.slideLength, phases.settled * 100, self.duration * 1000))
-        if measure { Log.info("Motion", String(format: "genie 预渲染 %d 帧 %.0f×%.0f@%.1fx 耗时 %.0fms（刷新 %dHz，缓动 %.1f）",
+        if measure {
+            Log.info("Motion", String(format: "genie 预渲染 %d 帧 %.0f×%.0f@%.1fx 耗时 %.0fms（刷新 %dHz，缓动 %.1f）",
                                   frames.count, bbox.width, bbox.height, pixelScale, buildMs,
-                                  refresh, Double(Self.easeExponent()))) }
-        let memAfter = measure ? Self.footprintMB() : 0
-        if measure { Log.info("Motion", String(format: "genie 阶段：显示准备 %.0fms · 快照 %.0fms · 落位 %.0fms · 降采样 %.0fms · 帧构建 %.0fms · 首帧上屏 %.0fms · 主线程总计 %.0fms · 动画 %.0fms",
+                                  refresh, Double(Self.easeExponent())))
+            let memAfter = Self.footprintMB()
+            Log.info("Motion", String(format: "genie 阶段：显示准备 %.0fms · 快照 %.0fms · 落位 %.0fms · 降采样 %.0fms · 帧构建 %.0fms · 首帧上屏 %.0fms · 主线程总计 %.0fms · 动画 %.0fms",
                                   (tPrepared - tEnter) * 1000,
                                   (tSnapshot - tPrepared) * 1000,
                                   (tPlaced - tSnapshot) * 1000,
@@ -512,13 +545,13 @@ final class GenieWarp {
                                   buildMs,
                                   (tFirstFrame - tDownscale) * 1000 - buildMs,
                                   (tFirstFrame - tEnter) * 1000,
-                                  self.duration * 1000)) }
-        // 内存三段：基线（进函数）/ 帧序列就绪（峰值）/ 首帧后。帧字节数按位图实算，
-        // 用来核对 phys_footprint 的增量是不是就是这批图。
-        if measure { Log.info("Motion", String(format: "genie 内存：基线 %.1fMB → 帧序列 %.1fMB（%d 帧 %.1fMB）→ 峰值 %.1fMB（+%.1f）· 首帧后 %.1fMB",
+                                  self.duration * 1000))
+            // 内存三段：基线（进函数）/ 帧序列就绪（峰值）/ 首帧后。
+            Log.info("Motion", String(format: "genie 内存：基线 %.1fMB → 帧序列 %.1fMB（%d 帧 %.1fMB）→ 峰值 %.1fMB（+%.1f）· 首帧后 %.1fMB",
                                   memBefore, memAfterFrames, frames.count,
                                   Double(frameBytes) / (1024 * 1024),
-                                  memPeak, memPeak - memBefore, memAfter)) }
+                                  memPeak, memPeak - memBefore, memAfter))
+        }
 
         // 排障：定格模式停在第一张，交给截图核对
         if hold != nil { return true }
@@ -713,13 +746,29 @@ final class GenieWarp {
         return max(1.0, min(4.0, CGFloat(UserDefaults.standard.double(forKey: key))))
     }
 
-    /// 帧数固定后按内存预算挑像素倍率：总占用压在 64MB 以内，最高 2x
-    private static func pixelScale(bbox: CGSize, frames: Int) -> CGFloat {
+    /// 帧预算：按 bbox 面积反推「帧数 × 像素倍率」，把整条帧序列压在 64MB 内。
+    /// 2026-11-26 修复：原实现（pixelScale）只反推倍率且 `max(1, …)` 把下限钉在 1x，
+    /// 窗口 bbox 稍大就必然超预算（1512×982 / 48 帧 ≈ 285MB）。
+    /// 现在的取舍顺序：先降帧数（不低于 12 帧），连 12 帧 @1x 都放不下才降倍率（下限 0.5）。
+    /// - Returns: 实际帧数（≤ requested）与渲染倍率（0.5…1.25）
+    private static func framePlan(bbox: CGSize, requested: Int) -> (frames: Int, scale: CGFloat) {
         let budget: Double = 64 * 1024 * 1024
         let perFrameAt1x = Double(bbox.width * bbox.height * 4)
-        guard perFrameAt1x > 0 else { return 1 }
-        let allowed = sqrt(budget / (perFrameAt1x * Double(max(1, frames))))
-        return max(1, min(1.25, CGFloat(allowed)))
+        let requested = max(1, requested)
+        guard perFrameAt1x > 0 else { return (requested, 1) }
+        let maxFramesAt1x = Int(budget / perFrameAt1x)
+        if maxFramesAt1x >= requested {
+            // 帧数放得下：用剩余预算换分辨率（最高 1.25x）
+            let allowed = sqrt(budget / (perFrameAt1x * Double(requested)))
+            return (requested, CGFloat(min(1.25, max(1, allowed))))
+        }
+        if maxFramesAt1x >= 12 {
+            // 只降帧数，保 1x 分辨率
+            return (maxFramesAt1x, 1)
+        }
+        // 极端大 bbox：12 帧 @1x 仍超预算 → 降倍率（0.5 下限，再低画面已不可用）
+        let allowed = sqrt(budget / (perFrameAt1x * 12))
+        return (12, CGFloat(max(0.5, min(1, allowed))))
     }
 
     /// 整张快照等比降采样（预渲染提速用）

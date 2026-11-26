@@ -26,7 +26,9 @@ public final class AIProviderSettingsViewModel: SettingsEditableDraft {
     private var testTask: Task<Void, Never>?
 
     public var baseURLText: String {
-        get { baseURLs[provider]! }
+        // 2026-11-26 修复（二轮 low）：原来是 baseURLs[provider]! 强解包，依赖「字典恒含四家」
+        // 的不变式；改成 ?? 厂商默认地址，新增厂商或改动构造也不会崩。
+        get { baseURLs[provider] ?? provider.defaultBaseURL.absoluteString }
         set { baseURLs[provider] = newValue; configurationChanged() }
     }
     public var apiKeyText: String {
@@ -77,6 +79,9 @@ public final class AIProviderSettingsViewModel: SettingsEditableDraft {
         }
         if testTask != nil { configurationChanged() }
         let changed = isDirty
+        // 说明（2026-11-26 评估）：每个变更 key 一次 commit = 一次 PBKDF2(10 万轮) + AES 写盘，
+        // 全程在主线程。save() 是 SettingsEditableDraft 的同步 API，改成后台写盘需要动协议与
+        // 全部保存入口（跨文件），本轮不动；失败已逐项上报，单次耗时数十毫秒。
         for (kind, key) in candidateKeys where key.trimmingCharacters(in: .whitespacesAndNewlines) != credentialCoordinator.store.credential(for: kind) {
             if let reason = credentialCoordinator.commit(key, for: kind) { return "\(kind.displayName)：\(reason)" }
             if kind == provider { models = [] }
@@ -92,7 +97,10 @@ public final class AIProviderSettingsViewModel: SettingsEditableDraft {
         }
         if provider != savedProvider { AISettings.providerKind = provider }
         if modelText != savedModel { AISettings.selectedModel = modelText }
-        guard UserDefaults.standard.synchronize() else { return "AI 服务设置写入磁盘失败，调整已保留" }
+        // 2026-11-26 修复（二轮 low）：原来用 `guard UserDefaults.standard.synchronize()` 当
+        // 「写盘失败」判据——该 API 自 macOS 10.13 起基本恒返回 true，错误分支形同虚设。
+        // 凭证写失败已由上面的 commit/remove 逐项返回（来源 CredentialStore.lastWriteError），
+        // 偏好写入本身无返回值可判，故这里不再伪造失败分支。
         candidateKeys = [:]
         removedKeys = []
         savedProvider = provider

@@ -1,4 +1,5 @@
 import AppKit
+import ImageIO
 import SwiftUI
 
 struct BatchImageCompressionRow: Identifiable {
@@ -66,10 +67,21 @@ final class BatchImageCompressionWindowController: NSWindowController, Observabl
 
     func show(urls: [URL], omitted: Int) {
         guard let window else { return }
-        if window.isVisible { window.makeKeyAndOrderFront(nil); return }
+        // 2026-11-26 修复（二轮 low）：压缩完成后（finished=true）窗口仍可见，
+        // 此时再对另一批文件「压缩图片…」，旧实现只 makeKeyAndOrderFront 就 return，
+        // 新 urls/omitted 被静默丢弃，用户看到的还是上一批结果。
+        // 现在：进行中/入中转时保留原批次（不打断），否则整批换新。
+        let wasVisible = window.isVisible
+        if wasVisible {
+            window.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+            guard !isRunning, !isStaging else { return }
+        }
         self.omitted = omitted
+        // 2026-11-26 修复（二轮 low）：原图预览此前是 NSImage(contentsOf:) 全量解码，
+        // 批量几十张大图内存峰值可达数百 MB。改为按最长边 1600 降采样（预览足够）。
         rows = urls.map { url in
-            BatchImageCompressionRow(source: url, original: NSImage(contentsOf: url),
+            BatchImageCompressionRow(source: url, original: Self.previewImage(for: url),
                 originalBytes: ((try? url.resourceValues(forKeys: [.fileSizeKey]))?.fileSize) ?? 0)
         }
         selectedID = rows.first?.id
@@ -82,8 +94,28 @@ final class BatchImageCompressionWindowController: NSWindowController, Observabl
                               width: size.width, height: size.height), display: false)
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+        if wasVisible {
+            // 已可见：不重放淡入，避免闪一下
+            window.alphaValue = 1
+            return
+        }
         window.alphaValue = 0
         NSAnimationContext.runAnimationGroup { context in context.duration = 0.16; window.animator().alphaValue = 1 }
+    }
+
+    /// 行内原图预览：按最长边降采样解码（2026-11-26 修复·二轮 low）
+    private static func previewImage(for url: URL, maxPixel: CGFloat = 1600) -> NSImage? {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
+        let options: [CFString: Any] = [
+            kCGImageSourceCreateThumbnailFromImageAlways: true,
+            kCGImageSourceCreateThumbnailWithTransform: true,
+            kCGImageSourceThumbnailMaxPixelSize: maxPixel,
+            kCGImageSourceShouldCacheImmediately: true,
+        ]
+        guard let cgImage = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else {
+            return NSImage(contentsOf: url)
+        }
+        return NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
     }
 
     func startCompression() {
