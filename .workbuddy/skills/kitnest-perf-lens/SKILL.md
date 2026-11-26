@@ -58,6 +58,8 @@ description: Kitnest 全链路性能/交互/渲染热点诊断；先独立读函
 
 ### 仍准确（保留）
 
+- 标注编辑器仅在「仅文本马赛克」启用时预热 Vision；关闭该功能时不要仅为预热加载文本模型。岛材质关闭 `probe.islandMaterial` 时跳过诊断位置采样，遮罩、采样几何和动画照常更新。
+
 - `GlassSurface/GlassTintOverlayView` 在 `6aafe4eb` 已合并底衬+霜感为单层；**不得重复要求合并**。
 - `tools/func_table.py` 的 `doc_path` 为路径最长前缀映射，0 条未映射 ≠ 文档内容正确；重载只有 file#owner#name 粒度。
 
